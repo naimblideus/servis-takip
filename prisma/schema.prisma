@@ -1,0 +1,436 @@
+// B) Database Schema - Prisma Schema File
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MULTI-TENANT CORE
+// ============================================
+
+model Tenant {
+  id             String   @id @default(cuid())
+  name           String
+  logo           String?  // Logo URL
+  phone          String?
+  address        String?
+  pricePerBlack  Decimal  @default(0.40) @db.Decimal(10, 4) // Siyah sayaç birim fiyat (TL)
+  pricePerColor  Decimal  @default(1.50) @db.Decimal(10, 4) // Renkli sayaç birim fiyat (TL)
+  plan           String   @default("starter") // starter, standard, pro
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  users            User[]
+  customers        Customer[]
+  devices          Device[]
+  serviceTickets   ServiceTicket[]
+  counterReadings  CounterReading[]
+  parts            Part[]
+  ticketParts      TicketPart[]
+  payments         Payment[]
+  attachments      Attachment[]
+  auditLogs        AuditLog[]
+  notificationLogs NotificationLog[]
+  transactions     FinancialTransaction[]
+
+  @@index([isActive])
+}
+
+// ============================================
+// AUTHENTICATION & USERS
+// ============================================
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  email        String
+  passwordHash String
+  name         String
+  role         UserRole @default(TECHNICIAN)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedTickets ServiceTicket[] @relation("AssignedTechnician")
+  createdTickets  ServiceTicket[] @relation("CreatedBy")
+  auditLogs       AuditLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, email])
+  @@index([tenantId, role])
+}
+
+enum UserRole {
+  ADMIN
+  TECHNICIAN
+  FRONT_DESK
+}
+
+// ============================================
+// CUSTOMER MANAGEMENT
+// ============================================
+
+model Customer {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  phone     String
+  address   String?
+  taxNo     String?
+  consent   Boolean  @default(false) // GDPR/KVKK consent
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  devices      Device[]
+  transactions FinancialTransaction[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, phone])
+  @@index([tenantId, name])
+}
+
+// ============================================
+// DEVICE MANAGEMENT
+// ============================================
+
+model Device {
+  id          String    @id @default(cuid())
+  tenantId    String
+  customerId  String
+  brand       String
+  model       String
+  serialNo    String
+  location    String?
+  isRental    Boolean   @default(false) // Kiralık cihaz mı?
+  monthlyRent Decimal   @default(0) @db.Decimal(10, 2) // Aylık kira bedeli
+  publicCode  String    @unique // e.g., DEV-8F3A12 (for QR URL)
+  qrTokenHash String // Hashed version of QR token
+  qrExpiresAt DateTime? // Optional token expiry
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceTickets  ServiceTicket[]
+  counterReadings CounterReading[]
+
+  @@unique([tenantId, serialNo])
+  @@index([tenantId, customerId])
+  @@index([publicCode])
+  @@index([tenantId, serialNo])
+}
+
+// ============================================
+// SERVICE TICKET WORKFLOW
+// ============================================
+
+model ServiceTicket {
+  id              String        @id @default(cuid())
+  tenantId        String
+  deviceId        String
+  customerId      String // Denormalized for quick access
+  ticketNumber    String // Human-readable: TSK-2024-00123
+  status          TicketStatus  @default(NEW)
+  priority        Priority      @default(NORMAL)
+  assignedUserId  String?
+  createdByUserId String
+  issueTemplate   String? // Predefined template name
+  issueText       String
+  actionTemplate  String? // Predefined action template
+  actionText      String?
+  notes           String?
+  totalCost       Decimal       @default(0) @db.Decimal(10, 2)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  statusUpdatedAt DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device          Device           @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  assignedUser    User?            @relation("AssignedTechnician", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdBy       User             @relation("CreatedBy", fields: [createdByUserId], references: [id])
+  counterReadings CounterReading[]
+  ticketParts     TicketPart[]
+  payments        Payment[]
+  attachments     Attachment[]
+  transactions    FinancialTransaction[]
+
+  @@unique([tenantId, ticketNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, deviceId])
+  @@index([tenantId, customerId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, assignedUserId])
+}
+
+enum TicketStatus {
+  NEW
+  IN_SERVICE
+  WAITING_FOR_PART
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+// ============================================
+// COUNTER READINGS
+// ============================================
+
+model CounterReading {
+  id             String   @id @default(cuid())
+  tenantId       String
+  deviceId       String
+  ticketId       String? // Optional: link to service ticket
+  readingDate    DateTime @default(now())
+  counterBlack   Int
+  counterColor   Int
+  deltaBlack     Int      @default(0) // Computed from previous reading
+  deltaColor     Int      @default(0)
+  calculatedCost Decimal  @default(0) @db.Decimal(10, 2) // Hesaplanan ücret
+  monthlyRent    Decimal  @default(0) @db.Decimal(10, 2) // Aylık aidat (dahil edildiyse)
+  createdAt      DateTime @default(now())
+
+  // Relations
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  ticket ServiceTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, deviceId, readingDate(sort: Desc)])
+  @@index([tenantId, ticketId])
+}
+
+// ============================================
+// PARTS INVENTORY
+// ============================================
+
+model Part {
+  id        String   @id @default(cuid())
+  tenantId  String
+  sku       String
+  name      String
+  buyPrice  Decimal  @default(0) @db.Decimal(10, 2)
+  sellPrice Decimal  @default(0) @db.Decimal(10, 2)
+  stockQty  Int      @default(0)
+  minStock  Int      @default(5) // Low stock threshold
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticketParts TicketPart[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, name])
+  @@index([tenantId, stockQty])
+}
+
+model TicketPart {
+  id        String   @id @default(cuid())
+  tenantId  String
+  ticketId  String
+  partId    String
+  quantity  Int      @default(1)
+  unitPrice Decimal  @db.Decimal(10, 2) // Price at time of use
+  createdAt DateTime @default(now())
+
+  // Relations
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  part   Part          @relation(fields: [partId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, ticketId])
+  @@index([tenantId, partId])
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+
+model Payment {
+  id          String        @id @default(cuid())
+  tenantId    String
+  ticketId    String
+  amount      Decimal       @db.Decimal(10, 2)
+  method      PaymentMethod @default(CASH)
+  paymentDate DateTime      @default(now())
+  notes       String?
+  createdAt   DateTime      @default(now())
+
+  // Relations
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ticketId])
+  @@index([tenantId, paymentDate])
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  OTHER
+}
+
+// ============================================
+// ATTACHMENTS (Photos)
+// ============================================
+
+model Attachment {
+  id        String         @id @default(cuid())
+  tenantId  String
+  ticketId  String
+  url       String // S3/Supabase Storage URL
+  type      AttachmentType @default(PHOTO)
+  fileSize  Int? // bytes
+  createdAt DateTime       @default(now())
+
+  // Relations
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ticketId])
+}
+
+enum AttachmentType {
+  PHOTO
+  PDF
+  OTHER
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String?
+  action     String // e.g., "TICKET_CREATED", "STATUS_CHANGED"
+  entityType String // e.g., "ServiceTicket", "Device"
+  entityId   String
+  oldValue   String? // JSON string
+  newValue   String? // JSON string
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+// ============================================
+// NOTIFICATION LOG (Stub for MVP)
+// ============================================
+
+model NotificationLog {
+  id        String              @id @default(cuid())
+  tenantId  String
+  ticketId  String? // Optional link
+  recipient String // Phone number or email
+  message   String
+  channel   NotificationChannel
+  status    NotificationStatus  @default(PENDING)
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime            @default(now())
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+enum NotificationChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// ============================================
+// FINANCIAL TRANSACTIONS (MUHASEBE)
+// ============================================
+
+model FinancialTransaction {
+  id          String              @id @default(cuid())
+  tenantId    String
+  customerId  String?             // Müşteriye bağlıysa
+  ticketId    String?             // Fişe bağlıysa
+  readingId   String?             // Sayaç okumasına bağlıysa
+  type        TransactionType     // INCOME / EXPENSE
+  category    TransactionCategory // SERVİS_ÜCRETİ, SAYAÇ_ÜCRETİ, PARÇA_ALIMI vs.
+  amount      Decimal             @db.Decimal(10, 2)
+  method      PaymentMethod       @default(CASH) // CASH, CARD, TRANSFER, OTHER
+  description String
+  date        DateTime            @default(now())
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  // Relations
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  ticket   ServiceTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, type, date(sort: Desc)])
+  @@index([tenantId, customerId])
+  @@index([tenantId, category])
+  @@index([tenantId, date(sort: Desc)])
+}
+
+enum TransactionType {
+  INCOME    // Gelir
+  EXPENSE   // Gider
+}
+
+enum TransactionCategory {
+  SERVICE_FEE      // Servis ücreti
+  COUNTER_FEE      // Sayaç okuma ücreti (kiralık)
+  RENTAL_FEE       // Aylık kira bedeli
+  PART_PURCHASE    // Parça alımı (gider)
+  PART_SALE        // Parça satışı (gelir)
+  GENERAL_EXPENSE  // Genel gider
+  SALARY           // Maaş
+  RENT             // Kira (işyeri)
+  UTILITY          // Fatura (elektrik, su vs.)
+  OTHER_INCOME     // Diğer gelir
+  OTHER_EXPENSE    // Diğer gider
+}

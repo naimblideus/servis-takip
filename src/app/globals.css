@@ -1,26 +1,118 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #d1d5db;
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.sidebar-link:hover {
+  background-color: #374151;
+  color: #ffffff;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.sidebar-link.active {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+/* ── Genel UI ── */
+.card {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  background-color: #3b82f6;
+  color: white;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-primary:hover {
+  background-color: #2563eb;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  background-color: white;
+  color: #374151;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-decoration: none;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-secondary:hover {
+  background-color: #f9fafb;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.table-header th {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ── Yazdırma ── */
+@media print {
+
+  #app-sidebar,
+  .no-print {
+    display: none !important;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  #app-main {
+    flex: 1 !important;
+    overflow: visible !important;
+  }
+
+  .flex.min-h-screen {
+    display: block !important;
+  }
+
+  body,
+  html {
+    background: white !important;
+  }
+
+  .print-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 15mm !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+  }
 }
