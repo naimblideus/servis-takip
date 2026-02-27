@@ -18,11 +18,14 @@ interface Reading {
 interface DeviceInfo {
     isRental: boolean;
     monthlyRent: number;
+    pricePerBlack: number | null;
+    pricePerColor: number | null;
 }
 
 interface Pricing {
     pricePerBlack: number;
     pricePerColor: number;
+    isDeviceLevel: boolean;
 }
 
 export default function CounterReadingPanel({ deviceId }: { deviceId: string }) {
@@ -89,10 +92,13 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
 
             {/* Birim Fiyat Bilgisi (kiralık cihazlarda) */}
             {device?.isRental && pricing && (
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#eff6ff', borderRadius: '0.5rem', border: '1px solid #bfdbfe', fontSize: '0.8rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#eff6ff', borderRadius: '0.5rem', border: '1px solid #bfdbfe', fontSize: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span>⚫ Siyah: <b>₺{pricing.pricePerBlack.toFixed(2)}</b>/adet</span>
                     <span>🟣 Renkli: <b>₺{pricing.pricePerColor.toFixed(2)}</b>/adet</span>
                     {device.monthlyRent > 0 && <span>📅 Aidat: <b>₺{device.monthlyRent.toFixed(2)}</b>/ay</span>}
+                    {pricing.isDeviceLevel && (
+                        <span style={{ fontSize: '0.7rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '9999px' }}>Özel fiyat</span>
+                    )}
                 </div>
             )}
 

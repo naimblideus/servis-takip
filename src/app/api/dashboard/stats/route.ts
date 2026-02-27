@@ -24,6 +24,7 @@ export async function GET() {
     monthRevenue,
     recentTickets,
     lowStockRaw,
+    rentalDevices,
   ] = await Promise.all([
     prisma.serviceTicket.count({
       where: { tenantId, status: { in: ['NEW', 'IN_SERVICE', 'WAITING_FOR_PART'] } },
@@ -47,10 +48,12 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       take: 5,
     }),
-    // Kritik stok: tüm parçaları çekip JS'de filtrele
     prisma.part.findMany({
       where: { tenantId },
       select: { stockQty: true, minStock: true },
+    }),
+    prisma.device.count({
+      where: { tenantId, isRental: true },
     }),
   ]);
 
@@ -65,6 +68,7 @@ export async function GET() {
     readyForPickup,
     monthRevenue: monthRevenue._sum.totalCost || 0,
     lowStockItems,
+    rentalDevices,
     recentTickets,
   });
 }

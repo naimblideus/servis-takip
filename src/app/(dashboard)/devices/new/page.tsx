@@ -15,6 +15,10 @@ export default function NewDevicePage() {
     serialNo: '',
     location: '',
     counterReading: '',
+    isRental: false,
+    monthlyRent: '',
+    pricePerBlack: '',
+    pricePerColor: '',
   });
 
   useEffect(() => {
@@ -105,6 +109,36 @@ export default function NewDevicePage() {
                 placeholder="0" />
             </div>
           </div>
+        </div>
+
+        {/* Kiralık Cihaz */}
+        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: form.isRental ? '1rem' : 0 }}>
+            <input type="checkbox" checked={form.isRental} onChange={e => setForm({ ...form, isRental: e.target.checked })} />
+            <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>🏷️ Kiralık Cihaz</span>
+          </label>
+          {form.isRental && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', backgroundColor: '#eff6ff', borderRadius: '0.5rem', border: '1px solid #bfdbfe' }}>
+              <div>
+                <label style={lbl}>Aylık Kira Bedeli (₺)</label>
+                <input type="number" step="1" min="0" style={inp} value={form.monthlyRent}
+                  onChange={e => setForm({ ...form, monthlyRent: e.target.value })} placeholder="örn. 500" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={lbl}>⚫ Siyah Birim Fiyat (₺)</label>
+                  <input type="number" step="0.01" min="0" style={inp} value={form.pricePerBlack}
+                    onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} placeholder="Varsayılan" />
+                </div>
+                <div>
+                  <label style={lbl}>🟣 Renkli Birim Fiyat (₺)</label>
+                  <input type="number" step="0.01" min="0" style={inp} value={form.pricePerColor}
+                    onChange={e => setForm({ ...form, pricePerColor: e.target.value })} placeholder="Varsayılan" />
+                </div>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>💡 Boş bırakırsanız Ayarlar&apos;daki varsayılan fiyat kullanılır</p>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '1rem' }}>

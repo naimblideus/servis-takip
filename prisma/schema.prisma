@@ -113,9 +113,11 @@ model Device {
   model       String
   serialNo    String
   location    String?
-  isRental    Boolean   @default(false) // Kiralık cihaz mı?
-  monthlyRent Decimal   @default(0) @db.Decimal(10, 2) // Aylık kira bedeli
-  publicCode  String    @unique // e.g., DEV-8F3A12 (for QR URL)
+  isRental       Boolean   @default(false) // Kiralık cihaz mı?
+  monthlyRent    Decimal   @default(0) @db.Decimal(10, 2) // Aylık kira bedeli
+  pricePerBlack  Decimal?  @db.Decimal(10, 4) // Cihaz bazlı siyah birim fiyat (null=tenant varsayılan)
+  pricePerColor  Decimal?  @db.Decimal(10, 4) // Cihaz bazlı renkli birim fiyat (null=tenant varsayılan)
+  publicCode     String    @unique // e.g., DEV-8F3A12 (for QR URL)
   qrTokenHash String // Hashed version of QR token
   qrExpiresAt DateTime? // Optional token expiry
   createdAt   DateTime  @default(now())

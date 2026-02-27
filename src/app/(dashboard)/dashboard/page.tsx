@@ -11,6 +11,7 @@ interface Stats {
   readyForPickup: number;
   monthRevenue: number;
   lowStockItems: number;
+  rentalDevices: number;
   recentTickets: any[];
 }
 
@@ -41,6 +42,7 @@ export default function DashboardPage() {
     { label: 'Parça Bekliyor', value: stats?.waitingParts || 0, color: 'bg-orange-500', icon: '⏳' },
     { label: 'Teslime Hazır', value: stats?.readyForPickup || 0, color: 'bg-purple-500', icon: '✅' },
     { label: 'Bu Ay Ciro', value: formatCurrency(stats?.monthRevenue || 0), color: 'bg-emerald-500', icon: '💰' },
+    { label: 'Kiralık Cihaz', value: stats?.rentalDevices || 0, color: 'bg-cyan-500', icon: '🏷️' },
     { label: 'Kritik Stok', value: stats?.lowStockItems || 0, color: 'bg-red-500', icon: '⚠️' },
   ];
 

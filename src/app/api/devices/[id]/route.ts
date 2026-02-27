@@ -20,6 +20,15 @@ export async function PATCH(
         if (body.customerId !== undefined) updateData.customerId = body.customerId;
         if (body.isRental !== undefined) updateData.isRental = body.isRental;
         if (body.monthlyRent !== undefined) updateData.monthlyRent = parseFloat(body.monthlyRent) || 0;
+        if (body.pricePerBlack !== undefined) updateData.pricePerBlack = body.pricePerBlack === '' || body.pricePerBlack === null ? null : parseFloat(body.pricePerBlack);
+        if (body.pricePerColor !== undefined) updateData.pricePerColor = body.pricePerColor === '' || body.pricePerColor === null ? null : parseFloat(body.pricePerColor);
+
+        // Kiralık değilse fiyatları sıfırla
+        if (body.isRental === false) {
+            updateData.monthlyRent = 0;
+            updateData.pricePerBlack = null;
+            updateData.pricePerColor = null;
+        }
 
         const device = await prisma.device.update({
             where: { id },

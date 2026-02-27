@@ -12,6 +12,8 @@ interface Props {
         location: string | null;
         isRental?: boolean;
         monthlyRent?: number;
+        pricePerBlack?: number | null;
+        pricePerColor?: number | null;
     };
 }
 
@@ -26,6 +28,8 @@ export default function DeviceEditPanel({ device }: Props) {
         location: device.location || '',
         isRental: device.isRental || false,
         monthlyRent: String(device.monthlyRent || 0),
+        pricePerBlack: device.pricePerBlack != null ? String(device.pricePerBlack) : '',
+        pricePerColor: device.pricePerColor != null ? String(device.pricePerColor) : '',
     });
 
     const save = async () => {
@@ -115,10 +119,25 @@ export default function DeviceEditPanel({ device }: Props) {
                                 <span style={{ fontWeight: '600', fontSize: '0.875rem' }}>Kiralık Cihaz</span>
                             </label>
                             {form.isRental && (
-                                <div>
-                                    <label style={lbl}>Aylık Kira Bedeli (₺)</label>
-                                    <input type="number" step="1" min="0" style={inp} value={form.monthlyRent}
-                                        onChange={e => setForm({ ...form, monthlyRent: e.target.value })} placeholder="örn. 500" />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <div>
+                                        <label style={lbl}>Aylık Kira Bedeli (₺)</label>
+                                        <input type="number" step="1" min="0" style={inp} value={form.monthlyRent}
+                                            onChange={e => setForm({ ...form, monthlyRent: e.target.value })} placeholder="örn. 500" />
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        <div>
+                                            <label style={lbl}>⚫ Siyah Birim Fiyat (₺)</label>
+                                            <input type="number" step="0.01" min="0" style={inp} value={form.pricePerBlack}
+                                                onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} placeholder="Varsayılan" />
+                                        </div>
+                                        <div>
+                                            <label style={lbl}>🟣 Renkli Birim Fiyat (₺)</label>
+                                            <input type="number" step="0.01" min="0" style={inp} value={form.pricePerColor}
+                                                onChange={e => setForm({ ...form, pricePerColor: e.target.value })} placeholder="Varsayılan" />
+                                        </div>
+                                    </div>
+                                    <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: 0 }}>💡 Boş bırakırsanız Ayarlar&apos;daki varsayılan fiyat kullanılır</p>
                                 </div>
                             )}
                         </div>

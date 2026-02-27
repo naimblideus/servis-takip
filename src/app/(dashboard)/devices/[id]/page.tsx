@@ -37,25 +37,43 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
 
   if (!device) redirect('/devices');
 
+  // Tenant varsayılan fiyatlarını al
+  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const tenant = user ? await prisma.tenant.findUnique({
+    where: { id: user.tenantId },
+    select: { pricePerBlack: true, pricePerColor: true },
+  }) : null;
+
+  const effectiveBlackPrice = (device as any).pricePerBlack !== null ? Number((device as any).pricePerBlack) : Number(tenant?.pricePerBlack ?? 0);
+  const effectiveColorPrice = (device as any).pricePerColor !== null ? Number((device as any).pricePerColor) : Number(tenant?.pricePerColor ?? 0);
+
   return (
     <div style={{ padding: '2rem', maxWidth: '900px' }}>
       {/* Başlık */}
       <div style={{ marginBottom: '1.5rem' }}>
         <Link href="/devices" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Cihazlar</Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '0.25rem' }}>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{device.brand} {device.model}</h1>
-            <p style={{ color: '#6b7280' }}>Seri No: {device.serialNo}</p>
+            {device.isRental && (
+              <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.25rem 0.75rem', borderRadius: '9999px' }}>KİRALIK</span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <DeviceQRCode publicCode={device.publicCode} deviceName={`${device.brand} ${device.model}`} />
-            <DeviceEditPanel device={{ id: device.id, brand: device.brand, model: device.model, serialNo: device.serialNo, location: device.location, isRental: (device as any).isRental, monthlyRent: Number((device as any).monthlyRent || 0) }} />
+            <DeviceEditPanel device={{
+              id: device.id, brand: device.brand, model: device.model, serialNo: device.serialNo,
+              location: device.location, isRental: device.isRental, monthlyRent: Number(device.monthlyRent || 0),
+              pricePerBlack: (device as any).pricePerBlack !== null ? Number((device as any).pricePerBlack) : null,
+              pricePerColor: (device as any).pricePerColor !== null ? Number((device as any).pricePerColor) : null,
+            }} />
           </div>
         </div>
+        <p style={{ color: '#6b7280' }}>Seri No: {device.serialNo}</p>
       </div>
 
-      {/* Cihaz Bilgileri */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+      {/* Cihaz + Müşteri + Kiralık Bilgisi */}
+      <div style={{ display: 'grid', gridTemplateColumns: device.isRental ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
           <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Cihaz Bilgileri</h2>
           {[
@@ -90,6 +108,28 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             </Link>
           </div>
         </div>
+
+        {/* Kiralık Bilgi Kartı */}
+        {device.isRental && (
+          <div style={{ backgroundColor: '#eff6ff', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', border: '1px solid #bfdbfe' }}>
+            <h2 style={{ fontWeight: '600', marginBottom: '1rem', color: '#1e40af' }}>🏷️ Kira Bilgileri</h2>
+            {[
+              ['Aylık Kira', `₺${Number(device.monthlyRent).toFixed(2)}`],
+              ['⚫ Siyah Birim', `₺${effectiveBlackPrice.toFixed(2)}`],
+              ['🟣 Renkli Birim', `₺${effectiveColorPrice.toFixed(2)}`],
+            ].map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #bfdbfe', fontSize: '0.875rem' }}>
+                <span style={{ color: '#1e40af' }}>{k}</span>
+                <span style={{ fontWeight: '600', color: '#1e3a8a' }}>{v}</span>
+              </div>
+            ))}
+            {((device as any).pricePerBlack !== null || (device as any).pricePerColor !== null) && (
+              <div style={{ marginTop: '0.75rem', fontSize: '0.7rem', color: '#92400e', backgroundColor: '#fef3c7', padding: '0.3rem 0.5rem', borderRadius: '0.25rem', textAlign: 'center' }}>
+                Özel fiyat uygulanıyor
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Servis Fişleri */}

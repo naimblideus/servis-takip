@@ -130,8 +130,8 @@ export default function SettingsPage() {
 
             {/* Sayaç Birim Fiyatları */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Sayaç Birim Fiyatları</h2>
-                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>Kiralık cihazlarda sayaç farkı × birim fiyat ile ücret hesaplanır</p>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Varsayılan Sayaç Birim Fiyatları</h2>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>Cihaz bazında özel fiyat belirtilmemişse bu varsayılan fiyatlar kullanılır. Her cihaza özel fiyat vermek için cihaz düzenleme ekranını kullanın.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                         <label style={lbl}>⚫ Siyah Sayaç (TL/adet)</label>

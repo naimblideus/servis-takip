@@ -37,13 +37,17 @@ export async function POST(
         const deltaBlack = prev ? Math.max(0, counterBlack - prev.counterBlack) : 0;
         const deltaColor = prev ? Math.max(0, counterColor - prev.counterColor) : 0;
 
+        // Birim fiyat: cihaz bazlı varsa onu kullan, yoksa tenant varsayılanı
+        const effectiveBlackPrice = device.pricePerBlack !== null ? Number(device.pricePerBlack) : Number(tenant.pricePerBlack);
+        const effectiveColorPrice = device.pricePerColor !== null ? Number(device.pricePerColor) : Number(tenant.pricePerColor);
+
         // Kiralık cihaz ise ücret hesapla
         let calculatedCost = 0;
         let monthlyRentAmount = 0;
 
         if (device.isRental) {
-            const blackCost = deltaBlack * Number(tenant.pricePerBlack);
-            const colorCost = deltaColor * Number(tenant.pricePerColor);
+            const blackCost = deltaBlack * effectiveBlackPrice;
+            const colorCost = deltaColor * effectiveColorPrice;
             calculatedCost = blackCost + colorCost;
 
             if (includeMonthlyRent) {
@@ -68,8 +72,8 @@ export async function POST(
 
         // Kiralık cihazsa otomatik muhasebe kaydı oluştur
         if (device.isRental && calculatedCost > 0) {
-            const blackCost = deltaBlack * Number(tenant.pricePerBlack);
-            const colorCost = deltaColor * Number(tenant.pricePerColor);
+            const blackCost = deltaBlack * effectiveBlackPrice;
+            const colorCost = deltaColor * effectiveColorPrice;
             const counterFee = blackCost + colorCost;
 
             // Sayaç ücreti gelir kaydı
@@ -109,14 +113,13 @@ export async function POST(
 
         return NextResponse.json({
             ...reading,
-            // İstemciye ek bilgi gönder
             breakdown: device.isRental ? {
                 deltaBlack,
                 deltaColor,
-                pricePerBlack: Number(tenant.pricePerBlack),
-                pricePerColor: Number(tenant.pricePerColor),
-                blackCost: deltaBlack * Number(tenant.pricePerBlack),
-                colorCost: deltaColor * Number(tenant.pricePerColor),
+                pricePerBlack: effectiveBlackPrice,
+                pricePerColor: effectiveColorPrice,
+                blackCost: deltaBlack * effectiveBlackPrice,
+                colorCost: deltaColor * effectiveColorPrice,
                 monthlyRent: monthlyRentAmount,
                 total: calculatedCost,
             } : null,
@@ -152,15 +155,24 @@ export async function GET(
         include: { ticket: { select: { ticketNumber: true } } },
     });
 
+    // Effective pricing: device-level overrides tenant-level
+    const effectiveBlackPrice = device?.pricePerBlack !== null && device?.pricePerBlack !== undefined
+        ? Number(device.pricePerBlack) : Number(tenant?.pricePerBlack ?? 0);
+    const effectiveColorPrice = device?.pricePerColor !== null && device?.pricePerColor !== undefined
+        ? Number(device.pricePerColor) : Number(tenant?.pricePerColor ?? 0);
+
     return NextResponse.json({
         readings,
         device: device ? {
             isRental: device.isRental,
             monthlyRent: Number(device.monthlyRent),
+            pricePerBlack: device.pricePerBlack !== null ? Number(device.pricePerBlack) : null,
+            pricePerColor: device.pricePerColor !== null ? Number(device.pricePerColor) : null,
         } : null,
-        pricing: tenant ? {
-            pricePerBlack: Number(tenant.pricePerBlack),
-            pricePerColor: Number(tenant.pricePerColor),
-        } : null,
+        pricing: {
+            pricePerBlack: effectiveBlackPrice,
+            pricePerColor: effectiveColorPrice,
+            isDeviceLevel: device?.pricePerBlack !== null || device?.pricePerColor !== null,
+        },
     });
 }
