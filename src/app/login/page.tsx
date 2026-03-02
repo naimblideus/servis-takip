@@ -53,7 +53,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
-              placeholder="admin@demo.com"
+              placeholder="ornek@sirket.com"
               required
             />
           </div>
@@ -85,12 +85,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo bilgileri */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 font-medium mb-2">Demo Giriş Bilgileri:</p>
-          <p className="text-xs text-gray-600">Admin: admin@demo.com / admin123</p>
-          <p className="text-xs text-gray-600">Teknisyen: teknisyen@demo.com / tech123</p>
-        </div>
+
       </div>
     </div>
   );

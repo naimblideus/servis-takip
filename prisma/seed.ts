@@ -15,7 +15,7 @@ async function main() {
 
   console.log('✅ Tenant created:', tenant.name);
 
-  const adminPassword = await bcrypt.hash('admin123', 10);
+  const adminPassword = await bcrypt.hash('admin170305', 10);
   const admin = await prisma.user.create({
     data: {
       tenantId: tenant.id,
@@ -28,7 +28,7 @@ async function main() {
 
   console.log('✅ Admin user created:', admin.email);
 
-  const techPassword = await bcrypt.hash('tech123', 10);
+  const techPassword = await bcrypt.hash('tech170305', 10);
   const technician = await prisma.user.create({
     data: {
       tenantId: tenant.id,
@@ -174,8 +174,8 @@ async function main() {
 
   console.log('🎉 Seeding completed!');
   console.log('\n📝 Demo Credentials:');
-  console.log('Admin: admin@demo.com / admin123');
-  console.log('Technician: teknisyen@demo.com / tech123');
+  console.log('Admin: admin@demo.com / admin170305');
+  console.log('Technician: teknisyen@demo.com / tech170305');
   console.log('\n📝 Import Test Credentials:');
   console.log('Import Test: test@import.com / test123');
 }

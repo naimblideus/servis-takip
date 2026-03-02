@@ -2,29 +2,42 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-async function generateTicketNumber(tenantId: string) {
-  // TSK-XXX formatındaki en yüksek numarayı bul
-  const lastTicket = await prisma.serviceTicket.findFirst({
+async function generateTicketNumber(tenantId: string): Promise<string> {
+  // Tüm TSK- format biletlerini çekip en yüksek numarayı bul (createdAt ile)
+  const allTickets = await prisma.serviceTicket.findMany({
     where: {
       tenantId,
       ticketNumber: { startsWith: 'TSK-' },
     },
-    orderBy: { ticketNumber: 'desc' },
+    select: { ticketNumber: true },
   });
 
-  let nextNum = 1;
-  if (lastTicket) {
-    const match = lastTicket.ticketNumber.match(/TSK-(\d+)/);
-    if (match) nextNum = parseInt(match[1]) + 1;
+  // Numerik değerleri parse et ve maksimumu bul
+  let maxNum = 0;
+  for (const t of allTickets) {
+    const match = t.ticketNumber.match(/^TSK-(\d+)$/);
+    if (match) {
+      const n = parseInt(match[1]);
+      if (n > maxNum) maxNum = n;
+    }
   }
 
-  // Toplam fiş sayısından da büyük olmasını garanti et
-  const totalCount = await prisma.serviceTicket.count({
-    where: { tenantId },
-  });
-  if (totalCount >= nextNum) nextNum = totalCount + 1;
+  let nextNum = maxNum + 1;
+  if (nextNum < 1) nextNum = 1;
 
-  return `TSK-${nextNum}`;
+  // Collision retry: eğer bu numara zaten alınmışsa bir sonrakini dene
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = `TSK-${nextNum}`;
+    const exists = await prisma.serviceTicket.findFirst({
+      where: { tenantId, ticketNumber: candidate },
+      select: { id: true },
+    });
+    if (!exists) return candidate;
+    nextNum++;
+  }
+
+  // Fallback: timestamp bazlı benzersiz numara
+  return `TSK-${Date.now()}`;
 }
 
 export async function GET() {
