@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { PaymentStatus } from '@prisma/client';
 
 // GET /api/accounting/debtors/payments?customerId=xxx — Müşterinin ödeme geçmişi
 export async function GET(req: Request) {
@@ -93,7 +94,7 @@ export async function DELETE(req: Request) {
 
         await prisma.serviceTicket.update({
             where: { id: payment.ticketId },
-            data: { paymentStatus: newStatus },
+            data: { paymentStatus: newStatus as PaymentStatus },
         });
 
         // İlgili muhasebe kaydını da sil (varsa)

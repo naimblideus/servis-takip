@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { PaymentStatus } from '@prisma/client';
 
 export async function GET(
     req: Request,
@@ -66,7 +67,7 @@ export async function POST(
             }),
             prisma.serviceTicket.update({
                 where: { id: ticketId },
-                data: { paymentStatus: newPaymentStatus as any },
+                data: { paymentStatus: newPaymentStatus as PaymentStatus },
             }),
         ]);
 

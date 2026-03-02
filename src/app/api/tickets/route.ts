@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Priority } from '@prisma/client';
 
 async function generateTicketNumber(tenantId: string): Promise<string> {
   // Tüm TSK- format biletlerini çekip en yüksek numarayı bul (createdAt ile)
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
         assignedUserId: body.assignedUserId || null,
         createdByUserId: user.id,
         totalCost: body.totalCost ? parseFloat(body.totalCost) : 0,
-        priority: body.priority || 'NORMAL',
+        priority: (body.priority || 'NORMAL') as Priority,
       },
     });
 

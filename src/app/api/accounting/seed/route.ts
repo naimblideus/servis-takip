@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { TransactionType, TransactionCategory, PaymentMethod } from '@prisma/client';
 
 // POST /api/accounting/seed — Muhasebe test verileri ekle
 export async function POST() {
@@ -73,10 +74,10 @@ export async function POST() {
             await prisma.financialTransaction.create({
                 data: {
                     tenantId,
-                    type: item.type as any,
-                    category: item.category as any,
+                    type: item.type as TransactionType,
+                    category: item.category as TransactionCategory,
                     amount: item.amount,
-                    method: item.method as any,
+                    method: item.method as PaymentMethod,
                     description: item.description,
                     customerId: item.customerId,
                     date: item.date,

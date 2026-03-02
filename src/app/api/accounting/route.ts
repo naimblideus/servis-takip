@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { TransactionType, TransactionCategory, PaymentMethod } from '@prisma/client';
 
 // Gelir/Gider listeleme + istatistikler
 export async function GET(req: Request) {
@@ -108,10 +109,10 @@ export async function POST(req: Request) {
         const tx = await prisma.financialTransaction.create({
             data: {
                 tenantId: user.tenantId,
-                type,
-                category,
+                type: type as TransactionType,
+                category: category as TransactionCategory,
                 amount: parseFloat(amount),
-                method: method || 'CASH',
+                method: (method || 'CASH') as PaymentMethod,
                 description,
                 customerId: customerId || null,
                 ticketId: ticketId || null,

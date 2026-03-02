@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { PaymentStatus } from '@prisma/client';
+import { PaymentStatus, PaymentMethod, TransactionType, TransactionCategory } from '@prisma/client';
 
 // POST /api/accounting/debtors/pay — Borçluya ödeme al (tekli veya çoklu fiş)
 export async function POST(req: NextRequest) {
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
                 tenantId: user.tenantId,
                 ticketId,
                 amount: payAmount,
-                method: method || 'CASH',
+                method: (method || 'CASH') as PaymentMethod,
                 paymentDate: new Date(),
                 notes: notes || null,
             },
@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
         await prisma.financialTransaction.create({
             data: {
                 tenantId: user.tenantId,
-                type: 'INCOME',
-                category: 'SERVICE_FEE',
+                type: 'INCOME' as TransactionType,
+                category: 'SERVICE_FEE' as TransactionCategory,
                 amount: payAmount,
-                method: method || 'CASH',
+                method: (method || 'CASH') as PaymentMethod,
                 description: `Borç ödemesi: ${ticket.ticketNumber}${notes ? ` — ${notes}` : ''}`,
                 customerId: ticket.customerId,
                 ticketId: ticket.id,

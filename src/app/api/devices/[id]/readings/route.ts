@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { TransactionType, TransactionCategory, PaymentMethod } from '@prisma/client';
 
 export async function POST(
     req: Request,
@@ -78,15 +79,15 @@ export async function POST(
 
             // Sayaç ücreti gelir kaydı
             if (counterFee > 0) {
-                await (prisma as any).financialTransaction.create({
+                await prisma.financialTransaction.create({
                     data: {
                         tenantId: user.tenantId,
                         customerId: device.customerId,
                         readingId: reading.id,
-                        type: 'INCOME',
-                        category: 'COUNTER_FEE',
+                        type: 'INCOME' as TransactionType,
+                        category: 'COUNTER_FEE' as TransactionCategory,
                         amount: counterFee,
-                        method: 'CASH',
+                        method: 'CASH' as PaymentMethod,
                         description: `Sayaç okuma: S:${deltaBlack} R:${deltaColor} — ${device.brand} ${device.model}`,
                         date: new Date(),
                     },
@@ -95,15 +96,15 @@ export async function POST(
 
             // Aylık aidat gelir kaydı
             if (monthlyRentAmount > 0) {
-                await (prisma as any).financialTransaction.create({
+                await prisma.financialTransaction.create({
                     data: {
                         tenantId: user.tenantId,
                         customerId: device.customerId,
                         readingId: reading.id,
-                        type: 'INCOME',
-                        category: 'RENTAL_FEE',
+                        type: 'INCOME' as TransactionType,
+                        category: 'RENTAL_FEE' as TransactionCategory,
                         amount: monthlyRentAmount,
-                        method: 'CASH',
+                        method: 'CASH' as PaymentMethod,
                         description: `Aylık kira bedeli — ${device.brand} ${device.model}`,
                         date: new Date(),
                     },
