@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { UserRole } from '@prisma/client';
 
 export async function GET() {
     const session = await auth();
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
                 name,
                 email,
                 passwordHash: hashedPassword,
-                role: role as any,
+                role: role as UserRole,
                 isActive: true,
             },
         });

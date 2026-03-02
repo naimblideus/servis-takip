@@ -49,8 +49,8 @@ export async function GET(
             model: ticket.device.model,
             serialNo: ticket.device.serialNo,
             location: ticket.device.location,
-            counterBlack: (ticket.device as any).counterBlack ?? null,
-            counterColor: (ticket.device as any).counterColor ?? null,
+            counterBlack: ticket.device.counterBlack ?? null,
+            counterColor: ticket.device.counterColor ?? null,
             publicCode: ticket.device.publicCode,
         },
         parts: ticket.ticketParts.map(tp => ({

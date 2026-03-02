@@ -29,8 +29,8 @@ export async function GET(
             brand: d.brand,
             model: d.model,
             serialNo: d.serialNo,
-            counterBlack: (d as any).counterBlack ?? null,
-            counterColor: (d as any).counterColor ?? null,
+            counterBlack: d.counterBlack ?? null,
+            counterColor: d.counterColor ?? null,
             location: d.location,
         }));
 

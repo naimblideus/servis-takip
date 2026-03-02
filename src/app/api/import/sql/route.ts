@@ -27,6 +27,7 @@ import {
 } from '@/lib/import-parser';
 import { createEmptyResult, type ImportResult, type ImportError } from '@/lib/import-reporter';
 import crypto from 'crypto';
+import { TransactionType, TransactionCategory, PaymentMethod, Priority, PaymentStatus } from '@prisma/client';
 
 // ── Yardımcı: Public code üret ──
 function generatePublicCode(): string {
@@ -441,7 +442,7 @@ export async function POST(req: NextRequest) {
                                 customerId,
                                 ticketNumber,
                                 status,
-                                priority: 'NORMAL',
+                                priority: 'NORMAL' as Priority,
                                 assignedUserId,
                                 createdByUserId: currentUser.id,
                                 issueText: fixEncoding(servis.Ariza || 'İçe aktarılmış kayıt'),
@@ -582,12 +583,12 @@ export async function POST(req: NextRequest) {
                     await prisma.financialTransaction.create({
                         data: {
                             tenantId,
-                            type: isIncome ? 'INCOME' : 'EXPENSE',
-                            category: isIncome ? 'OTHER_INCOME' : 'OTHER_EXPENSE',
+                            type: (isIncome ? 'INCOME' : 'EXPENSE') as TransactionType,
+                            category: (isIncome ? 'OTHER_INCOME' : 'OTHER_EXPENSE') as TransactionCategory,
                             amount,
                             description: fixEncoding(kasa.Aciklama || (isIncome ? 'İçe aktarılmış gelir' : 'İçe aktarılmış gider')),
                             date: transDate || new Date(),
-                            method: 'CASH',
+                            method: 'CASH' as PaymentMethod,
                         },
                     });
 
