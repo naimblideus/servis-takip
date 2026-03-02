@@ -10,9 +10,12 @@ interface Part {
     sellPrice: number;
     stockQty: number;
     minStock: number;
+    group: string | null;
 }
 
-type SortField = 'name' | 'sku' | 'stockQty' | 'sellPrice' | 'buyPrice';
+const PART_GROUPS = ['Fırın Grubu', 'Paten', 'İşçilik', 'Dişli Grubu', 'Yedek Parça', 'Toner', 'Tamirat'];
+
+type SortField = 'name' | 'sku' | 'stockQty' | 'sellPrice' | 'buyPrice' | 'group';
 type StockFilter = 'all' | 'critical' | 'ok';
 
 export default function InventoryPage() {
@@ -25,7 +28,7 @@ export default function InventoryPage() {
     const [sortField, setSortField] = useState<SortField>('stockQty');
     const [sortAsc, setSortAsc] = useState(true);
     const [form, setForm] = useState({
-        sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5',
+        sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '',
     });
 
     const load = () => {
@@ -67,6 +70,7 @@ export default function InventoryPage() {
             else if (sortField === 'stockQty') cmp = a.stockQty - b.stockQty;
             else if (sortField === 'sellPrice') cmp = Number(a.sellPrice) - Number(b.sellPrice);
             else if (sortField === 'buyPrice') cmp = Number(a.buyPrice) - Number(b.buyPrice);
+            else if (sortField === 'group') cmp = (a.group || '').localeCompare(b.group || '', 'tr');
             return sortAsc ? cmp : -cmp;
         });
 
@@ -82,7 +86,7 @@ export default function InventoryPage() {
             body: JSON.stringify(form),
         });
         if (res.ok) {
-            setForm({ sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5' });
+            setForm({ sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '' });
             setShowForm(false);
             load();
         } else {
@@ -226,14 +230,22 @@ export default function InventoryPage() {
                 <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
                     <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Yeni Parça Ekle</h2>
                     <form onSubmit={handleSubmit}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
-                                <label style={lbl}>SKU / Kod *</label>
-                                <input required style={inp} value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="TON-001" />
+                                <label style={lbl}>SKU / Kod</label>
+                                <input style={inp} value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="Otomatik" />
+                                <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>Boş bırakırsanız otomatik üretilir</span>
                             </div>
-                            <div style={{ gridColumn: 'span 2' }}>
+                            <div>
                                 <label style={lbl}>Parça Adı *</label>
                                 <input required style={inp} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Canon 2525 Toner" />
+                            </div>
+                            <div>
+                                <label style={lbl}>Ürün Grubu</label>
+                                <select style={inp} value={form.group} onChange={e => setForm({ ...form, group: e.target.value })}>
+                                    <option value="">Grup seçin...</option>
+                                    {PART_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                                </select>
                             </div>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
@@ -286,6 +298,9 @@ export default function InventoryPage() {
                                 Stok <SortIcon field="stockQty" />
                             </th>
                             <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>Durum</th>
+                            <th onClick={() => toggleSort('group')} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
+                                Grup <SortIcon field="group" />
+                            </th>
                             <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>İşlem</th>
                         </tr>
                     </thead>
@@ -332,6 +347,16 @@ export default function InventoryPage() {
                                         </span>
                                     </td>
                                     <td style={{ padding: '0.75rem 1rem' }}>
+                                        {p.group ? (
+                                            <span style={{
+                                                backgroundColor: '#f3f4f6', color: '#374151',
+                                                padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.7rem', fontWeight: '500',
+                                            }}>{p.group}</span>
+                                        ) : (
+                                            <span style={{ fontSize: '0.75rem', color: '#d1d5db' }}>—</span>
+                                        )}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem' }}>
                                         <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
                                             <button onClick={() => adjustStock(p.id, -1)} title="Azalt"
                                                 style={{ width: '28px', height: '28px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
@@ -346,7 +371,7 @@ export default function InventoryPage() {
                         })}
                         {filtered.length === 0 && (
                             <tr>
-                                <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>
+                                <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>
                                     {search ? `"${search}" ile eşleşen parça bulunamadı` : 'Henüz parça yok — + Yeni Parça ile ekleyin'}
                                 </td>
                             </tr>

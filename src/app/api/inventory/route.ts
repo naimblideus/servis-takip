@@ -27,15 +27,35 @@ export async function POST(req: Request) {
 
         const body = await req.json();
 
+        // Auto-SKU: boşsa sıralı kod üret
+        let sku = (body.sku || '').trim();
+        if (!sku) {
+            // En son sıralı SKU'yu bul
+            const lastPart = await prisma.part.findFirst({
+                where: {
+                    tenantId: user.tenantId,
+                    sku: { startsWith: 'PRN-' },
+                },
+                orderBy: { sku: 'desc' },
+            });
+            let nextNum = 1;
+            if (lastPart) {
+                const match = lastPart.sku.match(/PRN-(\d+)/);
+                if (match) nextNum = parseInt(match[1]) + 1;
+            }
+            sku = `PRN-${String(nextNum).padStart(4, '0')}`;
+        }
+
         const part = await prisma.part.create({
             data: {
                 tenantId: user.tenantId,
-                sku: body.sku,
+                sku,
                 name: body.name,
                 buyPrice: parseFloat(body.buyPrice) || 0,
                 sellPrice: parseFloat(body.sellPrice) || 0,
                 stockQty: parseInt(body.stockQty) || 0,
                 minStock: parseInt(body.minStock) || 5,
+                group: body.group || null,
             },
         });
 

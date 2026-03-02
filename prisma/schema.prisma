@@ -40,6 +40,7 @@ model Tenant {
   auditLogs        AuditLog[]
   notificationLogs NotificationLog[]
   transactions     FinancialTransaction[]
+  importSessions   ImportSession[]
 
   @@index([isActive])
 }
@@ -81,15 +82,17 @@ enum UserRole {
 // ============================================
 
 model Customer {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  phone     String
-  address   String?
-  taxNo     String?
-  consent   Boolean  @default(false) // GDPR/KVKK consent
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  phone         String
+  address       String?
+  taxNo         String?
+  email         String?  // E-posta adresi (import'tan gelebilir)
+  contactPerson String?  // Yetkili kişi adı
+  consent       Boolean  @default(false) // GDPR/KVKK consent
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
   tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -120,6 +123,8 @@ model Device {
   publicCode     String    @unique // e.g., DEV-8F3A12 (for QR URL)
   qrTokenHash String // Hashed version of QR token
   qrExpiresAt DateTime? // Optional token expiry
+  counterBlack  Int?     // Son bilinen siyah sayaç
+  counterColor  Int?     // Son bilinen renkli sayaç
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -242,6 +247,7 @@ model Part {
   sellPrice Decimal  @default(0) @db.Decimal(10, 2)
   stockQty  Int      @default(0)
   minStock  Int      @default(5) // Low stock threshold
+  group     String?  // Ürün grubu: Fırın Grubu, Paten, İşçilik, Dişli Grubu, Yedek Parça, Toner, Tamirat
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -429,10 +435,43 @@ enum TransactionCategory {
   RENTAL_FEE       // Aylık kira bedeli
   PART_PURCHASE    // Parça alımı (gider)
   PART_SALE        // Parça satışı (gelir)
+  MACHINE_PURCHASE // Makina alımı (gider)
+  MACHINE_SALE     // Makina satışı (gelir)
   GENERAL_EXPENSE  // Genel gider
   SALARY           // Maaş
   RENT             // Kira (işyeri)
   UTILITY          // Fatura (elektrik, su vs.)
+  TAX              // Vergi
+  FOOD             // Yemek
+  INSURANCE        // Sigorta
+  FUEL             // Yakıt / Ulaşım
+  MAINTENANCE      // Bakım / Tadilat
   OTHER_INCOME     // Diğer gelir
   OTHER_EXPENSE    // Diğer gider
+}
+
+
+// ============================================
+// IMPORT SESSION (Veri İçe Aktarma)
+// ============================================
+
+model ImportSession {
+  id           String    @id @default(cuid())
+  tenantId     String
+  fileName     String
+  status       String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  totalRows    Json?     // { musteriler: 0, servisler: 0, urunler: 0, kasa: 0 }
+  importedRows Json?     // Başarılı sayılar
+  failedRows   Json?     // Başarısız sayılar
+  errors       Json?     // Hata detayları: [{row, table, error}]
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("import_sessions")
 }

@@ -150,10 +150,34 @@ async function main() {
 
   console.log('✅ Sample ticket created:', ticket.ticketNumber);
 
+  // ═══ TEST TENANT — Import testi için ayrı ortam ═══
+  const testTenant = await prisma.tenant.create({
+    data: {
+      name: 'Test Import Firması',
+      plan: 'pro',
+    },
+  });
+
+  const testAdminPassword = await bcrypt.hash('test123', 10);
+  const testAdmin = await prisma.user.create({
+    data: {
+      tenantId: testTenant.id,
+      email: 'test@import.com',
+      passwordHash: testAdminPassword,
+      name: 'Import Test Admin',
+      role: UserRole.ADMIN,
+    },
+  });
+
+  console.log('✅ Test tenant created:', testTenant.name);
+  console.log('✅ Test admin created:', testAdmin.email);
+
   console.log('🎉 Seeding completed!');
   console.log('\n📝 Demo Credentials:');
   console.log('Admin: admin@demo.com / admin123');
   console.log('Technician: teknisyen@demo.com / tech123');
+  console.log('\n📝 Import Test Credentials:');
+  console.log('Import Test: test@import.com / test123');
 }
 
 function generatePublicCode() {

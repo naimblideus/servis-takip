@@ -80,6 +80,8 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             ['Marka', device.brand],
             ['Model', device.model],
             ['Seri No', device.serialNo],
+            ['Sayaç (Siyah)', device.counterBlack ? device.counterBlack.toLocaleString('tr-TR') : '-'],
+            ['Sayaç (Renkli)', device.counterColor ? device.counterColor.toLocaleString('tr-TR') : '-'],
             ['Konum', device.location || '-'],
             ['QR Kodu', device.publicCode],
           ].map(([k, v]) => (

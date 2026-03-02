@@ -5,6 +5,7 @@ import Link from 'next/link';
 import TicketStatusPanel from '@/components/TicketStatusPanel';
 import TicketPartsPanel from '@/components/TicketPartsPanel';
 import TicketPaymentPanel from '@/components/TicketPaymentPanel';
+import TicketPrintButton from '@/components/TicketPrintButton';
 
 const statusLabel: Record<string, { label: string; color: string; text: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
@@ -58,16 +59,19 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               border: `1px solid ${st.color}`,
             }}>{st.label}</span>
           </div>
-          {/* Status Güncelleme Paneli */}
-          <TicketStatusPanel
-            ticketId={ticket.id}
-            currentStatus={ticket.status}
-            currentAssignedUserId={ticket.assignedUserId ?? ''}
-            currentPriority={ticket.priority}
-            currentPaymentStatus={ticket.paymentStatus}
-            currentTotalCost={Number(ticket.totalCost)}
-            users={users}
-          />
+          {/* Yazdır + Status Güncelleme Paneli */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+            <TicketPrintButton ticketId={ticket.id} />
+            <TicketStatusPanel
+              ticketId={ticket.id}
+              currentStatus={ticket.status}
+              currentAssignedUserId={ticket.assignedUserId ?? ''}
+              currentPriority={ticket.priority}
+              currentPaymentStatus={ticket.paymentStatus}
+              currentTotalCost={Number(ticket.totalCost)}
+              users={users}
+            />
+          </div>
         </div>
       </div>
 

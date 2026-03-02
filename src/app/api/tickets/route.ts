@@ -2,10 +2,29 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-function generateTicketNumber() {
-  const year = new Date().getFullYear();
-  const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-  return `SF-${year}-${random}`;
+async function generateTicketNumber(tenantId: string) {
+  // TSK-XXX formatındaki en yüksek numarayı bul
+  const lastTicket = await prisma.serviceTicket.findFirst({
+    where: {
+      tenantId,
+      ticketNumber: { startsWith: 'TSK-' },
+    },
+    orderBy: { ticketNumber: 'desc' },
+  });
+
+  let nextNum = 1;
+  if (lastTicket) {
+    const match = lastTicket.ticketNumber.match(/TSK-(\d+)/);
+    if (match) nextNum = parseInt(match[1]) + 1;
+  }
+
+  // Toplam fiş sayısından da büyük olmasını garanti et
+  const totalCount = await prisma.serviceTicket.count({
+    where: { tenantId },
+  });
+  if (totalCount >= nextNum) nextNum = totalCount + 1;
+
+  return `TSK-${nextNum}`;
 }
 
 export async function GET() {
@@ -34,12 +53,22 @@ export async function POST(req: Request) {
     const device = await prisma.device.findUnique({ where: { id: body.deviceId } });
     if (!device) return NextResponse.json({ error: 'Device not found' }, { status: 404 });
 
+    // Sayaç güncellemesi
+    if (body.counterBlack || body.counterColor) {
+      const updateData: any = {};
+      if (body.counterBlack) updateData.counterBlack = parseInt(body.counterBlack);
+      if (body.counterColor) updateData.counterColor = parseInt(body.counterColor);
+      await prisma.device.update({ where: { id: device.id }, data: updateData });
+    }
+
+    const ticketNumber = await generateTicketNumber(user.tenantId);
+
     const ticket = await prisma.serviceTicket.create({
       data: {
         tenantId: user.tenantId,
         deviceId: body.deviceId,
         customerId: device.customerId,
-        ticketNumber: generateTicketNumber(),
+        ticketNumber,
         issueTemplate: body.issueTemplate || null,
         issueText: body.issueText,
         actionText: body.actionText || null,
@@ -51,7 +80,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ id: ticket.id, ...ticket });
+    return NextResponse.json(ticket);
   } catch (e: any) {
     console.error('TICKET CREATE ERROR:', e.message);
     return NextResponse.json({ error: e.message }, { status: 500 });
