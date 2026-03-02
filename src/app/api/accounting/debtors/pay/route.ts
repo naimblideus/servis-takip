@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { PaymentStatus } from '@prisma/client';
 
 // POST /api/accounting/debtors/pay — Borçluya ödeme al (tekli veya çoklu fiş)
 export async function POST(req: NextRequest) {
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
 
         await prisma.serviceTicket.update({
             where: { id: ticketId },
-            data: { paymentStatus: newStatus },
+            data: { paymentStatus: newStatus as PaymentStatus },
         });
 
         // Muhasebe kaydı oluştur
