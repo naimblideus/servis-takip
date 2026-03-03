@@ -61,7 +61,9 @@ export default function SettingsPage() {
         const res = await fetch('/api/settings', { method: 'POST', body: fd });
         if (res.ok) {
             const data = await res.json();
-            setTenant(prev => prev ? { ...prev, logo: data.logo + '?t=' + Date.now() } : prev);
+            // Base64 data URL'lerine ?t= eklenemez, sadece normal URL'lere cache-bust ekle
+            const logoUrl = data.logo?.startsWith('data:') ? data.logo : (data.logo + '?t=' + Date.now());
+            setTenant(prev => prev ? { ...prev, logo: logoUrl } : prev);
             setMsg('✅ Logo yüklendi');
         } else {
             const d = await res.json();
