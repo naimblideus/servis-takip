@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 
 export async function GET() {
     const session = await auth();
@@ -45,7 +43,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json(tenant);
 }
 
-// Logo yükleme
+// Logo yükleme — Base64 data URL olarak DB'ye kaydeder (Docker/Coolify uyumlu, filesystem gerektirmez)
 export async function POST(req: Request) {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -60,33 +58,43 @@ export async function POST(req: Request) {
         const file = formData.get('logo') as File;
         if (!file) return NextResponse.json({ error: 'Logo dosyası gerekli' }, { status: 400 });
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
-        // Dosya uzantısı
+        // Dosya uzantısı kontrolü
         const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
         const allowedExts = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
         if (!allowedExts.includes(ext)) {
             return NextResponse.json({ error: 'Sadece PNG, JPG, SVG, WebP yüklenebilir' }, { status: 400 });
         }
 
-        // Dosyayı public/uploads klasörüne kaydet
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-        await mkdir(uploadDir, { recursive: true });
+        // Boyut kontrolü: max 2MB
+        const maxSize = 2 * 1024 * 1024;
+        if (file.size > maxSize) {
+            return NextResponse.json({ error: "Logo 2MB'dan küçük olmalıdır" }, { status: 400 });
+        }
 
-        const fileName = `logo-${user.tenantId}.${ext}`;
-        const filePath = path.join(uploadDir, fileName);
-        await writeFile(filePath, buffer);
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
 
-        const logoUrl = `/uploads/${fileName}`;
+        // MIME tipi belirle
+        const mimeMap: Record<string, string> = {
+            png: 'image/png',
+            jpg: 'image/jpeg',
+            jpeg: 'image/jpeg',
+            svg: 'image/svg+xml',
+            webp: 'image/webp',
+        };
+        const mimeType = mimeMap[ext] || 'image/png';
+
+        // Base64 data URL olarak kaydet — dosya sistemi gerektirmez, Docker/Coolify restart'larından etkilenmez
+        const base64 = buffer.toString('base64');
+        const dataUrl = `data:${mimeType};base64,${base64}`;
 
         // DB güncelle
         await prisma.tenant.update({
             where: { id: user.tenantId },
-            data: { logo: logoUrl },
+            data: { logo: dataUrl },
         });
 
-        return NextResponse.json({ logo: logoUrl });
+        return NextResponse.json({ logo: dataUrl });
     } catch (e: any) {
         console.error('LOGO UPLOAD ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
