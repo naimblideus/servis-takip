@@ -34,8 +34,11 @@ export async function POST(
         const amount = parseFloat(body.amount);
         if (!amount || amount <= 0) return NextResponse.json({ error: 'Geçersiz tutar' }, { status: 400 });
 
-        // Ticket'ın mevcut ödeme durumunu kontrol et
-        const ticket = await prisma.serviceTicket.findUnique({ where: { id: ticketId } });
+        // Ticket + müşteri bilgilerini al
+        const ticket = await prisma.serviceTicket.findUnique({
+            where: { id: ticketId },
+            include: { device: { include: { customer: true } } },
+        });
         if (!ticket) return NextResponse.json({ error: 'Fiş bulunamadı' }, { status: 404 });
 
         // Tüm ödemelerin toplamını hesapla
@@ -47,27 +50,43 @@ export async function POST(
         const totalCost = Number(ticket.totalCost);
 
         let newPaymentStatus: string;
-        if (totalPaid >= totalCost) {
-            newPaymentStatus = 'PAID';
-        } else if (totalPaid > 0) {
-            newPaymentStatus = 'PARTIAL';
-        } else {
-            newPaymentStatus = 'UNPAID';
-        }
+        if (totalPaid >= totalCost) newPaymentStatus = 'PAID';
+        else if (totalPaid > 0) newPaymentStatus = 'PARTIAL';
+        else newPaymentStatus = 'UNPAID';
 
+        const method = body.method || 'CASH';
+        const customerId = ticket.device.customer.id;
+        const ticketNumber = ticket.ticketNumber;
+        const methodLabels: Record<string, string> = { CASH: 'Nakit', CARD: 'Kart', TRANSFER: 'Havale', OTHER: 'Diğer' };
+
+        // Atomik işlem: Ödeme + fiş güncelleme + muhasebe otomatik kaydı
         const [payment] = await prisma.$transaction([
             prisma.payment.create({
                 data: {
                     tenantId: user.tenantId,
                     ticketId,
                     amount,
-                    method: body.method || 'CASH',
+                    method,
                     notes: body.note || null,
                 },
             }),
             prisma.serviceTicket.update({
                 where: { id: ticketId },
                 data: { paymentStatus: newPaymentStatus as PaymentStatus },
+            }),
+            // ─── Otomatik Muhasebe → Servis Ücreti Geliri ───────────────────
+            prisma.financialTransaction.create({
+                data: {
+                    tenantId: user.tenantId,
+                    type: 'INCOME',
+                    category: 'SERVICE_FEE',
+                    amount,
+                    method,
+                    description: `[${ticketNumber}] Servis Ödemesi — ${methodLabels[method] || method}`,
+                    customerId,
+                    ticketId,
+                    date: new Date(),
+                },
             }),
         ]);
 

@@ -128,6 +128,11 @@ export default function AccountingPage() {
     const [historyLoading, setHistoryLoading] = useState(false);
     const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
 
+    // Logo Import state
+    const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; message: string; errors?: string[] } | null>(null);
+    const [importing, setImporting] = useState(false);
+    const [importError, setImportError] = useState<string | null>(null);
+
     const [form, setForm] = useState({
         type: 'INCOME' as 'INCOME' | 'EXPENSE',
         category: 'SERVICE_FEE',
@@ -1033,72 +1038,165 @@ export default function AccountingPage() {
                 </>
             )}
 
-            {/* ═══════════════ LOGO EXPORT ═══════════════ */}
+            {/* ═══════════════ LOGO ENTEGRASYON ═══════════════ */}
             {activeTab === 'logo' && (
                 <>
-                    {/* Logo Entegrasyon Bilgi */}
+                    {/* ═══ Logo'dan İçe Aktar ═══ */}
+                    <div style={{ backgroundColor: '#f0fdf4', borderRadius: '0.75rem', padding: '1.25rem', border: '1px solid #86efac', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                            <span style={{ fontSize: '1.5rem' }}>📂</span>
+                            <h3 style={{ fontWeight: '700', color: '#166534', margin: 0 }}>Logo'dan İçe Aktar</h3>
+                        </div>
+                        <p style={{ fontSize: '0.82rem', color: '#374151', marginBottom: '1rem' }}>
+                            Logo Tiger/Go'dan dışa aktardığınız CSV dosyasını buraya yükleyin.
+                            <br />
+                            <span style={{ color: '#6b7280' }}>Logo → Muhasebe → Yevmiye Fişleri → Dışa Aktar → CSV (Tarih;Fiş No;Hesap Kodu;Hesap Adı;Borç;Alacak;Açıklama)</span>
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block', marginBottom: '0.25rem' }}>Logo CSV Dosyası</label>
+                                <input
+                                    type="file"
+                                    accept=".csv,.txt"
+                                    id="logo-csv-input"
+                                    style={{ display: 'none' }}
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        setImporting(true);
+                                        setImportResult(null);
+                                        setImportError(null);
+                                        try {
+                                            const text = await file.text();
+                                            const res = await fetch('/api/accounting/logo-import', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ csvContent: text }),
+                                            });
+                                            const data = await res.json();
+                                            if (res.ok) {
+                                                setImportResult(data);
+                                                load(); // muhasebe listesini yenile
+                                            } else {
+                                                setImportError(data.error || 'İçe aktarma başarısız');
+                                            }
+                                        } catch (err: any) {
+                                            setImportError(err.message);
+                                        }
+                                        setImporting(false);
+                                        e.target.value = '';
+                                    }}
+                                />
+                                <button
+                                    onClick={() => document.getElementById('logo-csv-input')?.click()}
+                                    disabled={importing}
+                                    style={{
+                                        padding: '0.625rem 1.25rem', backgroundColor: importing ? '#9ca3af' : '#16a34a',
+                                        color: 'white', border: 'none', borderRadius: '0.5rem', cursor: importing ? 'not-allowed' : 'pointer',
+                                        fontWeight: '600', fontSize: '0.9rem',
+                                    }}
+                                >
+                                    {importing ? '⏳ Aktarılıyor...' : '📂 CSV Yükle & Aktar'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Sonuç Mesajı */}
+                        {importResult && (
+                            <div style={{ marginTop: '0.75rem', backgroundColor: '#dcfce7', borderRadius: '0.5rem', padding: '0.75rem', border: '1px solid #86efac' }}>
+                                <div style={{ fontWeight: '600', color: '#14532d', fontSize: '0.9rem' }}>✅ {importResult.message}</div>
+                                <div style={{ fontSize: '0.8rem', color: '#166534', marginTop: '0.25rem' }}>
+                                    Toplam: {importResult.total} satır | İçe aktarıldı: <b>{importResult.imported}</b> | Atlandı: {importResult.skipped}
+                                </div>
+                                {importResult.errors && importResult.errors.length > 0 && (
+                                    <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.25rem' }}>
+                                        ⚠️ Hatalar: {importResult.errors.join(' | ')}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {importError && (
+                            <div style={{ marginTop: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '0.5rem', padding: '0.75rem', border: '1px solid #fca5a5', color: '#dc2626', fontSize: '0.85rem' }}>
+                                ❌ {importError}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ═══ Logo'ya Dışa Aktar ═══ */}
                     <div style={{ backgroundColor: '#eff6ff', borderRadius: '0.75rem', padding: '1.25rem', border: '1px solid #93c5fd', marginBottom: '1.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                             <span style={{ fontSize: '1.5rem' }}>📤</span>
-                            <h3 style={{ fontWeight: '700', color: '#1e40af', margin: 0 }}>Logo Muhasebe Entegrasyonu</h3>
+                            <h3 style={{ fontWeight: '700', color: '#1e40af', margin: 0 }}>Servis Takip → Logo'ya Dışa Aktar</h3>
                         </div>
-                        <p style={{ fontSize: '0.85rem', color: '#374151', marginBottom: '0.75rem' }}>
-                            Tüm gelir/gider kayıtlarını Logo yazılımına aktarılabilir formatta (XML veya CSV) dışa aktarabilirsiniz.
-                            Her kategori standart Tek Düzen Hesap Planı kodlarına eşlenmiştir.
+                        <p style={{ fontSize: '0.82rem', color: '#374151', marginBottom: '0.75rem' }}>
+                            Gelir/gider kayıtlarını Logo Tiger/Go'ya uyumlu formatta indirin. Çift taraflı yevmiye fişi üretilir (Borç/Alacak).
                         </p>
-                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                             <div>
                                 <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block', marginBottom: '0.25rem' }}>Dönem Seç</label>
                                 <input type="month" value={exportMonth} onChange={e => setExportMonth(e.target.value)}
                                     style={{ padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} />
                             </div>
-                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.1rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <button onClick={() => window.open(`/api/accounting/logo-export?format=csv&month=${exportMonth}`, '_blank')}
-                                    style={{ padding: '0.625rem 1.25rem', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}>
-                                    📥 CSV İndir (Logo Import)
+                                    style={{ padding: '0.625rem 1.25rem', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem' }}>
+                                    📥 CSV İndir
                                 </button>
                                 <button onClick={() => window.open(`/api/accounting/logo-export?format=xml&month=${exportMonth}`, '_blank')}
-                                    style={{ padding: '0.625rem 1.25rem', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}>
-                                    📥 XML İndir (Logo Import)
+                                    style={{ padding: '0.625rem 1.25rem', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem' }}>
+                                    📥 XML İndir
                                 </button>
-                                <button onClick={() => window.open(`/api/accounting/logo-export?format=csv`, '_blank')}
-                                    style={{ padding: '0.625rem 1.25rem', backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500', fontSize: '0.9rem' }}>
-                                    Tüm Dönemler (CSV)
+                                <button onClick={() => window.open(`/api/accounting/logo-export?format=csv&all=1`, '_blank')}
+                                    style={{ padding: '0.625rem 1.25rem', backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500', fontSize: '0.875rem' }}>
+                                    Tüm Dönemler
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Hesap Planı Eşleme Tablosu */}
+                    {/* ═══ Tek Düzen Hesap Planı Eşlemesi ═══ */}
                     <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1.5rem' }}>
                         <h3 style={{ fontWeight: '600', marginBottom: '1rem', fontSize: '1rem' }}>📋 Tek Düzen Hesap Planı Eşlemesi</h3>
-                        <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>
-                            Aşağıdaki tablo, her kategori için atanmış Logo hesap kodlarını göstermektedir. CSV/XML export bu kodları otomatik kullanır.
-                        </p>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                             <thead>
                                 <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
                                     <th style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Kategori</th>
                                     <th style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Hesap Kodu</th>
                                     <th style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Hesap Adı (Logo)</th>
+                                    <th style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Karşıt Hesap</th>
                                     <th style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Tür</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {Object.entries(LOGO_HESAP_KODLARI).map(([cat, h]) => {
-                                    const catLabel = CATEGORY_LABELS[cat] || { label: cat, icon: '📌' };
-                                    const isIncome = INCOME_CATEGORIES.includes(cat);
+                                {[
+                                    { cat: 'SERVICE_FEE', kod: '600.01', ad: 'Yurt İçi Satışlar - Servis', karsit: '120.01 (Alıcılar)', gelir: true },
+                                    { cat: 'COUNTER_FEE', kod: '600.02', ad: 'Yurt İçi Satışlar - Sayaç', karsit: '120.01 (Alıcılar)', gelir: true },
+                                    { cat: 'RENTAL_FEE', kod: '600.03', ad: 'Yurt İçi Satışlar - Kira', karsit: '120.01 (Alıcılar)', gelir: true },
+                                    { cat: 'PART_SALE', kod: '600.04', ad: 'Yurt İçi Satışlar - Parça', karsit: '120.01 (Alıcılar)', gelir: true },
+                                    { cat: 'MACHINE_SALE', kod: '600.05', ad: 'Yurt İçi Satışlar - Makina', karsit: '120.01 (Alıcılar)', gelir: true },
+                                    { cat: 'OTHER_INCOME', kod: '649.01', ad: 'Diğer Olağan Gelirler', karsit: '100.01 (Kasa)', gelir: true },
+                                    { cat: 'PART_PURCHASE', kod: '153.01', ad: 'Ticari Mallar - Parça', karsit: '320.01 (Satıcılar)', gelir: false },
+                                    { cat: 'MACHINE_PURCHASE', kod: '153.02', ad: 'Ticari Mallar - Makina', karsit: '320.01 (Satıcılar)', gelir: false },
+                                    { cat: 'SALARY', kod: '770.02', ad: 'Personel Giderleri', karsit: '335.01 (Ödenecek Ücret)', gelir: false },
+                                    { cat: 'RENT', kod: '770.03', ad: 'Kira Giderleri', karsit: '100.01 (Kasa)', gelir: false },
+                                    { cat: 'UTILITY', kod: '770.04', ad: 'Enerji Giderleri', karsit: '100.01 (Kasa)', gelir: false },
+                                    { cat: 'TAX', kod: '770.05', ad: 'Vergi ve Harçlar', karsit: '100.01 (Kasa)', gelir: false },
+                                    { cat: 'FUEL', kod: '770.08', ad: 'Yakıt/Ulaşım Giderleri', karsit: '100.01 (Kasa)', gelir: false },
+                                    { cat: 'GENERAL_EXPENSE', kod: '770.01', ad: 'Genel Yönetim Giderleri', karsit: '100.01 (Kasa)', gelir: false },
+                                ].map(row => {
+                                    const catLabel = CATEGORY_LABELS[row.cat] || { label: row.cat, icon: '📌' };
                                     return (
-                                        <tr key={cat} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                        <tr key={row.cat} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                             <td style={{ padding: '0.5rem 1rem' }}>{catLabel.icon} {catLabel.label}</td>
-                                            <td style={{ padding: '0.5rem 1rem', fontFamily: 'monospace', fontWeight: '600', color: '#1e40af' }}>{h.hesapKodu}</td>
-                                            <td style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', color: '#374151' }}>{h.hesapAdi}</td>
+                                            <td style={{ padding: '0.5rem 1rem', fontFamily: 'monospace', fontWeight: '600', color: '#1e40af' }}>{row.kod}</td>
+                                            <td style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}>{row.ad}</td>
+                                            <td style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#6b7280', fontFamily: 'monospace' }}>{row.karsit}</td>
                                             <td style={{ padding: '0.5rem 1rem' }}>
                                                 <span style={{
-                                                    backgroundColor: isIncome ? '#d1fae5' : '#fee2e2',
-                                                    color: isIncome ? '#065f46' : '#991b1b',
+                                                    backgroundColor: row.gelir ? '#d1fae5' : '#fee2e2',
+                                                    color: row.gelir ? '#065f46' : '#991b1b',
                                                     padding: '0.15rem 0.5rem', borderRadius: '9999px', fontSize: '0.7rem', fontWeight: '600',
-                                                }}>{isIncome ? 'GELİR' : 'GİDER'}</span>
+                                                }}>{row.gelir ? 'GELİR' : 'GİDER'}</span>
                                             </td>
                                         </tr>
                                     );
@@ -1107,30 +1205,33 @@ export default function AccountingPage() {
                         </table>
                     </div>
 
-                    {/* Logo Kullanım Kılavuzu */}
+                    {/* ═══ Rehber ═══ */}
                     <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
-                        <h3 style={{ fontWeight: '600', marginBottom: '1rem', fontSize: '1rem' }}>📖 Logo'ya Aktarma Rehberi</h3>
+                        <h3 style={{ fontWeight: '600', marginBottom: '1rem', fontSize: '1rem' }}>📖 Logo Entegrasyon Rehberi</h3>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                             <div>
-                                <h4 style={{ fontWeight: '600', fontSize: '0.9rem', color: '#16a34a', marginBottom: '0.5rem' }}>CSV ile Aktarma</h4>
+                                <h4 style={{ fontWeight: '600', fontSize: '0.875rem', color: '#166534', marginBottom: '0.5rem' }}>📂 Logo'dan Servis Takip'e Aktarma</h4>
                                 <ol style={{ fontSize: '0.8rem', color: '#374151', paddingLeft: '1.25rem', lineHeight: '1.8' }}>
-                                    <li>Yukarıdan dönem seçin ve <b>CSV İndir</b>'e tıklayın</li>
-                                    <li>Logo → Muhasebe → Veri Aktarımı → İçe Aktar</li>
-                                    <li>CSV dosyasını seçin ve ayırıcıyı <b>; (noktalı virgül)</b> olarak belirleyin</li>
-                                    <li>Sütun eşlemesini kontrol edin: Hesap Kodu, Borç, Alacak</li>
-                                    <li>Aktarımı onaylayın</li>
+                                    <li>Logo → Muhasebe → Yevmiye Fişleri → Listele</li>
+                                    <li>Tarih aralığı seçin → Dışa Aktar → CSV</li>
+                                    <li>Ayırıcı: <b>; (noktalı virgül)</b></li>
+                                    <li>Yukarıdan <b>"CSV Yükle & Aktar"</b> ile yükleyin</li>
+                                    <li>Sonuçta kaç satır aktarıldığını görürsünüz</li>
                                 </ol>
                             </div>
                             <div>
-                                <h4 style={{ fontWeight: '600', fontSize: '0.9rem', color: '#2563eb', marginBottom: '0.5rem' }}>XML ile Aktarma</h4>
+                                <h4 style={{ fontWeight: '600', fontSize: '0.875rem', color: '#1e40af', marginBottom: '0.5rem' }}>📤 Servis Takip'ten Logo'ya Aktarma</h4>
                                 <ol style={{ fontSize: '0.8rem', color: '#374151', paddingLeft: '1.25rem', lineHeight: '1.8' }}>
-                                    <li>Yukarıdan dönem seçin ve <b>XML İndir</b>'e tıklayın</li>
-                                    <li>Logo → Dosya → Dışarıdan Veri Al → XML</li>
-                                    <li>İndirdiğiniz XML dosyasını seçin</li>
-                                    <li>Hesap planı eşlemesini doğrulayın</li>
-                                    <li>Aktarımı başlatın</li>
+                                    <li>Dönem seçin ve CSV veya XML indirin</li>
+                                    <li>CSV için: Logo → Muhasebe → Veri Aktarımı → İçe Aktar</li>
+                                    <li>XML için: Logo → Dosya → Dışarıdan Veri Al → XML</li>
+                                    <li>Dosyayı seçin ve sütun eşlemesini kontrol edin</li>
+                                    <li>Aktarımı onaylayın — çift taraflı fiş otomatik oluşur</li>
                                 </ol>
                             </div>
+                        </div>
+                        <div style={{ marginTop: '1rem', backgroundColor: '#fffbeb', borderRadius: '0.5rem', padding: '0.75rem', border: '1px solid #fde68a', fontSize: '0.8rem', color: '#92400e' }}>
+                            ⚠️ <b>Önemli:</b> Her servis fişi ödemesi muhasebe modülüne otomatik kaydedilir. Borçlu ödeme aldığınızda da otomatik gelir kaydı oluşur.
                         </div>
                     </div>
                 </>
