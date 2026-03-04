@@ -39,20 +39,31 @@ export default function GlobalSearch() {
         }
     };
 
+    const abortRef = useRef<AbortController | null>(null);
+
     const search = (q: string) => {
         setQuery(q);
         clearTimeout(timeoutRef.current);
+        // Önceki in-flight isteği iptal et
+        abortRef.current?.abort();
         if (q.length < 2) { setResults(null); setOpen(false); return; }
         setLoading(true);
         calcPos();
         timeoutRef.current = setTimeout(async () => {
-            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-            if (res.ok) {
-                const data = await res.json();
-                setResults(data);
-                setOpen(true);
+            const controller = new AbortController();
+            abortRef.current = controller;
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    setResults(data);
+                    setOpen(true);
+                }
+            } catch (err: any) {
+                if (err.name === 'AbortError') return; // İptal edildi, sonucu yoksay
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         }, 300);
     };
 
