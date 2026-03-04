@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/tickets/next-ticket-number — Sonraki sıralı TSK numarasını döndür
+// GET /api/tickets/next-ticket-number — Sonraki sıralı SF numarasını döndür
 export async function GET() {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -10,30 +10,23 @@ export async function GET() {
     const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    // TSK-XXX formatındaki en yüksek numarayı bul
-    const lastTicket = await prisma.serviceTicket.findFirst({
-        where: {
-            tenantId: user.tenantId,
-            ticketNumber: { startsWith: 'TSK-' },
-        },
-        orderBy: { ticketNumber: 'desc' },
+    // TSK- ve SF- formatındaki tüm fişleri çekip en yüksek numarayı bul
+    const allTickets = await prisma.serviceTicket.findMany({
+        where: { tenantId: user.tenantId },
+        select: { ticketNumber: true },
     });
 
-    let nextNum = 1;
-    if (lastTicket) {
-        const match = lastTicket.ticketNumber.match(/TSK-(\d+)/);
-        if (match) nextNum = parseInt(match[1]) + 1;
+    let maxNum = 0;
+    for (const t of allTickets) {
+        const match = t.ticketNumber.match(/^(?:TSK|SF)-(\d+)$/);
+        if (match) {
+            const n = parseInt(match[1]);
+            if (n > maxNum) maxNum = n;
+        }
     }
 
-    // SF- formatındakileri de kontrol et (eski format olabilir)
-    const sfCount = await prisma.serviceTicket.count({
-        where: { tenantId: user.tenantId },
-    });
-
-    // En yüksek olanı kullan
-    if (sfCount >= nextNum) nextNum = sfCount + 1;
-
-    const ticketNumber = `TSK-${nextNum}`;
+    const nextNum = maxNum + 1;
+    const ticketNumber = `SF-${nextNum}`;
 
     return NextResponse.json({ ticketNumber, nextNum });
 }
