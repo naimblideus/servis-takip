@@ -38,6 +38,8 @@ export async function POST(req: Request) {
         monthlyRent: body.isRental ? (parseFloat(body.monthlyRent) || 0) : 0,
         pricePerBlack: body.isRental && body.pricePerBlack ? parseFloat(body.pricePerBlack) : null,
         pricePerColor: body.isRental && body.pricePerColor ? parseFloat(body.pricePerColor) : null,
+        counterBlack: body.counterBlack ? parseInt(body.counterBlack) : null,
+        counterColor: body.counterColor ? parseInt(body.counterColor) : null,
         qrTokenHash: randomBytes(32).toString('hex'),
         publicCode: generatePublicCode(),
       },

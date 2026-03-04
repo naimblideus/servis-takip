@@ -14,7 +14,8 @@ export default function NewDevicePage() {
     model: '',
     serialNo: '',
     location: '',
-    counterReading: '',
+    counterBlack: '',
+    counterColor: '',
     isRental: false,
     monthlyRent: '',
     pricePerBlack: '',
@@ -95,17 +96,24 @@ export default function NewDevicePage() {
               placeholder="Örn: CNR987654" />
           </div>
 
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={lbl}>Konum</label>
+            <input style={inp} value={form.location}
+              onChange={e => setForm({ ...form, location: e.target.value })}
+              placeholder="Muhasebe Odası, Zemin Kat..." />
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={lbl}>Konum</label>
-              <input style={inp} value={form.location}
-                onChange={e => setForm({ ...form, location: e.target.value })}
-                placeholder="Muhasebe, Ofis..." />
+              <label style={lbl}>⚫ Siyah Sayaç</label>
+              <input type="number" min="0" style={inp} value={form.counterBlack}
+                onChange={e => setForm({ ...form, counterBlack: e.target.value })}
+                placeholder="0" />
             </div>
             <div>
-              <label style={lbl}>Sayaç</label>
-              <input type="number" style={inp} value={form.counterReading}
-                onChange={e => setForm({ ...form, counterReading: e.target.value })}
+              <label style={lbl}>🟣 Renkli Sayaç</label>
+              <input type="number" min="0" style={inp} value={form.counterColor}
+                onChange={e => setForm({ ...form, counterColor: e.target.value })}
                 placeholder="0" />
             </div>
           </div>

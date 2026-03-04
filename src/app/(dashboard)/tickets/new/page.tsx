@@ -4,23 +4,180 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  address: string | null;
-}
-
+interface Customer { id: string; name: string; phone: string; address: string | null; }
 interface Device {
-  id: string;
-  brand: string;
-  model: string;
-  serialNo: string;
-  counterBlack: number | null;
-  counterColor: number | null;
-  location: string | null;
+  id: string; brand: string; model: string; serialNo: string;
+  counterBlack: number | null; counterColor: number | null; location: string | null;
 }
 
+// ─── Inline Cihaz Ekleme Modalı ───────────────────────────────────────────────
+function QuickAddDeviceModal({
+  customerId,
+  onClose,
+  onCreated,
+}: {
+  customerId: string;
+  onClose: () => void;
+  onCreated: (device: Device) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [dform, setDform] = useState({
+    brand: '', model: '', serialNo: '', location: '',
+    counterBlack: '', counterColor: '',
+    isRental: false, monthlyRent: '', pricePerBlack: '', pricePerColor: '',
+  });
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '0.55rem 0.7rem', border: '1px solid #d1d5db',
+    borderRadius: '0.5rem', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box',
+  };
+  const lbl: React.CSSProperties = {
+    display: 'block', fontSize: '0.8rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem',
+  };
+  const g2: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    const res = await fetch('/api/devices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...dform, customerId }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      onCreated(data);
+    } else {
+      alert('Hata: ' + (data.error || JSON.stringify(data)));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        backgroundColor: 'white', borderRadius: '1rem',
+        width: '100%', maxWidth: '520px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        {/* Modal Başlık */}
+        <div style={{
+          background: 'linear-gradient(135deg, #1e3a5f, #2563eb)',
+          color: 'white', padding: '1rem 1.25rem',
+          borderRadius: '1rem 1rem 0 0',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ fontWeight: '700', fontSize: '1rem' }}>🖨️ Hızlı Cihaz Ekle</span>
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.2)', color: 'white',
+            border: 'none', borderRadius: '50%', width: '28px', height: '28px',
+            cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>✕</button>
+        </div>
+
+        <form onSubmit={submit} style={{ padding: '1.25rem' }}>
+          {/* Marka & Model */}
+          <div style={g2}>
+            <div>
+              <label style={lbl}>Marka *</label>
+              <input required style={inp} value={dform.brand}
+                onChange={e => setDform({ ...dform, brand: e.target.value })}
+                placeholder="Canon, HP, Xerox..." />
+            </div>
+            <div>
+              <label style={lbl}>Model *</label>
+              <input required style={inp} value={dform.model}
+                onChange={e => setDform({ ...dform, model: e.target.value })}
+                placeholder="iR2425, LaserJet..." />
+            </div>
+          </div>
+
+          {/* Seri No */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label style={lbl}>Seri No *</label>
+            <input required style={inp} value={dform.serialNo}
+              onChange={e => setDform({ ...dform, serialNo: e.target.value })}
+              placeholder="Örn: CNR987654" />
+          </div>
+
+          {/* Konum */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label style={lbl}>Konum</label>
+            <input style={inp} value={dform.location}
+              onChange={e => setDform({ ...dform, location: e.target.value })}
+              placeholder="Muhasebe, Ofis..." />
+          </div>
+
+          {/* Sayaçlar */}
+          <div style={g2}>
+            <div>
+              <label style={lbl}>⚫ Siyah Sayaç</label>
+              <input type="number" min="0" style={inp} value={dform.counterBlack}
+                onChange={e => setDform({ ...dform, counterBlack: e.target.value })}
+                placeholder="0" />
+            </div>
+            <div>
+              <label style={lbl}>🟣 Renkli Sayaç</label>
+              <input type="number" min="0" style={inp} value={dform.counterColor}
+                onChange={e => setDform({ ...dform, counterColor: e.target.value })}
+                placeholder="0" />
+            </div>
+          </div>
+
+          {/* Kiralık toggle */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', marginBottom: dform.isRental ? '0.75rem' : '1rem' }}>
+            <input type="checkbox" checked={dform.isRental} onChange={e => setDform({ ...dform, isRental: e.target.checked })} />
+            <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>🏷️ Kiralık Cihaz</span>
+          </label>
+
+          {dform.isRental && (
+            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.5rem', padding: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={lbl}>Aylık Kira (₺)</label>
+                <input type="number" min="0" style={inp} value={dform.monthlyRent}
+                  onChange={e => setDform({ ...dform, monthlyRent: e.target.value })} placeholder="500" />
+              </div>
+              <div style={g2}>
+                <div>
+                  <label style={lbl}>⚫ Siyah Birim (₺)</label>
+                  <input type="number" step="0.01" style={inp} value={dform.pricePerBlack}
+                    onChange={e => setDform({ ...dform, pricePerBlack: e.target.value })} placeholder="Varsayılan" />
+                </div>
+                <div>
+                  <label style={lbl}>🟣 Renkli Birim (₺)</label>
+                  <input type="number" step="0.01" style={inp} value={dform.pricePerColor}
+                    onChange={e => setDform({ ...dform, pricePerColor: e.target.value })} placeholder="Varsayılan" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Butonlar */}
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button type="submit" disabled={saving} style={{
+              flex: 1, padding: '0.65rem', backgroundColor: '#2563eb', color: 'white',
+              border: 'none', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer',
+              fontSize: '0.875rem', opacity: saving ? 0.7 : 1,
+            }}>
+              {saving ? 'Ekleniyor...' : '✅ Cihazı Ekle & Seç'}
+            </button>
+            <button type="button" onClick={onClose} style={{
+              padding: '0.65rem 1rem', border: '1px solid #d1d5db', backgroundColor: 'white',
+              borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500', fontSize: '0.875rem', color: '#374151',
+            }}>İptal</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Ana Sayfa ─────────────────────────────────────────────────────────────────
 export default function NewTicketPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -29,6 +186,7 @@ export default function NewTicketPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [customerSearch, setCustomerSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showAddDevice, setShowAddDevice] = useState(false);
   const [nextTicketNumber, setNextTicketNumber] = useState('');
 
   const [form, setForm] = useState({
@@ -45,11 +203,9 @@ export default function NewTicketPage() {
     counterColor: '',
   });
 
-  // Seçili müşteri ve cihaz detayları
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
 
-  // Sonraki fiş numarasını yükle
   useEffect(() => {
     fetch('/api/tickets/next-ticket-number')
       .then(r => r.json())
@@ -57,12 +213,10 @@ export default function NewTicketPage() {
       .catch(() => { });
   }, []);
 
-  // Kullanıcıları yükle
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(setUsers);
   }, []);
 
-  // Müşterileri yükle
   useEffect(() => {
     fetch('/api/customers').then(r => r.json()).then((data: any) => {
       const list = Array.isArray(data) ? data : data.customers || [];
@@ -70,20 +224,22 @@ export default function NewTicketPage() {
     });
   }, []);
 
-  // Müşteri seçilince cihazları yükle
-  useEffect(() => {
-    if (form.customerId) {
-      fetch(`/api/customers/${form.customerId}/devices`)
+  const loadDevices = useCallback((customerId: string) => {
+    if (customerId) {
+      fetch(`/api/customers/${customerId}/devices`)
         .then(r => r.json())
         .then(setDevices);
     } else {
       setDevices([]);
     }
+  }, []);
+
+  useEffect(() => {
+    loadDevices(form.customerId);
     setForm(f => ({ ...f, deviceId: '' }));
     setSelectedDevice(null);
-  }, [form.customerId]);
+  }, [form.customerId, loadDevices]);
 
-  // Cihaz seçilince detayları güncelle
   useEffect(() => {
     if (form.deviceId) {
       const dev = devices.find(d => d.id === form.deviceId);
@@ -100,7 +256,6 @@ export default function NewTicketPage() {
     }
   }, [form.deviceId, devices]);
 
-  // Müşteri arama filtrele
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
     c.phone.includes(customerSearch)
@@ -112,6 +267,19 @@ export default function NewTicketPage() {
     setForm(f => ({ ...f, customerId: c.id }));
     setShowDropdown(false);
   }, []);
+
+  // Hızlı cihaz ekleme tamamlandı → listeye ekle + seç
+  const handleDeviceCreated = (device: Device) => {
+    setDevices(prev => [...prev, device]);
+    setForm(f => ({
+      ...f,
+      deviceId: device.id,
+      counterBlack: device.counterBlack?.toString() || '',
+      counterColor: device.counterColor?.toString() || '',
+    }));
+    setSelectedDevice(device);
+    setShowAddDevice(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +319,14 @@ export default function NewTicketPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '700px' }}>
+      {showAddDevice && form.customerId && (
+        <QuickAddDeviceModal
+          customerId={form.customerId}
+          onClose={() => setShowAddDevice(false)}
+          onCreated={handleDeviceCreated}
+        />
+      )}
+
       <div style={{ marginBottom: '1.5rem' }}>
         <Link href="/tickets" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Fişler</Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem' }}>
@@ -193,7 +369,7 @@ export default function NewTicketPage() {
               <div style={{
                 position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
                 backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem',
-                maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               }}>
                 {filteredCustomers.slice(0, 20).map(c => (
                   <div
@@ -215,7 +391,6 @@ export default function NewTicketPage() {
             )}
           </div>
 
-          {/* Seçili müşteri adres bilgisi */}
           {selectedCustomer && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
@@ -238,26 +413,49 @@ export default function NewTicketPage() {
             <div style={{ marginBottom: '1rem' }}>
               <label style={label}>Cihaz Seç *</label>
               {devices.length === 0 ? (
-                <div>
-                  <p style={{ color: '#ef4444', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Bu müşteriye ait cihaz bulunamadı</p>
-                  <Link href={`/devices/new?customerId=${form.customerId}`} style={{
-                    display: 'inline-block', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white',
-                    borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.875rem', fontWeight: '500',
-                  }}>+ Yeni Cihaz Ekle</Link>
+                <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '0.5rem', padding: '1rem' }}>
+                  <p style={{ color: '#92400e', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                    Bu müşteriye ait cihaz bulunamadı.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddDevice(true)}
+                    style={{
+                      padding: '0.5rem 1.25rem', backgroundColor: '#2563eb', color: 'white',
+                      border: 'none', borderRadius: '0.5rem', cursor: 'pointer',
+                      fontWeight: '600', fontSize: '0.875rem',
+                    }}
+                  >
+                    + Hızlı Cihaz Ekle
+                  </button>
                 </div>
               ) : (
-                <select required style={input} value={form.deviceId} onChange={e => setForm({ ...form, deviceId: e.target.value })}>
-                  <option value="">Cihaz seçin...</option>
-                  {devices.map(d => (
-                    <option key={d.id} value={d.id}>
-                      {d.brand} {d.model} — SN: {d.serialNo}
-                    </option>
-                  ))}
-                </select>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <select required style={{ ...input, flex: 1 }} value={form.deviceId} onChange={e => setForm({ ...form, deviceId: e.target.value })}>
+                    <option value="">Cihaz seçin...</option>
+                    {devices.map(d => (
+                      <option key={d.id} value={d.id}>
+                        {d.brand} {d.model} — SN: {d.serialNo}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Var olan cihazlar olsa bile yeni ekleyebilmek için buton */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAddDevice(true)}
+                    title="Yeni cihaz ekle"
+                    style={{
+                      padding: '0.5rem 0.9rem', backgroundColor: '#f0f9ff', color: '#2563eb',
+                      border: '1px solid #bfdbfe', borderRadius: '0.5rem', cursor: 'pointer',
+                      fontWeight: '600', fontSize: '0.875rem', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    + Cihaz Ekle
+                  </button>
+                </div>
               )}
             </div>
 
-            {/* Seçili cihaz detayları + düzenlenebilir sayaçlar */}
             {selectedDevice && (
               <div style={{ backgroundColor: '#f0f9ff', borderRadius: '0.5rem', padding: '1rem', border: '1px solid #bae6fd' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -279,10 +477,9 @@ export default function NewTicketPage() {
                   </div>
                 </div>
 
-                {/* Düzenlenebilir sayaç alanları */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem', borderTop: '1px solid #bae6fd', paddingTop: '0.75rem' }}>
                   <div>
-                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>Sayaç (Siyah)</label>
+                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>⚫ Sayaç (Siyah)</label>
                     <input
                       type="number" min="0"
                       style={{ ...input, backgroundColor: 'white', fontWeight: '600' }}
@@ -292,7 +489,7 @@ export default function NewTicketPage() {
                     />
                   </div>
                   <div>
-                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>Sayaç (Renkli)</label>
+                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>🟣 Sayaç (Renkli)</label>
                     <input
                       type="number" min="0"
                       style={{ ...input, backgroundColor: 'white', fontWeight: '600' }}
@@ -305,7 +502,6 @@ export default function NewTicketPage() {
               </div>
             )}
 
-            {/* Öncelik + Teknisyen */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
               <div>
                 <label style={label}>Öncelik</label>
@@ -383,13 +579,13 @@ export default function NewTicketPage() {
               <button type="submit" disabled={loading} style={{
                 backgroundColor: '#3b82f6', color: 'white', padding: '0.75rem 2rem',
                 borderRadius: '0.5rem', border: 'none', fontWeight: '600', cursor: 'pointer',
-                fontSize: '0.95rem', opacity: loading ? 0.7 : 1
+                fontSize: '0.95rem', opacity: loading ? 0.7 : 1,
               }}>
                 {loading ? 'Kaydediliyor...' : 'Fiş Oluştur'}
               </button>
               <Link href="/tickets" style={{
                 padding: '0.75rem 2rem', borderRadius: '0.5rem', border: '1px solid #d1d5db',
-                textDecoration: 'none', color: '#374151', fontWeight: '500'
+                textDecoration: 'none', color: '#374151', fontWeight: '500',
               }}>İptal</Link>
             </div>
           </>
