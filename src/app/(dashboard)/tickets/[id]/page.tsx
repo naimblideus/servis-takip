@@ -6,6 +6,7 @@ import TicketStatusPanel from '@/components/TicketStatusPanel';
 import TicketPartsPanel from '@/components/TicketPartsPanel';
 import TicketPaymentPanel from '@/components/TicketPaymentPanel';
 import TicketPrintButton from '@/components/TicketPrintButton';
+import TicketDeleteButton from '@/components/TicketDeleteButton';
 
 const statusLabel: Record<string, { label: string; color: string; text: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
@@ -62,6 +63,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           {/* Yazdır + Status Güncelleme Paneli */}
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
             <TicketPrintButton ticketId={ticket.id} />
+            <TicketDeleteButton ticketId={ticket.id} ticketNumber={ticket.ticketNumber} />
             <TicketStatusPanel
               ticketId={ticket.id}
               currentStatus={ticket.status}

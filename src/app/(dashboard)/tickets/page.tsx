@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import TicketFilters from '@/components/TicketFilters';
-import TicketTable from '@/components/TicketTable';
+import TicketsClient from '@/components/TicketsClient';
 
 export default async function TicketsPage({
   searchParams,
@@ -18,7 +18,7 @@ export default async function TicketsPage({
   if (!user) redirect('/login');
 
   // Filtre koşulları
-  const where: any = { tenantId: user.tenantId };
+  const where: any = { tenantId: user.tenantId, deletedAt: null };
   if (sp.status) where.status = sp.status;
   if (sp.priority) where.priority = sp.priority;
   if (sp.assignedUserId) {
@@ -30,7 +30,7 @@ export default async function TicketsPage({
       where,
       include: {
         device: { include: { customer: true } },
-        assignedUser: true,
+        assignedUser: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -42,10 +42,11 @@ export default async function TicketsPage({
 
   const allCounts = await prisma.serviceTicket.groupBy({
     by: ['status'],
-    where: { tenantId: user.tenantId },
+    where: { tenantId: user.tenantId, deletedAt: null } as any,
     _count: true,
   });
 
+  const deleted = await prisma.serviceTicket.count({ where: { tenantId: user.tenantId, deletedAt: { not: null } } as any });
   const open = allCounts.filter(c => ['NEW', 'IN_SERVICE', 'WAITING_FOR_PART'].includes(c.status)).reduce((s, c) => s + c._count, 0);
   const ready = allCounts.find(c => c.status === 'READY')?._count || 0;
   const total = allCounts.reduce((s, c) => s + c._count, 0);
@@ -65,6 +66,11 @@ export default async function TicketsPage({
           backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500',
         }}>+ Yeni Fiş</Link>
+        <Link href="/tickets/trash" style={{
+          backgroundColor: '#fef2f2', color: '#b91c1c', padding: '0.625rem 1rem',
+          borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500', fontSize: '0.875rem',
+          border: '1px solid #fecaca',
+        }}>{deleted > 0 ? `🗑️ (${deleted})` : '🗑️'}</Link>
       </div>
 
       {/* Stat Kartlar */}
@@ -84,8 +90,13 @@ export default async function TicketsPage({
       {/* Filtreler (Client Component) */}
       <TicketFilters currentStatus={sp.status} currentPriority={sp.priority} currentAssigned={sp.assignedUserId} users={users} />
 
-      {/* Tablo — satıra tıklayınca detaya gider */}
-      <TicketTable tickets={tickets as any} />
+      {/* Tablo (Client Component — satıra tıklayınca detaya gider, sil butonu çöp kutusuna taşır) */}
+      <TicketsClient
+        initialTickets={tickets.map(t => ({ ...t, createdAt: t.createdAt.toISOString() })) as any}
+        total={total}
+        open={open}
+        ready={ready}
+      />
     </div>
   );
 }

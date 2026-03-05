@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { formatCurrency, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
 
 interface Stats {
@@ -16,6 +17,7 @@ interface Stats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -100,11 +102,14 @@ export default function DashboardPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {stats?.recentTickets.map((ticket: any) => (
-                <tr key={ticket.id} className="hover:bg-gray-50">
+                <tr
+                  key={ticket.id}
+                  onClick={() => router.push(`/tickets/${ticket.id}`)}
+                  style={{ cursor: 'pointer' }}
+                  className="hover:bg-blue-50 transition-colors"
+                >
                   <td className="px-4 py-3">
-                    <Link href={`/tickets/${ticket.id}`} className="text-blue-600 hover:underline font-mono text-sm">
-                      {ticket.ticketNumber}
-                    </Link>
+                    <span className="text-blue-600 font-mono text-sm font-semibold">{ticket.ticketNumber}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">{ticket.device?.customer?.name}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">
