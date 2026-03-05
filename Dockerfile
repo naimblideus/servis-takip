@@ -74,5 +74,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Başlangıçta Prisma migration uygula, sonra uygulamayı başlat
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
+# Uygulamayı başlat (migration manuel yapılacak)
+CMD ["node", "server.js"]
