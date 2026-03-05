@@ -108,13 +108,15 @@ export default function NewDevicePage() {
               <label style={lbl}>⚫ Siyah Sayaç</label>
               <input type="number" min="0" style={inp} value={form.counterBlack}
                 onChange={e => setForm({ ...form, counterBlack: e.target.value })}
-                placeholder="0" />
+                placeholder="örn. 7356" />
+              {form.counterBlack && <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{Number(form.counterBlack).toLocaleString('tr-TR')}</span>}
             </div>
             <div>
               <label style={lbl}>🟣 Renkli Sayaç</label>
               <input type="number" min="0" style={inp} value={form.counterColor}
                 onChange={e => setForm({ ...form, counterColor: e.target.value })}
-                placeholder="0" />
+                placeholder="örn. 345567" />
+              {form.counterColor && <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{Number(form.counterColor).toLocaleString('tr-TR')}</span>}
             </div>
           </div>
         </div>

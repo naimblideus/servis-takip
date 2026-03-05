@@ -106,11 +106,13 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginBottom: '1.25rem', flexWrap: 'wrap', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '0.5rem', border: '1px solid #bae6fd' }}>
                 <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>Siyah Sayaç</label>
-                    <input type="number" style={inp} placeholder="örn. 2000" value={form.counterBlack} onChange={e => setForm({ ...form, counterBlack: e.target.value })} />
+                    <input type="number" style={inp} placeholder="örn. 7356" value={form.counterBlack} onChange={e => setForm({ ...form, counterBlack: e.target.value })} />
+                    {form.counterBlack && <div style={{ fontSize: '0.7rem', color: '#0ea5e9', fontWeight: '600', marginTop: '0.2rem' }}>{Number(form.counterBlack).toLocaleString('tr-TR')}</div>}
                 </div>
                 <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>Renkli Sayaç</label>
-                    <input type="number" style={inp} placeholder="örn. 3500" value={form.counterColor} onChange={e => setForm({ ...form, counterColor: e.target.value })} />
+                    <input type="number" style={inp} placeholder="örn. 345567" value={form.counterColor} onChange={e => setForm({ ...form, counterColor: e.target.value })} />
+                    {form.counterColor && <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', marginTop: '0.2rem' }}>{Number(form.counterColor).toLocaleString('tr-TR')}</div>}
                 </div>
                 {device?.isRental && device.monthlyRent > 0 && (
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}>

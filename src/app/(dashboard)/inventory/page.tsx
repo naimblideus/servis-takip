@@ -30,6 +30,12 @@ export default function InventoryPage() {
     const [form, setForm] = useState({
         sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '',
     });
+    // Satır düzenlemesi
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editRow, setEditRow] = useState({ name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '', group: '' });
+    // Sadece stok sayısını inline düzenle
+    const [editStockId, setEditStockId] = useState<string | null>(null);
+    const [editStockVal, setEditStockVal] = useState('');
 
     const load = () => {
         fetch('/api/inventory').then(r => r.json()).then(data => {
@@ -105,9 +111,48 @@ export default function InventoryPage() {
         load();
     };
 
+    // Stok sayısını doğrudan set et
+    const setStockDirect = async (id: string, value: string) => {
+        const qty = parseInt(value);
+        if (isNaN(qty) || qty < 0) { setEditStockId(null); return; }
+        await fetch(`/api/inventory/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stockQty: qty }),
+        });
+        setEditStockId(null);
+        load();
+    };
+
+    // Tüm satırı güncelle
+    const updatePart = async (id: string) => {
+        await fetch(`/api/inventory/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: editRow.name,
+                buyPrice: editRow.buyPrice,
+                sellPrice: editRow.sellPrice,
+                stockQty: editRow.stockQty,
+                minStock: editRow.minStock,
+            }),
+        });
+        setEditingId(null);
+        load();
+    };
+
     const deletePart = async (id: string, name: string) => {
-        if (!confirm(`"${name}" silinsin mi?`)) return;
-        await fetch(`/api/inventory/${id}`, { method: 'DELETE' });
+        if (!confirm(`"${name}" silinsin mi? Bu işlem geri alınamaz.`)) return;
+        const res = await fetch(`/api/inventory/${id}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const d = await res.json();
+            if (d.error?.includes('Foreign key') || d.error?.includes('constraint')) {
+                alert(`"${name}" silinemedi: Bu parça bir veya daha fazla servis fişine bağlı. Önce fişlerdeki kullanımını kaldırın.`);
+            } else {
+                alert('Silme hatası: ' + d.error);
+            }
+            return;
+        }
         load();
     };
 
@@ -308,6 +353,75 @@ export default function InventoryPage() {
                         {filtered.map((p, i) => {
                             const isLow = p.stockQty <= p.minStock;
                             const isZero = p.stockQty === 0;
+                            const isEditing = editingId === p.id;
+
+                            if (isEditing) {
+                                // ─── D\u00fczen modu ───
+                                return (
+                                    <tr key={p.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: '#fffbeb' }}>
+                                        <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontFamily: 'monospace', color: '#6b7280' }}>{p.sku}</td>
+                                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                                            <input
+                                                style={{ ...inp, width: '100%', padding: '0.35rem 0.5rem' }}
+                                                value={editRow.name}
+                                                onChange={e => setEditRow({ ...editRow, name: e.target.value })}
+                                            />
+                                        </td>
+                                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                                            <input type="number" step="0.01"
+                                                style={{ ...inp, width: '80px', padding: '0.35rem 0.5rem' }}
+                                                value={editRow.buyPrice}
+                                                onChange={e => setEditRow({ ...editRow, buyPrice: e.target.value })}
+                                            />
+                                        </td>
+                                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                                            <input type="number" step="0.01"
+                                                style={{ ...inp, width: '80px', padding: '0.35rem 0.5rem' }}
+                                                value={editRow.sellPrice}
+                                                onChange={e => setEditRow({ ...editRow, sellPrice: e.target.value })}
+                                            />
+                                        </td>
+                                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                                                <input type="number" min="0"
+                                                    style={{ ...inp, width: '70px', padding: '0.35rem 0.5rem', fontWeight: '700' }}
+                                                    value={editRow.stockQty}
+                                                    onChange={e => setEditRow({ ...editRow, stockQty: e.target.value })}
+                                                />
+                                                <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>/ min:</span>
+                                                <input type="number" min="0"
+                                                    style={{ ...inp, width: '55px', padding: '0.35rem 0.5rem' }}
+                                                    value={editRow.minStock}
+                                                    onChange={e => setEditRow({ ...editRow, minStock: e.target.value })}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '0.5rem 0.75rem' }}>—</td>
+                                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                                            <select style={{ ...inp, padding: '0.35rem 0.5rem' }}
+                                                value={editRow.group}
+                                                onChange={e => setEditRow({ ...editRow, group: e.target.value })}>
+                                                <option value="">—</option>
+                                                {PART_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                                            </select>
+                                        </td>
+                                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.375rem' }}>
+                                                <button onClick={() => updatePart(p.id)} style={{
+                                                    padding: '0.3rem 0.75rem', backgroundColor: '#059669', color: 'white',
+                                                    border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
+                                                }}>✓ Kaydet</button>
+                                                <button onClick={() => setEditingId(null)} style={{
+                                                    padding: '0.3rem 0.5rem', backgroundColor: 'white', color: '#374151',
+                                                    border: '1px solid #d1d5db', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem',
+                                                }}>İptal</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            }
+
+                            // ─── Normal g\u00f6r\u00fcn\u00fcm ───
                             return (
                                 <tr key={p.id} style={{
                                     borderBottom: '1px solid #e5e7eb',
@@ -324,11 +438,33 @@ export default function InventoryPage() {
                                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>₺{Number(p.buyPrice).toFixed(2)}</td>
                                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', fontWeight: '600', color: '#059669' }}>₺{Number(p.sellPrice).toFixed(2)}</td>
                                     <td style={{ padding: '0.75rem 1rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span style={{ fontSize: '1rem', fontWeight: 'bold', color: isLow ? '#ef4444' : '#111827' }}>{p.stockQty}</span>
-                                            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>/ {p.minStock}</span>
-                                        </div>
-                                        {/* Stok çubuğu */}
+                                        {/* Stoka t\u0131klay\u0131nca inline input a\u00e7\u0131l\u0131r */}
+                                        {editStockId === p.id ? (
+                                            <input
+                                                type="number" min="0" autoFocus
+                                                style={{ ...inp, width: '75px', padding: '0.35rem 0.5rem', fontWeight: '700', fontSize: '1rem' }}
+                                                value={editStockVal}
+                                                onChange={e => setEditStockVal(e.target.value)}
+                                                onBlur={() => setStockDirect(p.id, editStockVal)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') setStockDirect(p.id, editStockVal);
+                                                    if (e.key === 'Escape') setEditStockId(null);
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <span
+                                                    title="T\u0131klay\u0131p d\u00fczenleyin"
+                                                    onClick={() => { setEditStockId(p.id); setEditStockVal(String(p.stockQty)); setEditingId(null); }}
+                                                    style={{
+                                                        fontSize: '1rem', fontWeight: 'bold', color: isLow ? '#ef4444' : '#111827',
+                                                        cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: '3px',
+                                                    }}
+                                                >{p.stockQty}</span>
+                                                <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>/ {p.minStock}</span>
+                                            </div>
+                                        )}
+                                        {/* Stok \u00e7ubu\u011fu */}
                                         <div style={{ width: '60px', height: '4px', backgroundColor: '#e5e7eb', borderRadius: '2px', marginTop: '0.25rem' }}>
                                             <div style={{
                                                 width: `${Math.min(100, (p.stockQty / Math.max(p.minStock * 2, 1)) * 100)}%`,
@@ -359,11 +495,26 @@ export default function InventoryPage() {
                                     <td style={{ padding: '0.75rem 1rem' }}>
                                         <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
                                             <button onClick={() => adjustStock(p.id, -1)} title="Azalt"
-                                                style={{ width: '28px', height: '28px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                                                style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                                             <button onClick={() => adjustStock(p.id, 1)} title="Artır"
-                                                style={{ width: '28px', height: '28px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: '#f0fdf4', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                                                style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: '#f0fdf4', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                                            <button
+                                                title="Düzenle"
+                                                onClick={() => {
+                                                    setEditingId(p.id);
+                                                    setEditStockId(null);
+                                                    setEditRow({
+                                                        name: p.name,
+                                                        buyPrice: String(p.buyPrice),
+                                                        sellPrice: String(p.sellPrice),
+                                                        stockQty: String(p.stockQty),
+                                                        minStock: String(p.minStock),
+                                                        group: p.group || '',
+                                                    });
+                                                }}
+                                                style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✏</button>
                                             <button onClick={() => deletePart(p.id, p.name)} title="Sil"
-                                                style={{ width: '28px', height: '28px', borderRadius: '0.375rem', border: 'none', backgroundColor: '#fee2e2', color: '#b91c1c', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
+                                                style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: 'none', backgroundColor: '#fee2e2', color: '#b91c1c', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                                         </div>
                                     </td>
                                 </tr>

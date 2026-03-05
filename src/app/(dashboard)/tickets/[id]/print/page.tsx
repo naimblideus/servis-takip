@@ -55,9 +55,12 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
           .no-print { display: none !important; }
           #app-sidebar { display: none !important; }
           .flex.min-h-screen { display: block !important; }
-          body { background: white !important; }
-          .print-wrapper { padding: 0 !important; background: white !important; }
+          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .print-wrapper { padding: 0 !important; }
           .receipt { box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
+          .header { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .status-bar { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
 
         @media screen {

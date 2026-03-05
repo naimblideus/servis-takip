@@ -34,7 +34,7 @@ export async function POST(
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();
-        const { partId, quantity = 1 } = body;
+        const { partId, quantity = 1, unitPrice: overridePrice } = body;
 
         // Parçayı kontrol et
         const part = await prisma.part.findUnique({ where: { id: partId } });
@@ -42,6 +42,9 @@ export async function POST(
         if (part.stockQty < quantity) {
             return NextResponse.json({ error: `Stok yetersiz (mevcut: ${part.stockQty})` }, { status: 400 });
         }
+
+        // Kullanılacak birim fiyat: override varsa onu kullan, yoksa stok satış fiyatı
+        const finalUnitPrice = overridePrice !== undefined ? overridePrice : Number(part.sellPrice);
 
         // Transaction: fişe parça ekle + stoktan düş
         const [ticketPart] = await prisma.$transaction([
@@ -51,7 +54,7 @@ export async function POST(
                     ticketId,
                     partId,
                     quantity,
-                    unitPrice: part.sellPrice,
+                    unitPrice: finalUnitPrice,
                 },
             }),
             // Stoktan düş
@@ -64,7 +67,7 @@ export async function POST(
                 where: { id: ticketId },
                 data: {
                     totalCost: {
-                        increment: Number(part.sellPrice) * quantity,
+                        increment: finalUnitPrice * quantity,
                     },
                 },
             }),
