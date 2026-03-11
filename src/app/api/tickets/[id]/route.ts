@@ -40,6 +40,7 @@ export async function PATCH(
             updateData.statusUpdatedAt = new Date();
         }
         if (body.assignedUserId !== undefined) updateData.assignedUserId = body.assignedUserId || null;
+        if (body.issueText !== undefined) updateData.issueText = body.issueText;
         if (body.actionText !== undefined) updateData.actionText = body.actionText;
         if (body.notes !== undefined) updateData.notes = body.notes;
         if (body.totalCost !== undefined) updateData.totalCost = parseFloat(body.totalCost);

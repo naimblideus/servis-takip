@@ -71,6 +71,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               currentPriority={ticket.priority}
               currentPaymentStatus={ticket.paymentStatus}
               currentTotalCost={Number(ticket.totalCost)}
+              currentIssueText={ticket.issueText ?? ''}
+              currentActionText={ticket.actionText ?? ''}
+              currentNotes={ticket.notes ?? ''}
               users={users}
             />
           </div>
