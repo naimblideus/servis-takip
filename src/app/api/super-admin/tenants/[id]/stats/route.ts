@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET — kullanım istatistikleri
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-    const tenantId = params.id;
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id: tenantId } = await params;
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [
-        userCount,
-        totalTickets,
-        thisMonthTickets,
-        customerCount,
-        deviceCount,
-        tenant,
-    ] = await Promise.all([
+    const [userCount, totalTickets, thisMonthTickets, customerCount, deviceCount, tenant] = await Promise.all([
         prisma.user.count({ where: { tenantId } }),
         prisma.serviceTicket.count({ where: { tenantId } }),
         prisma.serviceTicket.count({ where: { tenantId, createdAt: { gte: firstOfMonth } } }),
@@ -22,27 +14,26 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         prisma.device.count({ where: { tenantId } }),
         prisma.tenant.findUnique({
             where: { id: tenantId },
-            select: { maxUsers: true, maxTicketsPerMonth: true, storageLimitMB: true, storageUsedMB: true, plan: true, isActive: true },
+            select: { maxUsers: true, maxTicketsPerMonth: true, storageLimitMB: true, storageUsedMB: true } as any,
         }),
     ]);
 
-    // Son giriş tarihi
     const lastUser = await prisma.user.findFirst({
         where: { tenantId },
         orderBy: { updatedAt: 'desc' },
-        select: { updatedAt: true, name: true },
+        select: { updatedAt: true },
     });
 
     return NextResponse.json({
         userCount,
-        maxUsers: tenant?.maxUsers ?? 0,
+        maxUsers: (tenant as any)?.maxUsers ?? 0,
         totalTickets,
         thisMonthTickets,
-        maxTicketsPerMonth: tenant?.maxTicketsPerMonth,
+        maxTicketsPerMonth: (tenant as any)?.maxTicketsPerMonth,
         customerCount,
         deviceCount,
-        storageUsedMB: tenant?.storageUsedMB ?? 0,
-        storageLimitMB: tenant?.storageLimitMB ?? 500,
+        storageUsedMB: (tenant as any)?.storageUsedMB ?? 0,
+        storageLimitMB: (tenant as any)?.storageLimitMB ?? 500,
         lastActivity: lastUser?.updatedAt,
     });
 }

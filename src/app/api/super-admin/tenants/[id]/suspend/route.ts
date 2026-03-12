@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { addSubscriptionHistory } from '@/lib/tenant-manager';
 
-// POST — askıya al / aktif et
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const body = await req.json();
-    const { action, reason } = body; // action: suspend | activate
+    const { action, reason } = body;
 
     const isSuspended = action === 'suspend';
     await prisma.tenant.update({
-        where: { id: params.id },
+        where: { id },
         data: {
             isSuspended,
             suspendReason: isSuspended ? (reason || '') : null,
@@ -17,13 +16,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         } as any,
     });
 
-    await addSubscriptionHistory(
-        params.id,
-        isSuspended ? 'suspended' : 'activated',
-        'current',
-        undefined,
-        reason
-    );
+    const { addSubscriptionHistory } = await import('@/lib/tenant-manager');
+    await addSubscriptionHistory(id, isSuspended ? 'suspended' : 'activated', 'current', undefined, reason);
 
     return NextResponse.json({ success: true, isSuspended });
 }

@@ -9,23 +9,20 @@ const PLAN_LIMITS: Record<string, { maxUsers: number; maxTicketsPerMonth: number
     enterprise: { maxUsers: 50, maxTicketsPerMonth: null, storageLimitMB: 10000 },
 };
 
-// PUT — paket değiştir
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const body = await req.json();
     const { plan, amount, notes, overrideLimits } = body;
 
-    if (!plan || !PLAN_LIMITS[plan]) {
-        return NextResponse.json({ error: 'Geçersiz paket' }, { status: 400 });
-    }
+    if (!plan || !PLAN_LIMITS[plan]) return NextResponse.json({ error: 'Geçersiz paket' }, { status: 400 });
 
     const limits = overrideLimits || PLAN_LIMITS[plan];
-    const tenant = await prisma.tenant.findUnique({ where: { id: params.id }, select: { plan: true } });
+    const tenant = await prisma.tenant.findUnique({ where: { id }, select: { plan: true } });
     const oldPlan = tenant?.plan || 'trial';
-
     const action = plan > oldPlan ? 'upgraded' : plan < oldPlan ? 'downgraded' : 'renewed';
 
     await prisma.tenant.update({
-        where: { id: params.id },
+        where: { id },
         data: {
             plan,
             maxUsers: limits.maxUsers,
@@ -35,7 +32,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         } as any,
     });
 
-    await addSubscriptionHistory(params.id, action, plan, amount, notes);
-
+    await addSubscriptionHistory(id, action, plan, amount, notes);
     return NextResponse.json({ success: true, plan });
 }

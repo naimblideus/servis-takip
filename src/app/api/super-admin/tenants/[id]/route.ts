@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { addSubscriptionHistory } from '@/lib/tenant-manager';
 
-// GET — işletme detayı
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const tenant = await prisma.tenant.findFirst({
-        where: { id: params.id, deletedAt: null },
+        where: { id, deletedAt: null } as any,
         include: {
             users: { select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true } },
             subscriptionHistory: { orderBy: { createdAt: 'desc' }, take: 20 },
@@ -17,14 +16,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json(tenant);
 }
 
-// PUT — işletme güncelle
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     try {
         const body = await req.json();
-        const { adminNotes, ...rest } = body;
         const tenant = await prisma.tenant.update({
-            where: { id: params.id },
-            data: { ...rest, adminNotes } as any,
+            where: { id },
+            data: body as any,
         });
         return NextResponse.json(tenant);
     } catch (error: any) {
@@ -32,10 +30,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 }
 
-// DELETE — soft delete
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     await prisma.tenant.update({
-        where: { id: params.id },
+        where: { id },
         data: { deletedAt: new Date(), isActive: false } as any,
     });
     return NextResponse.json({ success: true });
