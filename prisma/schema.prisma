@@ -17,32 +17,83 @@ datasource db {
 model Tenant {
   id             String   @id @default(cuid())
   name           String
-  logo           String?  // Logo URL
+  slug           String?  @unique
+  logo           String?
   phone          String?
+  email          String?
   address        String?
-  pricePerBlack  Decimal  @default(0.40) @db.Decimal(10, 4) // Siyah sayaç birim fiyat (TL)
-  pricePerColor  Decimal  @default(1.50) @db.Decimal(10, 4) // Renkli sayaç birim fiyat (TL)
-  plan           String   @default("starter") // starter, standard, pro
-  isActive       Boolean  @default(true)
+  city           String?
+  district       String?
+  taxNumber      String?
+  taxOffice      String?
+  ownerName      String?
+  pricePerBlack  Decimal  @default(0.40) @db.Decimal(10, 4)
+  pricePerColor  Decimal  @default(1.50) @db.Decimal(10, 4)
+
+  // Sektör
+  businessType   String   @default("general")
+
+  // Abonelik
+  plan              String   @default("trial")
+  planStartDate     DateTime @default(now())
+  planEndDate       DateTime?
+  trialEndsAt       DateTime?
+  isActive          Boolean  @default(true)
+  isSuspended       Boolean  @default(false)
+  suspendReason     String?
+
+  // Limitler
+  maxUsers             Int    @default(2)
+  maxTicketsPerMonth   Int?
+  storageLimitMB       Float  @default(500)
+  storageUsedMB        Float  @default(0)
+
+  // Süper admin notları
+  adminNotes           String?
+
+  // Soft delete
+  deletedAt            DateTime?
+
+  // Logo entegrasyon ayarları
+  logoIntegrationEnabled Boolean @default(false)
+  logoIntegrationMethod  String? // rest, file, db
+  logoApiUrl             String?
+  logoApiKey             String?
+  logoFirmaKodu          String?
+  logoDonemKodu          String?
+  logoDbServer           String?
+  logoDbPort             String?
+  logoDbName             String?
+  logoDbUser             String?
+  logoDbPassEncrypted    String?
+  logoDefaultCariGrup    String?
+  logoDefaultGelirHesap  String?
+  logoKasaHesap          String?
+  logoBankaHesap         String?
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   // Relations
-  users            User[]
-  customers        Customer[]
-  devices          Device[]
-  serviceTickets   ServiceTicket[]
-  counterReadings  CounterReading[]
-  parts            Part[]
-  ticketParts      TicketPart[]
-  payments         Payment[]
-  attachments      Attachment[]
-  auditLogs        AuditLog[]
-  notificationLogs NotificationLog[]
-  transactions     FinancialTransaction[]
-  importSessions   ImportSession[]
+  users               User[]
+  customers           Customer[]
+  devices             Device[]
+  serviceTickets      ServiceTicket[]
+  counterReadings     CounterReading[]
+  parts               Part[]
+  ticketParts         TicketPart[]
+  payments            Payment[]
+  attachments         Attachment[]
+  auditLogs           AuditLog[]
+  notificationLogs    NotificationLog[]
+  transactions        FinancialTransaction[]
+  importSessions      ImportSession[]
+  subscriptionHistory SubscriptionHistory[]
+  invoices            TenantInvoice[]
+  logoSyncLogs        LogoSyncLog[]
 
   @@index([isActive])
+  @@index([plan])
 }
 
 // ============================================
@@ -478,3 +529,104 @@ model ImportSession {
   @@index([tenantId, createdAt(sort: Desc)])
   @@map("import_sessions")
 }
+
+// ============================================
+// SÜPER ADMİN
+// ============================================
+
+model SuperAdmin {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String    // bcrypt hash
+  name        String
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ============================================
+// ABONELİK GEÇMİŞİ
+// ============================================
+
+model SubscriptionHistory {
+  id        String   @id @default(cuid())
+  tenantId  String
+  plan      String
+  action    String   // created, upgraded, downgraded, renewed, suspended, cancelled, activated
+  amount    Float?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+// ============================================
+// FATURALAR
+// ============================================
+
+model TenantInvoice {
+  id            String    @id @default(cuid())
+  tenantId      String
+  invoiceNumber String    // FAT-2026-0001
+  period        String    // "2026-03"
+  amount        Float
+  vatAmount     Float     @default(0)
+  totalAmount   Float
+  status        String    @default("pending") // pending, paid, overdue, cancelled
+  dueDate       DateTime
+  paidDate      DateTime?
+  paidAmount    Float?
+  paymentMethod String?   // cash, transfer, card
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([status, dueDate])
+}
+
+// ============================================
+// PLATFORM AYARLARI (global — tüm sistem)
+// ============================================
+
+model PlatformSettings {
+  id                  String  @id @default(cuid())
+  platformName        String  @default("Servis Takip")
+  platformLogo        String?
+  contactEmail        String?
+  defaultTrialDays    Int     @default(14)
+  maintenanceMode     Boolean @default(false)
+  announcementText    String?
+  announcementActive  Boolean @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ============================================
+// LOGO MUHASEBE SENKRONIZASYON LOG
+// ============================================
+
+model LogoSyncLog {
+  id           String   @id @default(cuid())
+  tenantId     String
+  operation    String   // customer_create, customer_update, invoice_create, payment_create, balance_import, stock_movement
+  entityType   String   // customer, invoice, payment, stock
+  entityId     String?
+  direction    String   // export, import
+  status       String   // success, error, pending
+  requestData  Json?
+  responseData Json?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, operation])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
