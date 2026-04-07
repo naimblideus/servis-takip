@@ -48,6 +48,12 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
 
     if (!ticket) redirect('/tickets');
 
+    // Son sayaç okumasını al
+    const latestReading = await prisma.counterReading.findFirst({
+        where: { deviceId: ticket.deviceId },
+        orderBy: { readingDate: 'desc' },
+    });
+
     const partTotal = ticket.ticketParts.reduce((s, tp) => s + Number(tp.unitPrice) * tp.quantity, 0);
     const paidTotal = ticket.payments.reduce((s, p) => s + Number(p.amount), 0);
     const remaining = Math.max(0, Number(ticket.totalCost) - paidTotal);
@@ -372,6 +378,16 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                                         <div className="info-row">
                                             <span className="info-key">Konum</span>
                                             <span className="info-val">{ticket.device.location}</span>
+                                        </div>
+                                    )}
+                                    {(latestReading || ticket.device.counterBlack != null || ticket.device.counterColor != null) && (
+                                        <div className="info-row">
+                                            <span className="info-key">Sayaç</span>
+                                            <span className="info-val" style={{ fontSize: '12px' }}>
+                                                ⚫ {(latestReading?.counterBlack ?? ticket.device.counterBlack ?? 0).toLocaleString('tr-TR')}
+                                                {' / '}
+                                                🟣 {(latestReading?.counterColor ?? ticket.device.counterColor ?? 0).toLocaleString('tr-TR')}
+                                            </span>
                                         </div>
                                     )}
                                 </div>

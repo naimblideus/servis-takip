@@ -71,6 +71,12 @@ export async function POST(
             },
         });
 
+        // Cihaz sayaç değerlerini güncelle
+        await prisma.device.update({
+            where: { id: deviceId },
+            data: { counterBlack, counterColor },
+        });
+
         // Kiralık cihazsa otomatik muhasebe kaydı oluştur
         if (device.isRental && calculatedCost > 0) {
             const blackCost = deltaBlack * effectiveBlackPrice;
@@ -176,4 +182,50 @@ export async function GET(
             isDeviceLevel: device?.pricePerBlack !== null || device?.pricePerColor !== null,
         },
     });
+}
+
+export async function DELETE(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id: deviceId } = await params;
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    try {
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+        const url = new URL(req.url);
+        const readingId = url.searchParams.get('readingId');
+        if (!readingId) return NextResponse.json({ error: 'readingId zorunlu' }, { status: 400 });
+
+        // Okumanın var olduğunu ve tenant'a ait olduğunu kontrol et
+        const reading = await prisma.counterReading.findFirst({
+            where: { id: readingId, tenantId: user.tenantId, deviceId },
+        });
+        if (!reading) return NextResponse.json({ error: 'Okuma bulunamadı' }, { status: 404 });
+
+        // Sayaç okumasını sil (muhasebe kayıtları SİLİNMEZ)
+        await prisma.counterReading.delete({ where: { id: readingId } });
+
+        // Cihaz sayaç değerlerini son okumayla güncelle
+        const lastReading = await prisma.counterReading.findFirst({
+            where: { tenantId: user.tenantId, deviceId },
+            orderBy: { readingDate: 'desc' },
+        });
+
+        await prisma.device.update({
+            where: { id: deviceId },
+            data: {
+                counterBlack: lastReading?.counterBlack ?? null,
+                counterColor: lastReading?.counterColor ?? null,
+            },
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (e: any) {
+        console.error('COUNTER READING DELETE ERROR:', e.message);
+        return NextResponse.json({ error: e.message }, { status: 500 });
+    }
 }

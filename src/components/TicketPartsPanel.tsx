@@ -80,6 +80,16 @@ export default function TicketPartsPanel({ ticketId }: Props) {
         setShowResults(false);
     };
 
+    // Parça toplamını ticket totalCost olarak güncelle
+    const syncTotalCost = async (parts: TicketPart[]) => {
+        const newTotal = parts.reduce((s, tp) => s + Number(tp.unitPrice) * tp.quantity, 0);
+        await fetch(`/api/tickets/${ticketId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ totalCost: newTotal }),
+        });
+    };
+
     const addPart = async () => {
         if (!selectedPart) return;
         setSaving(true);
@@ -93,6 +103,9 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             setSearchText('');
             setQuantity('1');
             await load();
+            // Toplam güncelle
+            const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);
+            if (tpRes.ok) { const parts = await tpRes.json(); await syncTotalCost(parts); }
             router.refresh();
         } else {
             const d = await res.json();
@@ -107,6 +120,9 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             method: 'DELETE',
         });
         await load();
+        // Toplam güncelle
+        const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);
+        if (tpRes.ok) { const parts = await tpRes.json(); await syncTotalCost(parts); }
         router.refresh();
     };
 
@@ -120,6 +136,9 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             body: JSON.stringify({ [field]: numVal }),
         });
         await load();
+        // Toplam güncelle
+        const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);
+        if (tpRes.ok) { const parts = await tpRes.json(); await syncTotalCost(parts); }
         router.refresh();
     };
 

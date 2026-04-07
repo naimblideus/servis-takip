@@ -1,13 +1,19 @@
-﻿'use client';
+'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+}
 
 export default function NewDevicePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [form, setForm] = useState({
     customerId: '',
     brand: '',
@@ -22,12 +28,46 @@ export default function NewDevicePage() {
     pricePerColor: '',
   });
 
+  // Müşteri arama state
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const customerSearchRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     fetch('/api/customers').then(r => r.json()).then(setCustomers);
   }, []);
 
+  // Dış tıklama ile dropdown'ı kapat
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (customerSearchRef.current && !customerSearchRef.current.contains(e.target as Node)) {
+        setShowCustomerResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Müşteri filtresi
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.phone.includes(customerSearch)
+  );
+
+  const selectCustomer = (c: Customer) => {
+    setSelectedCustomer(c);
+    setCustomerSearch(`${c.name} — ${c.phone}`);
+    setForm({ ...form, customerId: c.id });
+    setShowCustomerResults(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.customerId) {
+      alert('Lütfen müşteri seçin');
+      return;
+    }
     setLoading(true);
     const res = await fetch('/api/devices', {
       method: 'POST',
@@ -64,14 +104,66 @@ export default function NewDevicePage() {
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
           <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Cihaz Bilgileri</h2>
 
+          {/* Müşteri Arama (Autocomplete) */}
           <div style={{ marginBottom: '1rem' }}>
             <label style={lbl}>Müşteri *</label>
-            <select required style={inp} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}>
-              <option value="">Müşteri seçin...</option>
-              {customers.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>
-              ))}
-            </select>
+            <div ref={customerSearchRef} style={{ position: 'relative' }}>
+              <input
+                type="text"
+                style={inp}
+                value={customerSearch}
+                onChange={e => {
+                  setCustomerSearch(e.target.value);
+                  setShowCustomerResults(true);
+                  if (!e.target.value) {
+                    setSelectedCustomer(null);
+                    setForm({ ...form, customerId: '' });
+                  }
+                }}
+                onFocus={() => setShowCustomerResults(true)}
+                placeholder="🔍 Müşteri adı veya telefon yazarak arayın..."
+              />
+              {showCustomerResults && customerSearch && filteredCustomers.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                  backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem',
+                  maxHeight: '250px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                }}>
+                  {filteredCustomers.slice(0, 30).map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => selectCustomer(c)}
+                      style={{
+                        padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem',
+                        borderBottom: '1px solid #f3f4f6',
+                        backgroundColor: selectedCustomer?.id === c.id ? '#eff6ff' : 'white',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f3f4f6')}
+                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = selectedCustomer?.id === c.id ? '#eff6ff' : 'white')}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '500' }}>{c.name}</span>
+                        <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{c.phone}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showCustomerResults && customerSearch && filteredCustomers.length === 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                  backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem',
+                  padding: '0.75rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                }}>
+                  <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: 0 }}>Müşteri bulunamadı</p>
+                </div>
+              )}
+            </div>
+            {selectedCustomer && (
+              <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem', fontWeight: '500' }}>
+                ✓ {selectedCustomer.name} seçildi
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>

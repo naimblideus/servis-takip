@@ -6,18 +6,7 @@ import DeviceEditPanel from '@/components/DeviceEditPanel';
 import CounterReadingPanel from '@/components/CounterReadingPanel';
 import DeviceQRCode from '@/components/DeviceQRCode';
 
-const statusLabel: Record<string, { label: string; color: string }> = {
-  NEW: { label: 'Yeni', color: '#fef3c7' },
-  IN_SERVICE: { label: 'Serviste', color: '#dbeafe' },
-  WAITING_FOR_PART: { label: 'Parça Bkl.', color: '#fce7f3' },
-  READY: { label: 'Hazır', color: '#d1fae5' },
-  DELIVERED: { label: 'Teslim', color: '#f0fdf4' },
-  CANCELLED: { label: 'İptal', color: '#f3f4f6' },
-};
-
-const priorityLabel: Record<string, string> = {
-  LOW: 'Düşük', NORMAL: 'Normal', HIGH: 'Yüksek', URGENT: 'Acil',
-};
+// statusLabel and priorityLabel removed — replaced with counter columns
 
 export default async function DeviceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -150,22 +139,23 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                {['Fiş No', 'Arıza', 'Durum', 'Öncelik', 'Teknisyen', 'Tarih', ''].map(h => (
+                {['Fiş No', 'Arıza', '⚫ S. Sayaç', '🟣 R. Sayaç', 'Teknisyen', 'Tarih', ''].map(h => (
                   <th key={h} style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {device.serviceTickets.map((t, i) => {
-                const st = statusLabel[t.status] ?? { label: t.status, color: '#f3f4f6' };
                 return (
                   <tr key={t.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: i % 2 === 0 ? 'white' : '#f9fafb' }}>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', fontFamily: 'monospace' }}>{t.ticketNumber}</td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.issueText}</td>
-                    <td style={{ padding: '0.625rem 0.75rem' }}>
-                      <span style={{ backgroundColor: st.color, padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>{st.label}</span>
+                    <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.85rem', fontWeight: '600' }}>
+                      {device.counterBlack != null ? device.counterBlack.toLocaleString('tr-TR') : '—'}
                     </td>
-                    <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem' }}>{priorityLabel[t.priority] ?? t.priority}</td>
+                    <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.85rem', fontWeight: '600', color: '#7c3aed' }}>
+                      {device.counterColor != null ? device.counterColor.toLocaleString('tr-TR') : '—'}
+                    </td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>{t.assignedUser?.name ?? '-'}</td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>{new Date(t.createdAt).toLocaleDateString('tr-TR')}</td>
                     <td style={{ padding: '0.625rem 0.75rem' }}>

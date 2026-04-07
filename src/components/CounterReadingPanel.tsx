@@ -35,6 +35,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
     const [pricing, setPricing] = useState<Pricing | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState<string | null>(null);
     const [form, setForm] = useState({ counterBlack: '', counterColor: '', includeMonthlyRent: true });
     const [lastResult, setLastResult] = useState<any>(null);
 
@@ -75,6 +76,22 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
             alert('Hata: ' + d.error);
         }
         setSaving(false);
+    };
+
+    const deleteReading = async (readingId: string) => {
+        if (!confirm('Bu sayaç okumasını silmek istediğinize emin misiniz?')) return;
+        setDeleting(readingId);
+        const res = await fetch(`/api/devices/${deviceId}/readings?readingId=${readingId}`, {
+            method: 'DELETE',
+        });
+        if (res.ok) {
+            await load();
+            router.refresh();
+        } else {
+            const d = await res.json();
+            alert('Hata: ' + d.error);
+        }
+        setDeleting(null);
     };
 
     const inp = { padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem', width: '140px' };
@@ -160,8 +177,8 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                                {['Tarih', 'S. Sayaç', '+Δ Siyah', 'R. Sayaç', '+Δ Renkli', ...(device?.isRental ? ['Ücret'] : []), 'Fiş'].map(h => (
-                                    <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '600', color: '#6b7280' }}>{h.replace(' Siyah', '').replace(' Renkli', '')}</th>
+                                {['Tarih', 'S. Sayaç', '+Δ', 'R. Sayaç', '+Δ', ...(device?.isRental ? ['Ücret'] : []), 'Fiş', ''].map((h, i) => (
+                                    <th key={`${h}-${i}`} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '600', color: '#6b7280' }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -186,6 +203,21 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                     )}
                                     <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontFamily: 'monospace', color: '#2563eb' }}>
                                         {r.ticket?.ticketNumber || '—'}
+                                    </td>
+                                    <td style={{ padding: '0.5rem 0.75rem' }}>
+                                        <button
+                                            onClick={() => deleteReading(r.id)}
+                                            disabled={deleting === r.id}
+                                            title="Sayaç Okumasını Sil"
+                                            style={{
+                                                backgroundColor: '#fee2e2', color: '#b91c1c', border: 'none',
+                                                borderRadius: '0.375rem', padding: '0.25rem 0.5rem', cursor: 'pointer',
+                                                fontSize: '0.75rem', fontWeight: '500',
+                                                opacity: deleting === r.id ? 0.5 : 1,
+                                            }}
+                                        >
+                                            {deleting === r.id ? '...' : '🗑️ Sil'}
+                                        </button>
                                     </td>
                                 </tr>
                             ))}

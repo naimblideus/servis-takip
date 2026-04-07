@@ -8,7 +8,7 @@ import TicketsClient from '@/components/TicketsClient';
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; priority?: string; assignedUserId?: string }>;
+  searchParams: Promise<{ status?: string; priority?: string; assignedUserId?: string; dateFrom?: string; dateTo?: string; customer?: string }>;
 }) {
   const sp = await searchParams;
   const session = await auth();
@@ -23,6 +23,29 @@ export default async function TicketsPage({
   if (sp.priority) where.priority = sp.priority;
   if (sp.assignedUserId) {
     where.assignedUserId = sp.assignedUserId === 'unassigned' ? null : sp.assignedUserId;
+  }
+
+  // Tarih aralığı filtresi
+  if (sp.dateFrom || sp.dateTo) {
+    where.createdAt = {};
+    if (sp.dateFrom) {
+      where.createdAt.gte = new Date(sp.dateFrom + 'T00:00:00');
+    }
+    if (sp.dateTo) {
+      where.createdAt.lte = new Date(sp.dateTo + 'T23:59:59');
+    }
+  }
+
+  // Müşteri adı filtresi
+  if (sp.customer) {
+    where.device = {
+      customer: {
+        name: {
+          contains: sp.customer,
+          mode: 'insensitive',
+        },
+      },
+    };
   }
 
   const [tickets, users] = await Promise.all([
@@ -51,7 +74,7 @@ export default async function TicketsPage({
   const ready = allCounts.find(c => c.status === 'READY')?._count || 0;
   const total = allCounts.reduce((s, c) => s + c._count, 0);
 
-  const hasFilter = !!(sp.status || sp.priority || sp.assignedUserId);
+  const hasFilter = !!(sp.status || sp.priority || sp.assignedUserId || sp.dateFrom || sp.dateTo || sp.customer);
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -88,7 +111,15 @@ export default async function TicketsPage({
       </div>
 
       {/* Filtreler (Client Component) */}
-      <TicketFilters currentStatus={sp.status} currentPriority={sp.priority} currentAssigned={sp.assignedUserId} users={users} />
+      <TicketFilters
+        currentStatus={sp.status}
+        currentPriority={sp.priority}
+        currentAssigned={sp.assignedUserId}
+        currentDateFrom={sp.dateFrom}
+        currentDateTo={sp.dateTo}
+        currentCustomer={sp.customer}
+        users={users}
+      />
 
       {/* Tablo (Client Component — satıra tıklayınca detaya gider, sil butonu çöp kutusuna taşır) */}
       <TicketsClient
