@@ -205,6 +205,8 @@ export default function NewTicketPage() {
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [deviceSearch, setDeviceSearch] = useState('');
+  const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
 
   useEffect(() => {
     fetch('/api/tickets/next-ticket-number')
@@ -238,6 +240,7 @@ export default function NewTicketPage() {
     loadDevices(form.customerId);
     setForm(f => ({ ...f, deviceId: '' }));
     setSelectedDevice(null);
+    setDeviceSearch('');
   }, [form.customerId, loadDevices]);
 
   useEffect(() => {
@@ -278,6 +281,8 @@ export default function NewTicketPage() {
       counterColor: device.counterColor?.toString() || '',
     }));
     setSelectedDevice(device);
+    setDeviceSearch(`${device.brand} ${device.model} — SN: ${device.serialNo}`);
+    setShowDeviceDropdown(false);
     setShowAddDevice(false);
   };
 
@@ -430,22 +435,88 @@ export default function NewTicketPage() {
                   </button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                  <select required style={{ ...input, flex: 1 }} value={form.deviceId} onChange={e => setForm({ ...form, deviceId: e.target.value })}>
-                    <option value="">Cihaz seçin...</option>
-                    {devices.map(d => (
-                      <option key={d.id} value={d.id}>
-                        {d.brand} {d.model} — SN: {d.serialNo}
-                      </option>
-                    ))}
-                  </select>
-                  {/* Var olan cihazlar olsa bile yeni ekleyebilmek için buton */}
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                  {/* Aranabilir Cihaz Seçimi */}
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <input
+                      type="text"
+                      style={input}
+                      value={deviceSearch}
+                      onChange={e => {
+                        setDeviceSearch(e.target.value);
+                        setShowDeviceDropdown(true);
+                        if (!e.target.value) {
+                          setForm(f => ({ ...f, deviceId: '' }));
+                          setSelectedDevice(null);
+                        }
+                      }}
+                      onFocus={() => setShowDeviceDropdown(true)}
+                      placeholder="🔍 Marka, model veya seri no yazın..."
+                    />
+                    {showDeviceDropdown && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                        backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem',
+                        maxHeight: '260px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        marginTop: '2px',
+                      }}>
+                        {devices
+                          .filter(d => {
+                            const q = deviceSearch.toLowerCase();
+                            return !q ||
+                              d.brand.toLowerCase().includes(q) ||
+                              d.model.toLowerCase().includes(q) ||
+                              d.serialNo.toLowerCase().includes(q) ||
+                              (d.location || '').toLowerCase().includes(q);
+                          })
+                          .map(d => (
+                            <div
+                              key={d.id}
+                              onClick={() => {
+                                setForm(f => ({
+                                  ...f,
+                                  deviceId: d.id,
+                                  counterBlack: d.counterBlack?.toString() || '',
+                                  counterColor: d.counterColor?.toString() || '',
+                                }));
+                                setSelectedDevice(d);
+                                setDeviceSearch(`${d.brand} ${d.model} — SN: ${d.serialNo}`);
+                                setShowDeviceDropdown(false);
+                              }}
+                              style={{
+                                padding: '0.6rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem',
+                                borderBottom: '1px solid #f3f4f6',
+                                backgroundColor: form.deviceId === d.id ? '#eff6ff' : 'white',
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f3f4f6')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = form.deviceId === d.id ? '#eff6ff' : 'white')}
+                            >
+                              <div style={{ fontWeight: '600', fontSize: '0.875rem' }}>
+                                {d.brand} {d.model}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.1rem' }}>
+                                SN: <span style={{ fontFamily: 'monospace' }}>{d.serialNo}</span>
+                                {d.location && <span> • {d.location}</span>}
+                                {d.counterBlack != null && <span style={{ marginLeft: '0.5rem' }}>⚫{d.counterBlack.toLocaleString('tr-TR')}</span>}
+                                {d.counterColor != null && <span style={{ marginLeft: '0.25rem' }}>🟣{d.counterColor.toLocaleString('tr-TR')}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        {devices.filter(d => {
+                          const q = deviceSearch.toLowerCase();
+                          return !q || d.brand.toLowerCase().includes(q) || d.model.toLowerCase().includes(q) || d.serialNo.toLowerCase().includes(q);
+                        }).length === 0 && (
+                          <div style={{ padding: '0.75rem', color: '#9ca3af', fontSize: '0.875rem' }}>Sonuç bulunamadı</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowAddDevice(true)}
                     title="Yeni cihaz ekle"
                     style={{
-                      padding: '0.5rem 0.9rem', backgroundColor: '#f0f9ff', color: '#2563eb',
+                      padding: '0.625rem 0.9rem', backgroundColor: '#f0f9ff', color: '#2563eb',
                       border: '1px solid #bfdbfe', borderRadius: '0.5rem', cursor: 'pointer',
                       fontWeight: '600', fontSize: '0.875rem', whiteSpace: 'nowrap',
                     }}

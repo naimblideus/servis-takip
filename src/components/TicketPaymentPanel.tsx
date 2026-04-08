@@ -20,7 +20,7 @@ const METHOD_LABELS: Record<string, string> = {
 
 export default function TicketPaymentPanel({
     ticketId,
-    totalCost,
+    totalCost: initialTotalCost,
     paymentStatus,
 }: {
     ticketId: string;
@@ -34,10 +34,18 @@ export default function TicketPaymentPanel({
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('CASH');
     const [note, setNote] = useState('');
+    const [totalCost, setTotalCost] = useState(initialTotalCost);
 
     const load = async () => {
-        const res = await fetch(`/api/tickets/${ticketId}/payments`);
-        if (res.ok) setPayments(await res.json());
+        const [payRes, ticketRes] = await Promise.all([
+            fetch(`/api/tickets/${ticketId}/payments`),
+            fetch(`/api/tickets/${ticketId}`),
+        ]);
+        if (payRes.ok) setPayments(await payRes.json());
+        if (ticketRes.ok) {
+            const t = await ticketRes.json();
+            if (t.totalCost !== undefined) setTotalCost(Number(t.totalCost));
+        }
         setLoading(false);
     };
 
