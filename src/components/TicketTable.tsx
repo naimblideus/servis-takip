@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useState, useMemo } from 'react';
 
 const statusLabel: Record<string, { label: string; color: string; text: string }> = {
     NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
@@ -34,21 +35,62 @@ interface Ticket {
     assignedUser: { name: string } | null;
 }
 
+type SortKey = 'ticketNumber' | 'customer' | 'status' | 'createdAt';
+
 export default function TicketTable({ tickets, onDelete }: { tickets: Ticket[]; onDelete?: (id: string, num: string) => void }) {
     const router = useRouter();
+    const [sortKey, setSortKey] = useState<SortKey>('createdAt');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+    const toggleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir(key === 'createdAt' ? 'desc' : 'asc');
+        }
+    };
+
+    const sorted = useMemo(() => {
+        return [...tickets].sort((a, b) => {
+            let va: string | number, vb: string | number;
+            if (sortKey === 'ticketNumber') { va = a.ticketNumber; vb = b.ticketNumber; }
+            else if (sortKey === 'customer') { va = a.device.customer.name.toLowerCase(); vb = b.device.customer.name.toLowerCase(); }
+            else if (sortKey === 'status') { va = a.status; vb = b.status; }
+            else { va = new Date(a.createdAt).getTime(); vb = new Date(b.createdAt).getTime(); }
+            if (va < vb) return sortDir === 'asc' ? -1 : 1;
+            if (va > vb) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [tickets, sortKey, sortDir]);
+
+    const thStyle = (key?: SortKey): React.CSSProperties => ({
+        padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600',
+        color: key && sortKey === key ? '#2563eb' : '#374151',
+        cursor: key ? 'pointer' : 'default',
+        userSelect: 'none',
+        whiteSpace: 'nowrap',
+    });
+
+    const arrow = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕';
 
     return (
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                     <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                        {['Fiş No', 'Müşteri / Cihaz', 'Arıza', 'Durum', 'Öncelik', 'Teknisyen', 'Tarih', ''].map(h => (
-                            <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>{h}</th>
-                        ))}
+                        <th style={thStyle('ticketNumber')} onClick={() => toggleSort('ticketNumber')}>Fiş No{arrow('ticketNumber')}</th>
+                        <th style={thStyle('customer')} onClick={() => toggleSort('customer')}>Müşteri / Cihaz{arrow('customer')}</th>
+                        <th style={thStyle()}>Arıza</th>
+                        <th style={thStyle('status')} onClick={() => toggleSort('status')}>Durum{arrow('status')}</th>
+                        <th style={thStyle()}>Öncelik</th>
+                        <th style={thStyle()}>Teknisyen</th>
+                        <th style={thStyle('createdAt')} onClick={() => toggleSort('createdAt')}>Tarih{arrow('createdAt')}</th>
+                        <th style={thStyle()}></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {tickets.map((t, i) => {
+                    {sorted.map((t, i) => {
                         const st = statusLabel[t.status] ?? { label: t.status, color: '#f3f4f6', text: '#374151' };
                         const pr = priorityLabel[t.priority] ?? { label: t.priority, color: '#6b7280' };
                         const hasCounter = t.device.counterBlack != null || t.device.counterColor != null;
