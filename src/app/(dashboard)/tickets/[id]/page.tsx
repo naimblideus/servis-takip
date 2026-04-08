@@ -17,10 +17,6 @@ const statusLabel: Record<string, { label: string; color: string; text: string }
   CANCELLED: { label: 'İptal', color: '#f3f4f6', text: '#374151' },
 };
 
-const priorityLabel: Record<string, string> = {
-  LOW: 'Düşük', NORMAL: 'Normal', HIGH: 'Yüksek', URGENT: 'Acil',
-};
-
 export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
@@ -42,6 +38,14 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
+
+  const latestReading = await prisma.counterReading.findFirst({
+    where: { deviceId: ticket.deviceId },
+    orderBy: { readingDate: 'desc' },
+  });
+
+  const counterBlackVal = latestReading?.counterBlack ?? ticket.device.counterBlack ?? null;
+  const counterColorVal = latestReading?.counterColor ?? ticket.device.counterColor ?? null;
 
   const st = statusLabel[ticket.status] ?? { label: ticket.status, color: '#f3f4f6', text: '#374151' };
 
@@ -106,8 +110,40 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
         {/* Fiş Bilgileri */}
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
           <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Fiş Bilgileri</h2>
+
+          {/* Siyah / Renkli Sayaç Göstergesi */}
+          {(counterBlackVal !== null || counterColorVal !== null) && (
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              {counterBlackVal !== null && (
+                <div style={{
+                  flex: 1, backgroundColor: '#1f2937', borderRadius: '0.625rem',
+                  padding: '0.625rem 0.875rem', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>
+                    ⚫ Siyah Sayaç
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', fontFamily: 'monospace' }}>
+                    {counterBlackVal.toLocaleString('tr-TR')}
+                  </div>
+                </div>
+              )}
+              {counterColorVal !== null && (
+                <div style={{
+                  flex: 1, backgroundColor: '#5b21b6', borderRadius: '0.625rem',
+                  padding: '0.625rem 0.875rem', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#c4b5fd', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>
+                    🟣 Renkli Sayaç
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', fontFamily: 'monospace' }}>
+                    {counterColorVal.toLocaleString('tr-TR')}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {[
-            ['Öncelik', priorityLabel[ticket.priority] ?? ticket.priority],
             ['Teknisyen', ticket.assignedUser?.name ?? '-'],
             ['Oluşturan', ticket.createdBy?.name ?? '-'],
             ['Toplam Tutar', `₺${Number(ticket.totalCost).toFixed(2)}`],

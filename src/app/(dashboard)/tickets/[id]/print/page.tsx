@@ -3,31 +3,8 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PrintButton from '@/components/PrintButton';
 
-const STATUS_LABELS: Record<string, string> = {
-    NEW: 'Yeni', IN_SERVICE: 'Serviste', WAITING_FOR_PART: 'Parça Bekleniyor',
-    READY: 'Hazır', DELIVERED: 'Teslim Edildi', CANCELLED: 'İptal',
-};
-const PRIORITY_LABELS: Record<string, string> = {
-    LOW: 'Düşük', NORMAL: 'Normal', HIGH: 'Yüksek', URGENT: 'Acil',
-};
 const PAYMENT_LABELS: Record<string, string> = {
     UNPAID: 'Ödenmedi', PARTIAL: 'Kısmi Ödeme', PAID: 'Ödendi', REFUNDED: 'İade',
-};
-
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-    NEW: { bg: '#fef3c7', text: '#92400e' },
-    IN_SERVICE: { bg: '#dbeafe', text: '#1e40af' },
-    WAITING_FOR_PART: { bg: '#fce7f3', text: '#9d174d' },
-    READY: { bg: '#d1fae5', text: '#065f46' },
-    DELIVERED: { bg: '#ede9fe', text: '#4c1d95' },
-    CANCELLED: { bg: '#f3f4f6', text: '#374151' },
-};
-
-const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
-    LOW: { bg: '#f3f4f6', text: '#374151' },
-    NORMAL: { bg: '#dbeafe', text: '#1e40af' },
-    HIGH: { bg: '#ffedd5', text: '#c2410c' },
-    URGENT: { bg: '#fee2e2', text: '#b91c1c' },
 };
 
 export default async function TicketPrintPage({ params }: { params: Promise<{ id: string }> }) {
@@ -58,8 +35,9 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
     const paidTotal = ticket.payments.reduce((s, p) => s + Number(p.amount), 0);
     const remaining = Math.max(0, Number(ticket.totalCost) - paidTotal);
     const isPaid = paidTotal >= Number(ticket.totalCost);
-    const statusColor = STATUS_COLORS[ticket.status] ?? { bg: '#f3f4f6', text: '#374151' };
-    const priorityColor = PRIORITY_COLORS[ticket.priority] ?? { bg: '#f3f4f6', text: '#374151' };
+
+    const counterBlackVal = latestReading?.counterBlack ?? ticket.device.counterBlack ?? null;
+    const counterColorVal = latestReading?.counterColor ?? ticket.device.counterColor ?? null;
 
     return (
         <>
@@ -312,18 +290,22 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
 
                     {/* ── STATUS BAR ── */}
                     <div className="status-bar">
-                        <div className="status-bar-item">
-                            <span className="status-bar-label">Durum:</span>
-                            <span className="status-pill" style={{ background: statusColor.bg, color: statusColor.text }}>
-                                {STATUS_LABELS[ticket.status] || ticket.status}
-                            </span>
-                        </div>
-                        <div className="status-bar-item">
-                            <span className="status-bar-label">Öncelik:</span>
-                            <span className="status-pill" style={{ background: priorityColor.bg, color: priorityColor.text }}>
-                                {PRIORITY_LABELS[ticket.priority]}
-                            </span>
-                        </div>
+                        {counterBlackVal !== null && (
+                            <div className="status-bar-item">
+                                <span className="status-bar-label">⚫ Siyah Sayaç:</span>
+                                <span className="status-val" style={{ fontFamily: 'monospace', fontSize: '14px', color: '#111827' }}>
+                                    {counterBlackVal.toLocaleString('tr-TR')}
+                                </span>
+                            </div>
+                        )}
+                        {counterColorVal !== null && (
+                            <div className="status-bar-item">
+                                <span className="status-bar-label">🟣 Renkli Sayaç:</span>
+                                <span className="status-val" style={{ fontFamily: 'monospace', fontSize: '14px', color: '#7c3aed' }}>
+                                    {counterColorVal.toLocaleString('tr-TR')}
+                                </span>
+                            </div>
+                        )}
                         <div className="status-bar-item">
                             <span className="status-bar-label">Teknisyen:</span>
                             <span className="status-val">{ticket.assignedUser?.name || '—'}</span>
