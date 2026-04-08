@@ -362,16 +362,14 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                                             <span className="info-val">{ticket.device.location}</span>
                                         </div>
                                     )}
-                                    {(latestReading || ticket.device.counterBlack != null || ticket.device.counterColor != null) && (
-                                        <div className="info-row">
-                                            <span className="info-key">Sayaç</span>
-                                            <span className="info-val" style={{ fontSize: '12px' }}>
-                                                ⚫ {(latestReading?.counterBlack ?? ticket.device.counterBlack ?? 0).toLocaleString('tr-TR')}
-                                                {' / '}
-                                                🟣 {(latestReading?.counterColor ?? ticket.device.counterColor ?? 0).toLocaleString('tr-TR')}
-                                            </span>
-                                        </div>
-                                    )}
+                                    <div className="info-row">
+                                        <span className="info-key">Sayaç</span>
+                                        <span className="info-val" style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: '700' }}>
+                                            ⚫ {counterBlackVal != null ? counterBlackVal.toLocaleString('tr-TR') : '—'}
+                                            <span style={{ color: '#d1d5db', margin: '0 6px' }}>|</span>
+                                            🟣 {counterColorVal != null ? counterColorVal.toLocaleString('tr-TR') : '—'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

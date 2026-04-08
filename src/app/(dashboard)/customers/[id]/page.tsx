@@ -24,7 +24,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     include: {
       devices: {
         include: {
-          serviceTickets: { orderBy: { createdAt: 'desc' }, take: 1 },
+          serviceTickets: { orderBy: { createdAt: 'desc' } },
         },
       },
     },
@@ -32,7 +32,11 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
   if (!customer) redirect('/customers');
 
-  const allTickets = customer.devices.flatMap(d => d.serviceTickets);
+  // Tüm cihazların fişlerini birleştir ve tarihe göre azalan sırala
+  const allTickets = customer.devices
+    .flatMap(d => d.serviceTickets)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
 
   return (
     <div style={{ padding: '2rem', maxWidth: '900px' }}>

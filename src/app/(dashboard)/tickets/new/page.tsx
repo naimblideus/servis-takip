@@ -606,7 +606,7 @@ export default function NewTicketPage() {
                 <label style={label}>Arıza Şablonu</label>
                 <select style={input} value={form.issueTemplate} onChange={e => setForm({ ...form, issueTemplate: e.target.value, issueText: e.target.value })}>
                   <option value="">Seçin veya manuel yazın...</option>
-                  {['Kağıt Sıkışması', 'Toner Sorunu', 'Baskı Kalitesi', 'Besleme Hatası', 'Ağ Bağlantısı', 'Fırın Arızası', 'Drum Sorunu', 'Diğer'].map(t => (
+                  {['Kağıt Sıkışması', 'Toner Sorunu', 'Baskı Kalitesi', 'Besleme Hatası', 'Ağ Bağlantısı', 'Fırın Arızası', 'Drum Sorunu', 'Elektronik Sorun', 'Dişli Arızası', 'Paten Sorunu', 'Kafa Arızası', 'Diğer'].map(t => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
