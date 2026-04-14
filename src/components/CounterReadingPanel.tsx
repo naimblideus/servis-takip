@@ -39,6 +39,11 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
     const [form, setForm] = useState({ counterBlack: '', counterColor: '', includeMonthlyRent: true });
     const [lastResult, setLastResult] = useState<any>(null);
 
+    // Edit modal state
+    const [editReading, setEditReading] = useState<Reading | null>(null);
+    const [editForm, setEditForm] = useState({ counterBlack: '', counterColor: '' });
+    const [editSaving, setEditSaving] = useState(false);
+
     const load = async () => {
         const res = await fetch(`/api/devices/${deviceId}/readings`);
         if (res.ok) {
@@ -94,137 +99,300 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
         setDeleting(null);
     };
 
+    const openEdit = (r: Reading) => {
+        setEditReading(r);
+        setEditForm({ counterBlack: String(r.counterBlack), counterColor: String(r.counterColor) });
+    };
+
+    const closeEdit = () => {
+        setEditReading(null);
+        setEditForm({ counterBlack: '', counterColor: '' });
+    };
+
+    const saveEdit = async () => {
+        if (!editReading || !editForm.counterBlack || !editForm.counterColor) return;
+        setEditSaving(true);
+        const res = await fetch(`/api/devices/${deviceId}/readings?readingId=${editReading.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                counterBlack: parseInt(editForm.counterBlack),
+                counterColor: parseInt(editForm.counterColor),
+            }),
+        });
+        if (res.ok) {
+            closeEdit();
+            await load();
+            router.refresh();
+        } else {
+            const d = await res.json();
+            alert('Hata: ' + d.error);
+        }
+        setEditSaving(false);
+    };
+
     const inp = { padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem', width: '140px' };
+    const modalInp = { padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.95rem', width: '100%', boxSizing: 'border-box' as const };
 
     return (
-        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h2 style={{ fontWeight: '600' }}>Sayaç Okuma</h2>
-                {device?.isRental && (
-                    <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.2rem 0.75rem', borderRadius: '9999px' }}>
-                        KİRALIK
-                    </span>
-                )}
-            </div>
+        <>
+            {/* ── Edit Modal ─────────────────────────────────────────── */}
+            {editReading && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 9999,
+                    backgroundColor: 'rgba(0,0,0,0.45)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                    <div style={{
+                        backgroundColor: 'white', borderRadius: '1rem',
+                        padding: '2rem', width: '380px', maxWidth: '95vw',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', margin: 0 }}>✏️ Sayaç Okumasını Düzenle</h3>
+                            <button onClick={closeEdit} style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                fontSize: '1.4rem', color: '#6b7280', lineHeight: 1,
+                            }}>×</button>
+                        </div>
 
-            {/* Birim Fiyat Bilgisi (kiralık cihazlarda) */}
-            {device?.isRental && pricing && (
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#eff6ff', borderRadius: '0.5rem', border: '1px solid #bfdbfe', fontSize: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span>⚫ Siyah: <b>₺{pricing.pricePerBlack.toFixed(2)}</b>/adet</span>
-                    <span>🟣 Renkli: <b>₺{pricing.pricePerColor.toFixed(2)}</b>/adet</span>
-                    {device.monthlyRent > 0 && <span>📅 Aidat: <b>₺{device.monthlyRent.toFixed(2)}</b>/ay</span>}
-                    {pricing.isDeviceLevel && (
-                        <span style={{ fontSize: '0.7rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '9999px' }}>Özel fiyat</span>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1.5rem', backgroundColor: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.5rem' }}>
+                            📅 {new Date(editReading.readingDate).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.4rem' }}>
+                                    ⚫ Siyah Sayaç
+                                </label>
+                                <input
+                                    type="number"
+                                    style={modalInp}
+                                    value={editForm.counterBlack}
+                                    onChange={e => setEditForm({ ...editForm, counterBlack: e.target.value })}
+                                />
+                                {editForm.counterBlack && (
+                                    <div style={{ fontSize: '0.75rem', color: '#0ea5e9', marginTop: '0.25rem', fontWeight: '600' }}>
+                                        {Number(editForm.counterBlack).toLocaleString('tr-TR')}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.4rem' }}>
+                                    🟣 Renkli Sayaç
+                                </label>
+                                <input
+                                    type="number"
+                                    style={modalInp}
+                                    value={editForm.counterColor}
+                                    onChange={e => setEditForm({ ...editForm, counterColor: e.target.value })}
+                                />
+                                {editForm.counterColor && (
+                                    <div style={{ fontSize: '0.75rem', color: '#7c3aed', marginTop: '0.25rem', fontWeight: '600' }}>
+                                        {Number(editForm.counterColor).toLocaleString('tr-TR')}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button
+                                onClick={closeEdit}
+                                style={{
+                                    flex: 1, padding: '0.6rem', border: '1px solid #d1d5db',
+                                    borderRadius: '0.5rem', cursor: 'pointer', backgroundColor: 'white',
+                                    color: '#374151', fontWeight: '600', fontSize: '0.875rem',
+                                }}
+                            >
+                                İptal
+                            </button>
+                            <button
+                                onClick={saveEdit}
+                                disabled={!editForm.counterBlack || !editForm.counterColor || editSaving}
+                                style={{
+                                    flex: 1, padding: '0.6rem', border: 'none',
+                                    borderRadius: '0.5rem', cursor: 'pointer',
+                                    backgroundColor: '#0ea5e9', color: 'white',
+                                    fontWeight: '600', fontSize: '0.875rem',
+                                    opacity: (!editForm.counterBlack || !editForm.counterColor || editSaving) ? 0.6 : 1,
+                                }}
+                            >
+                                {editSaving ? 'Kaydediliyor...' : '💾 Kaydet'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Panel ──────────────────────────────────────────────── */}
+            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h2 style={{ fontWeight: '600' }}>Sayaç Okuma</h2>
+                    {device?.isRental && (
+                        <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.2rem 0.75rem', borderRadius: '9999px' }}>
+                            KİRALIK
+                        </span>
                     )}
                 </div>
-            )}
 
-            {/* Yeni Okuma */}
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginBottom: '1.25rem', flexWrap: 'wrap', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '0.5rem', border: '1px solid #bae6fd' }}>
-                <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>Siyah Sayaç</label>
-                    <input type="number" style={inp} placeholder="örn. 7356" value={form.counterBlack} onChange={e => setForm({ ...form, counterBlack: e.target.value })} />
-                    {form.counterBlack && <div style={{ fontSize: '0.7rem', color: '#0ea5e9', fontWeight: '600', marginTop: '0.2rem' }}>{Number(form.counterBlack).toLocaleString('tr-TR')}</div>}
-                </div>
-                <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>Renkli Sayaç</label>
-                    <input type="number" style={inp} placeholder="örn. 345567" value={form.counterColor} onChange={e => setForm({ ...form, counterColor: e.target.value })} />
-                    {form.counterColor && <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', marginTop: '0.2rem' }}>{Number(form.counterColor).toLocaleString('tr-TR')}</div>}
-                </div>
-                {device?.isRental && device.monthlyRent > 0 && (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={form.includeMonthlyRent} onChange={e => setForm({ ...form, includeMonthlyRent: e.target.checked })} />
-                        Aylık aidat dahil
-                    </label>
+                {/* Birim Fiyat Bilgisi */}
+                {device?.isRental && pricing && (
+                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#eff6ff', borderRadius: '0.5rem', border: '1px solid #bfdbfe', fontSize: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span>⚫ Siyah: <b>₺{pricing.pricePerBlack.toFixed(2)}</b>/adet</span>
+                        <span>🟣 Renkli: <b>₺{pricing.pricePerColor.toFixed(2)}</b>/adet</span>
+                        {device.monthlyRent > 0 && <span>📅 Aidat: <b>₺{device.monthlyRent.toFixed(2)}</b>/ay</span>}
+                        {pricing.isDeviceLevel && (
+                            <span style={{ fontSize: '0.7rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '9999px' }}>Özel fiyat</span>
+                        )}
+                    </div>
                 )}
-                <button onClick={save} disabled={!form.counterBlack || !form.counterColor || saving} style={{
-                    padding: '0.5rem 1.25rem', backgroundColor: '#0ea5e9', color: 'white',
-                    border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600',
-                    opacity: (!form.counterBlack || !form.counterColor || saving) ? 0.6 : 1, fontSize: '0.875rem',
-                    height: '37px',
-                }}>
-                    {saving ? '...' : '📊 Ekle'}
-                </button>
-            </div>
 
-            {/* Son Hesaplama Sonucu */}
-            {lastResult && (
-                <div style={{ padding: '1rem', backgroundColor: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #86efac', marginBottom: '1.25rem' }}>
-                    <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '0.5rem', color: '#065f46' }}>💰 Ücret Hesabı</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
-                        <div>⚫ Siyah: {lastResult.deltaBlack} × ₺{lastResult.pricePerBlack.toFixed(2)}</div>
-                        <div style={{ fontWeight: '600' }}>= ₺{lastResult.blackCost.toFixed(2)}</div>
-                        <div>🟣 Renkli: {lastResult.deltaColor} × ₺{lastResult.pricePerColor.toFixed(2)}</div>
-                        <div style={{ fontWeight: '600' }}>= ₺{lastResult.colorCost.toFixed(2)}</div>
-                        {lastResult.monthlyRent > 0 && <>
-                            <div>📅 Aylık Aidat</div>
-                            <div style={{ fontWeight: '600' }}>= ₺{lastResult.monthlyRent.toFixed(2)}</div>
-                        </>}
+                {/* Yeni Okuma */}
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginBottom: '1.25rem', flexWrap: 'wrap', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '0.5rem', border: '1px solid #bae6fd' }}>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>Siyah Sayaç</label>
+                        <input type="number" style={inp} placeholder="örn. 7356" value={form.counterBlack} onChange={e => setForm({ ...form, counterBlack: e.target.value })} />
+                        {form.counterBlack && <div style={{ fontSize: '0.7rem', color: '#0ea5e9', fontWeight: '600', marginTop: '0.2rem' }}>{Number(form.counterBlack).toLocaleString('tr-TR')}</div>}
                     </div>
-                    <div style={{ marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #86efac', fontSize: '1.1rem', fontWeight: '700', color: '#065f46' }}>
-                        TOPLAM: ₺{lastResult.total.toFixed(2)}
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>Renkli Sayaç</label>
+                        <input type="number" style={inp} placeholder="örn. 345567" value={form.counterColor} onChange={e => setForm({ ...form, counterColor: e.target.value })} />
+                        {form.counterColor && <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', marginTop: '0.2rem' }}>{Number(form.counterColor).toLocaleString('tr-TR')}</div>}
                     </div>
+                    {device?.isRental && device.monthlyRent > 0 && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={form.includeMonthlyRent} onChange={e => setForm({ ...form, includeMonthlyRent: e.target.checked })} />
+                            Aylık aidat dahil
+                        </label>
+                    )}
+                    <button onClick={save} disabled={!form.counterBlack || !form.counterColor || saving} style={{
+                        padding: '0.5rem 1.25rem', backgroundColor: '#0ea5e9', color: 'white',
+                        border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600',
+                        opacity: (!form.counterBlack || !form.counterColor || saving) ? 0.6 : 1, fontSize: '0.875rem',
+                        height: '37px',
+                    }}>
+                        {saving ? '...' : '📊 Ekle'}
+                    </button>
                 </div>
-            )}
 
-            {/* Okuma Geçmişi */}
-            {loading ? (
-                <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Yükleniyor...</p>
-            ) : readings.length === 0 ? (
-                <p style={{ color: '#9ca3af', fontSize: '0.875rem', textAlign: 'center', padding: '1rem' }}>Henüz sayaç okuma yok</p>
-            ) : (
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                            <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                                {['Tarih', 'S. Sayaç', '+Δ', 'R. Sayaç', '+Δ', ...(device?.isRental ? ['Ücret'] : []), 'Fiş', ''].map((h, i) => (
-                                    <th key={`${h}-${i}`} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '600', color: '#6b7280' }}>{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {readings.map(r => (
-                                <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: '#374151' }}>
-                                        {new Date(r.readingDate).toLocaleDateString('tr-TR')}
-                                    </td>
-                                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: '600' }}>{r.counterBlack.toLocaleString('tr-TR')}</td>
-                                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: r.deltaBlack > 0 ? '#059669' : '#6b7280' }}>
-                                        {r.deltaBlack > 0 ? `+${r.deltaBlack.toLocaleString('tr-TR')}` : '—'}
-                                    </td>
-                                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#7c3aed' }}>{r.counterColor.toLocaleString('tr-TR')}</td>
-                                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: r.deltaColor > 0 ? '#7c3aed' : '#6b7280' }}>
-                                        {r.deltaColor > 0 ? `+${r.deltaColor.toLocaleString('tr-TR')}` : '—'}
-                                    </td>
-                                    {device?.isRental && (
-                                        <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', fontWeight: '700', color: Number(r.calculatedCost) > 0 ? '#059669' : '#6b7280' }}>
-                                            {Number(r.calculatedCost) > 0 ? `₺${Number(r.calculatedCost).toFixed(2)}` : '—'}
-                                        </td>
-                                    )}
-                                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontFamily: 'monospace', color: '#2563eb' }}>
-                                        {r.ticket?.ticketNumber || '—'}
-                                    </td>
-                                    <td style={{ padding: '0.5rem 0.75rem' }}>
-                                        <button
-                                            onClick={() => deleteReading(r.id)}
-                                            disabled={deleting === r.id}
-                                            title="Sayaç Okumasını Sil"
-                                            style={{
-                                                backgroundColor: '#fee2e2', color: '#b91c1c', border: 'none',
-                                                borderRadius: '0.375rem', padding: '0.25rem 0.5rem', cursor: 'pointer',
-                                                fontSize: '0.75rem', fontWeight: '500',
-                                                opacity: deleting === r.id ? 0.5 : 1,
-                                            }}
-                                        >
-                                            {deleting === r.id ? '...' : '🗑️ Sil'}
-                                        </button>
-                                    </td>
+                {/* Son Hesaplama */}
+                {lastResult && (
+                    <div style={{ padding: '1rem', backgroundColor: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #86efac', marginBottom: '1.25rem' }}>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '0.5rem', color: '#065f46' }}>💰 Ücret Hesabı</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                            <div>⚫ Siyah: {lastResult.deltaBlack} × ₺{lastResult.pricePerBlack.toFixed(2)}</div>
+                            <div style={{ fontWeight: '600' }}>= ₺{lastResult.blackCost.toFixed(2)}</div>
+                            <div>🟣 Renkli: {lastResult.deltaColor} × ₺{lastResult.pricePerColor.toFixed(2)}</div>
+                            <div style={{ fontWeight: '600' }}>= ₺{lastResult.colorCost.toFixed(2)}</div>
+                            {lastResult.monthlyRent > 0 && <>
+                                <div>📅 Aylık Aidat</div>
+                                <div style={{ fontWeight: '600' }}>= ₺{lastResult.monthlyRent.toFixed(2)}</div>
+                            </>}
+                        </div>
+                        <div style={{ marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #86efac', fontSize: '1.1rem', fontWeight: '700', color: '#065f46' }}>
+                            TOPLAM: ₺{lastResult.total.toFixed(2)}
+                        </div>
+                    </div>
+                )}
+
+                {/* Okuma Geçmişi */}
+                {loading ? (
+                    <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Yükleniyor...</p>
+                ) : readings.length === 0 ? (
+                    <p style={{ color: '#9ca3af', fontSize: '0.875rem', textAlign: 'center', padding: '1rem' }}>Henüz sayaç okuma yok</p>
+                ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+                            <thead>
+                                <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+                                    {['Tarih', 'S. Sayaç', '+Δ', 'R. Sayaç', '+Δ', ...(device?.isRental ? ['Ücret'] : []), 'Fiş', 'İşlemler'].map((h, i) => (
+                                        <th key={`${h}-${i}`} style={{
+                                            padding: '0.6rem 0.75rem', textAlign: h === 'İşlemler' ? 'center' : 'left',
+                                            fontSize: '0.75rem', fontWeight: '700', color: '#374151',
+                                            whiteSpace: 'nowrap',
+                                        }}>{h}</th>
+                                    ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-        </div>
+                            </thead>
+                            <tbody>
+                                {readings.map(r => (
+                                    <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6' }}
+                                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f8faff')}
+                                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                    >
+                                        <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: '#374151', whiteSpace: 'nowrap' }}>
+                                            {new Date(r.readingDate).toLocaleDateString('tr-TR')}
+                                        </td>
+                                        <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.875rem', fontWeight: '600' }}>
+                                            {r.counterBlack.toLocaleString('tr-TR')}
+                                        </td>
+                                        <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: r.deltaBlack > 0 ? '#059669' : '#9ca3af' }}>
+                                            {r.deltaBlack > 0 ? `+${r.deltaBlack.toLocaleString('tr-TR')}` : '—'}
+                                        </td>
+                                        <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#7c3aed' }}>
+                                            {r.counterColor.toLocaleString('tr-TR')}
+                                        </td>
+                                        <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: r.deltaColor > 0 ? '#7c3aed' : '#9ca3af' }}>
+                                            {r.deltaColor > 0 ? `+${r.deltaColor.toLocaleString('tr-TR')}` : '—'}
+                                        </td>
+                                        {device?.isRental && (
+                                            <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.85rem', fontWeight: '700', color: Number(r.calculatedCost) > 0 ? '#059669' : '#9ca3af', whiteSpace: 'nowrap' }}>
+                                                {Number(r.calculatedCost) > 0 ? `₺${Number(r.calculatedCost).toFixed(2)}` : '—'}
+                                            </td>
+                                        )}
+                                        <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.75rem', fontFamily: 'monospace', color: '#2563eb' }}>
+                                            {r.ticket?.ticketNumber || '—'}
+                                        </td>
+                                        {/* İşlemler */}
+                                        <td style={{ padding: '0.5rem 0.75rem', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                                                {/* Düzenle */}
+                                                <button
+                                                    onClick={() => openEdit(r)}
+                                                    title="Sayaç Değerlerini Düzenle"
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                        backgroundColor: '#eff6ff', color: '#1d4ed8',
+                                                        border: '1px solid #bfdbfe',
+                                                        borderRadius: '0.375rem', padding: '0.3rem 0.6rem',
+                                                        cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600',
+                                                        transition: 'background 0.15s',
+                                                    }}
+                                                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#dbeafe')}
+                                                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#eff6ff')}
+                                                >
+                                                    ✏️ Düzenle
+                                                </button>
+
+                                                {/* Sil */}
+                                                <button
+                                                    onClick={() => deleteReading(r.id)}
+                                                    disabled={deleting === r.id}
+                                                    title="Sayaç Okumasını Sil"
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                        backgroundColor: '#fef2f2', color: '#b91c1c',
+                                                        border: '1px solid #fecaca',
+                                                        borderRadius: '0.375rem', padding: '0.3rem 0.6rem',
+                                                        cursor: deleting === r.id ? 'not-allowed' : 'pointer',
+                                                        fontSize: '0.75rem', fontWeight: '600',
+                                                        opacity: deleting === r.id ? 0.5 : 1,
+                                                        transition: 'background 0.15s',
+                                                    }}
+                                                    onMouseEnter={e => { if (deleting !== r.id) e.currentTarget.style.backgroundColor = '#fee2e2'; }}
+                                                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#fef2f2')}
+                                                >
+                                                    {deleting === r.id ? '⏳ Siliniyor...' : '🗑️ Sil'}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </>
     );
 }

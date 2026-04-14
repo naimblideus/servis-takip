@@ -229,3 +229,78 @@ export async function DELETE(
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
 }
+
+export async function PATCH(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id: deviceId } = await params;
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    try {
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+        const url = new URL(req.url);
+        const readingId = url.searchParams.get('readingId');
+        if (!readingId) return NextResponse.json({ error: 'readingId zorunlu' }, { status: 400 });
+
+        const body = await req.json();
+        const { counterBlack, counterColor } = body;
+
+        if (counterBlack === undefined || counterColor === undefined) {
+            return NextResponse.json({ error: 'counterBlack ve counterColor zorunlu' }, { status: 400 });
+        }
+
+        // Okumanın var olduğunu ve tenant'a ait olduğunu kontrol et
+        const reading = await prisma.counterReading.findFirst({
+            where: { id: readingId, tenantId: user.tenantId, deviceId },
+        });
+        if (!reading) return NextResponse.json({ error: 'Okuma bulunamadı' }, { status: 404 });
+
+        const device = await prisma.device.findUnique({ where: { id: deviceId } });
+        if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+
+        const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
+        const effectiveBlackPrice = device.pricePerBlack !== null ? Number(device.pricePerBlack) : Number(tenant?.pricePerBlack ?? 0);
+        const effectiveColorPrice = device.pricePerColor !== null ? Number(device.pricePerColor) : Number(tenant?.pricePerColor ?? 0);
+
+        // Bir önceki okumayı bul (bu okumadan önce)
+        const prev = await prisma.counterReading.findFirst({
+            where: { tenantId: user.tenantId, deviceId, readingDate: { lt: reading.readingDate }, id: { not: readingId } },
+            orderBy: { readingDate: 'desc' },
+        });
+
+        const deltaBlack = prev ? Math.max(0, counterBlack - prev.counterBlack) : 0;
+        const deltaColor = prev ? Math.max(0, counterColor - prev.counterColor) : 0;
+
+        let calculatedCost = 0;
+        if (device.isRental) {
+            calculatedCost = deltaBlack * effectiveBlackPrice + deltaColor * effectiveColorPrice + Number(reading.monthlyRent);
+        }
+
+        // Okuyu güncelle
+        const updated = await prisma.counterReading.update({
+            where: { id: readingId },
+            data: { counterBlack, counterColor, deltaBlack, deltaColor, calculatedCost },
+        });
+
+        // Eğer bu en son okumaysa cihaz sayacını da güncelle
+        const lastReading = await prisma.counterReading.findFirst({
+            where: { tenantId: user.tenantId, deviceId },
+            orderBy: { readingDate: 'desc' },
+        });
+        if (lastReading?.id === readingId) {
+            await prisma.device.update({
+                where: { id: deviceId },
+                data: { counterBlack, counterColor },
+            });
+        }
+
+        return NextResponse.json({ success: true, reading: updated });
+    } catch (e: any) {
+        console.error('COUNTER READING PATCH ERROR:', e.message);
+        return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+}
