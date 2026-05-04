@@ -91,6 +91,8 @@ model Tenant {
   subscriptionHistory SubscriptionHistory[]
   invoices            TenantInvoice[]
   logoSyncLogs        LogoSyncLog[]
+  printerStocks       PrinterStock[]
+  accountEntries      AccountEntry[]
 
   @@index([isActive])
   @@index([plan])
@@ -147,9 +149,10 @@ model Customer {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  devices      Device[]
-  transactions FinancialTransaction[]
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  devices        Device[]
+  transactions   FinancialTransaction[]
+  accountEntries AccountEntry[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, phone])
@@ -358,6 +361,7 @@ enum PaymentMethod {
   CASH
   CARD
   TRANSFER
+  OPEN_ACCOUNT
   OTHER
 }
 
@@ -630,3 +634,62 @@ model LogoSyncLog {
   @@index([tenantId, createdAt(sort: Desc)])
 }
 
+// ============================================
+// YAZICI / SARF MALZEME STOĞU
+// ============================================
+
+model PrinterStock {
+  id          String    @id @default(cuid())
+  tenantId    String
+  category    String    // TONER | MUREKEP | YAZICI
+  brand       String    // Marka: HP, Canon, Epson vs.
+  model       String    // Model adı
+  condition   String    @default("SIFIR") // SIFIR | IKINCI_EL
+  color       String?   // Renk: Siyah, Mavi, Kırmızı, Sarı, Renkli
+  quantity    Int       @default(1)
+  buyPrice    Decimal   @default(0) @db.Decimal(10, 2)
+  sellPrice   Decimal   @default(0) @db.Decimal(10, 2)
+  notes       String?
+  soldAt      DateTime? // Satış tarihi
+  soldTo      String?   // Kime satıldı
+  soldPrice   Decimal?  @db.Decimal(10, 2) // Satış fiyatı
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, category])
+  @@index([tenantId, brand])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+// ============================================
+// MANUEL MUHASEBE (CARİ HESAP TAKİBİ)
+// ============================================
+
+model AccountEntry {
+  id          String           @id @default(cuid())
+  tenantId    String
+  customerId  String
+  type        AccountEntryType // SALE veya PAYMENT
+  product     String?          // Aldığı ürün/hizmet adı (SALE için)
+  amount      Decimal          @db.Decimal(10, 2)
+  method      PaymentMethod    @default(CASH) // Nakit, Kredi, IBAN, Açık Hesap
+  notes       String?
+  date        DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId, date(sort: Desc)])
+  @@index([tenantId, type])
+  @@index([tenantId, date(sort: Desc)])
+}
+
+enum AccountEntryType {
+  SALE    // Satış / Ürün teslimi
+  PAYMENT // Ödeme alındı
+}

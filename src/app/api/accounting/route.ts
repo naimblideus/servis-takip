@@ -37,7 +37,7 @@ export async function GET(req: Request) {
             orderBy: { date: 'desc' },
             take: limit,
             include: {
-                customer: { select: { name: true } },
+                customer: { select: { id: true, name: true } },
                 ticket: { select: { ticketNumber: true } },
             },
         }),

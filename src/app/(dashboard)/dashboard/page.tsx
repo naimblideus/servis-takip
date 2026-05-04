@@ -16,10 +16,18 @@ interface Stats {
   recentTickets: any[];
 }
 
+interface OverdueDebtor {
+  customer: { id: string; name: string; phone: string };
+  debt: number;
+  daysSinceLastSale: number;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [overdueDebtors, setOverdueDebtors] = useState<OverdueDebtor[]>([]);
+  const [totalDebt, setTotalDebt] = useState(0);
 
   useEffect(() => {
     fetch('/api/dashboard/stats')
@@ -28,6 +36,13 @@ export default function DashboardPage() {
         setStats(data);
         setLoading(false);
       });
+    fetch('/api/muhasebe/overdue')
+      .then(r => r.json())
+      .then(data => {
+        setOverdueDebtors(data.debtors || []);
+        setTotalDebt(data.summary?.totalDebt || 0);
+      })
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -80,6 +95,30 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Overdue Debtors */}
+      {overdueDebtors.length > 0 && (
+        <div className="card" style={{borderLeft: '4px solid #ef4444'}}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-red-600">⚠️ Borçlu Müşteriler ({overdueDebtors.length})</h2>
+            <Link href="/accounting" className="text-blue-600 text-sm hover:underline">Muhasebe →</Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {overdueDebtors.slice(0, 6).map(d => (
+              <Link key={d.customer.id} href="/accounting" className="block p-3 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">
+                <div className="font-semibold text-gray-900 text-sm">{d.customer.name}</div>
+                <div className="text-xs text-gray-500">📞 {d.customer.phone}</div>
+                <div className="text-lg font-bold text-red-600 mt-1">₺{d.debt.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</div>
+              </Link>
+            ))}
+          </div>
+          {overdueDebtors.length > 6 && (
+            <div className="text-center mt-3">
+              <Link href="/accounting" className="text-blue-600 text-sm hover:underline">+{overdueDebtors.length - 6} müşteri daha →</Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recent Tickets */}
       <div className="card">
