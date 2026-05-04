@@ -142,6 +142,45 @@ export async function POST(req: Request) {
     }
 }
 
+// PATCH /api/muhasebe — Kayıt düzenle
+export async function PATCH(req: Request) {
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    try {
+        const body = await req.json();
+        const { id, type, product, amount, method, notes, date } = body;
+
+        if (!id) return NextResponse.json({ error: 'id zorunlu' }, { status: 400 });
+
+        // Kaydın bu tenant'a ait olduğunu kontrol et
+        const existing = await prisma.accountEntry.findFirst({ where: { id, tenantId: user.tenantId } });
+        if (!existing) return NextResponse.json({ error: 'Kayıt bulunamadı' }, { status: 404 });
+
+        const data: any = {};
+        if (type) data.type = type as AccountEntryType;
+        if (product !== undefined) data.product = product || null;
+        if (amount) data.amount = parseFloat(amount);
+        if (method) data.method = method as PaymentMethod;
+        if (notes !== undefined) data.notes = notes || null;
+        if (date) data.date = new Date(date);
+
+        const updated = await prisma.accountEntry.update({
+            where: { id },
+            data,
+            include: { customer: { select: { id: true, name: true, phone: true } } },
+        });
+
+        return NextResponse.json(updated);
+    } catch (e: any) {
+        console.error('ACCOUNT ENTRY UPDATE ERROR:', e.message);
+        return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+}
+
 // DELETE /api/muhasebe — Kayıt sil
 export async function DELETE(req: Request) {
     const session = await auth();

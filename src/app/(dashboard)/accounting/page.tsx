@@ -20,6 +20,8 @@ export default function AccountingPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({type:'SALE' as 'SALE'|'PAYMENT', customerId:'', product:'', amount:'', method:'CASH', notes:'', date: new Date().toISOString().split('T')[0]});
+  const [editModal, setEditModal] = useState<{id:string;type:'SALE'|'PAYMENT';product:string;amount:string;method:string;notes:string;date:string}|null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const inp: React.CSSProperties = {width:'100%',padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem',boxSizing:'border-box',outline:'none'};
   const lbl: React.CSSProperties = {display:'block',fontSize:'0.8rem',fontWeight:'500',color:'#6b7280',marginBottom:'0.25rem'};
@@ -57,6 +59,19 @@ export default function AccountingPage() {
     if (!confirm('Bu kaydı silmek istiyor musunuz?')) return;
     await fetch(`/api/muhasebe?id=${id}`, {method:'DELETE'});
     loadData(); if (selCust) loadDetail(selCust.id);
+  };
+
+  const openEdit = (e: Entry) => {
+    setEditModal({id:e.id, type:e.type, product:e.product||'', amount:String(e.amount), method:e.method, notes:e.notes||'', date:new Date(e.date).toISOString().split('T')[0]});
+  };
+
+  const handleEdit = async () => {
+    if (!editModal) return;
+    setEditSaving(true);
+    const res = await fetch('/api/muhasebe', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(editModal)});
+    if (res.ok) { setEditModal(null); loadData(); if (selCust) loadDetail(selCust.id); }
+    else { const d = await res.json(); alert('Hata: '+d.error); }
+    setEditSaving(false);
   };
 
   const sendWhatsApp = (cust: {name:string;phone:string}, debt: number) => {
@@ -292,7 +307,10 @@ export default function AccountingPage() {
                               {isSale?'':'+'} ₺{Number(e.amount).toLocaleString('tr-TR',{minimumFractionDigits:2})}
                             </td>
                             <td style={{padding:'0.6rem 0.5rem'}} className="print-hide">
-                              <button onClick={() => handleDelete(e.id)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#fef2f2',color:'#dc2626',border:'1px solid #fca5a5',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}}>🗑️</button>
+                              <div style={{display:'flex',gap:'0.25rem'}}>
+                                <button onClick={() => openEdit(e)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#eff6ff',color:'#2563eb',border:'1px solid #bfdbfe',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title="Düzenle">✏️</button>
+                                <button onClick={() => handleDelete(e.id)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#fef2f2',color:'#dc2626',border:'1px solid #fca5a5',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title="Sil">🗑️</button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -305,6 +323,62 @@ export default function AccountingPage() {
           ) : null}
         </div>
       </div>
+
+      {/* DÜZENLEME MODAL */}
+      {editModal && (
+        <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={() => setEditModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{backgroundColor:'white',borderRadius:'1rem',padding:'1.5rem',width:'480px',maxWidth:'95vw',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+              <h3 style={{fontWeight:'700',fontSize:'1.1rem',margin:0}}>✏️ Kaydı Düzenle</h3>
+              <button onClick={() => setEditModal(null)} style={{background:'none',border:'none',fontSize:'1.25rem',cursor:'pointer',color:'#6b7280'}}>✕</button>
+            </div>
+            <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
+              {(['SALE','PAYMENT'] as const).map(t => (
+                <button key={t} type="button" onClick={() => setEditModal({...editModal,type:t})} style={{
+                  flex:1,padding:'0.625rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600',
+                  backgroundColor:editModal.type===t?(t==='SALE'?'#f59e0b':'#10b981'):'#f3f4f6',
+                  color:editModal.type===t?'white':'#374151',
+                }}>{t==='SALE'?'🛒 Satış':'💵 Ödeme'}</button>
+              ))}
+            </div>
+            {editModal.type === 'SALE' && (
+              <div style={{marginBottom:'0.75rem'}}>
+                <label style={lbl}>Ürün/Hizmet *</label>
+                <input style={inp} value={editModal.product} onChange={e => setEditModal({...editModal,product:e.target.value})} placeholder="Aldığı ürün..." />
+              </div>
+            )}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem',marginBottom:'0.75rem'}}>
+              <div>
+                <label style={lbl}>Tutar (₺) *</label>
+                <input type="number" step="0.01" min="0" style={inp} value={editModal.amount} onChange={e => setEditModal({...editModal,amount:e.target.value})} />
+              </div>
+              <div>
+                <label style={lbl}>Ödeme Yöntemi</label>
+                <select style={inp} value={editModal.method} onChange={e => setEditModal({...editModal,method:e.target.value})}>
+                  {METHOD_OPTIONS.map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem',marginBottom:'1rem'}}>
+              <div>
+                <label style={lbl}>Tarih</label>
+                <input type="date" style={inp} value={editModal.date} onChange={e => setEditModal({...editModal,date:e.target.value})} />
+              </div>
+              <div>
+                <label style={lbl}>Not</label>
+                <input style={inp} value={editModal.notes} onChange={e => setEditModal({...editModal,notes:e.target.value})} placeholder="İsteğe bağlı..." />
+              </div>
+            </div>
+            <div style={{display:'flex',gap:'0.5rem'}}>
+              <button onClick={() => setEditModal(null)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>İptal</button>
+              <button onClick={handleEdit} disabled={editSaving} style={{
+                flex:1,padding:'0.625rem',backgroundColor:'#3b82f6',color:'white',
+                border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',opacity:editSaving?0.7:1,
+              }}>{editSaving ? 'Kaydediliyor...' : '✓ Kaydet'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PRINT STYLES */}
       <style>{`
