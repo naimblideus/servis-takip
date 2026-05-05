@@ -25,27 +25,29 @@ export default async function TicketsPage({
     where.assignedUserId = sp.assignedUserId === 'unassigned' ? null : sp.assignedUserId;
   }
 
-  // Tarih aralığı filtresi
+  // Tarih aralığı filtresi (UTC olarak ayarla - timezone sorununu önle)
   if (sp.dateFrom || sp.dateTo) {
     where.createdAt = {};
     if (sp.dateFrom) {
-      where.createdAt.gte = new Date(sp.dateFrom + 'T00:00:00');
+      const [y, m, d] = sp.dateFrom.split('-').map(Number);
+      where.createdAt.gte = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
     }
     if (sp.dateTo) {
-      where.createdAt.lte = new Date(sp.dateTo + 'T23:59:59');
+      const [y, m, d] = sp.dateTo.split('-').map(Number);
+      where.createdAt.lte = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
     }
   }
 
-  // Müşteri adı filtresi
+  // Müşteri adı / fiş numarası / cihaz arama filtresi
   if (sp.customer) {
-    where.device = {
-      customer: {
-        name: {
-          contains: sp.customer,
-          mode: 'insensitive',
-        },
-      },
-    };
+    const q = sp.customer.trim();
+    where.OR = [
+      { device: { customer: { name: { contains: q, mode: 'insensitive' } } } },
+      { device: { customer: { phone: { contains: q } } } },
+      { ticketNumber: { contains: q, mode: 'insensitive' } },
+      { device: { brand: { contains: q, mode: 'insensitive' } } },
+      { device: { model: { contains: q, mode: 'insensitive' } } },
+    ];
   }
 
   const [tickets, users] = await Promise.all([
