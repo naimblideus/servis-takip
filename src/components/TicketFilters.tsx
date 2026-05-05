@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 interface Props {
     currentStatus?: string;
@@ -49,15 +49,12 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
         router.push(`/tickets?${params.toString()}`);
     }, [router]);
 
-    // Debounce müşteri araması — 600ms sonra arama yap
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            const current = new URLSearchParams(window.location.search).get('customer') || '';
-            if (customerInput !== current) {
-                updateParam('customer', customerInput);
-            }
-        }, 600);
-        return () => clearTimeout(timer);
+    // Müşteri aramasını sadece Enter veya Ara butonu ile tetikle (otomatik debounce kaldırıldı)
+    const searchCustomer = useCallback(() => {
+        const current = new URLSearchParams(window.location.search).get('customer') || '';
+        if (customerInput.trim() !== current) {
+            updateParam('customer', customerInput.trim());
+        }
     }, [customerInput, updateParam]);
 
     // Tarih değişince hemen uygula
@@ -157,7 +154,7 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                             value={customerInput}
                             onChange={e => setCustomerInput(e.target.value)}
                             onKeyDown={e => {
-                                if (e.key === 'Enter') updateParam('customer', customerInput);
+                                if (e.key === 'Enter') searchCustomer();
                             }}
                         />
                         {customerInput && (
@@ -171,7 +168,7 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                         )}
                     </div>
                     <button
-                        onClick={() => updateParam('customer', customerInput)}
+                        onClick={searchCustomer}
                         style={{
                             padding: '0.5rem 0.75rem', backgroundColor: '#3b82f6', color: 'white',
                             border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500',
