@@ -65,9 +65,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modul
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 # Prisma CLI (migrate deploy için)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-# Prisma WASM dosyası (CLI için zorunlu - eksik olursa migrate deploy çalışmaz)
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma_schema_build_bg.wasm ./node_modules/.bin/prisma_schema_build_bg.wasm
 
 USER nextjs
 
@@ -77,4 +74,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Migration'ları uygula, ardından uygulamayı başlat
-CMD ["sh", "-c", "node node_modules/.bin/prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
