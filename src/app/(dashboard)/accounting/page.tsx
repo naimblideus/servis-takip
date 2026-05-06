@@ -65,13 +65,25 @@ export default function AccountingPage() {
     fetch('/api/customers').then(r => r.json()).then((data: any) => {
       const list = Array.isArray(data) ? data : data.customers || [];
       setAllCustomers(list);
-    });
+    }).catch(() => {});
+  }, []);
+
+  // Dropdown'ı dışarı tıklayınca kapat
+  useEffect(() => {
+    const handler = () => setShowCustDrop(false);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
   }, []);
 
   const loadDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
-    const res = await fetch(`/api/muhasebe/customer/${id}`);
-    if (res.ok) setDetail(await res.json());
+    try {
+      const res = await fetch(`/api/muhasebe/customer/${id}`);
+      if (res.ok) setDetail(await res.json());
+      else setDetail(null);
+    } catch {
+      setDetail(null);
+    }
     setDetailLoading(false);
   }, []);
 
@@ -128,8 +140,14 @@ export default function AccountingPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Bu kaydı silmek istiyor musunuz?')) return;
-    await fetch(`/api/muhasebe?id=${id}`, {method:'DELETE'});
-    loadData(); if (selCust) loadDetail(selCust.id);
+    try {
+      const res = await fetch(`/api/muhasebe?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) { const d = await res.json(); alert('Silme hatası: ' + d.error); return; }
+      await loadData();
+      if (selCust) await loadDetail(selCust.id);
+    } catch {
+      alert('Silme işlemi başarısız.');
+    }
   };
 
   const openEdit = (e: Entry) => {
@@ -423,6 +441,7 @@ export default function AccountingPage() {
                   type="text"
                   style={inp}
                   value={formCustSearch}
+                  onClick={e => e.stopPropagation()}
                   onChange={e => { setFormCustSearch(e.target.value); setShowCustDrop(true); if(!e.target.value){ setFormSelCust(null); setForm(f=>({...f,customerId:''})); } }}
                   onFocus={() => setShowCustDrop(true)}
                   placeholder="Müşteri adı yazarak arayın..."
@@ -432,7 +451,7 @@ export default function AccountingPage() {
                   <span style={{position:'absolute',right:'0.5rem',top:'2rem',color:'#10b981',fontSize:'0.8rem'}}>✓</span>
                 )}
                 {showCustDrop && formCustSearch && filteredFormCusts.length > 0 && (
-                  <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:200,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',maxHeight:'200px',overflowY:'auto',boxShadow:'0 4px 12px rgba(0,0,0,0.15)',marginTop:'2px'}}>
+                  <div onClick={e => e.stopPropagation()} style={{position:'absolute',top:'100%',left:0,right:0,zIndex:200,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',maxHeight:'200px',overflowY:'auto',boxShadow:'0 4px 12px rgba(0,0,0,0.15)',marginTop:'2px'}}>
                     {filteredFormCusts.slice(0,20).map(c => (
                       <div key={c.id} onClick={() => selectFormCust(c)} style={{padding:'0.45rem 0.75rem',cursor:'pointer',fontSize:'0.85rem',borderBottom:'1px solid #f3f4f6',backgroundColor:form.customerId===c.id?'#eff6ff':'white'}}
                         onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#f3f4f6')}
@@ -449,7 +468,7 @@ export default function AccountingPage() {
                   </div>
                 )}
                 {showCustDrop && formCustSearch && filteredFormCusts.length === 0 && (
-                  <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:200,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',boxShadow:'0 4px 12px rgba(0,0,0,0.1)',marginTop:'2px'}}>
+                  <div onClick={e => e.stopPropagation()} style={{position:'absolute',top:'100%',left:0,right:0,zIndex:200,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',boxShadow:'0 4px 12px rgba(0,0,0,0.1)',marginTop:'2px'}}>
                     <div style={{padding:'0.6rem 0.75rem',fontSize:'0.8rem',color:'#9ca3af'}}>Müşteri bulunamadı</div>
                     <div onClick={() => { setShowCustDrop(false); setQuickCustForm(f=>({...f,name:formCustSearch})); setQuickAddCust(true); }} style={{padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'#2563eb',fontWeight:'600',borderTop:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:'0.4rem'}}
                       onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#eff6ff')}

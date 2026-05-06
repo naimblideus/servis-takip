@@ -1,17 +1,22 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
-  const customers = await prisma.customer.findMany({
-    where: { tenantId: user!.tenantId },
-    include: { devices: true },
-    orderBy: { createdAt: 'desc' },
-  });
-  return NextResponse.json(customers);
+  try {
+    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const customers = await prisma.customer.findMany({
+      where: { tenantId: user.tenantId },
+      select: { id: true, name: true, phone: true, address: true, email: true, taxNo: true },
+      orderBy: { name: 'asc' },
+    });
+    return NextResponse.json(customers);
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
