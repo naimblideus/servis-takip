@@ -74,4 +74,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Migration'ları uygula, ardından uygulamayı başlat (migration hatası sunucuyu durdurmasın)
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy 2>&1 || echo 'Migration skipped'; node server.js"]
+CMD ["sh", "-c", "echo '=== Running Prisma migrations ===' && node node_modules/prisma/build/index.js migrate deploy 2>&1 && echo '=== Migrations OK ===' || echo '!!! Migration FAILED — check logs above !!!'; echo '=== Starting server ===' && node server.js"]

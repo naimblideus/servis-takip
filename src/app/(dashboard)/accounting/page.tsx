@@ -21,7 +21,9 @@ export default function AccountingPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string|null>(null);
   const [form, setForm] = useState({type:'SALE' as 'SALE'|'PAYMENT', customerId:'', product:'', amount:'', method:'CASH', notes:'', date: new Date().toISOString().split('T')[0]});
+
   // Form müşteri arama
   const [formCustSearch, setFormCustSearch] = useState('');
   const [showCustDrop, setShowCustDrop] = useState(false);
@@ -41,11 +43,20 @@ export default function AccountingPage() {
   const lbl: React.CSSProperties = {display:'block',fontSize:'0.8rem',fontWeight:'500',color:'#6b7280',marginBottom:'0.25rem'};
 
   const loadData = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (filter !== 'all') params.set('filter', filter);
-    if (search.trim()) params.set('search', search.trim());
-    const res = await fetch(`/api/muhasebe?${params}`);
-    if (res.ok) { const d = await res.json(); setCustomers(d.customers); setSummary(d.summary); }
+    try {
+      setError(null);
+      const params = new URLSearchParams();
+      if (filter !== 'all') params.set('filter', filter);
+      if (search.trim()) params.set('search', search.trim());
+      const res = await fetch(`/api/muhasebe?${params}`);
+      if (res.ok) { const d = await res.json(); setCustomers(d.customers); setSummary(d.summary); }
+      else {
+        const d = await res.json().catch(() => ({ error: 'Bilinmeyen hata' }));
+        setError(d.error || `Sunucu hatası (${res.status})`);
+      }
+    } catch (e: any) {
+      setError('Sunucuya bağlanılamadı. Lütfen sayfayı yenileyin.');
+    }
     setLoading(false);
   }, [filter, search]);
 
@@ -172,6 +183,17 @@ export default function AccountingPage() {
   const handlePrint = () => window.print();
 
   if (loading) return <div style={{padding:'2rem',color:'#6b7280'}}>Yükleniyor...</div>;
+
+  if (error) return (
+    <div style={{padding:'2rem',maxWidth:'600px',margin:'2rem auto'}}>
+      <div style={{backgroundColor:'#fef2f2',border:'1px solid #fca5a5',borderRadius:'0.75rem',padding:'1.5rem',textAlign:'center'}}>
+        <div style={{fontSize:'2rem',marginBottom:'0.75rem'}}>⚠️</div>
+        <h2 style={{color:'#dc2626',fontWeight:'700',margin:'0 0 0.5rem'}}>Muhasebe Modülü Hatası</h2>
+        <p style={{color:'#7f1d1d',fontSize:'0.9rem',margin:'0 0 1rem',lineHeight:'1.5'}}>{error}</p>
+        <button onClick={() => { setLoading(true); loadData(); }} style={{padding:'0.625rem 1.5rem',backgroundColor:'#dc2626',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'}}>🔄 Tekrar Dene</button>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{padding:'2rem',maxWidth:'1400px'}}>
