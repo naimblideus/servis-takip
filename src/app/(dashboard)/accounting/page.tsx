@@ -1,8 +1,9 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface Entry { id: string; type: 'SALE'|'PAYMENT'; product: string|null; amount: number; method: string; notes: string|null; date: string; customer?: {id:string;name:string;phone:string}|null; }
 interface Customer { id:string; name:string; phone:string; totalSales:number; totalPayments:number; balance:number; }
+interface AllCustomer { id:string; name:string; phone:string; }
 interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; summary:{totalSales:number;totalPayments:number;balance:number;entryCount:number}; }
 
 const METHOD_LABELS: Record<string,string> = { CASH:'💵 Nakit', CARD:'💳 Kredi Kartı', TRANSFER:'🏦 IBAN/Havale', OPEN_ACCOUNT:'📖 Açık Hesap', OTHER:'📋 Diğer' };
@@ -10,6 +11,7 @@ const METHOD_OPTIONS = Object.entries(METHOD_LABELS);
 
 export default function AccountingPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [allCustomers, setAllCustomers] = useState<AllCustomer[]>([]); // Form dropdown için filtresiz liste
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({totalSales:0,totalPayments:0,totalDebt:0,debtorCount:0,customerCount:0});
   const [filter, setFilter] = useState<'all'|'paid'|'unpaid'>('all');
@@ -20,6 +22,13 @@ export default function AccountingPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({type:'SALE' as 'SALE'|'PAYMENT', customerId:'', product:'', amount:'', method:'CASH', notes:'', date: new Date().toISOString().split('T')[0]});
+  // Form müşteri arama
+  const [formCustSearch, setFormCustSearch] = useState('');
+  const [showCustDrop, setShowCustDrop] = useState(false);
+  const [formSelCust, setFormSelCust] = useState<AllCustomer|null>(null);
+  const [quickAddCust, setQuickAddCust] = useState(false);
+  const [quickCustForm, setQuickCustForm] = useState({name:'', phone:'', address:''});
+  const [quickCustSaving, setQuickCustSaving] = useState(false);
   const [editModal, setEditModal] = useState<{id:string;type:'SALE'|'PAYMENT';product:string;amount:string;method:string;notes:string;date:string}|null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
@@ -35,6 +44,14 @@ export default function AccountingPage() {
     setLoading(false);
   }, [filter, search]);
 
+  // Tüm müşterileri form dropdown için ayrıca yükle
+  useEffect(() => {
+    fetch('/api/customers').then(r => r.json()).then((data: any) => {
+      const list = Array.isArray(data) ? data : data.customers || [];
+      setAllCustomers(list);
+    });
+  }, []);
+
   const loadDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
     const res = await fetch(`/api/muhasebe/customer/${id}`);
@@ -45,11 +62,49 @@ export default function AccountingPage() {
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (selCust) loadDetail(selCust.id); }, [selCust, loadDetail]);
 
+  const filteredFormCusts = allCustomers.filter(c =>
+    c.name.toLowerCase().includes(formCustSearch.toLowerCase()) ||
+    c.phone.includes(formCustSearch)
+  );
+
+  const selectFormCust = (c: AllCustomer) => {
+    setFormSelCust(c);
+    setFormCustSearch(c.name);
+    setForm(f => ({ ...f, customerId: c.id }));
+    setShowCustDrop(false);
+  };
+
+  const resetForm = () => {
+    setForm({type:'SALE', customerId:'', product:'', amount:'', method:'CASH', notes:'', date: new Date().toISOString().split('T')[0]});
+    setFormCustSearch('');
+    setFormSelCust(null);
+    setShowCustDrop(false);
+  };
+
+  const handleQuickAddCust = async () => {
+    if (!quickCustForm.name.trim() || !quickCustForm.phone.trim()) { alert('Ad ve telefon zorunlu'); return; }
+    setQuickCustSaving(true);
+    const res = await fetch('/api/customers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(quickCustForm) });
+    if (res.ok) {
+      const newCust = await res.json();
+      setAllCustomers(prev => [...prev, newCust]);
+      selectFormCust(newCust);
+      setQuickAddCust(false);
+      setQuickCustForm({name:'', phone:'', address:''});
+    } else {
+      const d = await res.json();
+      alert('Hata: ' + (d.error || 'Bilinmeyen hata'));
+    }
+    setQuickCustSaving(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    if (!form.customerId) { alert('Lütfen bir müşteri seçin'); return; }
+    setSaving(true);
     const res = await fetch('/api/muhasebe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
     if (res.ok) {
-      setForm({type:'SALE',customerId:'',product:'',amount:'',method:'CASH',notes:'',date:new Date().toISOString().split('T')[0]});
+      resetForm();
       setShowForm(false); loadData(); if (selCust) loadDetail(selCust.id);
     } else { const d = await res.json(); alert('Hata: '+d.error); }
     setSaving(false);
@@ -88,6 +143,39 @@ export default function AccountingPage() {
 
   return (
     <div style={{padding:'2rem',maxWidth:'1400px'}}>
+
+      {/* HIZLI MÜŞTERİ EKLEME MODALI */}
+      {quickAddCust && (
+        <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={() => setQuickAddCust(false)}>
+          <div onClick={e => e.stopPropagation()} style={{backgroundColor:'white',borderRadius:'1rem',width:'420px',maxWidth:'95vw',boxShadow:'0 20px 60px rgba(0,0,0,0.3)',overflow:'hidden'}}>
+            <div style={{background:'linear-gradient(135deg,#1e3a5f,#2563eb)',color:'white',padding:'1rem 1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontWeight:'700',fontSize:'1rem'}}>👤 Yeni Müşteri Ekle</span>
+              <button onClick={() => setQuickAddCust(false)} style={{background:'rgba(255,255,255,0.2)',color:'white',border:'none',borderRadius:'50%',width:'28px',height:'28px',cursor:'pointer',fontSize:'1rem'}}>✕</button>
+            </div>
+            <div style={{padding:'1.25rem'}}>
+              <div style={{marginBottom:'0.75rem'}}>
+                <label style={lbl}>Ad Soyad *</label>
+                <input style={inp} value={quickCustForm.name} onChange={e => setQuickCustForm(f=>({...f,name:e.target.value}))} placeholder="Müşteri adı..." autoFocus />
+              </div>
+              <div style={{marginBottom:'0.75rem'}}>
+                <label style={lbl}>Telefon *</label>
+                <input style={inp} value={quickCustForm.phone} onChange={e => setQuickCustForm(f=>({...f,phone:e.target.value}))} placeholder="05xx xxx xx xx" />
+              </div>
+              <div style={{marginBottom:'1rem'}}>
+                <label style={lbl}>Adres</label>
+                <input style={inp} value={quickCustForm.address} onChange={e => setQuickCustForm(f=>({...f,address:e.target.value}))} placeholder="İsteğe bağlı..." />
+              </div>
+              <div style={{display:'flex',gap:'0.5rem'}}>
+                <button onClick={() => setQuickAddCust(false)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>İptal</button>
+                <button onClick={handleQuickAddCust} disabled={quickCustSaving} style={{flex:2,padding:'0.625rem',backgroundColor:'#2563eb',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',opacity:quickCustSaving?0.7:1}}>
+                  {quickCustSaving ? 'Kaydediliyor...' : '✅ Müşteri Ekle & Seç'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* BAŞLIK */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
         <div>
@@ -96,7 +184,7 @@ export default function AccountingPage() {
         </div>
         <div style={{display:'flex',gap:'0.5rem'}}>
           <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>🖨️ Yazdır</button>
-          <button onClick={() => {setShowForm(!showForm); if(!showForm && selCust) setForm(f=>({...f,customerId:selCust.id}));}} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>
+          <button onClick={() => { if(showForm) { resetForm(); setShowForm(false); } else { setShowForm(true); if(selCust) { selectFormCust(selCust as any); } } }} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>
             {showForm ? '✕ İptal' : '+ Yeni Kayıt'}
           </button>
         </div>
@@ -154,12 +242,47 @@ export default function AccountingPage() {
               ))}
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
-              <div>
+              <div style={{position:'relative'}}>
                 <label style={lbl}>Müşteri *</label>
-                <select required style={inp} value={form.customerId} onChange={e => setForm({...form,customerId:e.target.value})}>
-                  <option value="">— Seçiniz —</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <input
+                  type="text"
+                  style={inp}
+                  value={formCustSearch}
+                  onChange={e => { setFormCustSearch(e.target.value); setShowCustDrop(true); if(!e.target.value){ setFormSelCust(null); setForm(f=>({...f,customerId:''})); } }}
+                  onFocus={() => setShowCustDrop(true)}
+                  placeholder="Müşteri adı yazarak arayın..."
+                  autoComplete="off"
+                />
+                {formSelCust && (
+                  <span style={{position:'absolute',right:'0.5rem',top:'2rem',color:'#10b981',fontSize:'0.8rem'}}>✓</span>
+                )}
+                {showCustDrop && formCustSearch && filteredFormCusts.length > 0 && (
+                  <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:200,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',maxHeight:'200px',overflowY:'auto',boxShadow:'0 4px 12px rgba(0,0,0,0.15)',marginTop:'2px'}}>
+                    {filteredFormCusts.slice(0,20).map(c => (
+                      <div key={c.id} onClick={() => selectFormCust(c)} style={{padding:'0.45rem 0.75rem',cursor:'pointer',fontSize:'0.85rem',borderBottom:'1px solid #f3f4f6',backgroundColor:form.customerId===c.id?'#eff6ff':'white'}}
+                        onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#f3f4f6')}
+                        onMouseLeave={e=>(e.currentTarget.style.backgroundColor=form.customerId===c.id?'#eff6ff':'white')}>
+                        <div style={{fontWeight:'500'}}>{c.name}</div>
+                        <div style={{fontSize:'0.72rem',color:'#6b7280'}}>{c.phone}</div>
+                      </div>
+                    ))}
+                    <div onClick={() => { setShowCustDrop(false); setQuickCustForm(f=>({...f,name:formCustSearch})); setQuickAddCust(true); }} style={{padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'#2563eb',fontWeight:'600',borderTop:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:'0.4rem'}}
+                      onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#eff6ff')}
+                      onMouseLeave={e=>(e.currentTarget.style.backgroundColor='white')}>
+                      <span style={{fontSize:'1rem'}}>+</span> Yeni Müşteri Ekle
+                    </div>
+                  </div>
+                )}
+                {showCustDrop && formCustSearch && filteredFormCusts.length === 0 && (
+                  <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:200,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',boxShadow:'0 4px 12px rgba(0,0,0,0.1)',marginTop:'2px'}}>
+                    <div style={{padding:'0.6rem 0.75rem',fontSize:'0.8rem',color:'#9ca3af'}}>Müşteri bulunamadı</div>
+                    <div onClick={() => { setShowCustDrop(false); setQuickCustForm(f=>({...f,name:formCustSearch})); setQuickAddCust(true); }} style={{padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'#2563eb',fontWeight:'600',borderTop:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:'0.4rem'}}
+                      onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#eff6ff')}
+                      onMouseLeave={e=>(e.currentTarget.style.backgroundColor='white')}>
+                      <span style={{fontSize:'1rem'}}>+</span> "{formCustSearch}" adıyla yeni müşteri ekle
+                    </div>
+                  </div>
+                )}
               </div>
               {form.type === 'SALE' && (
                 <div>
@@ -251,7 +374,7 @@ export default function AccountingPage() {
                     {detail.summary.balance > 0 && (
                       <button onClick={() => sendWhatsApp(detail.customer, detail.summary.balance)} style={{backgroundColor:'#25d366',color:'white',border:'none',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>📱 WhatsApp</button>
                     )}
-                    <button onClick={() => {setForm(f=>({...f,customerId:selCust.id}));setShowForm(true);}} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>+ Kayıt Ekle</button>
+                    <button onClick={() => { selectFormCust(selCust as any); setShowForm(true); }} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>+ Kayıt Ekle</button>
                   </div>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.75rem',marginTop:'1rem'}}>
@@ -278,7 +401,7 @@ export default function AccountingPage() {
                   <div style={{padding:'3rem',textAlign:'center',color:'#9ca3af',fontSize:'0.85rem'}}>
                     Bu müşteriye ait kayıt yok
                     <br/>
-                    <button onClick={() => {setForm(f=>({...f,customerId:selCust.id}));setShowForm(true);}} style={{marginTop:'0.75rem',padding:'0.5rem 1rem',backgroundColor:'#3b82f6',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem'}} className="print-hide">+ Kayıt Ekle</button>
+                    <button onClick={() => { selectFormCust(selCust as any); setShowForm(true); }} style={{marginTop:'0.75rem',padding:'0.5rem 1rem',backgroundColor:'#3b82f6',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem'}} className="print-hide">+ Kayıt Ekle</button>
                   </div>
                 ) : (
                   <table style={{width:'100%',borderCollapse:'collapse'}}>
