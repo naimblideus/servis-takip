@@ -31,6 +31,11 @@ export default function AccountingPage() {
   const [quickCustSaving, setQuickCustSaving] = useState(false);
   const [editModal, setEditModal] = useState<{id:string;type:'SALE'|'PAYMENT';product:string;amount:string;method:string;notes:string;date:string}|null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  // Toplu WhatsApp
+  const [showBulkWA, setShowBulkWA] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkMsgTpl, setBulkMsgTpl] = useState('Sayın {ad},\n\nHesabınızda ₺{borç} tutarında ödenmemiş bakiye bulunmaktadır.\n\nLütfen en kısa sürede ödeme yapmanızı rica ederiz.\n\nSaygılarımızla');
+  const [bulkIdx, setBulkIdx] = useState(-1); // -1 = hazırlık, 0+ = gönderim sırası
 
   const inp: React.CSSProperties = {width:'100%',padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem',boxSizing:'border-box',outline:'none'};
   const lbl: React.CSSProperties = {display:'block',fontSize:'0.8rem',fontWeight:'500',color:'#6b7280',marginBottom:'0.25rem'};
@@ -129,12 +134,39 @@ export default function AccountingPage() {
     setEditSaving(false);
   };
 
+  const formatPhone = (raw: string) => {
+    let p = raw.replace(/[^0-9]/g,'');
+    if (p.startsWith('0')) p = '90'+p.substring(1);
+    if (!p.startsWith('90')) p = '90'+p;
+    return p;
+  };
+
   const sendWhatsApp = (cust: {name:string;phone:string}, debt: number) => {
-    let phone = cust.phone.replace(/[^0-9]/g,'');
-    if (phone.startsWith('0')) phone = '90'+phone.substring(1);
-    if (!phone.startsWith('90')) phone = '90'+phone;
+    const phone = formatPhone(cust.phone);
     const msg = `Sayın ${cust.name},\n\nÖdenmemiş borcunuz: ₺${debt.toFixed(2)}\n\nSaygılarımızla`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const debtors = customers.filter(c => c.balance > 0);
+
+  const openBulkWA = () => {
+    setBulkSelected(new Set(debtors.map(c => c.id)));
+    setBulkIdx(-1);
+    setShowBulkWA(true);
+  };
+
+  const bulkSendNext = () => {
+    const list = debtors.filter(c => bulkSelected.has(c.id));
+    const nextIdx = bulkIdx + 1;
+    if (nextIdx >= list.length) { setShowBulkWA(false); setBulkIdx(-1); return; }
+    const c = list[nextIdx];
+    const phone = formatPhone(c.phone);
+    const msg = bulkMsgTpl
+      .replace(/{ad}/g, c.name)
+      .replace(/{borç}/g, c.balance.toFixed(2))
+      .replace(/{telefon}/g, c.phone);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    setBulkIdx(nextIdx);
   };
 
   const handlePrint = () => window.print();
@@ -143,6 +175,122 @@ export default function AccountingPage() {
 
   return (
     <div style={{padding:'2rem',maxWidth:'1400px'}}>
+
+      {/* TOPLU WHATSAPP MODALI */}
+      {showBulkWA && (
+        <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:'1rem'}} onClick={() => setShowBulkWA(false)}>
+          <div onClick={e => e.stopPropagation()} style={{backgroundColor:'white',borderRadius:'1rem',width:'560px',maxWidth:'95vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 25px 80px rgba(0,0,0,0.4)'}}>
+            {/* Modal Başlık */}
+            <div style={{background:'linear-gradient(135deg,#15803d,#22c55e)',color:'white',padding:'1rem 1.25rem',borderRadius:'1rem 1rem 0 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <div style={{fontWeight:'700',fontSize:'1.05rem'}}>📱 Toplu WhatsApp Hatırlatma</div>
+                <div style={{fontSize:'0.78rem',opacity:0.85,marginTop:'0.15rem'}}>{debtors.filter(c=>bulkSelected.has(c.id)).length} borçlu müşteri seçili</div>
+              </div>
+              <button onClick={() => setShowBulkWA(false)} style={{background:'rgba(255,255,255,0.2)',color:'white',border:'none',borderRadius:'50%',width:'30px',height:'30px',cursor:'pointer',fontSize:'1rem'}}>✕</button>
+            </div>
+
+            <div style={{padding:'1.25rem'}}>
+              {bulkIdx === -1 ? (
+                <>
+                  {/* Mesaj Şablonu */}
+                  <div style={{marginBottom:'1rem'}}>
+                    <label style={{...lbl,color:'#374151',fontSize:'0.85rem'}}>✏️ Mesaj Şablonu</label>
+                    <div style={{fontSize:'0.72rem',color:'#9ca3af',marginBottom:'0.35rem'}}>Kullanılabilir değişkenler: <code style={{background:'#f3f4f6',padding:'0.1rem 0.3rem',borderRadius:'3px'}}>{'{ad}'}</code> <code style={{background:'#f3f4f6',padding:'0.1rem 0.3rem',borderRadius:'3px'}}>{'{borç}'}</code> <code style={{background:'#f3f4f6',padding:'0.1rem 0.3rem',borderRadius:'3px'}}>{'{telefon}'}</code></div>
+                    <textarea rows={5} style={{...inp,resize:'vertical',fontFamily:'inherit',lineHeight:'1.5'}} value={bulkMsgTpl} onChange={e => setBulkMsgTpl(e.target.value)} />
+                  </div>
+
+                  {/* Müşteri Listesi */}
+                  <div style={{marginBottom:'1rem'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
+                      <label style={{...lbl,color:'#374151',fontSize:'0.85rem',marginBottom:0}}>👥 Borçlu Müşteriler</label>
+                      <div style={{display:'flex',gap:'0.5rem'}}>
+                        <button onClick={() => setBulkSelected(new Set(debtors.map(c=>c.id)))} style={{fontSize:'0.72rem',color:'#2563eb',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>Tümünü Seç</button>
+                        <span style={{color:'#d1d5db'}}>|</span>
+                        <button onClick={() => setBulkSelected(new Set())} style={{fontSize:'0.72rem',color:'#dc2626',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>Hiçbirini Seçme</button>
+                      </div>
+                    </div>
+                    <div style={{border:'1px solid #e5e7eb',borderRadius:'0.5rem',overflow:'hidden',maxHeight:'220px',overflowY:'auto'}}>
+                      {debtors.map(c => (
+                        <label key={c.id} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.6rem 0.875rem',borderBottom:'1px solid #f3f4f6',cursor:'pointer',backgroundColor:bulkSelected.has(c.id)?'#f0fdf4':'white'}}>
+                          <input type="checkbox" checked={bulkSelected.has(c.id)} onChange={e => {
+                            const s = new Set(bulkSelected);
+                            e.target.checked ? s.add(c.id) : s.delete(c.id);
+                            setBulkSelected(s);
+                          }} style={{accentColor:'#22c55e',width:'16px',height:'16px'}} />
+                          <div style={{flex:1}}>
+                            <div style={{fontWeight:'600',fontSize:'0.875rem'}}>{c.name}</div>
+                            <div style={{fontSize:'0.72rem',color:'#6b7280'}}>📞 {c.phone}</div>
+                          </div>
+                          <span style={{fontWeight:'700',color:'#ef4444',fontSize:'0.875rem'}}>₺{c.balance.toLocaleString('tr-TR',{minimumFractionDigits:2})}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Önizleme */}
+                  {debtors[0] && bulkSelected.has(debtors[0].id) && (
+                    <div style={{backgroundColor:'#f0fdf4',border:'1px solid #86efac',borderRadius:'0.5rem',padding:'0.75rem',marginBottom:'1rem'}}>
+                      <div style={{fontSize:'0.72rem',color:'#15803d',fontWeight:'600',marginBottom:'0.35rem'}}>👁️ Mesaj Önizleme ({debtors[0].name})</div>
+                      <div style={{fontSize:'0.8rem',color:'#374151',whiteSpace:'pre-wrap',lineHeight:'1.5'}}>
+                        {bulkMsgTpl.replace(/{ad}/g,debtors[0].name).replace(/{borç}/g,debtors[0].balance.toFixed(2)).replace(/{telefon}/g,debtors[0].phone)}
+                      </div>
+                    </div>
+                  )}
+
+                  <button onClick={bulkSendNext} disabled={bulkSelected.size===0} style={{width:'100%',padding:'0.75rem',backgroundColor:'#22c55e',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:bulkSelected.size===0?0.5:1}}>
+                    📱 Göndermeye Başla ({debtors.filter(c=>bulkSelected.has(c.id)).length} mesaj)
+                  </button>
+                </>
+              ) : (
+                // Gönderim aşaması
+                <>
+                  <div style={{textAlign:'center',marginBottom:'1.25rem'}}>
+                    <div style={{fontSize:'2.5rem',marginBottom:'0.5rem'}}>📱</div>
+                    <div style={{fontWeight:'700',fontSize:'1.1rem',color:'#15803d'}}>
+                      {bulkIdx + 1} / {debtors.filter(c=>bulkSelected.has(c.id)).length} gönderildi
+                    </div>
+                    <div style={{color:'#6b7280',fontSize:'0.85rem',marginTop:'0.25rem'}}>WhatsApp açıldı, mesajı gönderdikten sonra buraya dönün</div>
+                  </div>
+
+                  {/* İlerleme çubuğu */}
+                  <div style={{backgroundColor:'#f3f4f6',borderRadius:'9999px',height:'8px',marginBottom:'1.25rem'}}>
+                    <div style={{backgroundColor:'#22c55e',borderRadius:'9999px',height:'8px',width:`${((bulkIdx+1)/debtors.filter(c=>bulkSelected.has(c.id)).length)*100}%`,transition:'width 0.3s'}} />
+                  </div>
+
+                  {/* Gönderilen kişi */}
+                  {(() => { const list=debtors.filter(c=>bulkSelected.has(c.id)); const sent=list.slice(0,bulkIdx+1); const remaining=list.slice(bulkIdx+1); return (
+                    <>
+                      <div style={{border:'1px solid #e5e7eb',borderRadius:'0.5rem',overflow:'hidden',maxHeight:'180px',overflowY:'auto',marginBottom:'1rem'}}>
+                        {sent.map((c,i) => (
+                          <div key={c.id} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.5rem 0.875rem',borderBottom:'1px solid #f3f4f6',backgroundColor:'#f0fdf4'}}>
+                            <span style={{color:'#22c55e',fontWeight:'700'}}>✓</span>
+                            <span style={{fontSize:'0.85rem',flex:1}}>{c.name}</span>
+                            <span style={{fontSize:'0.75rem',color:'#ef4444',fontWeight:'600'}}>₺{c.balance.toFixed(2)}</span>
+                          </div>
+                        ))}
+                        {remaining.map(c => (
+                          <div key={c.id} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.5rem 0.875rem',borderBottom:'1px solid #f3f4f6',opacity:0.5}}>
+                            <span style={{color:'#d1d5db'}}>○</span>
+                            <span style={{fontSize:'0.85rem',flex:1}}>{c.name}</span>
+                            <span style={{fontSize:'0.75rem',color:'#ef4444'}}>₺{c.balance.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ); })()}
+
+                  <div style={{display:'flex',gap:'0.75rem'}}>
+                    <button onClick={() => {setShowBulkWA(false); setBulkIdx(-1);}} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>Bitir</button>
+                    <button onClick={bulkSendNext} style={{flex:2,padding:'0.625rem',backgroundColor:'#22c55e',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
+                      {bulkIdx + 1 >= debtors.filter(c=>bulkSelected.has(c.id)).length ? '✅ Tamamlandı' : `Sıradaki → ${debtors.filter(c=>bulkSelected.has(c.id))[bulkIdx+1]?.name}`}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* HIZLI MÜŞTERİ EKLEME MODALI */}
       {quickAddCust && (
@@ -184,6 +332,11 @@ export default function AccountingPage() {
         </div>
         <div style={{display:'flex',gap:'0.5rem'}}>
           <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>🖨️ Yazdır</button>
+          {debtors.length > 0 && (
+            <button onClick={openBulkWA} style={{padding:'0.625rem 1rem',backgroundColor:'#dcfce7',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',display:'flex',alignItems:'center',gap:'0.4rem'}}>
+              📱 Toplu WhatsApp <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>
+            </button>
+          )}
           <button onClick={() => { if(showForm) { resetForm(); setShowForm(false); } else { setShowForm(true); if(selCust) { selectFormCust(selCust as any); } } }} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>
             {showForm ? '✕ İptal' : '+ Yeni Kayıt'}
           </button>
