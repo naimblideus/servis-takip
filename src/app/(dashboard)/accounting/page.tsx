@@ -450,7 +450,7 @@ export default function AccountingPage() {
                   📱 Toplu WhatsApp <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>
                 </button>
               )}
-              <button onClick={()=>{ if(showForm){resetForm();setShowForm(false);}else{setShowForm(true);if(selCust)selectFormCust(selCust as any);} }} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>
+              <button onClick={()=>{ if(showForm){resetForm();setShowForm(false);}else{setShowForm(true);if(selCust)selectFormCust({id:selCust.id,name:selCust.name,phone:selCust.phone});} }} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>
                 {showForm ? '✕ İptal' : '+ Yeni Kayıt'}
               </button>
             </>
@@ -703,7 +703,7 @@ export default function AccountingPage() {
                     {detail.summary.balance > 0 && (
                       <button onClick={() => sendWhatsApp(detail.customer, detail.summary.balance)} style={{backgroundColor:'#25d366',color:'white',border:'none',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>📱 WhatsApp</button>
                     )}
-                    <button onClick={() => { selectFormCust(selCust as any); setShowForm(true); }} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>+ Kayıt Ekle</button>
+                    <button onClick={() => { selectFormCust({ id: selCust.id, name: selCust.name, phone: selCust.phone }); setShowForm(true); }} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>+ Kayıt Ekle</button>
                   </div>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.75rem',marginTop:'1rem'}}>
@@ -736,8 +736,8 @@ export default function AccountingPage() {
                   <table style={{width:'100%',borderCollapse:'collapse'}}>
                     <thead>
                       <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
-                        {['Tarih','Tür','Ürün/Hizmet','Yöntem','Not','Tutar',''].map(h => (
-                          <th key={h} style={{padding:'0.6rem 0.875rem',textAlign:'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h}</th>
+                        {['Tarih','Tür','Ürün/Hizmet','Yöntem','Not','Tutar','İşlem'].map(h => (
+                          <th key={h} style={{padding:'0.6rem 0.875rem',textAlign:'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h === 'İşlem' ? '' : h}</th>
                         ))}
                       </tr>
                     </thead>

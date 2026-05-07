@@ -174,8 +174,8 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead>
               <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
-                {['Stok Kalemi','Kategori/Grup','Adet','Alış','Satış',''].map(h=>(
-                  <th key={h} style={{padding:'0.625rem 0.875rem',textAlign:'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h}</th>
+                {['Stok Kalemi','Kategori/Grup','Adet','Alış','Satış','İşlem'].map(h=>(
+                  <th key={h} style={{padding:'0.625rem 0.875rem',textAlign:'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h === 'İşlem' ? '' : h}</th>
                 ))}
               </tr>
             </thead>
