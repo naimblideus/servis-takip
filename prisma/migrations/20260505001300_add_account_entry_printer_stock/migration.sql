@@ -158,11 +158,7 @@ ALTER TABLE "PrinterStock" DROP CONSTRAINT IF EXISTS "PrinterStock_tenantId_fkey
 ALTER TABLE "PrinterStock" ADD CONSTRAINT "PrinterStock_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AccountEntry tablosu (Manuel Muhasebe)
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'AccountEntryType') THEN
-        CREATE TYPE "AccountEntryType" AS ENUM ('SALE', 'PAYMENT');
-    END IF;
-END $$;
+CREATE TYPE "AccountEntryType" AS ENUM ('SALE', 'PAYMENT');
 
 CREATE TABLE IF NOT EXISTS "AccountEntry" (
     "id" TEXT NOT NULL,

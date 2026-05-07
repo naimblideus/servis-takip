@@ -1,15 +1,19 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+const StockTab = dynamic(() => import('@/components/StockTab'), { ssr: false });
 
 interface Entry { id: string; type: 'SALE'|'PAYMENT'; product: string|null; amount: number; method: string; notes: string|null; date: string; customer?: {id:string;name:string;phone:string}|null; }
 interface Customer { id:string; name:string; phone:string; totalSales:number; totalPayments:number; balance:number; }
 interface AllCustomer { id:string; name:string; phone:string; }
 interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; summary:{totalSales:number;totalPayments:number;balance:number;entryCount:number}; }
+interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; notes?:string|null; }
 
 const METHOD_LABELS: Record<string,string> = { CASH:'💵 Nakit', CARD:'💳 Kredi Kartı', TRANSFER:'🏦 IBAN/Havale', OPEN_ACCOUNT:'📖 Açık Hesap', OTHER:'📋 Diğer' };
 const METHOD_OPTIONS = Object.entries(METHOD_LABELS);
 
 export default function AccountingPage() {
+  const [activeTab, setActiveTab] = useState<'accounting'|'stock'>('accounting');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [allCustomers, setAllCustomers] = useState<AllCustomer[]>([]); // Form dropdown için filtresiz liste
   const [loading, setLoading] = useState(true);
@@ -37,7 +41,12 @@ export default function AccountingPage() {
   const [showBulkWA, setShowBulkWA] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkMsgTpl, setBulkMsgTpl] = useState('Sayın {ad},\n\nHesabınızda ₺{borç} tutarında ödenmemiş bakiye bulunmaktadır.\n\nLütfen en kısa sürede ödeme yapmanızı rica ederiz.\n\nSaygılarımızla');
-  const [bulkIdx, setBulkIdx] = useState(-1); // -1 = hazırlık, 0+ = gönderim sırası
+  const [bulkIdx, setBulkIdx] = useState(-1);
+  // Stok picker (form için)
+  const [allStock, setAllStock] = useState<StockItem[]>([]);
+  const [formStockSearch, setFormStockSearch] = useState('');
+  const [showStockDrop, setShowStockDrop] = useState(false);
+  const [formStockItem, setFormStockItem] = useState<StockItem|null>(null);
 
   const inp: React.CSSProperties = {width:'100%',padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem',boxSizing:'border-box',outline:'none'};
   const lbl: React.CSSProperties = {display:'block',fontSize:'0.8rem',fontWeight:'500',color:'#6b7280',marginBottom:'0.25rem'};
@@ -68,9 +77,16 @@ export default function AccountingPage() {
     }).catch(() => {});
   }, []);
 
-  // Dropdown'ı dışarı tıklayınca kapat
+  // Stok listesini yükle
   useEffect(() => {
-    const handler = () => setShowCustDrop(false);
+    fetch('/api/stock').then(r => r.json()).then((d: any) => {
+      if (d.items) setAllStock(d.items);
+    }).catch(() => {});
+  }, []);
+
+  // Dropdown'ları dışarı tıklayınca kapat
+  useEffect(() => {
+    const handler = () => { setShowCustDrop(false); setShowStockDrop(false); };
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, []);
