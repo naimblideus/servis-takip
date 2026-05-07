@@ -66,9 +66,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modul
 # Prisma CLI (migrate deploy için)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 
-# Startup script'i kopyala
-COPY --chown=nextjs:nodejs startup.sh ./startup.sh
-RUN chmod +x startup.sh
+# Startup script'i kopyala (CRLF → LF dönüşümü dahil)
+COPY startup.sh ./startup.sh
+RUN sed -i 's/\r$//' startup.sh && chmod +x startup.sh && chown nextjs:nodejs startup.sh
 
 USER nextjs
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+# set -e KALDIRILDI: migration hataları sunucuyu durdurmasın
 
 echo "=== [1/4] Resolving potentially mismatched migrations ==="
 node node_modules/prisma/build/index.js migrate resolve \
