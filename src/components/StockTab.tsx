@@ -9,7 +9,7 @@ const s = { inp:{padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadiu
 
 const EMPTY_FORM = { source:'PART' as 'PART'|'PRINTER', name:'', sku:'', group:'', buyPrice:'', sellPrice:'', stockQty:'1', minStock:'5', category:'TONER', brand:'', model:'', color:'', condition:'SIFIR', quantity:'1', notes:'' };
 
-export default function StockTab({ onSelectForSale }:{ onSelectForSale:(item:StockItem)=>void }) {
+export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectForSale:(item:StockItem)=>void; onStockChanged?:()=>void }) {
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -50,7 +50,7 @@ export default function StockTab({ onSelectForSale }:{ onSelectForSale:(item:Sto
     try {
       const body = modal === 'edit' ? { ...form, id:editItem!.id } : form;
       const r = await fetch('/api/stock', { method: modal === 'edit' ? 'PATCH' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-      if (r.ok) { setModal(null); load(); }
+      if (r.ok) { setModal(null); load(); onStockChanged?.(); }
       else { const d = await r.json(); alert('Hata: '+d.error); }
     } finally { setSaving(false); }
   };

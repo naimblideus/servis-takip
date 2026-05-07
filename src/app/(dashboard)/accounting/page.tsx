@@ -7,8 +7,8 @@ interface Entry { id: string; type: 'SALE'|'PAYMENT'; product: string|null; amou
 interface Customer { id:string; name:string; phone:string; totalSales:number; totalPayments:number; balance:number; }
 interface AllCustomer { id:string; name:string; phone:string; }
 interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; summary:{totalSales:number;totalPayments:number;balance:number;entryCount:number}; }
-interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; notes?:string|null; }
 
+interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; notes?:string|null; }
 const METHOD_LABELS: Record<string,string> = { CASH:'💵 Nakit', CARD:'💳 Kredi Kartı', TRANSFER:'🏦 IBAN/Havale', OPEN_ACCOUNT:'📖 Açık Hesap', OTHER:'📋 Diğer' };
 const METHOD_OPTIONS = Object.entries(METHOD_LABELS);
 
@@ -42,11 +42,16 @@ export default function AccountingPage() {
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkMsgTpl, setBulkMsgTpl] = useState('Sayın {ad},\n\nHesabınızda ₺{borç} tutarında ödenmemiş bakiye bulunmaktadır.\n\nLütfen en kısa sürede ödeme yapmanızı rica ederiz.\n\nSaygılarımızla');
   const [bulkIdx, setBulkIdx] = useState(-1);
-  // Stok picker (form için)
+  // Stok picker
   const [allStock, setAllStock] = useState<StockItem[]>([]);
   const [formStockSearch, setFormStockSearch] = useState('');
   const [showStockDrop, setShowStockDrop] = useState(false);
   const [formStockItem, setFormStockItem] = useState<StockItem|null>(null);
+  // Hızlı stok ekleme
+  const [quickAddStock, setQuickAddStock] = useState(false);
+  const [quickStockName, setQuickStockName] = useState('');
+  const [quickStockPrice, setQuickStockPrice] = useState('');
+  const [quickStockSaving, setQuickStockSaving] = useState(false);
 
   const inp: React.CSSProperties = {width:'100%',padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem',boxSizing:'border-box',outline:'none'};
   const lbl: React.CSSProperties = {display:'block',fontSize:'0.8rem',fontWeight:'500',color:'#6b7280',marginBottom:'0.25rem'};
@@ -78,11 +83,10 @@ export default function AccountingPage() {
   }, []);
 
   // Stok listesini yükle
-  useEffect(() => {
-    fetch('/api/stock').then(r => r.json()).then((d: any) => {
-      if (d.items) setAllStock(d.items);
-    }).catch(() => {});
+  const loadStock = useCallback(() => {
+    fetch('/api/stock').then(r => r.json()).then((d:any) => { if (d.items) setAllStock(d.items); }).catch(()=>{});
   }, []);
+  useEffect(() => { loadStock(); }, [loadStock]);
 
   // Dropdown'ları dışarı tıklayınca kapat
   useEffect(() => {
@@ -120,9 +124,33 @@ export default function AccountingPage() {
 
   const resetForm = () => {
     setForm({type:'SALE', customerId:'', product:'', amount:'', method:'CASH', notes:'', date: new Date().toISOString().split('T')[0]});
-    setFormCustSearch('');
-    setFormSelCust(null);
-    setShowCustDrop(false);
+    setFormCustSearch(''); setFormSelCust(null); setShowCustDrop(false);
+    setFormStockSearch(''); setFormStockItem(null); setShowStockDrop(false);
+  };
+
+  const selectStockItem = (item: StockItem) => {
+    setFormStockItem(item);
+    setFormStockSearch(item.name);
+    setForm(f => ({ ...f, product: item.name, amount: item.sellPrice > 0 ? String(item.sellPrice) : f.amount }));
+    setShowStockDrop(false);
+  };
+
+  const handleQuickAddStock = async () => {
+    if (!quickStockName.trim()) { alert('Ürün adı zorunlu'); return; }
+    setQuickStockSaving(true);
+    try {
+      const r = await fetch('/api/stock', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ source:'PART', name: quickStockName.trim(), sellPrice: quickStockPrice||'0', buyPrice:'0', stockQty:'1', minStock:'1' }) });
+      if (r.ok) {
+        const d = await r.json();
+        const si: StockItem = { id:d.id, source:'PART', name:d.name, sellPrice:Number(d.sellPrice), buyPrice:Number(d.buyPrice), stockQty:d.stockQty||1 };
+        setAllStock(prev => [...prev, si]);
+        selectStockItem(si);
+        setQuickAddStock(false); setQuickStockName(''); setQuickStockPrice('');
+        loadStock();
+      } else { const d = await r.json(); alert('Hata: '+d.error); }
+    } catch(e:any) { alert('Hata: '+e.message); }
+    setQuickStockSaving(false);
   };
 
   const handleQuickAddCust = async () => {
@@ -231,6 +259,35 @@ export default function AccountingPage() {
 
   return (
     <div style={{padding:'2rem',maxWidth:'1400px'}}>
+
+      {/* HIZLI STOK EKLEME MODALİ */}
+      {quickAddStock && (
+        <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100}} onClick={()=>setQuickAddStock(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{backgroundColor:'white',borderRadius:'1rem',width:'420px',maxWidth:'95vw',boxShadow:'0 20px 60px rgba(0,0,0,0.3)',overflow:'hidden'}}>
+            <div style={{background:'linear-gradient(135deg,#15803d,#22c55e)',color:'white',padding:'1rem 1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontWeight:'700',fontSize:'1rem'}}>📦 Stoka Ekle &amp; Seç</span>
+              <button onClick={()=>setQuickAddStock(false)} style={{background:'rgba(255,255,255,0.2)',color:'white',border:'none',borderRadius:'50%',width:'28px',height:'28px',cursor:'pointer',fontSize:'1rem'}}>✕</button>
+            </div>
+            <div style={{padding:'1.25rem'}}>
+              <p style={{fontSize:'0.82rem',color:'#6b7280',margin:'0 0 1rem'}}>Ürün stoka eklenecek ve satış fiyatı otomatik forma aktarılacak.</p>
+              <div style={{marginBottom:'0.75rem'}}>
+                <label style={lbl}>Ürün / Hizmet Adı *</label>
+                <input style={inp} value={quickStockName} onChange={e=>setQuickStockName(e.target.value)} placeholder="Drum ünitesi, toner, servis ücr..." autoFocus />
+              </div>
+              <div style={{marginBottom:'1rem'}}>
+                <label style={lbl}>Satış Fiyatı (₺) <span style={{fontWeight:'400',color:'#9ca3af'}}>→ otomatik forma gelir</span></label>
+                <input type="number" step="0.01" style={inp} value={quickStockPrice} onChange={e=>setQuickStockPrice(e.target.value)} placeholder="0.00" />
+              </div>
+              <div style={{display:'flex',gap:'0.5rem'}}>
+                <button onClick={()=>setQuickAddStock(false)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>İptal</button>
+                <button onClick={handleQuickAddStock} disabled={quickStockSaving} style={{flex:2,padding:'0.625rem',backgroundColor:'#15803d',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',opacity:quickStockSaving?0.7:1}}>
+                  {quickStockSaving?'Ekleniyor...':'✅ Stoka Ekle & Seç'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TOPLU WHATSAPP MODALI */}
       {showBulkWA && (
@@ -379,25 +436,50 @@ export default function AccountingPage() {
           </div>
         </div>
       )}
-
-      {/* BAŞLIK */}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
         <div>
           <h1 style={{fontSize:'1.875rem',fontWeight:'bold',margin:0}}>Muhasebe</h1>
-          <p style={{color:'#6b7280',margin:'0.25rem 0 0'}}>Manuel cari hesap takibi</p>
+          <p style={{color:'#6b7280',margin:'0.25rem 0 0'}}>Cari hesap takibi ve stok yönetimi</p>
         </div>
         <div style={{display:'flex',gap:'0.5rem'}}>
-          <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>🖨️ Yazdır</button>
-          {debtors.length > 0 && (
-            <button onClick={openBulkWA} style={{padding:'0.625rem 1rem',backgroundColor:'#dcfce7',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',display:'flex',alignItems:'center',gap:'0.4rem'}}>
-              📱 Toplu WhatsApp <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>
-            </button>
+          {activeTab==='accounting' && (
+            <>
+              <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>🖨️ Yazdır</button>
+              {debtors.length > 0 && (
+                <button onClick={openBulkWA} style={{padding:'0.625rem 1rem',backgroundColor:'#dcfce7',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',display:'flex',alignItems:'center',gap:'0.4rem'}}>
+                  📱 Toplu WhatsApp <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>
+                </button>
+              )}
+              <button onClick={()=>{ if(showForm){resetForm();setShowForm(false);}else{setShowForm(true);if(selCust)selectFormCust(selCust as any);} }} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>
+                {showForm ? '✕ İptal' : '+ Yeni Kayıt'}
+              </button>
+            </>
           )}
-          <button onClick={() => { if(showForm) { resetForm(); setShowForm(false); } else { setShowForm(true); if(selCust) { selectFormCust(selCust as any); } } }} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>
-            {showForm ? '✕ İptal' : '+ Yeni Kayıt'}
-          </button>
         </div>
       </div>
+
+      {/* TAB BAR */}
+      <div style={{display:'flex',gap:'0.25rem',backgroundColor:'#f3f4f6',borderRadius:'0.625rem',padding:'0.3rem',marginBottom:'1.5rem',width:'fit-content'}} className="print-hide">
+        {([['accounting','📊 Muhasebe'],['stock','📦 Stok Yönetimi']] as const).map(([k,l])=>(
+          <button key={k} onClick={()=>setActiveTab(k)} style={{
+            padding:'0.5rem 1.25rem',borderRadius:'0.375rem',border:'none',cursor:'pointer',fontSize:'0.9rem',
+            fontWeight:activeTab===k?'700':'400', backgroundColor:activeTab===k?'white':'transparent',
+            color:activeTab===k?'#1e3a5f':'#6b7280', boxShadow:activeTab===k?'0 1px 3px rgba(0,0,0,0.12)':'none',
+            transition:'all 0.15s'
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {/* STOK SEKMESI */}
+      {activeTab==='stock' && (
+        <StockTab
+          onSelectForSale={(item)=>{ selectStockItem(item); setActiveTab('accounting'); setShowForm(true); }}
+          onStockChanged={loadStock}
+        />
+      )}
+
+      {/* MUHASEBE SEKMESI */}
+      {activeTab==='accounting' && <>
 
       {/* ÖZET KARTLAR */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:'1rem',marginBottom:'1.5rem'}} className="print-hide">
@@ -495,9 +577,46 @@ export default function AccountingPage() {
                 )}
               </div>
               {form.type === 'SALE' && (
-                <div>
-                  <label style={lbl}>Ürün/Hizmet *</label>
-                  <input required style={inp} value={form.product} onChange={e => setForm({...form,product:e.target.value})} placeholder="Aldığı ürün..." />
+                <div style={{position:'relative'}}>
+                  <label style={lbl}>Ürün/Hizmet * <span style={{fontWeight:'400',color:'#9ca3af',fontSize:'0.72rem'}}>(stoktan seç veya yaz)</span></label>
+                  <div style={{display:'flex',gap:'0.4rem'}}>
+                    <div style={{position:'relative',flex:1}}>
+                      <input style={inp} value={formStockSearch}
+                        onClick={e=>e.stopPropagation()}
+                        onChange={e=>{ const v=e.target.value; setFormStockSearch(v); setForm(f=>({...f,product:v})); setShowStockDrop(true); if(!v) setFormStockItem(null); }}
+                        onFocus={()=>setShowStockDrop(true)}
+                        placeholder="Stoktan ara veya yaz..." autoComplete="off" />
+                      {formStockItem && <span style={{position:'absolute',right:'0.5rem',top:'50%',transform:'translateY(-50%)',color:'#10b981',fontSize:'0.85rem'}}>✓</span>}
+                      {showStockDrop && (
+                        <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'100%',left:0,right:0,zIndex:300,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',maxHeight:'200px',overflowY:'auto',boxShadow:'0 4px 16px rgba(0,0,0,0.15)',marginTop:'2px'}}>
+                          {allStock.filter(i=> !formStockSearch || i.name.toLowerCase().includes(formStockSearch.toLowerCase())).slice(0,12).map(item=>(
+                            <div key={item.id} onClick={()=>selectStockItem(item)}
+                              style={{padding:'0.45rem 0.75rem',cursor:'pointer',borderBottom:'1px solid #f3f4f6',display:'flex',justifyContent:'space-between',alignItems:'center'}}
+                              onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#f3f4f6')}
+                              onMouseLeave={e=>(e.currentTarget.style.backgroundColor='white')}>
+                              <div>
+                                <div style={{fontWeight:'600',fontSize:'0.85rem'}}>{item.name}</div>
+                                <div style={{fontSize:'0.7rem',color:'#9ca3af'}}>{item.source==='PART'?'🔧':'🖨️'} Stok: {item.stockQty}</div>
+                              </div>
+                              {item.sellPrice>0 && <span style={{fontWeight:'700',color:'#10b981',fontSize:'0.85rem',whiteSpace:'nowrap'}}>₺{item.sellPrice.toLocaleString('tr-TR',{minimumFractionDigits:2})}</span>}
+                            </div>
+                          ))}
+                          {allStock.length===0 && <div style={{padding:'0.6rem 0.75rem',fontSize:'0.8rem',color:'#9ca3af'}}>Stok bulunamadı</div>}
+                          <div onClick={()=>{ setShowStockDrop(false); setQuickStockName(formStockSearch); setQuickAddStock(true); }}
+                            style={{padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'#15803d',fontWeight:'600',borderTop:'2px solid #e5e7eb',backgroundColor:'#f0fdf4',display:'flex',alignItems:'center',gap:'0.4rem'}}
+                            onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#dcfce7')}
+                            onMouseLeave={e=>(e.currentTarget.style.backgroundColor='#f0fdf4')}>
+                            📦 Stoka Ekle &amp; Seç: <strong>"{formStockSearch||'Yeni Ürün'}"</strong>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" title="Stoka yeni ürün ekle"
+                      onClick={()=>{ setQuickStockName(formStockSearch); setQuickAddStock(true); }}
+                      style={{padding:'0 0.75rem',backgroundColor:'#f0fdf4',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600',whiteSpace:'nowrap'}}>
+                      📦+
+                    </button>
+                  </div>
                 </div>
               )}
               <div>
@@ -712,6 +831,8 @@ export default function AccountingPage() {
           </div>
         </div>
       )}
+
+      </> /* accounting tab end */}
 
       {/* PRINT STYLES */}
       <style>{`
