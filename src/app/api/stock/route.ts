@@ -81,7 +81,7 @@ export async function POST(req: Request) {
           group: body.group || null,
         },
       });
-      return NextResponse.json({ id: part.id, source: 'PART', name: part.name, sellPrice: Number(part.sellPrice), stockQty: part.stockQty, ...part });
+      return NextResponse.json({ id: part.id, source: 'PART', name: part.name, sku: part.sku, group: part.group, buyPrice: Number(part.buyPrice), sellPrice: Number(part.sellPrice), stockQty: part.stockQty, minStock: part.minStock });
     }
 
     if (body.source === 'PRINTER') {
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
         },
       });
       const name = [p.brand, p.model, p.color].filter(Boolean).join(' ');
-      return NextResponse.json({ id: p.id, source: 'PRINTER', name, sellPrice: Number(p.sellPrice), stockQty: p.quantity, ...p });
+      return NextResponse.json({ id: p.id, source: 'PRINTER', name, category: p.category, brand: p.brand, model: p.model, color: p.color, condition: p.condition, buyPrice: Number(p.buyPrice), sellPrice: Number(p.sellPrice), stockQty: p.quantity, notes: p.notes });
     }
 
     return NextResponse.json({ error: 'source: PART veya PRINTER olmalı' }, { status: 400 });
