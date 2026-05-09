@@ -117,13 +117,15 @@ async function ensureAdmin() {
     if (!existing) {
       const defaultPassword = process.env.ADMIN_PASSWORD || 'admin170305';
       if (!process.env.ADMIN_PASSWORD) {
-        console.warn('[WARN] ADMIN_PASSWORD not set; using default password.');
+        console.warn('[WARN] ADMIN_PASSWORD not set; using demo default. Set ADMIN_PASSWORD in production.');
       }
       const hash = await bcrypt.hash(defaultPassword, 12);
       await p.user.create({
         data: { tenantId, email: 'admin@demo.com', name: 'Admin', passwordHash: hash, role: 'ADMIN', isActive: true }
       });
-      const passwordLabel = process.env.ADMIN_PASSWORD ? '(from ADMIN_PASSWORD)' : defaultPassword;
+      const passwordLabel = process.env.ADMIN_PASSWORD
+        ? '(from ADMIN_PASSWORD)'
+        : '(default - change in production)';
       console.log('[OK] Admin user CREATED: admin@demo.com / ' + passwordLabel);
     } else {
       await p.user.update({ where: { id: existing.id }, data: { isActive: true } });
