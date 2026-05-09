@@ -93,6 +93,7 @@ model Tenant {
   logoSyncLogs        LogoSyncLog[]
   printerStocks       PrinterStock[]
   accountEntries      AccountEntry[]
+  expenses            Expense[]
 
   @@index([isActive])
   @@index([plan])
