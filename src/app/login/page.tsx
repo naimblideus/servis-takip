@@ -26,6 +26,7 @@ export default function LoginPage() {
       setError('E-posta veya şifre hatalı!');
       setLoading(false);
     } else {
+      router.refresh();
       router.push('/dashboard');
     }
   }

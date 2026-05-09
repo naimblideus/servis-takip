@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { AccountEntryType, PaymentMethod } from '@prisma/client';
+import { AccountEntryType } from '@prisma/client';
 
 // GET /api/muhasebe — Tüm hesap kayıtlarını listele (filtrelerle)
 export async function GET(req: Request) {
@@ -138,7 +138,7 @@ export async function POST(req: Request) {
                 type: type as AccountEntryType,
                 product: product || null,
                 amount: parseFloat(amount),
-                method: (method || 'CASH') as PaymentMethod,
+                method: (method || 'CASH') as string,
                 notes: notes || null,
                 date: date ? new Date(date) : new Date(),
             },
@@ -176,7 +176,7 @@ export async function PATCH(req: Request) {
         if (type) data.type = type as AccountEntryType;
         if (product !== undefined) data.product = product || null;
         if (amount !== undefined && amount !== null && amount !== '') data.amount = parseFloat(amount);
-        if (method) data.method = method as PaymentMethod;
+        if (method) data.method = method as string;
         if (notes !== undefined) data.notes = notes || null;
         if (date) data.date = new Date(date);
 
