@@ -13,24 +13,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findFirst({
+        const users = await prisma.user.findMany({
           where: { email: credentials.email as string, isActive: true },
           include: { tenant: true },
         });
 
-        if (!user) return null;
+        if (users.length === 0) return null;
 
-        const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
-        if (!isValid) return null;
+        for (const user of users) {
+          const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
+          if (!isValid) continue;
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          tenantId: user.tenantId,
-          tenantName: (user as any).tenant.name,
-        };
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            tenantId: user.tenantId,
+            tenantName: (user as any).tenant.name,
+          };
+        }
+
+        return null;
       },
     }),
   ],

@@ -115,11 +115,11 @@ async function ensureAdmin() {
     }
     const existing = await p.user.findFirst({ where: { email: 'admin@demo.com' } });
     if (!existing) {
-      const hash = await bcrypt.hash('Admin123!', 12);
+      const hash = await bcrypt.hash('admin170305', 12);
       await p.user.create({
         data: { tenantId, email: 'admin@demo.com', name: 'Admin', passwordHash: hash, role: 'ADMIN', isActive: true }
       });
-      console.log('[OK] Admin user CREATED: admin@demo.com / Admin123!');
+      console.log('[OK] Admin user CREATED: admin@demo.com / admin170305');
     } else {
       await p.user.update({ where: { id: existing.id }, data: { isActive: true } });
       console.log('[OK] Admin user exists and is active:', existing.email);
