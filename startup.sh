@@ -1,15 +1,15 @@
 #!/bin/sh
 # set -e KALDIRILDI: migration hataları sunucuyu durdurmasın
 
-echo "=== [1/4] Resolving potentially mismatched migrations ==="
+echo "=== [1/5] Resolving potentially mismatched migrations ==="
 node node_modules/prisma/build/index.js migrate resolve \
   --applied "20260505001300_add_account_entry_printer_stock" 2>&1 || true
 
-echo "=== [2/4] Running migrate deploy ==="
+echo "=== [2/5] Running migrate deploy ==="
 node node_modules/prisma/build/index.js migrate deploy 2>&1 || \
   echo "!!! migrate deploy failed — will attempt direct SQL fallback ==="
 
-echo "=== [3/4] Direct SQL fallback: ensure tables exist ==="
+echo "=== [3/5] Direct SQL fallback: ensure tables exist ==="
 node -e "
 const { PrismaClient } = require('@prisma/client');
 const p = new PrismaClient();
@@ -23,15 +23,13 @@ async function ensureTables() {
         END IF;
       END \\\$\\\$
     \`);
-    // OPEN_ACCOUNT değeri PaymentMethod enum'una ekle
-    await p.\$executeRawUnsafe(\`ALTER TYPE \"PaymentMethod\" ADD VALUE IF NOT EXISTS 'OPEN_ACCOUNT'\`).catch(()=>{});
     // AccountEntry tablosu
     await p.\$executeRawUnsafe(\`
       CREATE TABLE IF NOT EXISTS \"AccountEntry\" (
         \"id\" TEXT NOT NULL,
         \"tenantId\" TEXT NOT NULL,
         \"customerId\" TEXT NOT NULL,
-        \"type\" \"AccountEntryType\" NOT NULL,
+        \"type\" TEXT NOT NULL DEFAULT 'SALE',
         \"product\" TEXT,
         \"amount\" DECIMAL(10,2) NOT NULL DEFAULT 0,
         \"method\" TEXT NOT NULL DEFAULT 'CASH',
@@ -42,32 +40,8 @@ async function ensureTables() {
         CONSTRAINT \"AccountEntry_pkey\" PRIMARY KEY (\"id\")
       )
     \`);
-    // Index'ler
     await p.\$executeRawUnsafe(\`CREATE INDEX IF NOT EXISTS \"AccountEntry_tenantId_idx\" ON \"AccountEntry\"(\"tenantId\")\`);
     await p.\$executeRawUnsafe(\`CREATE INDEX IF NOT EXISTS \"AccountEntry_customerId_idx\" ON \"AccountEntry\"(\"customerId\")\`);
-    // Foreign key'ler
-    await p.\$executeRawUnsafe(\`
-      DO \\\$\\\$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints
-          WHERE constraint_name='AccountEntry_tenantId_fkey'
-        ) THEN
-          ALTER TABLE \"AccountEntry\" ADD CONSTRAINT \"AccountEntry_tenantId_fkey\"
-          FOREIGN KEY (\"tenantId\") REFERENCES \"Tenant\"(\"id\") ON DELETE CASCADE;
-        END IF;
-      END \\\$\\\$
-    \`).catch(()=>{});
-    await p.\$executeRawUnsafe(\`
-      DO \\\$\\\$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints
-          WHERE constraint_name='AccountEntry_customerId_fkey'
-        ) THEN
-          ALTER TABLE \"AccountEntry\" ADD CONSTRAINT \"AccountEntry_customerId_fkey\"
-          FOREIGN KEY (\"customerId\") REFERENCES \"Customer\"(\"id\") ON DELETE CASCADE;
-        END IF;
-      END \\\$\\\$
-    \`).catch(()=>{});
     // PrinterStock tablosu
     await p.\$executeRawUnsafe(\`
       CREATE TABLE IF NOT EXISTS \"PrinterStock\" (
@@ -121,5 +95,43 @@ async function ensureTables() {
 ensureTables();
 " 2>&1
 
-echo "=== [4/4] Starting Next.js server ==="
+echo "=== [4/5] Ensuring admin user exists ==="
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+const p = new PrismaClient();
+async function ensureAdmin() {
+  try {
+    const tenants = await p.tenant.findMany({ take: 1 });
+    let tenantId;
+    if (tenants.length === 0) {
+      const t = await p.tenant.create({
+        data: { name: 'Saygili Fotokopi', slug: 'saygili', plan: 'trial', isActive: true }
+      });
+      tenantId = t.id;
+      console.log('[OK] Tenant created:', tenantId);
+    } else {
+      tenantId = tenants[0].id;
+    }
+    const existing = await p.user.findFirst({ where: { email: 'admin@demo.com' } });
+    if (!existing) {
+      const hash = await bcrypt.hash('Admin123!', 12);
+      await p.user.create({
+        data: { tenantId, email: 'admin@demo.com', name: 'Admin', passwordHash: hash, role: 'ADMIN', isActive: true }
+      });
+      console.log('[OK] Admin user CREATED: admin@demo.com / Admin123!');
+    } else {
+      await p.user.update({ where: { id: existing.id }, data: { isActive: true } });
+      console.log('[OK] Admin user exists and is active:', existing.email);
+    }
+  } catch(e) {
+    console.error('[WARN] Admin ensure error (non-fatal):', e.message);
+  } finally {
+    await p.\$disconnect();
+  }
+}
+ensureAdmin();
+" 2>&1
+
+echo "=== [5/5] Starting Next.js server ==="
 exec node server.js
