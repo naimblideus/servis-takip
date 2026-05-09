@@ -12,42 +12,56 @@ export async function GET(req: Request) {
   try {
     const hash = await bcrypt.hash('admin170305', 10);
     
-    // 1. "SAYGILI FOTOKOPİ" firmasını bul
-    const saygiliTenant = await prisma.tenant.findFirst({
-      where: { name: { contains: "SAYGILI FOTOKOPİ" } }
+    // 1. En çok müşterisi olan firmayı bul (Gerçek hesabı garantilemek için)
+    const tenants = await prisma.tenant.findMany({
+      include: {
+        _count: {
+          select: { customers: true }
+        }
+      }
     });
 
-    if (!saygiliTenant) {
-      return NextResponse.json({ error: 'SAYGILI FOTOKOPİ firması veritabanında bulunamadı.' }, { status: 404 });
+    if (!tenants || tenants.length === 0) {
+      return NextResponse.json({ error: 'Hiç firma bulunamadı!' }, { status: 404 });
     }
 
-    // 2. Çakışmayı önlemek için, SAYGILI FOTOKOPİ HARİCİNDEKİ tüm "admin@demo.com" kullanıcılarının mailini değiştir
+    const realTenant = tenants.reduce((prev, current) => {
+      return (prev._count.customers > current._count.customers) ? prev : current;
+    });
+
+    // 2. Çakışmayı önlemek için, bu firma HARİCİNDEKİ tüm "admin@demo.com" kullanıcılarının mailini değiştir
     await prisma.user.updateMany({
       where: { 
         email: 'admin@demo.com',
-        NOT: { tenantId: saygiliTenant.id }
+        NOT: { tenantId: realTenant.id }
       },
       data: { email: 'eski-demo-admin@demo.com' }
     });
 
-    // 3. SAYGILI FOTOKOPİ için yetkili Admin'i bul
-    const adminUser = await prisma.user.findFirst({
-      where: { tenantId: saygiliTenant.id, role: 'ADMIN' }
+    // 3. Asıl firma için yetkili Admin'i bul
+    let adminUser = await prisma.user.findFirst({
+      where: { tenantId: realTenant.id, role: 'ADMIN' }
     });
+
+    if (!adminUser) {
+      adminUser = await prisma.user.findFirst({
+         where: { tenantId: realTenant.id }
+      });
+    }
 
     if (adminUser) {
       // Bilgilerini admin@demo.com ve şifresini admin170305 yap
       await prisma.user.update({
         where: { id: adminUser.id },
-        data: { email: 'admin@demo.com', passwordHash: hash, isActive: true }
+        data: { email: 'admin@demo.com', passwordHash: hash, isActive: true, role: 'ADMIN' }
       });
       return NextResponse.json({ 
         success: true, 
-        message: "Harika! SAYGILI FOTOKOPİ hesabının giriş bilgileri admin@demo.com ve şifresi admin170305 olarak güncellendi." 
+        message: `Harika! En çok müşterisi olan hesap (${realTenant.name}) için giriş bilgileri admin@demo.com ve şifresi admin170305 olarak güncellendi. Artık giriş yapabilirsiniz!` 
       });
     }
 
-    return NextResponse.json({ success: false, error: "Firmaya ait Admin kullanıcısı bulunamadı." });
+    return NextResponse.json({ success: false, error: "Firmaya ait hiçbir kullanıcı bulunamadı." });
   } catch (error) {
     return NextResponse.json({ success: false, error: String(error) });
   }
