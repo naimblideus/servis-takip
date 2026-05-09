@@ -23,10 +23,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const matches = await Promise.all(
           users.map((user) => bcrypt.compare(credentials.password as string, user.passwordHash))
         );
-        const matchIndex = matches.findIndex(Boolean);
-        if (matchIndex === -1) return null;
+        let matchedUser: (typeof users)[number] | null = null;
+        matches.forEach((isMatch, index) => {
+          if (!matchedUser && isMatch) {
+            matchedUser = users[index];
+          }
+        });
+        if (!matchedUser) return null;
 
-        const user = users[matchIndex];
+        const user = matchedUser;
         return {
           id: user.id,
           email: user.email,
