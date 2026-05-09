@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-
 const nextConfig: NextConfig = {
   reactCompiler: true,
   // Docker deployment için standalone output (Coolify)
@@ -18,6 +17,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '50mb',
     },
   },
+  serverExternalPackages: ['bcryptjs'],
 };
-
 export default nextConfig;
