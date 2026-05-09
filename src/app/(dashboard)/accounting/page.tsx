@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 const StockTab = dynamic(() => import('@/components/StockTab'), { ssr: false });
+const ExpenseTab = dynamic(() => import('@/components/ExpenseTab'), { ssr: false });
 
 interface Entry { id: string; type: 'SALE'|'PAYMENT'; product: string|null; amount: number; method: string; notes: string|null; date: string; customer?: {id:string;name:string;phone:string}|null; }
 interface Customer { id:string; name:string; phone:string; totalSales:number; totalPayments:number; balance:number; }
@@ -13,7 +14,7 @@ const METHOD_LABELS: Record<string,string> = { CASH:'💵 Nakit', CARD:'💳 Kre
 const METHOD_OPTIONS = Object.entries(METHOD_LABELS);
 
 export default function AccountingPage() {
-  const [activeTab, setActiveTab] = useState<'accounting'|'stock'>('accounting');
+  const [activeTab, setActiveTab] = useState<'accounting'|'stock'|'expense'>('accounting');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [allCustomers, setAllCustomers] = useState<AllCustomer[]>([]); // Form dropdown için filtresiz liste
   const [loading, setLoading] = useState(true);
@@ -460,8 +461,8 @@ export default function AccountingPage() {
 
       {/* TAB BAR */}
       <div style={{display:'flex',gap:'0.25rem',backgroundColor:'#f3f4f6',borderRadius:'0.625rem',padding:'0.3rem',marginBottom:'1.5rem',width:'fit-content'}} className="print-hide">
-        {([['accounting','📊 Muhasebe'],['stock','📦 Stok Yönetimi']] as const).map(([k,l])=>(
-          <button key={k} onClick={()=>setActiveTab(k)} style={{
+        {([['accounting','📊 Muhasebe'],['expense','💸 Giderler'],['stock','📦 Stok']] as [string,string][]).map(([k,l])=>(
+          <button key={k} onClick={()=>setActiveTab(k as any)} style={{
             padding:'0.5rem 1.25rem',borderRadius:'0.375rem',border:'none',cursor:'pointer',fontSize:'0.9rem',
             fontWeight:activeTab===k?'700':'400', backgroundColor:activeTab===k?'white':'transparent',
             color:activeTab===k?'#1e3a5f':'#6b7280', boxShadow:activeTab===k?'0 1px 3px rgba(0,0,0,0.12)':'none',
@@ -473,10 +474,13 @@ export default function AccountingPage() {
       {/* STOK SEKMESI */}
       {activeTab==='stock' && (
         <StockTab
-          onSelectForSale={(item)=>{ selectStockItem(item); setActiveTab('accounting'); setShowForm(true); }}
+          onSelectForSale={(item)=>{ selectStockItem(item); setActiveTab('accounting' as any); setShowForm(true); }}
           onStockChanged={loadStock}
         />
       )}
+
+      {/* GİDER SEKMESİ */}
+      {activeTab==='expense' && <ExpenseTab />}
 
       {/* MUHASEBE SEKMESI */}
       {activeTab==='accounting' && <>
@@ -683,6 +687,26 @@ export default function AccountingPage() {
 
         {/* SAĞ: MÜŞTERİ DETAY */}
         <div id="print-area">
+          {/* PRINT BAŞLIĞI - sadece yazdırmada görünür */}
+          <div className="print-only" style={{display:'none',marginBottom:'1rem'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'1rem 1.5rem',background:'#1e3a5f',color:'white',borderRadius:'0.5rem 0.5rem 0 0'}}>
+              <div>
+                <div style={{fontWeight:'900',fontSize:'1.2rem',letterSpacing:'0.03em'}}>SAYGILI FOTOKOPİ</div>
+                <div style={{fontSize:'0.72rem',opacity:0.8,marginTop:'0.1rem'}}>///// SERVİ MAH. SÜMER1 SK. NO5/E KÜTAHYA</div>
+                <div style={{fontSize:'0.72rem',opacity:0.8}}>📞 02742236206</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontWeight:'700',fontSize:'0.95rem'}}>CARİ HESAP EKSTRESİ</div>
+                <div style={{fontSize:'0.72rem',opacity:0.85,marginTop:'0.2rem'}}>Tarih: {new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+              </div>
+            </div>
+            {selCust && (
+              <div style={{backgroundColor:'#f8fafc',border:'1px solid #e2e8f0',borderTop:'none',padding:'0.75rem 1.5rem',display:'grid',gridTemplateColumns:'1fr 1fr',fontSize:'0.8rem'}}>
+                <div><span style={{color:'#6b7280'}}>Müşteri: </span><strong>{selCust.name}</strong></div>
+                <div><span style={{color:'#6b7280'}}>Telefon: </span>{selCust.phone}</div>
+              </div>
+            )}
+          </div>
           {!selCust ? (
             <div style={{backgroundColor:'white',borderRadius:'0.75rem',padding:'3rem',textAlign:'center',color:'#9ca3af',border:'2px dashed #e5e7eb'}}>
               <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>👈</div>
@@ -838,9 +862,39 @@ export default function AccountingPage() {
       <style>{`
         @media print {
           .print-hide { display: none !important; }
-          #app-sidebar { display: none !important; }
-          body { background: white !important; }
-          #print-area { grid-column: 1 / -1; }
+          #app-sidebar, nav, header, aside { display: none !important; }
+          body { background: white !important; margin: 0; }
+          #print-area { grid-column: 1 / -1 !important; }
+          .print-only { display: block !important; }
+
+          /* Print sayfa düzeni */
+          @page { margin: 1.5cm; size: A4; }
+
+          /* Başlık kutusu */
+          #print-area > div:first-child {
+            background: #1e3a5f !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          /* Tablo border'ları */
+          table { border-collapse: collapse !important; width: 100% !important; }
+          th, td { border: 1px solid #e5e7eb !important; font-size: 0.78rem !important; }
+
+          /* Renk bantları */
+          tr:nth-child(even) td { background: #f9fafb !important; }
+
+          /* Footer */
+          body::after {
+            content: 'Saygılı Fotokopi - Servi Mah. Sümer1 Sk. No5/E Kütahya - Tel: 02742236206';
+            display: block;
+            text-align: center;
+            font-size: 0.65rem;
+            color: #9ca3af;
+            margin-top: 1.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #e5e7eb;
+          }
         }
       `}</style>
     </div>

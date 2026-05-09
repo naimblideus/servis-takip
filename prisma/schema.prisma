@@ -674,7 +674,7 @@ model AccountEntry {
   type        AccountEntryType // SALE veya PAYMENT
   product     String?          // Aldığı ürün/hizmet adı (SALE için)
   amount      Decimal          @db.Decimal(10, 2)
-  method      PaymentMethod    @default(CASH) // Nakit, Kredi, IBAN, Açık Hesap
+  method      String           @default("CASH") // Nakit, Kredi, IBAN, Açık Hesap
   notes       String?
   date        DateTime         @default(now())
   createdAt   DateTime         @default(now())
@@ -687,6 +687,26 @@ model AccountEntry {
   @@index([tenantId, customerId, date(sort: Desc)])
   @@index([tenantId, type])
   @@index([tenantId, date(sort: Desc)])
+}
+
+// Gider Takibi
+model Expense {
+  id          String   @id @default(cuid())
+  tenantId    String
+  category    String   @default("GENEL")  // KIRA, ELEKTRIK, PERSONEL, MALZEME, BAKIM, GENEL, DIGER
+  description String
+  amount      Decimal  @db.Decimal(10, 2)
+  date        DateTime @default(now())
+  payee       String?  // Ödenilen kişi/kurum
+  method      String   @default("CASH")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, date(sort: Desc)])
+  @@index([tenantId, category])
 }
 
 enum AccountEntryType {

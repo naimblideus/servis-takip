@@ -10,7 +10,11 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const customers = await prisma.customer.findMany({
       where: { tenantId: user.tenantId },
-      select: { id: true, name: true, phone: true, address: true, email: true, taxNo: true },
+      select: {
+        id: true, name: true, phone: true, address: true,
+        email: true, taxNo: true, createdAt: true,
+        devices: { select: { id: true } },
+      },
       orderBy: { name: 'asc' },
     });
     return NextResponse.json(customers);

@@ -91,6 +91,24 @@ async function ensureTables() {
       )
     \`);
     await p.\$executeRawUnsafe(\`CREATE INDEX IF NOT EXISTS \"PrinterStock_tenantId_idx\" ON \"PrinterStock\"(\"tenantId\")\`);
+    // Expense (Gider) tablosu
+    await p.\$executeRawUnsafe(\`
+      CREATE TABLE IF NOT EXISTS \"Expense\" (
+        \"id\" TEXT NOT NULL,
+        \"tenantId\" TEXT NOT NULL,
+        \"category\" TEXT NOT NULL DEFAULT 'GENEL',
+        \"description\" TEXT NOT NULL,
+        \"amount\" DECIMAL(10,2) NOT NULL DEFAULT 0,
+        \"date\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \"payee\" TEXT,
+        \"method\" TEXT NOT NULL DEFAULT 'CASH',
+        \"notes\" TEXT,
+        \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \"updatedAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT \"Expense_pkey\" PRIMARY KEY (\"id\")
+      )
+    \`);
+    await p.\$executeRawUnsafe(\`CREATE INDEX IF NOT EXISTS \"Expense_tenantId_idx\" ON \"Expense\"(\"tenantId\")\`);
     // FinancialTransaction.readingId
     await p.\$executeRawUnsafe(\`ALTER TABLE \"FinancialTransaction\" ADD COLUMN IF NOT EXISTS \"readingId\" TEXT\`).catch(()=>{});
     console.log('[OK] All tables ensured.');
