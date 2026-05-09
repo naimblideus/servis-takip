@@ -20,21 +20,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (users.length === 0) return null;
 
-        for (const user of users) {
-          const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
-          if (!isValid) continue;
+        const matches = await Promise.all(
+          users.map((user) => bcrypt.compare(credentials.password as string, user.passwordHash))
+        );
+        const matchIndex = matches.findIndex(Boolean);
+        if (matchIndex === -1) return null;
 
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            tenantId: user.tenantId,
-            tenantName: (user as any).tenant.name,
-          };
-        }
-
-        return null;
+        const user = users[matchIndex];
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tenantId: user.tenantId,
+          tenantName: (user as any).tenant.name,
+        };
       },
     }),
   ],

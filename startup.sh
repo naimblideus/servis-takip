@@ -115,11 +115,16 @@ async function ensureAdmin() {
     }
     const existing = await p.user.findFirst({ where: { email: 'admin@demo.com' } });
     if (!existing) {
-      const hash = await bcrypt.hash('admin170305', 12);
+      const defaultPassword = process.env.ADMIN_PASSWORD || 'admin170305';
+      if (!process.env.ADMIN_PASSWORD) {
+        console.warn('[WARN] ADMIN_PASSWORD not set; using default password.');
+      }
+      const hash = await bcrypt.hash(defaultPassword, 12);
       await p.user.create({
         data: { tenantId, email: 'admin@demo.com', name: 'Admin', passwordHash: hash, role: 'ADMIN', isActive: true }
       });
-      console.log('[OK] Admin user CREATED: admin@demo.com / admin170305');
+      const passwordLabel = process.env.ADMIN_PASSWORD ? '(from ADMIN_PASSWORD)' : defaultPassword;
+      console.log('[OK] Admin user CREATED: admin@demo.com / ' + passwordLabel);
     } else {
       await p.user.update({ where: { id: existing.id }, data: { isActive: true } });
       console.log('[OK] Admin user exists and is active:', existing.email);
