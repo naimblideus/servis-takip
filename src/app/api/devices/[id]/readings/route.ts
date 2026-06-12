@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { TransactionType, TransactionCategory, PaymentMethod } from '@prisma/client';
 
 export async function POST(
     req: Request,
@@ -77,46 +76,10 @@ export async function POST(
             data: { counterBlack, counterColor },
         });
 
-        // Kiralık cihazsa otomatik muhasebe kaydı oluştur
-        if (device.isRental && calculatedCost > 0) {
-            const blackCost = deltaBlack * effectiveBlackPrice;
-            const colorCost = deltaColor * effectiveColorPrice;
-            const counterFee = blackCost + colorCost;
-
-            // Sayaç ücreti gelir kaydı
-            if (counterFee > 0) {
-                await prisma.financialTransaction.create({
-                    data: {
-                        tenantId: user.tenantId,
-                        customerId: device.customerId,
-                        readingId: reading.id,
-                        type: 'INCOME' as TransactionType,
-                        category: 'COUNTER_FEE' as TransactionCategory,
-                        amount: counterFee,
-                        method: 'CASH' as PaymentMethod,
-                        description: `Sayaç okuma: S:${deltaBlack} R:${deltaColor} — ${device.brand} ${device.model}`,
-                        date: new Date(),
-                    },
-                });
-            }
-
-            // Aylık aidat gelir kaydı
-            if (monthlyRentAmount > 0) {
-                await prisma.financialTransaction.create({
-                    data: {
-                        tenantId: user.tenantId,
-                        customerId: device.customerId,
-                        readingId: reading.id,
-                        type: 'INCOME' as TransactionType,
-                        category: 'RENTAL_FEE' as TransactionCategory,
-                        amount: monthlyRentAmount,
-                        method: 'CASH' as PaymentMethod,
-                        description: `Aylık kira bedeli — ${device.brand} ${device.model}`,
-                        date: new Date(),
-                    },
-                });
-            }
-        }
+        // NOT: Gelir kaydı artık burada YAZILMAZ. Sayaç okuması sadece kaydedilir;
+        // gelir (FinancialTransaction) dönem faturası kesilince src/lib/invoicing.ts
+        // tarafından oluşturulur (mükerrer gelir önlenir). Bu okuma billed=false olarak
+        // birikir ve aylık cron / DELIVERED tetiğiyle faturaya dönüşür.
 
         return NextResponse.json({
             ...reading,
@@ -205,8 +168,9 @@ export async function DELETE(
             where: { id: readingId, tenantId: user.tenantId, deviceId },
         });
         if (!reading) return NextResponse.json({ error: 'Okuma bulunamadı' }, { status: 404 });
+        if (reading.billed) return NextResponse.json({ error: 'Bu okuma faturalandığı için silinemez' }, { status: 409 });
 
-        // Sayaç okumasını sil (muhasebe kayıtları SİLİNMEZ)
+        // Sayaç okumasını sil
         await prisma.counterReading.delete({ where: { id: readingId } });
 
         // Cihaz sayaç değerlerini son okumayla güncelle

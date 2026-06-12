@@ -78,6 +78,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               currentIssueText={ticket.issueText ?? ''}
               currentActionText={ticket.actionText ?? ''}
               currentNotes={ticket.notes ?? ''}
+              currentCreatedAt={ticket.createdAt.toISOString()}
               users={users}
             />
           </div>

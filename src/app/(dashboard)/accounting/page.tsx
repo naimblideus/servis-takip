@@ -243,7 +243,10 @@ export default function AccountingPage() {
     setBulkIdx(nextIdx);
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    if (!selCust) { alert('Lütfen önce soldan bir müşteri seçin, sonra "Yazdır"a basın.'); return; }
+    window.open(`/accounting/${selCust.id}/print`, '_blank');
+  };
 
   if (loading) return <div style={{padding:'2rem',color:'#6b7280'}}>Yükleniyor...</div>;
 
@@ -724,6 +727,7 @@ export default function AccountingPage() {
                     <div style={{fontSize:'0.8rem',opacity:0.8,marginTop:'0.25rem'}}>📞 {detail.customer.phone} {detail.customer.address && `• 📍 ${detail.customer.address}`}</div>
                   </div>
                   <div style={{display:'flex',gap:'0.5rem'}} className="print-hide">
+                    <button onClick={() => window.open(`/accounting/${selCust.id}/print`, '_blank')} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>🖨️ Ekstre Yazdır</button>
                     {detail.summary.balance > 0 && (
                       <button onClick={() => sendWhatsApp(detail.customer, detail.summary.balance)} style={{backgroundColor:'#25d366',color:'white',border:'none',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>📱 WhatsApp</button>
                     )}

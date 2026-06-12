@@ -44,6 +44,11 @@ export async function PATCH(
         if (body.actionText !== undefined) updateData.actionText = body.actionText;
         if (body.notes !== undefined) updateData.notes = body.notes;
         if (body.totalCost !== undefined) updateData.totalCost = parseFloat(body.totalCost);
+        if (body.laborCost !== undefined) updateData.laborCost = parseFloat(body.laborCost);
+        if (body.createdAt !== undefined && body.createdAt) {
+            const d = new Date(body.createdAt);
+            if (!isNaN(d.getTime())) updateData.createdAt = d; // Fiş tarih/saati düzenlenebilir
+        }
         if (body.paymentStatus !== undefined) updateData.paymentStatus = body.paymentStatus;
         if (body.priority !== undefined) updateData.priority = body.priority;
         // Çöp kutusundan geri alma

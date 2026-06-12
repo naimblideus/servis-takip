@@ -28,6 +28,7 @@ interface Props {
     currentIssueText: string;
     currentActionText: string;
     currentNotes: string;
+    currentCreatedAt: string; // ISO — düzenlenebilir fiş tarih/saati
     users: { id: string; name: string }[];
 }
 
@@ -41,6 +42,7 @@ export default function TicketStatusPanel({
     currentIssueText,
     currentActionText,
     currentNotes,
+    currentCreatedAt,
     users,
 }: Props) {
     const router = useRouter();
@@ -52,6 +54,13 @@ export default function TicketStatusPanel({
     const [issueText, setIssueText] = useState(currentIssueText);
     const [actionText, setActionText] = useState(currentActionText);
     const [notes, setNotes] = useState(currentNotes);
+    const toLocalInput = (iso: string) => {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+        return local.toISOString().slice(0, 16);
+    };
+    const [createdAt, setCreatedAt] = useState(toLocalInput(currentCreatedAt));
 
     const updateStatus = async (newStatus: string) => {
         setLoading(true);
@@ -76,6 +85,7 @@ export default function TicketStatusPanel({
                 issueText,
                 actionText,
                 notes,
+                createdAt: createdAt ? new Date(createdAt).toISOString() : undefined,
             }),
         });
         router.refresh();
@@ -213,12 +223,21 @@ export default function TicketStatusPanel({
                             </select>
                         </div>
 
-                        <div>
+                        <div style={{ marginBottom: '0.625rem' }}>
                             <label style={fieldLabel}>Toplam Tutar (₺)</label>
                             <input
                                 type="number" step="0.01" style={inp}
                                 value={totalCost}
                                 onChange={e => setTotalCost(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label style={fieldLabel}>Fiş Tarihi & Saati</label>
+                            <input
+                                type="datetime-local" style={inp}
+                                value={createdAt}
+                                onChange={e => setCreatedAt(e.target.value)}
                             />
                         </div>
                     </div>

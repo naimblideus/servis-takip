@@ -43,7 +43,7 @@ export async function GET(req: Request) {
         payments: payments.map(p => ({
             id: p.id,
             ticketId: p.ticketId,
-            ticketNumber: ticketMap.get(p.ticketId) || '—',
+            ticketNumber: p.ticketId ? (ticketMap.get(p.ticketId) || '—') : '—',
             amount: Number(p.amount),
             method: p.method,
             paymentDate: p.paymentDate.toISOString(),
@@ -83,36 +83,40 @@ export async function DELETE(req: Request) {
         // Ödemeyi sil
         await prisma.payment.delete({ where: { id: paymentId } });
 
-        // Fiş ödeme durumunu geri hesapla
-        const remainingPayments = payment.ticket.payments.filter(p => p.id !== paymentId);
-        const totalPaid = remainingPayments.reduce((s, p) => s + Number(p.amount), 0);
-        const totalCost = Number(payment.ticket.totalCost);
+        // Fişe bağlı ödeme ise fiş durumunu geri hesapla (cari-bazlı tahsilatta atla)
+        if (payment.ticketId && payment.ticket) {
+            const remainingPayments = payment.ticket.payments.filter(p => p.id !== paymentId);
+            const totalPaid = remainingPayments.reduce((s, p) => s + Number(p.amount), 0);
+            const totalCost = Number(payment.ticket.totalCost);
 
-        let newStatus = 'UNPAID';
-        if (totalPaid > 0 && totalPaid < totalCost) newStatus = 'PARTIAL';
-        if (totalPaid >= totalCost) newStatus = 'PAID';
+            let newStatus = 'UNPAID';
+            if (totalPaid > 0 && totalPaid < totalCost) newStatus = 'PARTIAL';
+            if (totalPaid >= totalCost) newStatus = 'PAID';
 
-        await prisma.serviceTicket.update({
-            where: { id: payment.ticketId },
-            data: { paymentStatus: newStatus as PaymentStatus },
-        });
+            await prisma.serviceTicket.update({
+                where: { id: payment.ticketId },
+                data: { paymentStatus: newStatus as PaymentStatus },
+            });
 
-        // İlgili muhasebe kaydını da sil (varsa)
-        await prisma.financialTransaction.deleteMany({
-            where: {
-                tenantId: user.tenantId,
-                ticketId: payment.ticketId,
-                amount: payment.amount,
-                description: { contains: 'Borç ödemesi' },
-            },
-        });
+            // İlgili muhasebe kaydını da sil (varsa)
+            await prisma.financialTransaction.deleteMany({
+                where: {
+                    tenantId: user.tenantId,
+                    ticketId: payment.ticketId,
+                    amount: payment.amount,
+                    description: { contains: 'Borç ödemesi' },
+                },
+            });
 
-        return NextResponse.json({
-            success: true,
-            newPaymentStatus: newStatus,
-            totalPaid,
-            remaining: Math.max(0, totalCost - totalPaid),
-        });
+            return NextResponse.json({
+                success: true,
+                newPaymentStatus: newStatus,
+                totalPaid,
+                remaining: Math.max(0, totalCost - totalPaid),
+            });
+        }
+
+        return NextResponse.json({ success: true });
     } catch (e: any) {
         console.error('PAYMENT DELETE ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
