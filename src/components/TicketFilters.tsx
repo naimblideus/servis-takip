@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface Props {
     currentStatus?: string;
@@ -38,6 +38,11 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
     const [customerInput, setCustomerInput] = useState(currentCustomer || '');
     const [dateFrom, setDateFrom] = useState(currentDateFrom || '');
     const [dateTo, setDateTo] = useState(currentDateTo || '');
+
+    // URL (sunucu props) baska yolla degisince (stat kart, temizle, geri tusu) inputlari senkronla
+    useEffect(() => { setCustomerInput(currentCustomer || ''); }, [currentCustomer]);
+    useEffect(() => { setDateFrom(currentDateFrom || ''); }, [currentDateFrom]);
+    useEffect(() => { setDateTo(currentDateTo || ''); }, [currentDateTo]);
 
     const updateParam = useCallback((key: string, value: string) => {
         const params = new URLSearchParams(window.location.search);

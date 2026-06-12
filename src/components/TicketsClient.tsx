@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import TicketTable from '@/components/TicketTable';
 import Link from 'next/link';
@@ -29,6 +29,10 @@ export default function TicketsClient({ initialTickets, total, open, ready }: {
     const router = useRouter();
     const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
     const [msg, setMsg] = useState('');
+
+    // Filtre/arama URL'i degisince sunucu yeni filtreli listeyi prop olarak gonderir;
+    // useState yalniz ilk mount'ta calistigi icin tabloyu burada senkronla (yoksa filtre tabloya yansimaz).
+    useEffect(() => { setTickets(initialTickets); }, [initialTickets]);
 
     const handleDelete = async (id: string, num: string) => {
         if (!confirm(`"${num}" çöp kutusuna taşınsın mı?`)) return;
