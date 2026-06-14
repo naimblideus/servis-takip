@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 interface Cust { id: string; name: string; phone: string; }
 interface OpenInv { id: string; invoiceNumber: string; invoiceDate: string; dueDate: string; status: string; totalAmount: number; paidAmount: number; openAmount: number; }
-interface AllocResult { allocations: { invoiceNumber: string; amount: number; status: string }[]; allocated: number; unallocated: number; }
+interface AllocResult { paymentId: string; allocations: { invoiceNumber: string; amount: number; status: string }[]; allocated: number; unallocated: number; }
 
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('tr-TR');
@@ -25,18 +25,25 @@ export default function CollectionsPage() {
   const [result, setResult] = useState<AllocResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch('/api/customers').then((r) => r.json()).then((d: any) => {
-      setCustomers(Array.isArray(d) ? d : d.customers || []);
-    }).catch(() => {});
-  }, []);
-
   const loadOpen = useCallback((customerId: string) => {
     fetch(`/api/collections?customerId=${customerId}`).then((r) => r.json()).then((d: any) => {
       setOpenInvoices(d.invoices || []);
       setOpenTotal(d.openTotal || 0);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetch('/api/customers').then((r) => r.json()).then((d: any) => {
+      const list: Cust[] = Array.isArray(d) ? d : d.customers || [];
+      setCustomers(list);
+      // Faturalar sayfasından "Tahsilat Yap" derin-linki ile gelindiyse müşteriyi ön-seç
+      const pre = new URLSearchParams(window.location.search).get('customerId');
+      if (pre) {
+        const c = list.find((x) => x.id === pre);
+        if (c) { setSel(c); setCustSearch(c.name); setShowDrop(false); loadOpen(c.id); }
+      }
+    }).catch(() => {});
+  }, [loadOpen]);
 
   const pickCustomer = (c: Cust) => {
     setSel(c); setCustSearch(c.name); setShowDrop(false); setResult(null); setErr(null);
@@ -53,7 +60,7 @@ export default function CollectionsPage() {
       });
       const d = await res.json();
       if (res.ok) {
-        setResult({ allocations: d.allocations, allocated: d.allocated, unallocated: d.unallocated });
+        setResult({ paymentId: d.paymentId, allocations: d.allocations, allocated: d.allocated, unallocated: d.unallocated });
         setAmount(''); setRefNo('');
         loadOpen(sel.id);
       } else setErr(d.error || 'Hata');
@@ -144,9 +151,15 @@ export default function CollectionsPage() {
         {/* Sonuç */}
         {result && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="font-medium text-green-800 mb-2">
-              ✓ {fmt(result.allocated)} mahsup edildi{result.unallocated > 0 ? ` · ${fmt(result.unallocated)} avans (gelecek faturaya)` : ''}
-            </p>
+            <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+              <p className="font-medium text-green-800">
+                ✓ {fmt(result.allocated)} mahsup edildi{result.unallocated > 0 ? ` · ${fmt(result.unallocated)} avans (gelecek faturaya)` : ''}
+              </p>
+              <button onClick={() => window.open(`/collections/${result.paymentId}/print`, '_blank')}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0">
+                🧾 Makbuz Yazdır
+              </button>
+            </div>
             <div className="space-y-1">
               {result.allocations.map((a, idx) => (
                 <div key={idx} className="flex justify-between text-sm text-gray-700">

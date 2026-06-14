@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Line { kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number; }
 interface Invoice {
@@ -24,6 +25,7 @@ const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDi
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('tr-TR');
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [summary, setSummary] = useState<Summary>({ count: 0, total: 0, open: 0, overdue: 0, paidCount: 0 });
   const [loading, setLoading] = useState(true);
@@ -80,21 +82,29 @@ export default function InvoicesPage() {
 
       {/* Özet kartlar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border p-4">
-          <p className="text-xs text-gray-500">Toplam Fatura</p>
-          <p className="text-2xl font-bold text-gray-900">{summary.count}</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gray-300" />
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">Toplam Fatura</p><span>🧾</span></div>
+          <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{summary.count}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{summary.paidCount} adet ödendi</p>
         </div>
-        <div className="bg-white rounded-xl border p-4">
-          <p className="text-xs text-gray-500">Toplam Tutar</p>
-          <p className="text-2xl font-bold text-gray-900">{fmt(summary.total)}</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-400" />
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">Toplam Tutar</p><span>💼</span></div>
+          <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{fmt(summary.total)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">KDV dahil ciro</p>
         </div>
-        <div className="bg-white rounded-xl border p-4">
-          <p className="text-xs text-gray-500">Açık Bakiye</p>
-          <p className="text-2xl font-bold text-blue-600">{fmt(summary.open)}</p>
+        <div className="bg-white rounded-xl border border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">Açık Bakiye</p><span>⏳</span></div>
+          <p className="text-2xl font-bold text-blue-600 mt-1 tabular-nums">{fmt(summary.open)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">Tahsil edilecek</p>
         </div>
-        <div className="bg-white rounded-xl border p-4">
-          <p className="text-xs text-gray-500">Vadesi Geçen</p>
-          <p className="text-2xl font-bold text-red-600">{fmt(summary.overdue)}</p>
+        <div className="bg-white rounded-xl border border-red-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">Vadesi Geçen</p><span>🔴</span></div>
+          <p className="text-2xl font-bold text-red-600 mt-1 tabular-nums">{fmt(summary.overdue)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">Gecikmiş tutar</p>
         </div>
       </div>
 
@@ -190,6 +200,23 @@ export default function InvoicesPage() {
                 <div className="flex justify-between text-green-600"><span>Tahsil Edilen</span><span>{fmt(detail.paidAmount)}</span></div>
                 <div className="flex justify-between font-medium text-red-600"><span>Kalan</span><span>{fmt(detail.openAmount)}</span></div>
               </div>
+            </div>
+            {/* Aksiyonlar */}
+            <div className="p-4 border-t bg-gray-50 flex gap-2 flex-wrap sticky bottom-0">
+              <button onClick={() => window.open(`/invoices/${detail.id}/print`, '_blank')}
+                className="flex-1 min-w-[140px] px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                🖨 Yazdır / PDF
+              </button>
+              {detail.openAmount > 0 && detail.customer && (
+                <button onClick={() => router.push(`/collections?customerId=${detail.customer!.id}`)}
+                  className="flex-1 min-w-[140px] px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
+                  💰 Tahsilat Yap
+                </button>
+              )}
+              <button onClick={() => setDetail(null)}
+                className="px-4 py-2.5 bg-white border text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium">
+                Kapat
+              </button>
             </div>
           </div>
         </div>
