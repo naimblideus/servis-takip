@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 
 interface Part {
     id: string;
@@ -44,6 +45,9 @@ export default function TicketPartsPanel({ ticketId }: Props) {
     });
     const [creatingPart, setCreatingPart] = useState(false);
 
+    // Barkod okuyucu (2D imager) geri bildirimi
+    const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
     const load = async () => {
         const [tpRes, pRes] = await Promise.all([
             fetch(`/api/tickets/${ticketId}/parts`),
@@ -55,6 +59,40 @@ export default function TicketPartsPanel({ ticketId }: Props) {
     };
 
     useEffect(() => { load(); }, []);
+
+    // Scan mesajını birkaç saniye sonra otomatik temizle
+    useEffect(() => {
+        if (!scanMsg) return;
+        const t = setTimeout(() => setScanMsg(null), 3500);
+        return () => clearTimeout(t);
+    }, [scanMsg]);
+
+    // ═══ Barkod okuyucuyla fişe parça ekle (okut → otomatik 1 adet düş) ═══
+    const handleScan = async (code: string) => {
+        setScanMsg({ text: `Okutuluyor: ${code}…`, ok: true });
+        try {
+            const res = await fetch(`/api/tickets/${ticketId}/parts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ barcode: code, quantity: 1 }),
+            });
+            if (res.ok) {
+                await load();
+                const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);
+                if (tpRes.ok) { const parts = await tpRes.json(); await syncTotalCost(parts); }
+                router.refresh();
+                setScanMsg({ text: `Eklendi: ${code}`, ok: true });
+            } else {
+                const d = await res.json().catch(() => ({}));
+                setScanMsg({ text: `${d.error || 'Barkod bulunamadı'} (${code})`, ok: false });
+            }
+        } catch {
+            setScanMsg({ text: `Bağlantı hatası (${code})`, ok: false });
+        }
+    };
+
+    // Yeni ürün formu açıkken (kullanıcı yazarken) wedge'i kapat; hook zaten input odağında bypass eder.
+    useBarcodeWedge(handleScan, { enabled: !loading && !showNewPartForm });
 
     // Dış tıklama ile dropdown'ı kapat
     useEffect(() => {
@@ -186,7 +224,31 @@ export default function TicketPartsPanel({ ticketId }: Props) {
 
     return (
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
-            <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Kullanılan Parçalar</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h2 style={{ fontWeight: '600', margin: 0 }}>Kullanılan Parçalar</h2>
+                <span title="USB barkod okuyucuyla (2D imager) bir parça barkodunu okutun — otomatik olarak 1 adet eklenir."
+                    style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                        backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc',
+                        padding: '0.25rem 0.6rem', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: '600',
+                    }}>
+                    <span style={{ fontSize: '0.85rem' }}>▮▮▯▮</span> Barkod okuyucu hazır
+                </span>
+            </div>
+
+            {/* ═══ Barkod okuma geri bildirimi ═══ */}
+            {scanMsg && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    backgroundColor: scanMsg.ok ? '#ecfdf5' : '#fef2f2',
+                    color: scanMsg.ok ? '#047857' : '#b91c1c',
+                    border: `1px solid ${scanMsg.ok ? '#a7f3d0' : '#fecaca'}`,
+                    borderRadius: '0.5rem', padding: '0.5rem 0.75rem', marginBottom: '0.75rem',
+                    fontSize: '0.85rem', fontWeight: '500',
+                }}>
+                    <span>{scanMsg.ok ? '✓' : '✕'}</span> {scanMsg.text}
+                </div>
+            )}
 
             {/* ═══ Parça Arama (Autocomplete) ═══ */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
