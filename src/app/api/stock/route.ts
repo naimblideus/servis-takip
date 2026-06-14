@@ -26,9 +26,9 @@ export async function GET(req: Request) {
         orderBy: { name: 'asc' },
       });
       for (const p of parts) {
-        if (search && !p.name.toLowerCase().includes(search) && !p.sku.toLowerCase().includes(search)) continue;
+        if (search && !p.name.toLowerCase().includes(search) && !p.sku.toLowerCase().includes(search) && !(p.barcode || '').toLowerCase().includes(search)) continue;
         items.push({
-          id: p.id, source: 'PART', name: p.name, sku: p.sku,
+          id: p.id, source: 'PART', name: p.name, sku: p.sku, barcode: p.barcode,
           group: p.group, buyPrice: Number(p.buyPrice), sellPrice: Number(p.sellPrice),
           stockQty: p.stockQty, minStock: p.minStock,
         });
@@ -79,9 +79,10 @@ export async function POST(req: Request) {
           stockQty: parseInt(body.stockQty) || 1,
           minStock: parseInt(body.minStock) || 5,
           group: body.group || null,
+          barcode: body.barcode?.trim() || null,
         },
       });
-      return NextResponse.json({ id: part.id, source: 'PART', name: part.name, sku: part.sku, group: part.group, buyPrice: Number(part.buyPrice), sellPrice: Number(part.sellPrice), stockQty: part.stockQty, minStock: part.minStock });
+      return NextResponse.json({ id: part.id, source: 'PART', name: part.name, sku: part.sku, barcode: part.barcode, group: part.group, buyPrice: Number(part.buyPrice), sellPrice: Number(part.sellPrice), stockQty: part.stockQty, minStock: part.minStock });
     }
 
     if (body.source === 'PRINTER') {
@@ -132,6 +133,7 @@ export async function PATCH(req: Request) {
           sellPrice: body.sellPrice !== undefined ? parseFloat(body.sellPrice) : ex.sellPrice,
           stockQty: body.stockQty !== undefined ? parseInt(body.stockQty) : ex.stockQty,
           group: body.group !== undefined ? body.group : ex.group,
+          barcode: body.barcode !== undefined ? (body.barcode?.trim() || null) : ex.barcode,
         },
       });
       return NextResponse.json(updated);

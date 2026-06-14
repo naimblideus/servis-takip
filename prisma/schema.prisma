@@ -320,6 +320,7 @@ model Part {
   id        String   @id @default(cuid())
   tenantId  String
   sku       String
+  barcode   String?  // EAN-13/UPC/Code128 — barkod okuyucu ile hızlı arama (2D imager)
   name      String
   buyPrice  Decimal  @default(0) @db.Decimal(10, 2)
   sellPrice Decimal  @default(0) @db.Decimal(10, 2)
@@ -334,8 +335,10 @@ model Part {
   ticketParts TicketPart[]
 
   @@unique([tenantId, sku])
+  @@unique([tenantId, barcode])
   @@index([tenantId, name])
   @@index([tenantId, stockQty])
+  @@index([tenantId, barcode])
 }
 
 model TicketPart {

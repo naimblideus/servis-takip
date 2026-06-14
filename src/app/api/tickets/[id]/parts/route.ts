@@ -34,11 +34,15 @@ export async function POST(
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();
-        const { partId, quantity = 1, unitPrice: overridePrice } = body;
+        const { partId, barcode, quantity = 1, unitPrice: overridePrice } = body;
 
-        // Parçayı kontrol et
-        const part = await prisma.part.findUnique({ where: { id: partId } });
-        if (!part) return NextResponse.json({ error: 'Parça bulunamadı' }, { status: 404 });
+        // Parçayı TENANT-SCOPED bul (IDOR koruması). partId yoksa BARKOD ile ara (okuyucu akışı).
+        const part = partId
+            ? await prisma.part.findFirst({ where: { id: partId, tenantId: user.tenantId } })
+            : barcode
+                ? await prisma.part.findFirst({ where: { barcode: String(barcode), tenantId: user.tenantId } })
+                : null;
+        if (!part) return NextResponse.json({ error: barcode ? `Barkod bulunamadı: ${barcode}` : 'Parça bulunamadı' }, { status: 404 });
         if (part.stockQty < quantity) {
             return NextResponse.json({ error: `Stok yetersiz (mevcut: ${part.stockQty})` }, { status: 400 });
         }
@@ -52,14 +56,14 @@ export async function POST(
                 data: {
                     tenantId: user.tenantId,
                     ticketId,
-                    partId,
+                    partId: part.id,
                     quantity,
                     unitPrice: finalUnitPrice,
                 },
             }),
             // Stoktan düş
             prisma.part.update({
-                where: { id: partId },
+                where: { id: part.id },
                 data: { stockQty: { decrement: quantity } },
             }),
             // Fiş toplam tutarını güncelle
@@ -90,12 +94,15 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
         const url = new URL(req.url);
         const ticketPartId = url.searchParams.get('ticketPartId');
         if (!ticketPartId) return NextResponse.json({ error: 'ticketPartId gerekli' }, { status: 400 });
 
-        const ticketPart = await prisma.ticketPart.findUnique({
-            where: { id: ticketPartId },
+        const ticketPart = await prisma.ticketPart.findFirst({
+            where: { id: ticketPartId, tenantId: user.tenantId },
             include: { part: true },
         });
         if (!ticketPart) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
