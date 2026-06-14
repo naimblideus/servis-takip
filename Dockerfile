@@ -70,6 +70,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_module
 COPY startup.sh ./startup.sh
 RUN sed -i 's/\r$//' startup.sh && chmod +x startup.sh && chown nextjs:nodejs startup.sh
 
+# Dinamik migration uygulayıcı (startup.sh tarafından çağrılır; prisma CLI gerektirmez)
+COPY --chown=nextjs:nodejs apply-migrations.js ./apply-migrations.js
+
 USER nextjs
 
 EXPOSE 3000
