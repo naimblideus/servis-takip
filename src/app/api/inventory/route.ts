@@ -56,6 +56,7 @@ export async function POST(req: Request) {
                 stockQty: parseInt(body.stockQty) || 0,
                 minStock: parseInt(body.minStock) || 5,
                 group: body.group || null,
+                barcode: body.barcode?.trim() || null,
             },
         });
 

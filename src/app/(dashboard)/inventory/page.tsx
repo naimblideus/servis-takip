@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 
 interface Part {
     id: string;
@@ -11,6 +12,7 @@ interface Part {
     stockQty: number;
     minStock: number;
     group: string | null;
+    barcode?: string | null;
 }
 
 const PART_GROUPS = ['Fırın Grubu', 'Paten', 'İşçilik', 'Dişli Grubu', 'Yedek Parça', 'Toner', 'Tamirat'];
@@ -28,11 +30,13 @@ export default function InventoryPage() {
     const [sortField, setSortField] = useState<SortField>('stockQty');
     const [sortAsc, setSortAsc] = useState(true);
     const [form, setForm] = useState({
-        sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '',
+        sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '',
     });
     // Satır düzenlemesi
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editRow, setEditRow] = useState({ name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '', group: '' });
+    const [editRow, setEditRow] = useState({ name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '', group: '', barcode: '' });
+    // Barkod okuyucu (2D imager) geri bildirimi
+    const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
     // Sadece stok sayısını inline düzenle
     const [editStockId, setEditStockId] = useState<string | null>(null);
     const [editStockVal, setEditStockVal] = useState('');
@@ -46,6 +50,33 @@ export default function InventoryPage() {
 
     useEffect(() => { load(); }, []);
 
+    // Scan mesajını birkaç saniye sonra otomatik temizle
+    useEffect(() => {
+        if (!scanMsg) return;
+        const t = setTimeout(() => setScanMsg(null), 3500);
+        return () => clearTimeout(t);
+    }, [scanMsg]);
+
+    // ═══ Barkod okuyucu (2D imager): okut → varsa düzenle, yoksa barkodla yeni parça ═══
+    const handleScan = (code: string) => {
+        const found = parts.find(p => (p.barcode || '') === code);
+        if (found) {
+            setEditStockId(null);
+            setEditingId(found.id);
+            setEditRow({
+                name: found.name, buyPrice: String(found.buyPrice), sellPrice: String(found.sellPrice),
+                stockQty: String(found.stockQty), minStock: String(found.minStock), group: found.group || '', barcode: found.barcode || '',
+            });
+            setSearch(found.name);
+            setScanMsg({ text: `Bulundu: ${found.name} — düzenlemeye açıldı`, ok: true });
+        } else {
+            setShowForm(true);
+            setForm(f => ({ ...f, barcode: code }));
+            setScanMsg({ text: `Barkod kayıtlı değil (${code}) — yeni parça formuna eklendi`, ok: false });
+        }
+    };
+    useBarcodeWedge(handleScan, { enabled: !showForm });
+
     // Arama + filtre + sıralama (kritik stoklar her zaman üstte)
     const filtered = useMemo(() => {
         let list = [...parts];
@@ -55,7 +86,8 @@ export default function InventoryPage() {
             const q = search.toLowerCase();
             list = list.filter(p =>
                 p.name.toLowerCase().includes(q) ||
-                p.sku.toLowerCase().includes(q)
+                p.sku.toLowerCase().includes(q) ||
+                (p.barcode || '').toLowerCase().includes(q)
             );
         }
 
@@ -92,7 +124,7 @@ export default function InventoryPage() {
             body: JSON.stringify(form),
         });
         if (res.ok) {
-            setForm({ sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '' });
+            setForm({ sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '' });
             setShowForm(false);
             load();
         } else {
@@ -135,6 +167,8 @@ export default function InventoryPage() {
                 sellPrice: editRow.sellPrice,
                 stockQty: editRow.stockQty,
                 minStock: editRow.minStock,
+                group: editRow.group,
+                barcode: editRow.barcode,
             }),
         });
         setEditingId(null);
@@ -193,6 +227,19 @@ export default function InventoryPage() {
                     {showForm ? '✕ İptal' : '+ Yeni Parça'}
                 </button>
             </div>
+
+            {/* Barkod okuma geri bildirimi */}
+            {scanMsg && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem',
+                    backgroundColor: scanMsg.ok ? '#ecfdf5' : '#fffbeb',
+                    color: scanMsg.ok ? '#047857' : '#92400e',
+                    border: `1px solid ${scanMsg.ok ? '#a7f3d0' : '#fde68a'}`,
+                    borderRadius: '0.5rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', fontWeight: 500,
+                }}>
+                    <span style={{ fontSize: '1rem' }}>{scanMsg.ok ? '✓' : '➕'}</span> {scanMsg.text}
+                </div>
+            )}
 
             {/* Özet Kartlar */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -268,6 +315,16 @@ export default function InventoryPage() {
                         {filtered.length} sonuç
                     </span>
                 )}
+
+                {/* Barkod okuyucu hazır rozeti */}
+                <span title="USB barkod okuyucuyla (2D imager) bir parça barkodunu okutun — kayıtlıysa düzenleme açılır, değilse yeni parça formu barkodla dolar."
+                    style={{
+                        marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                        backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc',
+                        padding: '0.3rem 0.7rem', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 600,
+                    }}>
+                    <span>▮▮▯▮</span> Barkod okuyucu hazır
+                </span>
             </div>
 
             {/* Yeni Parça Formu */}
@@ -292,6 +349,16 @@ export default function InventoryPage() {
                                     {PART_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                                 </select>
                             </div>
+                        </div>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={lbl}>Barkod (opsiyonel)</label>
+                            <input
+                                style={inp}
+                                value={form.barcode}
+                                onChange={e => setForm({ ...form, barcode: e.target.value })}
+                                placeholder="📷 Okuyucuyla okutun veya elle girin (EAN/QR)"
+                            />
+                            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>2D okuyucu (Zebra DS2208 vb.) ile okutabilirsiniz</span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
@@ -366,6 +433,12 @@ export default function InventoryPage() {
                                                 value={editRow.name}
                                                 onChange={e => setEditRow({ ...editRow, name: e.target.value })}
                                             />
+                                            <input
+                                                style={{ ...inp, width: '100%', padding: '0.3rem 0.5rem', marginTop: '0.35rem', fontFamily: 'monospace', fontSize: '0.75rem' }}
+                                                value={editRow.barcode}
+                                                onChange={e => setEditRow({ ...editRow, barcode: e.target.value })}
+                                                placeholder="📷 Barkod (okutun veya girin)"
+                                            />
                                         </td>
                                         <td style={{ padding: '0.5rem 0.75rem' }}>
                                             <input type="number" step="0.01"
@@ -434,6 +507,11 @@ export default function InventoryPage() {
                                         <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>
                                             {search ? highlightMatch(p.name, search) : p.name}
                                         </div>
+                                        {p.barcode && (
+                                            <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontFamily: 'monospace', marginTop: '0.15rem' }}>
+                                                ▮▏{p.barcode}
+                                            </div>
+                                        )}
                                     </td>
                                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>₺{Number(p.buyPrice).toFixed(2)}</td>
                                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', fontWeight: '600', color: '#059669' }}>₺{Number(p.sellPrice).toFixed(2)}</td>
