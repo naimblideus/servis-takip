@@ -122,6 +122,7 @@ model User {
   name         String
   role         UserRole @default(TECHNICIAN)
   isActive     Boolean  @default(true)
+  onboardedAt  DateTime? // İlk-giriş eğitim sihirbazı tamamlandı/atlandı mı (null=hiç görmedi)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

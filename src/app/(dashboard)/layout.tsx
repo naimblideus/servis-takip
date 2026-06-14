@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import Onboarding from '@/components/Onboarding';
 
 export default async function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default async function DashboardLayout({
       <main id="app-main" className="flex-1 overflow-auto">
         {children}
       </main>
+      <Onboarding />
     </div>
   );
 }
