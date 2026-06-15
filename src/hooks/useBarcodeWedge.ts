@@ -2,19 +2,20 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * HID barkod okuyucu (USB/Bluetooth 2D imager — Zebra DS2208 vb.) klavye emülasyonu yapar:
- * karakterleri çok hızlı "yazar" ve sonuna Enter koyar. Bu hook global keydown'ı dinleyip
- * hızlı diziyi (insan yazımından zamanlamayla ayırarak) yakalar; Enter'da onScan tetikler.
+ * USB barkod okuyucu (HID keyboard-wedge; 1D lazer veya 2D imager — Symbol/Zebra LS2208, DS2208 vb.)
+ * klavye emülasyonu yapar: karakterleri çok hızlı "yazar" ve sonuna Enter koyar. Bu hook global
+ * keydown'ı dinleyip hızlı diziyi (insan yazımından zamanlamayla ayırarak) yakalar; Enter'da onScan tetikler.
  *
  * - Bir INPUT/TEXTAREA odaktayken devre dışı kalır (elle yazım/okutma o alana gider, çakışma yok).
- * - interCharMs eşiği: okuyucu <30ms'de basar, insan >50ms -> ayrışır.
+ * - interCharMs eşiği: okuyucu karakterleri <15ms'de basar, insan >80ms -> rahat ayrışır
+ *   (yavaş/yüklü PC'lerde güvenli olsun diye varsayılan 50ms; gerekirse opts ile değiştirilebilir).
  * - minLength: çok kısa kazara dizileri eler.
  */
 export function useBarcodeWedge(
   onScan: (code: string) => void,
   opts: { minLength?: number; interCharMs?: number; enabled?: boolean } = {}
 ) {
-  const { minLength = 4, interCharMs = 35, enabled = true } = opts;
+  const { minLength = 4, interCharMs = 50, enabled = true } = opts;
   const buf = useRef('');
   const last = useRef(0);
   const cb = useRef(onScan);

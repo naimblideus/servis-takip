@@ -45,7 +45,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
     });
     const [creatingPart, setCreatingPart] = useState(false);
 
-    // Barkod okuyucu (2D imager) geri bildirimi
+    // Barkod okuyucu (HID) geri bildirimi
     const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
     const load = async () => {
@@ -226,7 +226,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <h2 style={{ fontWeight: '600', margin: 0 }}>Kullanılan Parçalar</h2>
-                <span title="USB barkod okuyucuyla (2D imager) bir parça barkodunu okutun — otomatik olarak 1 adet eklenir."
+                <span title="USB barkod okuyucuyla bir parça barkodunu okutun — otomatik olarak 1 adet eklenir."
                     style={{
                         display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                         backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc',

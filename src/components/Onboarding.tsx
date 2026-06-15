@@ -95,7 +95,7 @@ const WIZARD: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         <div style={{ display: 'grid', gap: '0.55rem', color: '#334155' }}>
-          <div>📷 <b>Barkod okuyucu:</b> Parçayı okutunca otomatik bulunur/fişe eklenir (USB 2D okuyucu).</div>
+          <div>📷 <b>Barkod okuyucu:</b> Parçayı okutunca otomatik bulunur/fişe eklenir (USB barkod okuyucu — 1D/2D).</div>
           <div>🖨️ <b>Yazdır / PDF:</b> Fatura ve tahsilat makbuzunu profesyonel görünümde yazdırabilirsiniz.</div>
           <div>🔄 <b>Otomatik faturalama:</b> Sayaç + kira + servis ay sonunda tek faturada birleşir.</div>
           <div>💸 <b>Akıllı tahsilat:</b> Ödeme en eski açık faturadan otomatik düşülür (FIFO), elle hesap yok.</div>

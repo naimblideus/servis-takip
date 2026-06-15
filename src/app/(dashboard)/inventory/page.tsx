@@ -35,7 +35,7 @@ export default function InventoryPage() {
     // Satır düzenlemesi
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editRow, setEditRow] = useState({ name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '', group: '', barcode: '' });
-    // Barkod okuyucu (2D imager) geri bildirimi
+    // Barkod okuyucu (HID) geri bildirimi
     const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
     // Sadece stok sayısını inline düzenle
     const [editStockId, setEditStockId] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export default function InventoryPage() {
         return () => clearTimeout(t);
     }, [scanMsg]);
 
-    // ═══ Barkod okuyucu (2D imager): okut → varsa düzenle, yoksa barkodla yeni parça ═══
+    // ═══ Barkod okuyucu (HID): okut → varsa düzenle, yoksa barkodla yeni parça ═══
     const handleScan = (code: string) => {
         const found = parts.find(p => (p.barcode || '') === code);
         if (found) {
@@ -317,7 +317,7 @@ export default function InventoryPage() {
                 )}
 
                 {/* Barkod okuyucu hazır rozeti */}
-                <span title="USB barkod okuyucuyla (2D imager) bir parça barkodunu okutun — kayıtlıysa düzenleme açılır, değilse yeni parça formu barkodla dolar."
+                <span title="USB barkod okuyucuyla bir parça barkodunu okutun — kayıtlıysa düzenleme açılır, değilse yeni parça formu barkodla dolar."
                     style={{
                         marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                         backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc',
@@ -356,9 +356,9 @@ export default function InventoryPage() {
                                 style={inp}
                                 value={form.barcode}
                                 onChange={e => setForm({ ...form, barcode: e.target.value })}
-                                placeholder="📷 Okuyucuyla okutun veya elle girin (EAN/QR)"
+                                placeholder="📷 Okuyucuyla okutun veya elle girin (EAN-13 / Code 128)"
                             />
-                            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>2D okuyucu (Zebra DS2208 vb.) ile okutabilirsiniz</span>
+                            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>USB barkod okuyucu (Symbol/Zebra LS2208 vb.) ile okutabilirsiniz</span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
