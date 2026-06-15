@@ -130,6 +130,9 @@ export default function Onboarding() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [hidden, setHidden] = useState(true); // localStorage okunana kadar gizli (flash önlenir)
 
+  // Yazdırma/PDF sayfalarinda onboarding ASLA gorunmemeli (fatura/makbuz belgesine dusmesin)
+  const isPrintPage = (pathname || '').includes('/print');
+
   const fetchStatus = useCallback(async () => {
     try {
       const r = await fetch('/api/onboarding/status');
@@ -137,22 +140,22 @@ export default function Onboarding() {
       const d: Status = await r.json();
       setData(d);
       if (!d.onboarded) setShowWizard(true);
-    } catch { /* sessizce yoksay */ }
+    } catch (e) { console.error('Onboarding durum cekme hatasi:', e); }
   }, []);
 
   // Giriş yapılınca durum çek + localStorage gizleme tercihi
   useEffect(() => {
-    if (authStatus !== 'authenticated') return;
+    if (authStatus !== 'authenticated' || isPrintPage) return;
     try { setHidden(localStorage.getItem(HIDE_KEY) === '1'); } catch { setHidden(false); }
     fetchStatus();
-  }, [authStatus, fetchStatus]);
+  }, [authStatus, fetchStatus, isPrintPage]);
 
-  // Sayfa değişiminde checklist'i tazele (adımlar tamamlandıkça otomatik tiklenir)
+  // Sayfa değişiminde checklist'i tazele (adımlar tamamlandıkça otomatik tiklenir; yazdırma sayfasında çekme)
   useEffect(() => {
-    if (authStatus === 'authenticated') fetchStatus();
-  }, [pathname, authStatus, fetchStatus]);
+    if (authStatus === 'authenticated' && !isPrintPage) fetchStatus();
+  }, [pathname, authStatus, fetchStatus, isPrintPage]);
 
-  if (authStatus !== 'authenticated' || !data) return null;
+  if (authStatus !== 'authenticated' || !data || isPrintPage) return null;
 
   const steps = data.steps;
   const doneCount = CHECKLIST.filter((c) => steps[c.key]).length;
@@ -206,7 +209,7 @@ export default function Onboarding() {
                 {step < WIZARD.length - 1 ? (
                   <button onClick={() => setStep((s) => s + 1)} style={{ padding: '0.55rem 1.2rem', background: '#2563eb', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>İleri →</button>
                 ) : (
-                  <button onClick={() => { finishWizard(); router.push('/customers'); }} style={{ padding: '0.55rem 1.2rem', background: 'linear-gradient(135deg,#059669,#10b981)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>İlk müşterimi ekle →</button>
+                  <button onClick={async () => { await finishWizard(); router.push('/customers'); }} style={{ padding: '0.55rem 1.2rem', background: 'linear-gradient(135deg,#059669,#10b981)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>İlk müşterimi ekle →</button>
                 )}
               </div>
             </div>

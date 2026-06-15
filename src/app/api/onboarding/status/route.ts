@@ -13,6 +13,14 @@ export async function GET() {
   });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+  // Tenant'i olmayan kullanici (edge-case) -> onboarding'i atla (500 yerine)
+  if (!user.tenantId) {
+    return NextResponse.json({
+      onboarded: true, userName: user.name,
+      steps: { hasCustomers: false, hasDevices: false, hasTickets: false, hasInventory: false, hasInvoices: false, hasCollections: false },
+    });
+  }
+
   const t = user.tenantId;
   const [customers, devices, tickets, parts, invoices, payments] = await Promise.all([
     prisma.customer.count({ where: { tenantId: t } }),

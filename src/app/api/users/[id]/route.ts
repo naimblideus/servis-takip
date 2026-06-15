@@ -14,6 +14,10 @@ export async function PATCH(
     const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
     if (!me || me.role !== 'ADMIN') return NextResponse.json({ error: 'Yetkisiz' }, { status: 403 });
 
+    // IDOR koruması: hedef kullanıcı aynı tenant'ta olmalı
+    const target = await prisma.user.findFirst({ where: { id, tenantId: me.tenantId } });
+    if (!target) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+
     try {
         const body = await req.json();
         const updateData: any = {};
@@ -44,6 +48,10 @@ export async function DELETE(
     const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
     if (!me || me.role !== 'ADMIN') return NextResponse.json({ error: 'Yetkisiz' }, { status: 403 });
     if (me.id === id) return NextResponse.json({ error: 'Kendinizi silemezsiniz' }, { status: 400 });
+
+    // IDOR koruması: hedef kullanıcı aynı tenant'ta olmalı
+    const target = await prisma.user.findFirst({ where: { id, tenantId: me.tenantId } });
+    if (!target) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
 
     try {
         // Önce kullanıcıyı pasife çek (ilişkili fişler bozulmasın)

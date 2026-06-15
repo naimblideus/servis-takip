@@ -11,7 +11,18 @@ export async function PATCH(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        // IDOR koruması: cihaz bu tenant'a mı ait?
+        const existing = await prisma.device.findFirst({ where: { id, tenantId: user.tenantId } });
+        if (!existing) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+
         const body = await req.json();
+        // Cihaz baska bir musteriye tasiniyorsa, hedef musteri de ayni tenant'ta olmali
+        if (body.customerId !== undefined && body.customerId) {
+            const target = await prisma.customer.findFirst({ where: { id: body.customerId, tenantId: user.tenantId } });
+            if (!target) return NextResponse.json({ error: 'Geçersiz müşteri' }, { status: 400 });
+        }
         const updateData: any = {};
         if (body.brand !== undefined) updateData.brand = body.brand;
         if (body.model !== undefined) updateData.model = body.model;
@@ -50,7 +61,11 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        await prisma.device.delete({ where: { id } });
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        // IDOR koruması: yalnızca bu tenant'ın cihazı silinebilir
+        const res = await prisma.device.deleteMany({ where: { id, tenantId: user.tenantId } });
+        if (res.count === 0) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
         return NextResponse.json({ ok: true });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });

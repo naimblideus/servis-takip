@@ -10,8 +10,12 @@ export async function GET(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const ticket = await prisma.serviceTicket.findUnique({
-        where: { id },
+    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // IDOR koruması: yalnızca bu tenant'ın fişi
+    const ticket = await prisma.serviceTicket.findFirst({
+        where: { id, tenantId: user.tenantId },
         include: {
             device: { include: { customer: true } },
             assignedUser: true,
@@ -32,6 +36,13 @@ export async function PATCH(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+        // IDOR koruması: fiş bu tenant'a mı ait?
+        const existing = await prisma.serviceTicket.findFirst({ where: { id, tenantId: user.tenantId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
         const body = await req.json();
 
         const updateData: any = {};
@@ -76,16 +87,22 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
         const url = new URL(req.url);
         const permanent = url.searchParams.get('permanent') === 'true';
 
+        // IDOR koruması: yalnızca bu tenant'ın fişi
         if (permanent) {
-            await prisma.serviceTicket.delete({ where: { id } });
+            const res = await prisma.serviceTicket.deleteMany({ where: { id, tenantId: user.tenantId } });
+            if (res.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
         } else {
-            await prisma.serviceTicket.update({
-                where: { id },
+            const res = await prisma.serviceTicket.updateMany({
+                where: { id, tenantId: user.tenantId },
                 data: { deletedAt: new Date() },
             });
+            if (res.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
         return NextResponse.json({ ok: true });
     } catch (e: any) {

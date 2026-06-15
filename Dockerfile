@@ -73,6 +73,9 @@ RUN sed -i 's/\r$//' startup.sh && chmod +x startup.sh && chown nextjs:nodejs st
 # Dinamik migration uygulayıcı (startup.sh tarafından çağrılır; prisma CLI gerektirmez)
 COPY --chown=nextjs:nodejs apply-migrations.js ./apply-migrations.js
 
+# Demo bayi (tenant) oluşturma scripti — elle çalıştırılır (docker exec node create-demo-tenants.js)
+COPY --chown=nextjs:nodejs create-demo-tenants.js ./create-demo-tenants.js
+
 USER nextjs
 
 EXPOSE 3000

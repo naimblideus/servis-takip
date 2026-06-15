@@ -11,6 +11,12 @@ export async function PATCH(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        // IDOR koruması: müşteri bu tenant'a mı ait?
+        const existing = await prisma.customer.findFirst({ where: { id, tenantId: user.tenantId } });
+        if (!existing) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+
         const body = await req.json();
         const updateData: any = {};
         if (body.name !== undefined) updateData.name = body.name;
@@ -38,7 +44,11 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        await prisma.customer.delete({ where: { id } });
+        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        // IDOR koruması: yalnızca bu tenant'ın müşterisi silinebilir
+        const res = await prisma.customer.deleteMany({ where: { id, tenantId: user.tenantId } });
+        if (res.count === 0) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
         return NextResponse.json({ ok: true });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });

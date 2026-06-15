@@ -11,8 +11,12 @@ export async function GET(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // IDOR koruması: yalnızca bu tenant'ın bu fişine ait ödemeler
     const payments = await prisma.payment.findMany({
-        where: { ticketId: id },
+        where: { ticketId: id, tenantId: user.tenantId },
         orderBy: { createdAt: 'asc' },
     });
     return NextResponse.json(payments);
@@ -34,9 +38,9 @@ export async function POST(
         const amount = parseFloat(body.amount);
         if (!amount || amount <= 0) return NextResponse.json({ error: 'Geçersiz tutar' }, { status: 400 });
 
-        // Ticket + müşteri bilgilerini al
-        const ticket = await prisma.serviceTicket.findUnique({
-            where: { id: ticketId },
+        // Ticket + müşteri bilgilerini al (IDOR koruması: bu tenant'ın fişi)
+        const ticket = await prisma.serviceTicket.findFirst({
+            where: { id: ticketId, tenantId: user.tenantId },
             include: { device: { include: { customer: true } } },
         });
         if (!ticket) return NextResponse.json({ error: 'Fiş bulunamadı' }, { status: 404 });

@@ -37,7 +37,8 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
   const vatAmount = Number(invoice.vatAmount);
   const totalAmount = Number(invoice.totalAmount);
   const paidAmount = Number(invoice.paidAmount);
-  const openAmount = Math.round((totalAmount - paidAmount) * 100) / 100;
+  const openAmount = Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100);
+  const overpaid = Math.max(0, Math.round((paidAmount - totalAmount) * 100) / 100); // fazla ödeme (iade)
   const st = STATUS[invoice.status] || STATUS.OPEN;
 
   return (
@@ -193,7 +194,9 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
                 <div className="totals-row sub"><span>KDV (%{vatRate.toLocaleString('tr-TR')})</span><span className="num">{fmt(vatAmount)}</span></div>
                 <div className="totals-row grand"><span>Genel Toplam</span><span className="num">{fmt(totalAmount)}</span></div>
                 {paidAmount > 0 && <div className="totals-row paid"><span>Tahsil Edilen</span><span className="num">{fmt(paidAmount)}</span></div>}
-                <div className="totals-row open"><span>Kalan Tutar</span><span className="num">{fmt(openAmount)}</span></div>
+                {overpaid > 0
+                  ? <div className="totals-row open" style={{ color: '#059669' }}><span>Fazla Ödeme (İade)</span><span className="num">{fmt(overpaid)}</span></div>
+                  : <div className="totals-row open"><span>Kalan Tutar</span><span className="num">{fmt(openAmount)}</span></div>}
               </div>
             </div>
 
