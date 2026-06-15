@@ -56,11 +56,12 @@ export async function POST(
             return NextResponse.json({ error: `Geçersiz barkod: ${bc}` }, { status: 400 });
         }
 
-        // Parçayı TENANT-SCOPED bul (IDOR koruması). partId yoksa BARKOD ile ara (okuyucu akışı).
+        // Parçayı TENANT-SCOPED bul (IDOR koruması). partId yoksa BARKOD veya SKU ile ara
+        // (okuyucu akışı; basılan etiket SKU içerdiğinden SKU eşleşmesi de gerekli).
         const part = partId
             ? await prisma.part.findFirst({ where: { id: partId, tenantId: user.tenantId } })
             : bc
-                ? await prisma.part.findFirst({ where: { barcode: bc, tenantId: user.tenantId } })
+                ? await prisma.part.findFirst({ where: { tenantId: user.tenantId, OR: [{ barcode: bc }, { sku: bc }] } })
                 : null;
         if (!part) return NextResponse.json({ error: bc ? `Barkod bulunamadı: ${bc}` : 'Parça bulunamadı' }, { status: 404 });
         if (part.stockQty < quantity) {

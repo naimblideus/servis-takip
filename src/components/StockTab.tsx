@@ -45,10 +45,10 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
     setModal('edit');
   };
 
-  // 🔴 Barkod okuyucu (2D imager / HID): okut -> kayıtlı parçayı bul ve düzenle;
+  // 🔴 Barkod okuyucu (USB HID — 1D/2D): okut -> kayıtlı parçayı bul ve düzenle;
   // yoksa barkod ön-dolu "yeni kalem" formu aç (o barkodu bir ürüne ata).
   useBarcodeWedge((code) => {
-    const found = items.find(i => i.source === 'PART' && (i.barcode || '') === code);
+    const found = items.find(i => i.source === 'PART' && ((i.barcode || '') === code || i.sku === code));
     if (found) { setScanMsg(`✓ Okundu: ${found.name}`); openEdit(found); }
     else { setScanMsg(`Yeni barkod: ${code} — ürüne atayın`); setForm({ ...EMPTY_FORM, barcode: code }); setEditItem(null); setModal('add'); }
     setTimeout(() => setScanMsg(null), 4000);

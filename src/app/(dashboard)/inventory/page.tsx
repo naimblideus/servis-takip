@@ -59,7 +59,7 @@ export default function InventoryPage() {
 
     // ═══ Barkod okuyucu (HID): okut → varsa düzenle, yoksa barkodla yeni parça ═══
     const handleScan = (code: string) => {
-        const found = parts.find(p => (p.barcode || '') === code);
+        const found = parts.find(p => (p.barcode || '') === code || p.sku === code);
         if (found) {
             setEditStockId(null);
             setEditingId(found.id);
@@ -220,12 +220,22 @@ export default function InventoryPage() {
                     <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Stok Yönetimi</h1>
                     <p style={{ color: '#6b7280' }}>Toplam {parts.length} kalem • {filtered.length} gösteriliyor</p>
                 </div>
-                <button onClick={() => setShowForm(!showForm)} style={{
-                    backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
-                    borderRadius: '0.5rem', border: 'none', fontWeight: '500', cursor: 'pointer', fontSize: '0.875rem',
-                }}>
-                    {showForm ? '✕ İptal' : '+ Yeni Parça'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <a href="/inventory/scan" style={{
+                        backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '0.625rem 1rem',
+                        borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+                    }}>📦 Hızlı Giriş/Çıkış</a>
+                    <a href="/inventory/labels" style={{
+                        backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.625rem 1rem',
+                        borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+                    }}>🏷️ Etiket Yazdır</a>
+                    <button onClick={() => setShowForm(!showForm)} style={{
+                        backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
+                        borderRadius: '0.5rem', border: 'none', fontWeight: '500', cursor: 'pointer', fontSize: '0.875rem',
+                    }}>
+                        {showForm ? '✕ İptal' : '+ Yeni Parça'}
+                    </button>
+                </div>
             </div>
 
             {/* Barkod okuma geri bildirimi */}
