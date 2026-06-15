@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 
 interface Device {
     id: string;
@@ -22,6 +23,31 @@ interface Props {
 
 export default function DevicesClient({ devices, activeTab }: Props) {
     const [search, setSearch] = useState('');
+    const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+    useEffect(() => {
+        if (!scanMsg) return;
+        const t = setTimeout(() => setScanMsg(null), 3500);
+        return () => clearTimeout(t);
+    }, [scanMsg]);
+
+    // 📷 Barkod okuyucu: cihaz etiketini (publicCode/seri) okut → kaydını aç
+    useBarcodeWedge(async (code) => {
+        setScanMsg({ text: `Aranıyor: ${code}…`, ok: true });
+        try {
+            const r = await fetch(`/api/devices/lookup?code=${encodeURIComponent(code)}`);
+            if (r.ok) {
+                const d = await r.json();
+                setScanMsg({ text: `Bulundu: ${d.brand} ${d.model} — açılıyor`, ok: true });
+                window.location.href = `/devices/${d.id}`;
+            } else {
+                const e = await r.json().catch(() => ({}));
+                setScanMsg({ text: e.error || `Cihaz bulunamadı: ${code}`, ok: false });
+            }
+        } catch {
+            setScanMsg({ text: `Bağlantı hatası (${code})`, ok: false });
+        }
+    });
 
     const filtered = useMemo(() => {
         const base = activeTab === 'rental' ? devices.filter(d => d.isRental) :
@@ -54,11 +80,32 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                     <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Cihazlar</h1>
                     <p style={{ color: '#6b7280' }}>Toplam {devices.length} cihaz ({rentalCount} kiralık)</p>
                 </div>
-                <Link href="/devices/new" style={{
-                    backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
-                    borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500'
-                }}>+ Yeni Cihaz</Link>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span title="Cihaz barkod etiketini okutarak kaydını açabilirsiniz" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#ecfeff', color: '#0e7490',
+                        border: '1px solid #a5f3fc', padding: '0.35rem 0.7rem', borderRadius: 9999, fontSize: '0.72rem', fontWeight: 600,
+                    }}>▮▮▯▮ Okuyucu hazır</span>
+                    <Link href="/devices/labels" style={{
+                        backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.625rem 1rem',
+                        borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem',
+                    }}>🏷️ Etiket Yazdır</Link>
+                    <Link href="/devices/new" style={{
+                        backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
+                        borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500'
+                    }}>+ Yeni Cihaz</Link>
+                </div>
             </div>
+
+            {scanMsg && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem',
+                    backgroundColor: scanMsg.ok ? '#ecfdf5' : '#fef2f2', color: scanMsg.ok ? '#047857' : '#b91c1c',
+                    border: `1px solid ${scanMsg.ok ? '#a7f3d0' : '#fecaca'}`, borderRadius: '0.5rem',
+                    padding: '0.625rem 0.875rem', fontSize: '0.875rem', fontWeight: 500,
+                }}>
+                    <span>{scanMsg.ok ? '✓' : '✕'}</span> {scanMsg.text}
+                </div>
+            )}
 
             {/* Tab Filtre */}
             <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem', backgroundColor: '#f3f4f6', padding: '0.25rem', borderRadius: '0.5rem', width: 'fit-content' }}>

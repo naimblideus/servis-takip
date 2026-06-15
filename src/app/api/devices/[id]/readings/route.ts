@@ -22,7 +22,7 @@ export async function POST(
         }
 
         // Cihaz ve tenant bilgilerini al
-        const device = await prisma.device.findUnique({ where: { id: deviceId } });
+        const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
         if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
 
         const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
@@ -111,15 +111,16 @@ export async function GET(
     const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    // Cihaz bilgisi + tenant fiyatlarını da dön
-    const device = await prisma.device.findUnique({ where: { id: deviceId } });
+    // Cihaz bilgisi + tenant fiyatlarını da dön (IDOR: yalnız bu tenant'ın cihazı)
+    const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
+    if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
     const tenant = await prisma.tenant.findUnique({
         where: { id: user.tenantId },
         select: { pricePerBlack: true, pricePerColor: true },
     });
 
     const readings = await prisma.counterReading.findMany({
-        where: { deviceId },
+        where: { deviceId, tenantId: user.tenantId },
         orderBy: { readingDate: 'desc' },
         take: 20,
         include: { ticket: { select: { ticketNumber: true } } },
@@ -223,7 +224,7 @@ export async function PATCH(
         });
         if (!reading) return NextResponse.json({ error: 'Okuma bulunamadı' }, { status: 404 });
 
-        const device = await prisma.device.findUnique({ where: { id: deviceId } });
+        const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
         if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
 
         const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });

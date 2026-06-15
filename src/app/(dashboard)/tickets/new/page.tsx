@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 
 interface Customer { id: string; name: string; phone: string; address: string | null; }
 interface Device {
@@ -207,6 +208,45 @@ export default function NewTicketPage() {
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [deviceSearch, setDeviceSearch] = useState('');
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
+  const [pendingDeviceId, setPendingDeviceId] = useState<string | null>(null);
+  const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const scanCustomerRef = useRef<string | null>(null); // okutmanın seçtiği müşteri (yanlış temizlemeyi önler)
+
+  useEffect(() => {
+    if (!scanMsg) return;
+    const t = setTimeout(() => setScanMsg(null), 4000);
+    return () => clearTimeout(t);
+  }, [scanMsg]);
+
+  // 📷 Cihaz barkodunu okut → müşteri + cihaz otomatik seçilsin (makine gelince fiş aç)
+  useBarcodeWedge(async (code) => {
+    setScanMsg({ text: `Cihaz aranıyor: ${code}…`, ok: true });
+    try {
+      const r = await fetch(`/api/devices/lookup?code=${encodeURIComponent(code)}`);
+      if (!r.ok) { const e = await r.json().catch(() => ({})); setScanMsg({ text: e.error || `Cihaz bulunamadı: ${code}`, ok: false }); return; }
+      const d = await r.json();
+      if (!d.customer) { setScanMsg({ text: 'Cihazın müşterisi bulunamadı', ok: false }); return; }
+      scanCustomerRef.current = d.customer.id; // bu müşteri-değişimi okutmadan geldi
+      setSelectedCustomer({ id: d.customer.id, name: d.customer.name, phone: d.customer.phone, address: null });
+      setCustomerSearch(d.customer.name);
+      setShowDropdown(false);
+      setForm(f => ({ ...f, customerId: d.customer.id }));
+      setPendingDeviceId(d.id); // cihazlar yüklenince seçilecek
+      setScanMsg({ text: `✓ ${d.brand} ${d.model} (${d.customer.name}) seçildi`, ok: true });
+    } catch { setScanMsg({ text: 'Bağlantı hatası', ok: false }); }
+  }, { enabled: !showAddDevice });
+
+  // Cihazlar (müşteriye göre) yüklenince, okutulan cihazı seç
+  useEffect(() => {
+    if (!pendingDeviceId) return;
+    const dev = devices.find(d => d.id === pendingDeviceId);
+    if (dev) {
+      setForm(f => ({ ...f, deviceId: dev.id, counterBlack: dev.counterBlack?.toString() || '', counterColor: dev.counterColor?.toString() || '' }));
+      setSelectedDevice(dev);
+      setDeviceSearch(`${dev.brand} ${dev.model} — SN: ${dev.serialNo}`);
+      setPendingDeviceId(null);
+    }
+  }, [devices, pendingDeviceId]);
 
   useEffect(() => {
     fetch('/api/tickets/next-ticket-number')
@@ -241,6 +281,8 @@ export default function NewTicketPage() {
     setForm(f => ({ ...f, deviceId: '' }));
     setSelectedDevice(null);
     setDeviceSearch('');
+    // Müşteri ELLE değiştirildiyse bekleyen (okutulan) cihazı iptal et; okutmadan geldiyse koru
+    if (scanCustomerRef.current !== form.customerId) setPendingDeviceId(null);
   }, [form.customerId, loadDevices]);
 
   useEffect(() => {
@@ -345,6 +387,18 @@ export default function NewTicketPage() {
             </span>
           )}
         </div>
+      </div>
+
+      {/* 📷 Cihaz okutma ipucu + geri bildirim */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem',
+        background: scanMsg ? (scanMsg.ok ? '#ecfdf5' : '#fef2f2') : '#ecfeff',
+        border: `1px solid ${scanMsg ? (scanMsg.ok ? '#a7f3d0' : '#fecaca') : '#a5f3fc'}`,
+        color: scanMsg ? (scanMsg.ok ? '#047857' : '#b91c1c') : '#0e7490',
+        borderRadius: '0.5rem', padding: '0.6rem 0.9rem', fontSize: '0.85rem', fontWeight: 500,
+      }}>
+        <span style={{ fontSize: '1rem' }}>📷</span>
+        {scanMsg ? scanMsg.text : 'İpucu: Makinenin barkod etiketini okutun — müşteri ve cihaz otomatik seçilir.'}
       </div>
 
       <form onSubmit={handleSubmit}>

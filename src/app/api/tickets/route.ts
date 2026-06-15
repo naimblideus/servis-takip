@@ -61,7 +61,8 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const device = await prisma.device.findUnique({ where: { id: body.deviceId } });
+    // IDOR koruması: cihaz bu tenant'a ait olmalı (yoksa başka bayinin cihazına fiş açılabilirdi)
+    const device = await prisma.device.findFirst({ where: { id: body.deviceId, tenantId: user.tenantId } });
     if (!device) return NextResponse.json({ error: 'Device not found' }, { status: 404 });
 
     // Sayaç güncellemesi
