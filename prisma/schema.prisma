@@ -688,6 +688,7 @@ model PrinterStock {
   category    String    // TONER | MUREKEP | YAZICI
   brand       String    // Marka: HP, Canon, Epson vs.
   model       String    // Model adı
+  barcode     String?   // Barkod/SKU — okuyucuyla satış + etiket basımı için
   condition   String    @default("SIFIR") // SIFIR | IKINCI_EL
   color       String?   // Renk: Siyah, Mavi, Kırmızı, Sarı, Renkli
   quantity    Int       @default(1)
@@ -702,6 +703,7 @@ model PrinterStock {
 
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, barcode])
   @@index([tenantId, category])
   @@index([tenantId, brand])
   @@index([tenantId, createdAt(sort: Desc)])

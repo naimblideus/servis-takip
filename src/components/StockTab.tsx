@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 
-interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; barcode?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; notes?:string|null; }
+interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; barcode?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; minStock?:number; notes?:string|null; }
 
 const PART_GROUPS = ['Fırın Grubu','Paten','İşçilik','Dişli Grubu','Yedek Parça','Toner','Tamirat','Diğer'];
 const PRINTER_CATS = ['TONER','MUREKEP','YAZICI'];
@@ -41,14 +42,14 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
   const openAdd = () => { setForm(EMPTY_FORM); setEditItem(null); setModal('add'); };
   const openEdit = (item:StockItem) => {
     setEditItem(item);
-    setForm({ source:item.source, name:item.name, sku:item.sku||'', barcode:item.barcode||'', group:item.group||'', buyPrice:String(item.buyPrice), sellPrice:String(item.sellPrice), stockQty:String(item.stockQty), minStock:'5', category:item.category||'TONER', brand:item.brand||'', model:item.model||'', color:item.color||'', condition:item.condition||'SIFIR', quantity:String(item.stockQty), notes:item.notes||'' });
+    setForm({ source:item.source, name:item.name, sku:item.sku||'', barcode:item.barcode||'', group:item.group||'', buyPrice:String(item.buyPrice), sellPrice:String(item.sellPrice), stockQty:String(item.stockQty), minStock:String(item.minStock ?? 5), category:item.category||'TONER', brand:item.brand||'', model:item.model||'', color:item.color||'', condition:item.condition||'SIFIR', quantity:String(item.stockQty), notes:item.notes||'' });
     setModal('edit');
   };
 
-  // 🔴 Barkod okuyucu (USB HID — 1D/2D): okut -> kayıtlı parçayı bul ve düzenle;
+  // 🔴 Barkod okuyucu (USB HID — LS2208): okut -> kayıtlı kalemi bul ve düzenle (parça veya yazıcı/toner);
   // yoksa barkod ön-dolu "yeni kalem" formu aç (o barkodu bir ürüne ata).
   useBarcodeWedge((code) => {
-    const found = items.find(i => i.source === 'PART' && ((i.barcode || '') === code || i.sku === code));
+    const found = items.find(i => (i.barcode || '') === code || (i.sku || '') === code);
     if (found) { setScanMsg(`✓ Okundu: ${found.name}`); openEdit(found); }
     else { setScanMsg(`Yeni barkod: ${code} — ürüne atayın`); setForm({ ...EMPTY_FORM, barcode: code }); setEditItem(null); setModal('add'); }
     setTimeout(() => setScanMsg(null), 4000);
@@ -110,6 +111,7 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
           <div><label style={s.lbl}>Model *</label><input style={s.inp} value={form.model} onChange={e=>setForm(f=>({...f,model:e.target.value}))} placeholder="103, 116, LaserJet..." /></div>
           <div><label style={s.lbl}>Renk</label><input style={s.inp} value={form.color} onChange={e=>setForm(f=>({...f,color:e.target.value}))} placeholder="Siyah, Mavi, Renkli..." /></div>
           <div><label style={s.lbl}>Adet</label><input type="number" style={s.inp} value={form.quantity} onChange={e=>setForm(f=>({...f,quantity:e.target.value}))} /></div>
+          <div style={{gridColumn:'1/-1'}}><label style={s.lbl}>📷 Barkod</label><input style={s.inp} value={form.barcode} onChange={e=>setForm(f=>({...f,barcode:e.target.value}))} placeholder="Okuyucuyla okut veya yaz (satış + etiket için)" /></div>
           <div><label style={s.lbl}>Alış Fiyatı (₺)</label><input type="number" style={s.inp} value={form.buyPrice} onChange={e=>setForm(f=>({...f,buyPrice:e.target.value}))} placeholder="0.00" /></div>
           <div><label style={s.lbl}>Satış Fiyatı (₺)</label><input type="number" style={s.inp} value={form.sellPrice} onChange={e=>setForm(f=>({...f,sellPrice:e.target.value}))} placeholder="0.00" /></div>
           <div style={{gridColumn:'1/-1'}}><label style={s.lbl}>Notlar</label><textarea style={{...s.inp,resize:'vertical',minHeight:'60px'}} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="İsteğe bağlı..." /></div>
@@ -152,7 +154,11 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
           <h2 style={{fontWeight:'700',fontSize:'1.25rem',margin:0}}>📦 Stok Yönetimi</h2>
           <p style={{color:'#6b7280',margin:'0.2rem 0 0',fontSize:'0.85rem'}}>Parça, sarf malzeme ve yazıcı stoklarınız · <span style={{color:'#2563eb'}}>📷 barkod okuyucu hazır</span></p>
         </div>
-        <button onClick={openAdd} style={{backgroundColor:'#2563eb',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'600',cursor:'pointer',fontSize:'0.875rem'}}>+ Yeni Stok Kalemi</button>
+        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+          <Link href="/satis" style={{backgroundColor:'#dcfce7',color:'#15803d',padding:'0.625rem 1rem',borderRadius:'0.5rem',border:'1px solid #86efac',fontWeight:'600',fontSize:'0.85rem',textDecoration:'none'}}>🛒 Barkodla Satış</Link>
+          <Link href="/etiket" style={{backgroundColor:'#eef2ff',color:'#3730a3',padding:'0.625rem 1rem',borderRadius:'0.5rem',border:'1px solid #c7d2fe',fontWeight:'600',fontSize:'0.85rem',textDecoration:'none'}}>🏷️ Zebra Etiket</Link>
+          <button onClick={openAdd} style={{backgroundColor:'#2563eb',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'600',cursor:'pointer',fontSize:'0.875rem'}}>+ Yeni Stok Kalemi</button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -199,7 +205,7 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
             <tbody>
               {filtered.map((item,i)=>{
                 const cc = catColor(item.source, item.category);
-                const lowStock = item.stockQty <= 3;
+                const lowStock = item.stockQty <= (item.minStock ?? 5);
                 return (
                   <tr key={item.id} style={{borderBottom:'1px solid #f3f4f6',backgroundColor:i%2===0?'white':'#fafafa'}}>
                     <td style={{padding:'0.625rem 0.875rem'}}>

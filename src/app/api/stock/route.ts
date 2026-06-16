@@ -6,6 +6,21 @@ async function getUser(session: any) {
   return prisma.user.findFirst({ where: { email: session.user?.email! } });
 }
 
+// Barkod aynı tenant'ta hem Part hem PrinterStock arasında tekil olmalı (yanlış kalem satışını önler).
+async function barcodeTaken(tenantId: string, barcode: string, exclude?: { table: 'PART' | 'PRINTER'; id: string }): Promise<boolean> {
+  if (!barcode) return false;
+  const part = await prisma.part.findFirst({
+    where: { tenantId, barcode, ...(exclude?.table === 'PART' ? { id: { not: exclude.id } } : {}) },
+    select: { id: true },
+  });
+  if (part) return true;
+  const ps = await prisma.printerStock.findFirst({
+    where: { tenantId, barcode, ...(exclude?.table === 'PRINTER' ? { id: { not: exclude.id } } : {}) },
+    select: { id: true },
+  });
+  return !!ps;
+}
+
 // GET /api/stock — Part + PrinterStock birleşik liste
 export async function GET(req: Request) {
   const session = await auth();
@@ -42,11 +57,11 @@ export async function GET(req: Request) {
       });
       for (const p of printers) {
         const name = [p.brand, p.model, p.color].filter(Boolean).join(' ');
-        if (search && !name.toLowerCase().includes(search) && !p.brand.toLowerCase().includes(search)) continue;
+        if (search && !name.toLowerCase().includes(search) && !p.brand.toLowerCase().includes(search) && !((p as any).barcode || '').toLowerCase().includes(search)) continue;
         items.push({
           id: p.id, source: 'PRINTER', name,
           category: p.category, brand: p.brand, model: p.model,
-          color: p.color, condition: p.condition,
+          color: p.color, condition: p.condition, barcode: (p as any).barcode ?? null,
           buyPrice: Number(p.buyPrice), sellPrice: Number(p.sellPrice),
           stockQty: p.quantity, notes: p.notes,
         });
@@ -69,6 +84,8 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     if (body.source === 'PART') {
+      const bc = body.barcode?.trim();
+      if (bc && await barcodeTaken(user.tenantId, bc)) return NextResponse.json({ error: 'Bu barkod zaten başka bir kalemde kullanılıyor' }, { status: 409 });
       const part = await prisma.part.create({
         data: {
           tenantId: user.tenantId,
@@ -86,6 +103,8 @@ export async function POST(req: Request) {
     }
 
     if (body.source === 'PRINTER') {
+      const bc = body.barcode?.trim();
+      if (bc && await barcodeTaken(user.tenantId, bc)) return NextResponse.json({ error: 'Bu barkod zaten başka bir kalemde kullanılıyor' }, { status: 409 });
       const p = await prisma.printerStock.create({
         data: {
           tenantId: user.tenantId,
@@ -94,6 +113,7 @@ export async function POST(req: Request) {
           model: body.model || '',
           condition: body.condition || 'SIFIR',
           color: body.color || null,
+          barcode: body.barcode?.trim() || null,
           quantity: parseInt(body.quantity) || 1,
           buyPrice: parseFloat(body.buyPrice) || 0,
           sellPrice: parseFloat(body.sellPrice) || 0,
@@ -101,7 +121,7 @@ export async function POST(req: Request) {
         },
       });
       const name = [p.brand, p.model, p.color].filter(Boolean).join(' ');
-      return NextResponse.json({ id: p.id, source: 'PRINTER', name, category: p.category, brand: p.brand, model: p.model, color: p.color, condition: p.condition, buyPrice: Number(p.buyPrice), sellPrice: Number(p.sellPrice), stockQty: p.quantity, notes: p.notes });
+      return NextResponse.json({ id: p.id, source: 'PRINTER', name, category: p.category, brand: p.brand, model: p.model, color: p.color, condition: p.condition, barcode: (p as any).barcode, buyPrice: Number(p.buyPrice), sellPrice: Number(p.sellPrice), stockQty: p.quantity, notes: p.notes });
     }
 
     return NextResponse.json({ error: 'source: PART veya PRINTER olmalı' }, { status: 400 });
@@ -124,6 +144,8 @@ export async function PATCH(req: Request) {
     if (source === 'PART') {
       const ex = await prisma.part.findFirst({ where: { id, tenantId: user.tenantId } });
       if (!ex) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+      const bc = body.barcode !== undefined ? (body.barcode?.trim() || null) : ex.barcode;
+      if (bc && await barcodeTaken(user.tenantId, bc, { table: 'PART', id })) return NextResponse.json({ error: 'Bu barkod zaten başka bir kalemde kullanılıyor' }, { status: 409 });
       const updated = await prisma.part.update({
         where: { id },
         data: {
@@ -132,8 +154,9 @@ export async function PATCH(req: Request) {
           buyPrice: body.buyPrice !== undefined ? parseFloat(body.buyPrice) : ex.buyPrice,
           sellPrice: body.sellPrice !== undefined ? parseFloat(body.sellPrice) : ex.sellPrice,
           stockQty: body.stockQty !== undefined ? parseInt(body.stockQty) : ex.stockQty,
+          minStock: body.minStock !== undefined ? parseInt(body.minStock) : ex.minStock,
           group: body.group !== undefined ? body.group : ex.group,
-          barcode: body.barcode !== undefined ? (body.barcode?.trim() || null) : ex.barcode,
+          barcode: bc,
         },
       });
       return NextResponse.json(updated);
@@ -142,6 +165,8 @@ export async function PATCH(req: Request) {
     if (source === 'PRINTER') {
       const ex = await prisma.printerStock.findFirst({ where: { id, tenantId: user.tenantId } });
       if (!ex) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+      const bc = body.barcode !== undefined ? (body.barcode?.trim() || null) : (ex as any).barcode;
+      if (bc && await barcodeTaken(user.tenantId, bc, { table: 'PRINTER', id })) return NextResponse.json({ error: 'Bu barkod zaten başka bir kalemde kullanılıyor' }, { status: 409 });
       const updated = await prisma.printerStock.update({
         where: { id },
         data: {
@@ -149,6 +174,7 @@ export async function PATCH(req: Request) {
           model: body.model ?? ex.model,
           category: body.category ?? ex.category,
           color: body.color !== undefined ? body.color : ex.color,
+          barcode: bc,
           condition: body.condition ?? ex.condition,
           quantity: body.quantity !== undefined ? parseInt(body.quantity) : ex.quantity,
           buyPrice: body.buyPrice !== undefined ? parseFloat(body.buyPrice) : ex.buyPrice,
