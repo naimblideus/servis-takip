@@ -87,6 +87,11 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               currentNotes={ticket.notes ?? ''}
               currentCreatedAt={ticket.createdAt.toISOString()}
               users={users}
+              customerPhone={ticket.device.customer.phone}
+              customerName={ticket.device.customer.name}
+              deviceName={`${ticket.device.brand} ${ticket.device.model}`}
+              ticketNumber={ticket.ticketNumber}
+              tenantName={tenantName}
             />
           </div>
         </div>

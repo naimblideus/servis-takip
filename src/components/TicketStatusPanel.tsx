@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { openWhatsApp, statusMessage } from '@/lib/share';
 
+const NOTIFY_STATUSES = ['IN_SERVICE', 'WAITING_FOR_PART', 'READY', 'DELIVERED'];
 const STATUS_FLOW = [
     { value: 'NEW', label: 'Yeni', color: '#f59e0b' },
     { value: 'IN_SERVICE', label: 'Serviste', color: '#3b82f6' },
@@ -30,6 +32,12 @@ interface Props {
     currentNotes: string;
     currentCreatedAt: string; // ISO — düzenlenebilir fiş tarih/saati
     users: { id: string; name: string }[];
+    // Feature 8: durum değişince müşteriye WhatsApp bildirimi için
+    customerPhone?: string;
+    customerName?: string;
+    deviceName?: string;
+    ticketNumber?: string;
+    tenantName?: string;
 }
 
 export default function TicketStatusPanel({
@@ -44,10 +52,16 @@ export default function TicketStatusPanel({
     currentNotes,
     currentCreatedAt,
     users,
+    customerPhone,
+    customerName,
+    deviceName,
+    ticketNumber,
+    tenantName,
 }: Props) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [showPanel, setShowPanel] = useState(false);
+    const [notifyStatus, setNotifyStatus] = useState<string | null>(null);
     const [assignedUserId, setAssignedUserId] = useState(currentAssignedUserId);
     const [paymentStatus, setPaymentStatus] = useState(currentPaymentStatus);
     const [totalCost, setTotalCost] = useState(currentTotalCost.toFixed(2));
@@ -69,6 +83,8 @@ export default function TicketStatusPanel({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus }),
         });
+        // Feature 8: bildirilebilir bir duruma geçtiyse müşteriye WhatsApp önerisi göster
+        if (customerPhone && NOTIFY_STATUSES.includes(newStatus)) setNotifyStatus(newStatus);
         router.refresh();
         setLoading(false);
     };
@@ -114,6 +130,17 @@ export default function TicketStatusPanel({
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-end' }}>
+            {/* Feature 8: durum değişince müşteriye WhatsApp bildirimi önerisi */}
+            {notifyStatus && customerPhone && (
+                <div style={{ width: '100%', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>Durum güncellendi — müşteriye haber verelim mi?</span>
+                    <span style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button onClick={() => { openWhatsApp(customerPhone, statusMessage(notifyStatus, { tenantName, customerName, deviceName, ticketNumber })); setNotifyStatus(null); }}
+                            style={{ padding: '0.4rem 0.8rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.4rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>📱 WhatsApp ile bildir</button>
+                        <button onClick={() => setNotifyStatus(null)} style={{ padding: '0.4rem 0.6rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer' }}>Kapat</button>
+                    </span>
+                </div>
+            )}
             {/* Status Butonları */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'flex-end' }}>
                 {STATUS_FLOW.map(s => (

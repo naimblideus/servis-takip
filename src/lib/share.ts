@@ -43,6 +43,23 @@ export function reminderMessage(p: { tenantName?: string; customerName?: string;
   return lines.join('\n');
 }
 
+/** Servis durumu değişince müşteriye WhatsApp bildirimi. */
+export function statusMessage(status: string, p: { tenantName?: string; customerName?: string; deviceName?: string; ticketNumber?: string }): string {
+  const head = p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,';
+  const dev = p.deviceName ? `${p.deviceName} ` : '';
+  let body: string;
+  switch (status) {
+    case 'IN_SERVICE': body = `${dev}cihazınız servise alınmıştır, en kısa sürede ilgilenilecektir.`; break;
+    case 'WAITING_FOR_PART': body = `${dev}cihazınız için parça temin ediliyor; süreç biraz uzayabilir, bilginize.`; break;
+    case 'READY': body = `${dev}cihazınız hazır, teslim alabilirsiniz.`; break;
+    case 'DELIVERED': body = `${dev}cihazınız teslim edilmiştir. Teşekkür ederiz.`; break;
+    default: body = `${dev}cihazınızın servis durumu güncellendi.`;
+  }
+  const lines = [head, body + (p.ticketNumber ? ` (Fiş: ${p.ticketNumber})` : '')];
+  if (p.tenantName) lines.push('', p.tenantName);
+  return lines.join('\n');
+}
+
 /** "Cihazınız hazır" WhatsApp mesajı (müşteriye). */
 export function readyMessage(p: { tenantName?: string; customerName?: string; deviceName?: string; ticketNumber?: string }): string {
   const lines = [

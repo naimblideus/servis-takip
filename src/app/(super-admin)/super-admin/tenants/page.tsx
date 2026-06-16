@@ -14,6 +14,29 @@ const PLAN_COLORS: Record<string, string> = {
     enterprise: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
 };
 
+function relTime(iso: string | null): string {
+    if (!iso) return 'hiç';
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (days <= 0) return 'bugün';
+    if (days === 1) return 'dün';
+    if (days < 30) return `${days} gün önce`;
+    return `${Math.floor(days / 30)} ay önce`;
+}
+
+// Churn/sağlık rozeti — bayi gerçekten kullanıyor mu?
+function health(t: any): { label: string; cls: string } {
+    if (t.isSuspended) return { label: 'Askıda', cls: 'text-red-400 bg-red-500/10' };
+    if (!t.isActive) return { label: 'Pasif', cls: 'text-gray-400 bg-gray-500/10' };
+    if (t.plan === 'trial' && t.trialEndsAt) {
+        const d = Math.floor((new Date(t.trialEndsAt).getTime() - Date.now()) / 86400000);
+        if (d < 0) return { label: 'Deneme bitti', cls: 'text-red-400 bg-red-500/10' };
+        if (d <= 7) return { label: `Deneme ${d}g`, cls: 'text-amber-400 bg-amber-500/10' };
+    }
+    const last = t.lastActivityAt ? Math.floor((Date.now() - new Date(t.lastActivityAt).getTime()) / 86400000) : 9999;
+    if (last >= 14) return { label: 'Sessiz', cls: 'text-red-400 bg-red-500/10' };
+    return { label: 'Aktif', cls: 'text-green-400 bg-green-500/10' };
+}
+
 export default function TenantsPage() {
     const [tenants, setTenants] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
@@ -101,13 +124,14 @@ export default function TenantsPage() {
                                     <th className="text-left px-4 py-3 hidden md:table-cell">Şehir</th>
                                     <th className="text-left px-4 py-3">Paket</th>
                                     <th className="text-left px-4 py-3">Durum</th>
+                                    <th className="text-left px-4 py-3 hidden lg:table-cell">Sağlık / Son aktivite</th>
                                     <th className="text-right px-4 py-3">Fiş / Kullanıcı</th>
                                     <th className="px-4 py-3"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {tenants.length === 0 ? (
-                                    <tr><td colSpan={8} className="text-center py-12 text-gray-500">Kayıt bulunamadı</td></tr>
+                                    <tr><td colSpan={9} className="text-center py-12 text-gray-500">Kayıt bulunamadı</td></tr>
                                 ) : tenants.map(t => (
                                     <tr key={t.id} className="border-b border-white/5 hover:bg-white/3 transition-all">
                                         <td className="px-4 py-3">
@@ -131,6 +155,14 @@ export default function TenantsPage() {
                                             ) : (
                                                 <span className="text-xs text-gray-400 bg-gray-500/10 px-2 py-1 rounded-lg">Pasif</span>
                                             )}
+                                        </td>
+                                        <td className="px-4 py-3 hidden lg:table-cell">
+                                            {(() => { const h = health(t); return (
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className={`text-xs px-2 py-0.5 rounded-lg w-fit ${h.cls}`}>{h.label}</span>
+                                                    <span className="text-[11px] text-gray-500">{relTime(t.lastActivityAt)} · {t.tickets30d || 0} fiş/30g</span>
+                                                </div>
+                                            ); })()}
                                         </td>
                                         <td className="px-4 py-3 text-right text-gray-400 text-xs">
                                             {t._count?.serviceTickets || 0} / {t._count?.users || 0}

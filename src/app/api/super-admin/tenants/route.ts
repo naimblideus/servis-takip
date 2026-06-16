@@ -42,7 +42,22 @@ export async function GET(req: NextRequest) {
         prisma.tenant.count({ where }),
     ]);
 
-    return NextResponse.json({ tenants, total, pages: Math.ceil(total / limit), page });
+    // Bayi SAĞLIK/aktivite: son fiş tarihi (son aktivite) + son 30 gün fiş sayısı
+    const ids = tenants.map((t) => t.id);
+    const thirty = new Date(Date.now() - 30 * 86400000);
+    const [lastAgg, recentAgg] = await Promise.all([
+        prisma.serviceTicket.groupBy({ by: ['tenantId'], where: { tenantId: { in: ids } }, _max: { createdAt: true } }),
+        prisma.serviceTicket.groupBy({ by: ['tenantId'], where: { tenantId: { in: ids }, createdAt: { gte: thirty } }, _count: true }),
+    ]);
+    const lastMap = new Map(lastAgg.map((a) => [a.tenantId, a._max.createdAt]));
+    const recentMap = new Map(recentAgg.map((a) => [a.tenantId, (a as any)._count as number]));
+    const enriched = tenants.map((t) => ({
+        ...t,
+        lastActivityAt: lastMap.get(t.id) ?? null,
+        tickets30d: recentMap.get(t.id) ?? 0,
+    }));
+
+    return NextResponse.json({ tenants: enriched, total, pages: Math.ceil(total / limit), page });
 }
 
 // POST — yeni işletme oluştur
