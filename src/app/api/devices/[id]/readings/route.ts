@@ -15,7 +15,9 @@ export async function POST(
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();
-        const { counterBlack, counterColor, ticketId, includeMonthlyRent } = body;
+        const { counterBlack, counterColor, ticketId, includeMonthlyRent, photo } = body;
+        // Sayaç fotoğrafı (küçültülmüş JPEG data URL); güvenli boyut sınırı
+        const safePhoto = typeof photo === 'string' && photo.startsWith('data:image/') && photo.length < 800000 ? photo : null;
 
         if (counterBlack === undefined || counterColor === undefined) {
             return NextResponse.json({ error: 'counterBlack ve counterColor zorunlu' }, { status: 400 });
@@ -67,6 +69,7 @@ export async function POST(
                 deltaColor,
                 calculatedCost,
                 monthlyRent: monthlyRentAmount,
+                photo: safePhoto,
             },
         });
 
@@ -133,7 +136,8 @@ export async function GET(
         ? Number(device.pricePerColor) : Number(tenant?.pricePerColor ?? 0);
 
     return NextResponse.json({
-        readings,
+        // Foto'yu listede taşıma (ağır); sadece var/yok bilgisi — görsel ayrı uçtan çekilir
+        readings: readings.map(({ photo, ...r }) => ({ ...r, hasPhoto: !!photo })),
         device: device ? {
             isRental: device.isRental,
             monthlyRent: Number(device.monthlyRent),

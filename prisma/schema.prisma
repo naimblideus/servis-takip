@@ -302,6 +302,7 @@ model CounterReading {
   monthlyRent    Decimal  @default(0) @db.Decimal(10, 2) // Aylık aidat (dahil edildiyse)
   billed         Boolean  @default(false) // Dönem faturasına dahil edildi mi (idempotency)
   invoiceLineId  String?  // Hangi fatura satırına girdi
+  photo          String?  // Sayaç fotoğrafı (küçültülmüş JPEG data URL — kanıt)
   createdAt      DateTime @default(now())
 
   // Relations

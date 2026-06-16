@@ -33,6 +33,16 @@ export function mapsUrl(address: string | null | undefined): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((address || '').trim())}`;
 }
 
+/** Vadesi geçmiş bakiye hatırlatma mesajı (müşteriye). */
+export function reminderMessage(p: { tenantName?: string; customerName?: string; debt: number }): string {
+  const lines = [
+    p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,',
+    `${fmtTL(p.debt)} tutarında vadesi geçmiş bakiyeniz görünmektedir. Ödemeniz için teşekkür ederiz.`,
+  ];
+  if (p.tenantName) lines.push('', p.tenantName);
+  return lines.join('\n');
+}
+
 /** "Cihazınız hazır" WhatsApp mesajı (müşteriye). */
 export function readyMessage(p: { tenantName?: string; customerName?: string; deviceName?: string; ticketNumber?: string }): string {
   const lines = [

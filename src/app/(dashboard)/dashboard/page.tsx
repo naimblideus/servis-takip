@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { formatCurrency, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
+import { openWhatsApp, reminderMessage } from '@/lib/share';
 
 interface Stats {
   openTickets: number;
@@ -24,6 +26,8 @@ interface OverdueDebtor {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const tenantName = (session?.user as any)?.tenantName as string | undefined;
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [overdueDebtors, setOverdueDebtors] = useState<OverdueDebtor[]>([]);
@@ -105,11 +109,18 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {overdueDebtors.slice(0, 6).map(d => (
-              <Link key={d.customer.id} href="/accounting" className="block p-3 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">
+              <div key={d.customer.id} className="p-3 bg-red-50 rounded-lg border border-red-200">
                 <div className="font-semibold text-gray-900 text-sm">{d.customer.name}</div>
                 <div className="text-xs text-gray-500">📞 {d.customer.phone}</div>
                 <div className="text-lg font-bold text-red-600 mt-1">₺{d.debt.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</div>
-              </Link>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => openWhatsApp(d.customer.phone, reminderMessage({ tenantName, customerName: d.customer.name, debt: d.debt }))}
+                    className="flex-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md px-2 py-1.5"
+                  >📱 Hatırlat</button>
+                  <Link href="/accounting" className="text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-md px-2 py-1.5 hover:bg-blue-50">Cari →</Link>
+                </div>
+              </div>
             ))}
           </div>
           {overdueDebtors.length > 6 && (

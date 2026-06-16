@@ -3,6 +3,34 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+// Fotoğrafı tarayıcıda küçült (max ~1100px, JPEG ~0.6) -> küçük base64 (DB'de saklanır)
+function downscaleImage(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+                const max = 1100;
+                let { width, height } = img;
+                if (width > max || height > max) {
+                    const r = Math.min(max / width, max / height);
+                    width = Math.round(width * r); height = Math.round(height * r);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return reject(new Error('canvas yok'));
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+            img.onerror = reject;
+            img.src = reader.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 interface Reading {
     id: string;
     counterBlack: number;
@@ -13,6 +41,7 @@ interface Reading {
     monthlyRent: number;
     readingDate: string;
     ticket?: { ticketNumber: string } | null;
+    hasPhoto?: boolean;
 }
 
 interface DeviceInfo {
@@ -37,6 +66,8 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
     const [form, setForm] = useState({ counterBlack: '', counterColor: '', includeMonthlyRent: true });
+    const [photo, setPhoto] = useState<string>('');
+    const [photoBusy, setPhotoBusy] = useState(false);
     const [lastResult, setLastResult] = useState<any>(null);
 
     // Edit modal state
@@ -68,12 +99,14 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                 counterBlack: parseInt(form.counterBlack),
                 counterColor: parseInt(form.counterColor),
                 includeMonthlyRent: form.includeMonthlyRent,
+                photo: photo || undefined,
             }),
         });
         if (res.ok) {
             const data = await res.json();
             setLastResult(data.breakdown);
             setForm({ counterBlack: '', counterColor: '', includeMonthlyRent: true });
+            setPhoto('');
             await load();
             router.refresh();
         } else {
@@ -265,6 +298,21 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                             Aylık aidat dahil
                         </label>
                     )}
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>📷 Sayaç Fotoğrafı</label>
+                        {photo ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <img src={photo} alt="sayaç" style={{ height: 37, borderRadius: 6, border: '1px solid #d1d5db' }} />
+                                <button type="button" onClick={() => setPhoto('')} title="Kaldır" style={{ height: 37, width: 30, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', borderRadius: 6, cursor: 'pointer' }}>✕</button>
+                            </div>
+                        ) : (
+                            <label style={{ display: 'inline-flex', alignItems: 'center', height: 37, padding: '0 0.9rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#374151', background: 'white', whiteSpace: 'nowrap' }}>
+                                {photoBusy ? '...' : '📷 Çek / Yükle'}
+                                <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                                    onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setPhotoBusy(true); try { setPhoto(await downscaleImage(f)); } catch { alert('Fotoğraf işlenemedi'); } setPhotoBusy(false); e.target.value = ''; }} />
+                            </label>
+                        )}
+                    </div>
                     <button onClick={save} disabled={!form.counterBlack || !form.counterColor || saving} style={{
                         padding: '0.5rem 1.25rem', backgroundColor: '#0ea5e9', color: 'white',
                         border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600',
@@ -346,6 +394,19 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                         {/* İşlemler */}
                                         <td style={{ padding: '0.5rem 0.75rem', whiteSpace: 'nowrap', textAlign: 'center' }}>
                                             <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                                                {/* Foto (varsa) */}
+                                                {r.hasPhoto && (
+                                                    <a
+                                                        href={`/api/devices/${deviceId}/readings/photo?readingId=${r.id}`}
+                                                        target="_blank" rel="noreferrer"
+                                                        title="Sayaç fotoğrafı"
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                            backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
+                                                            borderRadius: '0.375rem', padding: '0.3rem 0.6rem', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none',
+                                                        }}
+                                                    >📷 Foto</a>
+                                                )}
                                                 {/* Düzenle */}
                                                 <button
                                                     onClick={() => openEdit(r)}
