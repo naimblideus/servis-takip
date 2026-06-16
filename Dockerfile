@@ -34,6 +34,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build — NODE_ENV=production olarak ayarla
 ENV NODE_ENV=production
+# Kısıtlı RAM'li sunucuda OOM önlemek için Node heap tavanı (3.8G RAM + swap'a uygun)
+ENV NODE_OPTIONS="--max-old-space-size=3072"
 RUN npm run build
 
 # ============================================================
