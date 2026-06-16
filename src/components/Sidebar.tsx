@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
@@ -140,63 +141,104 @@ export default function Sidebar() {
     return true;
   });
 
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  // Sayfa değişince (link tıklanınca) mobil menüyü kapat
+  useEffect(() => { setOpen(false); }, [pathname]);
+  // Menü açıkken arka plan kaymasın
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  const tenantName = (session?.user as any)?.tenantName;
+
   return (
-    <div id="app-sidebar" className="w-64 bg-gray-900 min-h-screen flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-700">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-white font-semibold text-sm">Servis Takip</p>
-            <p className="text-gray-400 text-xs">{(session?.user as any)?.tenantName}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Arama */}
-      <div className="px-4 pb-3">
-        <GlobalSearch />
-      </div>
-
-      {/* Menu */}
-      <nav className="flex-1 p-4 space-y-1">
-        {visibleMenuItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`sidebar-link ${pathname === item.href || pathname.startsWith(item.href + '/') ? 'active' : ''}`}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-
-      {/* User Info + Logout */}
-      <div className="p-4 border-t border-gray-700">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-            {session?.user?.name?.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-medium truncate">{session?.user?.name}</p>
-            <p className="text-gray-400 text-xs truncate">{session?.user?.email}</p>
-          </div>
-        </div>
-        <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="w-full text-left sidebar-link text-gray-400 hover:text-red-400"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    <>
+      {/* ── Mobil üst bar (yalnız telefon/tablet) ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-gray-900 z-40 flex items-center gap-3 px-4 print:hidden">
+        <button onClick={() => setOpen(true)} aria-label="Menüyü aç" className="text-white p-1 -ml-1">
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
-          Çıkış Yap
         </button>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-white font-semibold text-sm whitespace-nowrap">Servis Takip</span>
+          {tenantName && <span className="text-gray-400 text-xs truncate">· {tenantName}</span>}
+        </div>
       </div>
-    </div>
+
+      {/* ── Backdrop (mobilde menü açıkken) ── */}
+      {open && <div className="md:hidden fixed inset-0 bg-black/50 z-40 print:hidden" onClick={close} />}
+
+      {/* ── Sidebar / Drawer ── */}
+      <div
+        id="app-sidebar"
+        className={`w-64 bg-gray-900 min-h-screen flex flex-col print:hidden sa-drawer ${open ? 'sa-open' : ''}`}
+      >
+        {/* Logo + mobil kapat */}
+        <div className="p-6 border-b border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-semibold text-sm">Servis Takip</p>
+              <p className="text-gray-400 text-xs truncate">{tenantName}</p>
+            </div>
+            <button onClick={close} aria-label="Menüyü kapat" className="md:hidden ml-auto text-gray-400 hover:text-white p-1">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Arama */}
+        <div className="px-4 pb-3">
+          <GlobalSearch />
+        </div>
+
+        {/* Menu */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {visibleMenuItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={close}
+              className={`sidebar-link ${pathname === item.href || pathname.startsWith(item.href + '/') ? 'active' : ''}`}
+            >
+              {item.icon}
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
+        {/* User Info + Logout */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {session?.user?.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-xs font-medium truncate">{session?.user?.name}</p>
+              <p className="text-gray-400 text-xs truncate">{session?.user?.email}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="w-full text-left sidebar-link text-gray-400 hover:text-red-400"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Çıkış Yap
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
