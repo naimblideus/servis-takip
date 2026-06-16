@@ -194,6 +194,35 @@ const menuItems = [
 const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/invoices', '/collections', '/kacan-gelir', '/satis', '/import'];
 const SUPER_ADMIN_ONLY = ['/admin'];
 
+// Menü gösterim sırası (en çok kullanılan günlük işler üstte). Önceliği değiştirmek için
+// sadece bu listenin sırasını düzenle — listede olmayanlar otomatik en alta düşer.
+const MENU_ORDER = [
+  '/dashboard',
+  '/tickets',      // Servis Fişleri — işin kalbi
+  '/customers',
+  '/devices',
+  '/inventory',    // Stok — üstte
+  '/satis',        // Barkodla Satış
+  '/etiket',       // Zebra Etiket — üstte
+  '/accounting',   // Muhasebe — üstte
+  '/collections',  // Tahsilat
+  '/invoices',     // Faturalar
+  '/rota',
+  '/takip',
+  '/sarf',         // Sarf Takibi
+  '/kacan-gelir',
+  '/reports',
+  '/yardim',       // Nasıl Kullanılır?
+  '/users',
+  '/settings',
+  '/import',
+  '/admin',
+];
+const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i === -1 ? 999 : i; };
+
+// Az kullanılan / ileri özellikler — tek "Gelişmiş" başlığı altında toplanır (menü kalabalığını azaltır).
+const ADVANCED = new Set(['/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import']);
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -203,9 +232,17 @@ export default function Sidebar() {
     if (SUPER_ADMIN_ONLY.includes(item.href) && role !== 'SUPER_ADMIN') return false;
     if (ADMIN_ONLY_ITEMS.includes(item.href) && role !== 'ADMIN' && role !== 'SUPER_ADMIN') return false;
     return true;
-  });
+  }).sort((a, b) => orderOf(a.href) - orderOf(b.href));
+
+  const mainItems = visibleMenuItems.filter((i) => !ADVANCED.has(i.href));
+  const advItems = visibleMenuItems.filter((i) => ADVANCED.has(i.href));
 
   const [open, setOpen] = useState(false);
+  const [advOpen, setAdvOpen] = useState(false);
+  // Aktif sayfa "Gelişmiş" grubundaysa grubu otomatik aç (kullanıcı kaybolmasın)
+  useEffect(() => {
+    if (advItems.some((i) => pathname === i.href || pathname.startsWith(i.href + '/'))) setAdvOpen(true);
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   const close = () => setOpen(false);
   // Sayfa değişince (link tıklanınca) mobil menüyü kapat
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -268,7 +305,7 @@ export default function Sidebar() {
 
         {/* Menu */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {visibleMenuItems.map((item) => (
+          {mainItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -279,6 +316,38 @@ export default function Sidebar() {
               {item.label}
             </Link>
           ))}
+
+          {advItems.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setAdvOpen((o) => !o)}
+                aria-expanded={advOpen}
+                className="sidebar-link"
+                style={{ width: '100%', justifyContent: 'space-between', cursor: 'pointer' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                  </svg>
+                  Gelişmiş
+                </span>
+                <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>{advOpen ? '▾' : '▸'}</span>
+              </button>
+              {advOpen && advItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={close}
+                  className={`sidebar-link ${pathname === item.href || pathname.startsWith(item.href + '/') ? 'active' : ''}`}
+                  style={{ paddingLeft: '2.25rem' }}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
 
         {/* User Info + Logout */}
