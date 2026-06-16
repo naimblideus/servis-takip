@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import CustomerEditPanel from '@/components/CustomerEditPanel';
 import CustomerCariPanel from '@/components/CustomerCariPanel';
+import ContactActions from '@/components/ContactActions';
 
 const statusLabel: Record<string, { label: string; color: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7' },
@@ -19,8 +20,12 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const session = await auth();
   if (!session) redirect('/login');
 
-  const customer = await prisma.customer.findUnique({
-    where: { id },
+  // IDOR koruması: yalnızca bu tenant'ın müşterisi görüntülenebilir
+  const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  if (!me) redirect('/login');
+
+  const customer = await prisma.customer.findFirst({
+    where: { id, tenantId: me.tenantId },
     include: {
       devices: {
         include: {
@@ -63,6 +68,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             </div>
           ))}
         </div>
+        <ContactActions phone={customer.phone} address={customer.address} />
       </div>
 
       {/* Cihazlar */}

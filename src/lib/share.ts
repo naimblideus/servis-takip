@@ -22,6 +22,27 @@ export function openWhatsApp(phone: string | null | undefined, text: string): vo
   if (typeof window !== 'undefined') window.open(waUrl(phone, text), '_blank');
 }
 
+/** Tıkla-ara linki: tel:+90... */
+export function telUrl(phone: string | null | undefined): string {
+  const p = waPhone(phone);
+  return p ? `tel:+${p}` : 'tel:';
+}
+
+/** Adresi Google Maps'te aç (yol tarifi). */
+export function mapsUrl(address: string | null | undefined): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((address || '').trim())}`;
+}
+
+/** "Cihazınız hazır" WhatsApp mesajı (müşteriye). */
+export function readyMessage(p: { tenantName?: string; customerName?: string; deviceName?: string; ticketNumber?: string }): string {
+  const lines = [
+    p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,',
+    `${p.deviceName ? p.deviceName + ' ' : ''}cihazınız hazır, teslim alabilirsiniz.${p.ticketNumber ? ` (Fiş: ${p.ticketNumber})` : ''}`,
+  ];
+  if (p.tenantName) lines.push('', p.tenantName);
+  return lines.join('\n');
+}
+
 const fmtTL = (n: number) => '₺' + Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtD = (s: string | Date) => new Date(s).toLocaleDateString('tr-TR');
 

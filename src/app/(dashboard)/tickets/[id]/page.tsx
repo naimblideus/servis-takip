@@ -7,6 +7,8 @@ import TicketPartsPanel from '@/components/TicketPartsPanel';
 import TicketPaymentPanel from '@/components/TicketPaymentPanel';
 import TicketPrintButton from '@/components/TicketPrintButton';
 import TicketDeleteButton from '@/components/TicketDeleteButton';
+import ContactActions from '@/components/ContactActions';
+import { waUrl, readyMessage } from '@/lib/share';
 
 const statusLabel: Record<string, { label: string; color: string; text: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
@@ -22,8 +24,13 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const session = await auth();
   if (!session) redirect('/login');
 
-  const ticket = await prisma.serviceTicket.findUnique({
-    where: { id },
+  // IDOR koruması: yalnızca bu tenant'ın fişi görüntülenebilir
+  const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  if (!me) redirect('/login');
+  const tenantName = (session.user as any)?.tenantName as string | undefined;
+
+  const ticket = await prisma.serviceTicket.findFirst({
+    where: { id, tenantId: me.tenantId },
     include: {
       device: { include: { customer: true } },
       assignedUser: true,
@@ -106,6 +113,20 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             <span style={{ color: '#d1d5db' }}>|</span>
             <Link href={`/customers/${ticket.device.customer.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>Müşteri Detayı →</Link>
           </div>
+
+          {/* Mobil iletişim aksiyonları */}
+          <ContactActions phone={ticket.device.customer.phone} address={ticket.device.customer.address} />
+
+          {/* Fiş "Hazır" ise: müşteriye tek tık "cihazınız hazır" bildir */}
+          {ticket.status === 'READY' && (
+            <a
+              href={waUrl(ticket.device.customer.phone, readyMessage({ tenantName, customerName: ticket.device.customer.name, deviceName: `${ticket.device.brand} ${ticket.device.model}`, ticketNumber: ticket.ticketNumber }))}
+              target="_blank" rel="noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: '0.6rem', padding: '0.55rem 1rem', backgroundColor: '#16a34a', color: 'white', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none' }}
+            >
+              🔔 Cihazınız hazır — WhatsApp'tan bildir
+            </a>
+          )}
         </div>
 
         {/* Fiş Bilgileri */}
