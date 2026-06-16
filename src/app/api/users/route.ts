@@ -40,8 +40,22 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Şifre en az 6 karakter olmalı' }, { status: 400 });
         }
 
-        const existing = await prisma.user.findFirst({ where: { email } });
-        if (existing) return NextResponse.json({ error: 'Bu e-posta zaten kayıtlı' }, { status: 400 });
+        // Yetki yükseltmeyi önle: bu uçtan yalnızca tenant-içi roller verilebilir (SUPER_ADMIN değil)
+        const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN', 'FRONT_DESK'];
+        const safeRole = (ALLOWED_ROLES.includes(role) ? role : 'TECHNICIAN') as UserRole;
+
+        // Plan limiti (maxUsers) — katmanlı fiyatlandırma için zorunlu
+        const [tenant, activeCount] = await Promise.all([
+            prisma.tenant.findUnique({ where: { id: me.tenantId }, select: { maxUsers: true } }),
+            prisma.user.count({ where: { tenantId: me.tenantId, isActive: true } }),
+        ]);
+        if (tenant && activeCount >= tenant.maxUsers) {
+            return NextResponse.json({ error: `Plan limitiniz ${tenant.maxUsers} kullanıcı doldu. Daha fazla kullanıcı için planınızı yükseltin.` }, { status: 403 });
+        }
+
+        // E-posta benzersizliği bu tenant içinde (aynı e-posta başka bayide olabilir)
+        const existing = await prisma.user.findFirst({ where: { email, tenantId: me.tenantId } });
+        if (existing) return NextResponse.json({ error: 'Bu e-posta bu işletmede zaten kayıtlı' }, { status: 400 });
 
         const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -51,7 +65,7 @@ export async function POST(req: Request) {
                 name,
                 email,
                 passwordHash: hashedPassword,
-                role: role as UserRole,
+                role: safeRole,
                 isActive: true,
             },
         });
