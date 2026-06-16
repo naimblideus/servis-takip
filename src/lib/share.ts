@@ -28,9 +28,9 @@ export function telUrl(phone: string | null | undefined): string {
   return p ? `tel:+${p}` : 'tel:';
 }
 
-/** Adresi Google Maps'te aç (yol tarifi). */
+/** Adrese DİREKT yol tarifi aç (bulunduğun konumdan navigasyon). */
 export function mapsUrl(address: string | null | undefined): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((address || '').trim())}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((address || '').trim())}`;
 }
 
 /** "Cihazınız hazır" WhatsApp mesajı (müşteriye). */
