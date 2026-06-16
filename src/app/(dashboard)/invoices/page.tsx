@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { openWhatsApp, invoiceMessage } from '@/lib/share';
 
 interface Line { kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number; }
 interface Invoice {
@@ -26,6 +28,8 @@ const fmtDate = (s: string) => new Date(s).toLocaleDateString('tr-TR');
 
 export default function InvoicesPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const tenantName = (session?.user as any)?.tenantName as string | undefined;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [summary, setSummary] = useState<Summary>({ count: 0, total: 0, open: 0, overdue: 0, paidCount: 0 });
   const [loading, setLoading] = useState(true);
@@ -204,9 +208,15 @@ export default function InvoicesPage() {
             {/* Aksiyonlar */}
             <div className="p-4 border-t bg-gray-50 flex gap-2 flex-wrap sticky bottom-0">
               <button onClick={() => window.open(`/invoices/${detail.id}/print`, '_blank')}
-                className="flex-1 min-w-[140px] px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                className="flex-1 min-w-[120px] px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
                 🖨 Yazdır / PDF
               </button>
+              {detail.customer && (
+                <button onClick={() => openWhatsApp(detail.customer!.phone, invoiceMessage({ tenantName, customerName: detail.customer!.name, invoiceNumber: detail.invoiceNumber, period: detail.period, totalAmount: detail.totalAmount, openAmount: detail.openAmount, dueDate: detail.dueDate }))}
+                  className="flex-1 min-w-[120px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium">
+                  📱 WhatsApp
+                </button>
+              )}
               {detail.openAmount > 0 && detail.customer && (
                 <button onClick={() => router.push(`/collections?customerId=${detail.customer!.id}`)}
                   className="flex-1 min-w-[140px] px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">

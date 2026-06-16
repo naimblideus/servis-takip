@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { openWhatsApp, paymentMessage } from '@/lib/share';
 
 interface Cust { id: string; name: string; phone: string; }
 interface OpenInv { id: string; invoiceNumber: string; invoiceDate: string; dueDate: string; status: string; totalAmount: number; paidAmount: number; openAmount: number; }
@@ -9,6 +11,8 @@ const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDi
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('tr-TR');
 
 export default function CollectionsPage() {
+  const { data: session } = useSession();
+  const tenantName = (session?.user as any)?.tenantName as string | undefined;
   const [customers, setCustomers] = useState<Cust[]>([]);
   const [custSearch, setCustSearch] = useState('');
   const [showDrop, setShowDrop] = useState(false);
@@ -155,10 +159,16 @@ export default function CollectionsPage() {
               <p className="font-medium text-green-800">
                 ✓ {fmt(result.allocated)} mahsup edildi{result.unallocated > 0 ? ` · ${fmt(result.unallocated)} avans (gelecek faturaya)` : ''}
               </p>
-              <button onClick={() => window.open(`/collections/${result.paymentId}/print`, '_blank')}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0">
-                🧾 Makbuz Yazdır
-              </button>
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => window.open(`/collections/${result.paymentId}/print`, '_blank')}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm">
+                  🧾 Makbuz Yazdır
+                </button>
+                <button onClick={() => openWhatsApp(sel?.phone, paymentMessage({ tenantName, customerName: sel?.name, amount: result.allocated + result.unallocated, date }))}
+                  className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm">
+                  📱 WhatsApp
+                </button>
+              </div>
             </div>
             <div className="space-y-1">
               {result.allocations.map((a, idx) => (
