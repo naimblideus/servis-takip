@@ -82,6 +82,8 @@ export async function POST(req: Request) {
             amount: l.amount,
             method: saleMethod,
             notes: 'Barkodlu satış',
+            createdByUserId: user.id,
+            createdByName: user.name,
             date: when,
           },
         });
@@ -98,6 +100,8 @@ export async function POST(req: Request) {
             amount: total,
             method: method || 'CASH',
             notes: 'Peşin satış tahsilatı',
+            createdByUserId: user.id,
+            createdByName: user.name,
             date: when,
           },
         });

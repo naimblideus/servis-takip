@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 const StockTab = dynamic(() => import('@/components/StockTab'), { ssr: false });
 const ExpenseTab = dynamic(() => import('@/components/ExpenseTab'), { ssr: false });
 
-interface Entry { id: string; type: 'SALE'|'PAYMENT'; product: string|null; amount: number; method: string; notes: string|null; date: string; customer?: {id:string;name:string;phone:string}|null; }
+interface Entry { id: string; type: 'SALE'|'PAYMENT'; product: string|null; amount: number; method: string; notes: string|null; date: string; createdByName?: string|null; customer?: {id:string;name:string;phone:string}|null; }
 interface Customer { id:string; name:string; phone:string; totalSales:number; totalPayments:number; balance:number; }
 interface AllCustomer { id:string; name:string; phone:string; }
 interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; summary:{totalSales:number;totalPayments:number;balance:number;entryCount:number}; }
@@ -764,7 +764,7 @@ export default function AccountingPage() {
                   <table style={{width:'100%',borderCollapse:'collapse'}}>
                     <thead>
                       <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
-                        {['Tarih','Tür','Ürün/Hizmet','Yöntem','Not','Tutar','İşlem'].map(h => (
+                        {['Tarih','Tür','Ürün/Hizmet','Yöntem','Kaydeden','Not','Tutar','İşlem'].map(h => (
                           <th key={h} style={{padding:'0.6rem 0.875rem',textAlign:'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h === 'İşlem' ? '' : h}</th>
                         ))}
                       </tr>
@@ -782,6 +782,7 @@ export default function AccountingPage() {
                             </td>
                             <td style={{padding:'0.6rem 0.875rem',fontSize:'0.875rem',fontWeight:'500'}}>{e.product || '—'}</td>
                             <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem'}}>{METHOD_LABELS[e.method]||e.method}</td>
+                            <td style={{padding:'0.6rem 0.875rem',fontSize:'0.75rem',color:'#374151'}}>{e.createdByName ? `👤 ${e.createdByName}` : '—'}</td>
                             <td style={{padding:'0.6rem 0.875rem',fontSize:'0.75rem',color:'#6b7280'}}>{e.notes||'—'}</td>
                             <td style={{padding:'0.6rem 0.875rem',fontSize:'0.95rem',fontWeight:'700',color:isSale?'#f59e0b':'#10b981'}}>
                               {isSale?'':'+'} ₺{Number(e.amount).toLocaleString('tr-TR',{minimumFractionDigits:2})}

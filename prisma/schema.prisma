@@ -722,6 +722,8 @@ model AccountEntry {
   amount      Decimal          @db.Decimal(10, 2)
   method      String           @default("CASH") // Nakit, Kredi, IBAN, Açık Hesap
   notes       String?
+  createdByUserId String?      // Kaydı/satışı yapan kullanıcı (teknisyen) id
+  createdByName   String?      // İsim (denormalize — geçmiş kayıt için anlık kar)
   date        DateTime         @default(now())
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt

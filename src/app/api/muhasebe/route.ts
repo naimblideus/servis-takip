@@ -140,6 +140,8 @@ export async function POST(req: Request) {
                 amount: parseFloat(amount),
                 method: (method || 'CASH') as string,
                 notes: notes || null,
+                createdByUserId: user.id,
+                createdByName: user.name,
                 date: date ? new Date(date) : new Date(),
             },
             include: {
