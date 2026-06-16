@@ -29,13 +29,67 @@ interface Status {
 
 const HIDE_KEY = 'gs_checklist_hidden_v1';
 
-const CHECKLIST: { key: keyof Steps; title: string; desc: string; href: string; cta: string; icon: string }[] = [
-  { key: 'hasCustomers', icon: '👤', title: '1. İlk müşterini ekle', desc: 'Hizmet verdiğin firmayı/kişiyi kaydet. Sonradan cihaz ve fişler buna bağlanır.', href: '/customers', cta: 'Müşteriler' },
-  { key: 'hasDevices', icon: '🖨️', title: '2. Cihazı/yazıcıyı tanımla', desc: 'Müşterinin yazıcı/fotokopi cihazını ekle. Kiralıksa sayaç ve aylık kira buradan işler.', href: '/devices', cta: 'Cihazlar' },
-  { key: 'hasInventory', icon: '📦', title: '3. Stoğuna parça ekle', desc: 'Toner, drum, yedek parça gir. Barkodu varsa okuyucuyla okutarak hızlıca bulabilirsin.', href: '/inventory', cta: 'Stok' },
-  { key: 'hasTickets', icon: '🧾', title: '4. İlk servis fişini aç', desc: 'Arıza/bakım geldiğinde fiş oluştur, kullanılan parçaları ekle (barkodla okutabilirsin), işçilik gir.', href: '/tickets/new', cta: 'Yeni Fiş' },
-  { key: 'hasInvoices', icon: '📄', title: '5. Faturanı kes', desc: 'Ay sonunda "Bu Dönemi Faturala" ile sayaç + kira + servis tek faturada otomatik kesilir. PDF yazdırabilirsin.', href: '/invoices', cta: 'Faturalar' },
-  { key: 'hasCollections', icon: '💰', title: '6. Tahsilatını al', desc: 'Para geldiğinde tahsilatı gir; en eski açık faturadan otomatik düşülür (FIFO) ve makbuz yazdırabilirsin.', href: '/collections', cta: 'Tahsilat' },
+const CHECKLIST: { key: keyof Steps; title: string; desc: string; href: string; cta: string; icon: string; how: string[] }[] = [
+  {
+    key: 'hasCustomers', icon: '👤', title: '1. İlk müşterini ekle',
+    desc: 'Hizmet verdiğin firmayı/kişiyi kaydet. Sonradan cihaz ve fişler buna bağlanır.',
+    href: '/customers', cta: 'Müşteriler',
+    how: [
+      'Sol menü → Müşteriler → "＋ Yeni Müşteri".',
+      'Ad ve telefon zorunlu; adres yazmaya başlayınca listeden seç (yoksa elle yaz).',
+      'Kaydet → detayda 📞 Ara · 💬 WhatsApp · 🗺️ Yol Tarifi otomatik gelir.',
+    ],
+  },
+  {
+    key: 'hasDevices', icon: '🖨️', title: '2. Cihazı/yazıcıyı tanımla',
+    desc: 'Müşterinin yazıcı/fotokopi cihazını ekle. Kiralıksa sayaç ve aylık kira buradan işler.',
+    href: '/devices', cta: 'Cihazlar',
+    how: [
+      'Müşteri detayı veya Cihazlar → "＋ Yeni Cihaz".',
+      'Marka/model/seri no gir; kiralıksa "Kiralık" → aylık kira + sayaç birim fiyatı.',
+      'Kaydet → cihaza otomatik QR üretilir; etiketi basıp makineye yapıştır.',
+    ],
+  },
+  {
+    key: 'hasInventory', icon: '📦', title: '3. Stoğuna parça ekle',
+    desc: 'Toner, drum, yedek parça gir. Barkodu varsa okuyucuyla okutarak hızlıca bulabilirsin.',
+    href: '/inventory', cta: 'Stok',
+    how: [
+      'Stok → parça ekle (ad, adet, alış/satış fiyatı).',
+      'Barkodu varsa "Barkod" alanına okuyucuyla okut; yoksa "🏷️ Etiket Yazdır".',
+      '"📦 Hızlı Giriş/Çıkış" ile mal gelince (+), kullanınca (−) arka arkaya okut.',
+    ],
+  },
+  {
+    key: 'hasTickets', icon: '🧾', title: '4. İlk servis fişini aç',
+    desc: 'Arıza/bakım geldiğinde fiş oluştur, kullanılan parçaları ekle (barkodla okutabilirsin), işçilik gir.',
+    href: '/tickets/new', cta: 'Yeni Fiş',
+    how: [
+      'Yeni Fiş → müşteri + cihaz seç (ya da cihaz barkodunu okut, otomatik gelsin).',
+      'Arızayı yaz; parçayı okut → fişe eklenir ve stoktan düşer.',
+      'Durum: Yeni → Serviste → Hazır → Teslim; her değişimde WhatsApp bildirimi önerilir.',
+    ],
+  },
+  {
+    key: 'hasInvoices', icon: '📄', title: '5. Faturanı kes',
+    desc: 'Ay sonunda "Bu Dönemi Faturala" ile sayaç + kira + servis tek faturada otomatik kesilir. PDF yazdırabilirsin.',
+    href: '/invoices', cta: 'Faturalar',
+    how: [
+      'Önce kiralık cihazların sayacını oku (Cihaz → "Sayaç Okuma").',
+      'Faturalar → "Bu Dönemi Faturala" → sayaç + kira + servis tek faturada birleşir.',
+      'Faturaya tıkla → "🖨 Yazdır/PDF" veya "📱 WhatsApp" ile müşteriye gönder.',
+    ],
+  },
+  {
+    key: 'hasCollections', icon: '💰', title: '6. Tahsilatını al',
+    desc: 'Para geldiğinde tahsilatı gir; en eski açık faturadan otomatik düşülür (FIFO) ve makbuz yazdırabilirsin.',
+    href: '/collections', cta: 'Tahsilat',
+    how: [
+      'Tahsilat → müşteri seç → tutar + yöntem → "Kaydet ve Otomatik Mahsup Et".',
+      'En eski açık faturadan otomatik düşülür; artan tutar avans olur.',
+      '"🧾 Makbuz Yazdır" veya "📱 WhatsApp" ile "ödemeniz alındı" mesajı gönder.',
+    ],
+  },
 ];
 
 const WIZARD: { title: string; body: React.ReactNode }[] = [
@@ -95,11 +149,40 @@ const WIZARD: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         <div style={{ display: 'grid', gap: '0.55rem', color: '#334155' }}>
-          <div>📷 <b>Barkod okuyucu:</b> Parçayı okutunca otomatik bulunur/fişe eklenir (USB barkod okuyucu — 1D/2D).</div>
+          <div>📷 <b>Barkod okuyucu:</b> Parçayı/cihazı okutunca otomatik bulunur ve fişe eklenir (USB barkod okuyucu, ör. LS2208 — bilgisayara takılır, klavye gibi çalışır, sürücü gerekmez).</div>
+          <div>🏷️ <b>Etiket yazdırma:</b> Barkodu olmayan parçaya/cihaza Code 128 etiket basıp yapıştırabilirsiniz.</div>
           <div>🖨️ <b>Yazdır / PDF:</b> Fatura ve tahsilat makbuzunu profesyonel görünümde yazdırabilirsiniz.</div>
           <div>🔄 <b>Otomatik faturalama:</b> Sayaç + kira + servis ay sonunda tek faturada birleşir.</div>
           <div>💸 <b>Akıllı tahsilat:</b> Ödeme en eski açık faturadan otomatik düşülür (FIFO), elle hesap yok.</div>
         </div>
+      </>
+    ),
+  },
+  {
+    title: 'Sahada & müşteriyle iletişim 🗺️',
+    body: (
+      <>
+        <div style={{ display: 'grid', gap: '0.55rem', color: '#334155' }}>
+          <div>🗺️ <b>Rota:</b> Aktif fişli müşteriler durak durak listelenir; "Tüm rotayı haritada aç" ile sıralı yol tarifi alırsınız.</div>
+          <div>🔔 <b>Takip:</b> Sayacı geç okunan kiralık cihazları gösterir — kaçan faturalamayı önler.</div>
+          <div>📞 <b>Tek dokunuş iletişim:</b> Her müşteride 📞 Ara · 💬 WhatsApp · 🗺️ Yol Tarifi butonları hazırdır.</div>
+          <div>📱 <b>Telefondan kullanım:</b> Tüm ekranlar mobil uyumlu; sol üstteki ☰ ile menü açılır, sahada telefondan çalışırsınız.</div>
+        </div>
+      </>
+    ),
+  },
+  {
+    title: 'Müşteri kendi arızasını bildirsin 🔔',
+    body: (
+      <>
+        <p style={{ margin: '0 0 0.75rem' }}>
+          Her cihaza otomatik bir <b>QR kod</b> üretilir. Bu QR'ı basıp makineye yapıştırın.
+        </p>
+        <ol style={{ margin: 0, paddingLeft: '1.1rem', display: 'grid', gap: '0.45rem', color: '#334155' }}>
+          <li>Müşteri telefonuyla QR'ı okutur → <b>giriş gerekmeden</b> "Arıza Bildir" formu açılır.</li>
+          <li>Sorunu yazıp gönderir → sisteminizde <b>otomatik servis fişi</b> oluşur.</li>
+          <li>Siz fişi görüp işleme alırsınız — telefon trafiği azalır, hiçbir talep kaçmaz.</li>
+        </ol>
       </>
     ),
   },
@@ -109,7 +192,11 @@ const WIZARD: { title: string; body: React.ReactNode }[] = [
       <>
         <p style={{ margin: '0 0 0.75rem' }}>
           İlk işiniz: <b>ilk müşterinizi eklemek</b>. Aşağıdaki butona basın, ya da istediğiniz zaman sağ alttaki
-          <b> “Başlangıç Rehberi”</b>nden devam edin — orada 6 adımın hepsi yazılı.
+          <b> “Başlangıç Rehberi”</b>nden devam edin — orada 6 adımın hepsi adım adım yazılı.
+        </p>
+        <p style={{ margin: '0 0 0.75rem', color: '#334155' }}>
+          Takıldığınız her an sol menüdeki <b>“Nasıl Kullanılır?”</b> sayfasında her özelliğin
+          ayrıntılı, resimli anlatımını bulabilirsiniz.
         </p>
         <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
           Bu rehbere bir daha ihtiyacınız olmaz; sistem her adımı sizin yerinize takip eder.
@@ -128,6 +215,7 @@ export default function Onboarding() {
   const [showWizard, setShowWizard] = useState(false);
   const [step, setStep] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [openHow, setOpenHow] = useState<string | null>(null); // checklist'te açık "nasıl yapılır?"
   const [hidden, setHidden] = useState(true); // localStorage okunana kadar gizli (flash önlenir)
 
   // Yazdırma/PDF sayfalarinda onboarding ASLA gorunmemeli (fatura/makbuz belgesine dusmesin)
@@ -238,6 +326,7 @@ export default function Onboarding() {
               <div style={{ maxHeight: '52vh', overflowY: 'auto', padding: '0.5rem' }}>
                 {CHECKLIST.map((c) => {
                   const done = steps[c.key];
+                  const howOpen = openHow === c.key;
                   return (
                     <div key={c.key} style={{ display: 'flex', gap: '0.6rem', padding: '0.65rem 0.6rem', borderRadius: 10, alignItems: 'flex-start', background: done ? '#f0fdf4' : 'transparent' }}>
                       <div style={{ flexShrink: 0, width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 800, marginTop: 2, background: done ? '#16a34a' : '#e2e8f0', color: done ? 'white' : '#94a3b8' }}>
@@ -247,13 +336,28 @@ export default function Onboarding() {
                         <div style={{ fontSize: '0.85rem', fontWeight: 700, color: done ? '#15803d' : '#1e293b', textDecoration: done ? 'line-through' : 'none' }}>{c.title}</div>
                         {!done && <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>{c.desc}</div>}
                         {!done && (
-                          <button onClick={() => go(c.href)} style={{ marginTop: 6, padding: '0.3rem 0.7rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 7, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 }}>{c.cta} →</button>
+                          <div style={{ marginTop: 6, display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <button onClick={() => go(c.href)} style={{ padding: '0.3rem 0.7rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 7, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 }}>{c.cta} →</button>
+                            <button onClick={() => setOpenHow(howOpen ? null : c.key)} style={{ padding: '0.3rem 0.6rem', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 }}>
+                              {howOpen ? '▲ Gizle' : '❓ Nasıl yapılır?'}
+                            </button>
+                          </div>
+                        )}
+                        {!done && howOpen && (
+                          <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.05rem', display: 'grid', gap: '0.3rem' }}>
+                            {c.how.map((h, i) => (
+                              <li key={i} style={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.45 }}>{h}</li>
+                            ))}
+                          </ol>
                         )}
                       </div>
                     </div>
                   );
                 })}
               </div>
+              <button onClick={() => go('/yardim')} style={{ width: '100%', padding: '0.6rem 0.9rem', background: '#f8fafc', border: 'none', borderTop: '1px solid #eef2f7', color: '#0f2253', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, textAlign: 'left' }}>
+                📘 Ayrıntılı kullanım kılavuzu — “Nasıl Kullanılır?” →
+              </button>
               <div style={{ padding: '0.6rem 0.9rem', borderTop: '1px solid #eef2f7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button onClick={() => setShowWizard(true)} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>↺ Tanıtımı tekrar izle</button>
                 <button onClick={hideChecklist} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>Rehberi gizle</button>
