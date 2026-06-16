@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 export default function NewCustomerPage() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function NewCustomerPage() {
           </div>
           <div>
             <label style={lbl}>Adres</label>
-            <textarea rows={3} style={inp} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Mahalle, Cadde, No, İlçe/İl" />
+            <AddressAutocomplete value={form.address} onChange={v => setForm({ ...form, address: v })} style={inp} placeholder="Mahalle/cadde yazın — listeden seçin ya da elle girin" />
           </div>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>

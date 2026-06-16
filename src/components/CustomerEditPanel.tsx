@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 interface Props {
     customer: {
@@ -95,7 +96,7 @@ export default function CustomerEditPanel({ customer }: Props) {
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
                             <label style={lbl}>Adres</label>
-                            <textarea rows={2} style={inp} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+                            <AddressAutocomplete value={form.address} onChange={v => setForm({ ...form, address: v })} style={inp} />
                         </div>
                         <div style={{ marginBottom: '1.5rem' }}>
                             <label style={lbl}>Vergi No</label>
