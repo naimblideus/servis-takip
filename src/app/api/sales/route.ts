@@ -26,6 +26,14 @@ export async function POST(req: Request) {
   const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId: user.tenantId } });
   if (!customer) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
 
+  // Satışı yapan teknisyen: elle girilebilir; geçerli kullanıcı seçildiyse id'si de tutulur, yoksa giriş yapan.
+  let sellerUserId = user.id;
+  if (body.sellerUserId) {
+    const u = await prisma.user.findFirst({ where: { id: body.sellerUserId, tenantId: user.tenantId }, select: { id: true } });
+    if (u) sellerUserId = u.id;
+  }
+  const sellerName = (typeof body.sellerName === 'string' && body.sellerName.trim()) ? body.sellerName.trim().slice(0, 80) : user.name;
+
   const when = date ? new Date(date) : new Date();
   const saleMethod = paid ? (method || 'CASH') : 'OPEN_ACCOUNT';
 
@@ -82,8 +90,8 @@ export async function POST(req: Request) {
             amount: l.amount,
             method: saleMethod,
             notes: 'Barkodlu satış',
-            createdByUserId: user.id,
-            createdByName: user.name,
+            createdByUserId: sellerUserId,
+            createdByName: sellerName,
             date: when,
           },
         });
@@ -100,8 +108,8 @@ export async function POST(req: Request) {
             amount: total,
             method: method || 'CASH',
             notes: 'Peşin satış tahsilatı',
-            createdByUserId: user.id,
-            createdByName: user.name,
+            createdByUserId: sellerUserId,
+            createdByName: sellerName,
             date: when,
           },
         });

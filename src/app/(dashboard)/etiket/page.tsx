@@ -7,20 +7,31 @@ import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 interface StockItem { id: string; source: 'PART' | 'PRINTER'; name: string; sku?: string | null; barcode?: string | null; sellPrice: number; }
 interface Row { key: string; code: string; name: string; price: number; copies: number; }
 
-// Code 128 — yalnız yazdırılabilir ASCII; Türkçe/özel karakter varsa basmaz, uyarır.
-function Barcode({ value, heightMm }: { value: string; heightMm: number }) {
+const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Code 128 — yalnız yazdırılabilir ASCII. Esnek kutuyu doldurur (preserveAspectRatio=none, 1D barkod için güvenli).
+function Barcode({ value }: { value: string }) {
   const ref = useRef<SVGSVGElement>(null);
   const valid = /^[\x20-\x7E]+$/.test(value || '');
   useEffect(() => {
     if (ref.current && valid) {
-      try { JsBarcode(ref.current, value, { format: 'CODE128', height: heightMm * 3.78, width: 2, margin: 0, displayValue: false }); } catch { /* yoksay */ }
+      try { JsBarcode(ref.current, value, { format: 'CODE128', height: 80, width: 2, margin: 0, displayValue: false }); } catch { /* yoksay */ }
     }
-  }, [value, heightMm, valid]);
-  if (!valid) return <div style={{ fontSize: 9, color: '#b91c1c' }}>⚠ Barkod uyumsuz (özel karakter)</div>;
-  return <svg ref={ref} style={{ width: '92%', height: `${heightMm}mm` }} preserveAspectRatio="none" />;
+  }, [value, valid]);
+  if (!valid) return <div style={{ fontSize: '2mm', color: '#b91c1c' }}>⚠ Barkod uyumsuz</div>;
+  return <svg ref={ref} preserveAspectRatio="none" style={{ width: '100%', height: '100%', shapeRendering: 'crispEdges' }} />;
 }
 
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function LabelInner({ r, showName, showCode, showPrice }: { r: Row; showName: boolean; showCode: boolean; showPrice: boolean }) {
+  return (
+    <>
+      {showName && <div className="zl-name">{r.name}</div>}
+      <div className="zl-bc"><Barcode value={r.code} /></div>
+      {showCode && <div className="zl-code">{r.code}</div>}
+      {showPrice && r.price > 0 && <div className="zl-price">{fmt(r.price)}</div>}
+    </>
+  );
+}
 
 export default function EtiketPage() {
   const [stock, setStock] = useState<StockItem[]>([]);
@@ -79,18 +90,23 @@ export default function EtiketPage() {
         @media print {
           .no-print { display: none !important; }
           #app-sidebar { display: none !important; }
-          body { background: white !important; }
-          .zlabel { page-break-after: always; break-after: page; }
-          .zlabel:last-child { page-break-after: auto; break-after: auto; }
+          html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
           .zsheet { display: block !important; }
+          .zlabel { page-break-after: always; break-after: page; page-break-inside: avoid; }
+          .zlabel:last-child { page-break-after: auto; break-after: auto; }
         }
         @page { size: ${w}mm ${h}mm; margin: 0; }
         .zsheet { display: none; }
         .zlabel {
-          width: ${w}mm; height: ${h}mm; box-sizing: border-box; padding: 1.5mm;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          text-align: center; overflow: hidden; background: white; color: black;
+          width: ${w}mm; height: ${h}mm; box-sizing: border-box;
+          padding: 1mm 1.5mm; display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 0.4mm; overflow: hidden; background: #fff; color: #000;
         }
+        .zl-name { font-size: 2.4mm; font-weight: 700; line-height: 1.05; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .zl-bc { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
+        .zl-bc svg { width: 100%; height: 100%; }
+        .zl-code { font-size: 2.2mm; font-family: 'Courier New', monospace; letter-spacing: 0.3mm; line-height: 1; }
+        .zl-price { font-size: 3.2mm; font-weight: 800; line-height: 1; }
       `}</style>
 
       <div className="no-print">
@@ -107,7 +123,12 @@ export default function EtiketPage() {
           </button>
         </div>
 
-        {msg && <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, padding: '0.5rem 0.8rem', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{msg}</div>}
+        {/* Yazdırma ayarı uyarısı */}
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, padding: '0.6rem 0.85rem', marginBottom: '0.75rem', fontSize: '0.82rem', lineHeight: 1.5 }}>
+          ⚙️ <b>İlk kurulumda:</b> Yazdır penceresinde <b>Hedef = ZDesigner GC420T</b>, <b>Kâğıt boyutu = {w} × {h} mm</b> (Windows&apos;ta yazıcı tercihlerinden de ayarlı olmalı), <b>Kenar boşlukları = Yok</b>, <b>Ölçek = %100</b> seç. Böylece her ürün için tam <b>tek etiket</b> çıkar.
+        </div>
+
+        {msg && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '0.5rem 0.8rem', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{msg}</div>}
 
         {/* Ayarlar */}
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
@@ -115,6 +136,14 @@ export default function EtiketPage() {
             <input type="number" min={20} max={120} value={w} onChange={(e) => setW(Math.max(20, Math.min(120, parseInt(e.target.value) || 50)))} style={{ width: 80, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.875rem' }} /></div>
           <div><label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Yükseklik (mm)</label>
             <input type="number" min={15} max={120} value={h} onChange={(e) => setH(Math.max(15, Math.min(120, parseInt(e.target.value) || 30)))} style={{ width: 80, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.875rem' }} /></div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[[50, 30], [40, 25], [60, 40], [100, 50]].map(([pw, ph]) => (
+              <button key={`${pw}x${ph}`} type="button" onClick={() => { setW(pw); setH(ph); }}
+                style={{ padding: '0.4rem 0.6rem', border: '1px solid', borderColor: w === pw && h === ph ? '#2563eb' : '#d1d5db', background: w === pw && h === ph ? '#eff6ff' : 'white', color: '#374151', borderRadius: 8, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                {pw}×{ph}
+              </button>
+            ))}
+          </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Ad</label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Fiyat</label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showCode} onChange={(e) => setShowCode(e.target.checked)} /> Kod yazısı</label>
@@ -156,16 +185,13 @@ export default function EtiketPage() {
           ))}
         </div>
 
-        {/* Önizleme (tek etiket) */}
+        {/* Önizleme (gerçek mm boyutunda) */}
         {rows[0] && (
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Önizleme ({w}×{h} mm)</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Önizleme — gerçek boyut ({w}×{h} mm)</div>
             <div style={{ border: '1px dashed #cbd5e1', borderRadius: 8, padding: 12, display: 'inline-block', background: '#f8fafc' }}>
-              <div className="zlabel" style={{ width: `${w}mm`, height: `${h}mm`, boxSizing: 'border-box', padding: '1.5mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', overflow: 'hidden', background: 'white', border: '1px solid #e5e7eb' }}>
-                {showName && <div style={{ fontSize: '2.6mm', fontWeight: 700, lineHeight: 1.1, marginBottom: '1mm', maxHeight: '6mm', overflow: 'hidden' }}>{rows[0].name}</div>}
-                <Barcode value={rows[0].code} heightMm={Math.max(8, h * 0.42)} />
-                {showCode && <div style={{ fontSize: '2.4mm', fontFamily: 'monospace', letterSpacing: '0.5px', marginTop: '0.5mm' }}>{rows[0].code}</div>}
-                {showPrice && <div style={{ fontSize: '3mm', fontWeight: 800, marginTop: '0.5mm' }}>{fmt(rows[0].price)}</div>}
+              <div className="zlabel" style={{ border: '1px solid #e5e7eb' }}>
+                <LabelInner r={rows[0]} showName={showName} showCode={showCode} showPrice={showPrice} />
               </div>
             </div>
           </div>
@@ -176,10 +202,7 @@ export default function EtiketPage() {
       <div className="zsheet">
         {labels.map((l) => (
           <div key={l.key} className="zlabel">
-            {showName && <div style={{ fontSize: '2.6mm', fontWeight: 700, lineHeight: 1.1, marginBottom: '1mm', maxHeight: '6mm', overflow: 'hidden' }}>{l.name}</div>}
-            <Barcode value={l.code} heightMm={Math.max(8, h * 0.42)} />
-            {showCode && <div style={{ fontSize: '2.4mm', fontFamily: 'monospace', letterSpacing: '0.5px', marginTop: '0.5mm' }}>{l.code}</div>}
-            {showPrice && <div style={{ fontSize: '3mm', fontWeight: 800, marginTop: '0.5mm' }}>{fmt(l.price)}</div>}
+            <LabelInner r={l} showName={showName} showCode={showCode} showPrice={showPrice} />
           </div>
         ))}
       </div>

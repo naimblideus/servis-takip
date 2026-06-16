@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 import CameraScanner from '@/components/CameraScanner';
 
@@ -12,8 +13,11 @@ interface CartLine { key: string; kind: 'PART' | 'PRINTER'; id: string; name: st
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function SatisPage() {
+  const { data: session } = useSession();
   const [stock, setStock] = useState<StockItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [seller, setSeller] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paid, setPaid] = useState(true); // true=peşin, false=açık hesap
   const [method, setMethod] = useState('CASH');
@@ -33,7 +37,10 @@ export default function SatisPage() {
   useEffect(() => { load(); }, []);
   useEffect(() => {
     fetch('/api/customers').then((r) => r.json()).then((d) => setCustomers(Array.isArray(d) ? d : d.customers || [])).catch(() => {});
+    fetch('/api/users').then((r) => r.json()).then((d) => setUsers(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
+  // Satışı yapan: varsayılan = giriş yapan kullanıcı (elle değiştirilebilir)
+  useEffect(() => { if (!seller && session?.user?.name) setSeller(session.user.name); }, [session, seller]);
   useEffect(() => {
     const h = () => setShowCustDrop(false);
     document.addEventListener('click', h);
@@ -72,6 +79,8 @@ export default function SatisPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: sel.id, paid, method,
+          sellerName: seller.trim() || undefined,
+          sellerUserId: users.find((u) => u.name === seller.trim())?.id,
           items: cart.map((l) => ({ kind: l.kind, id: l.id, qty: l.qty, unitPrice: l.unitPrice, name: l.name })),
         }),
       });
@@ -138,6 +147,16 @@ export default function SatisPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Satışı yapan (teknisyen) — otomatik gelir, elle değiştirilebilir */}
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 }}>Satışı yapan (teknisyen)</label>
+        <input list="seller-list" value={seller} onChange={(e) => setSeller(e.target.value)} placeholder="Adı yaz veya listeden seç" style={inp} />
+        <datalist id="seller-list">
+          {users.map((u) => <option key={u.id} value={u.name} />)}
+        </datalist>
+        <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>Varsayılan giriş yapan kişidir; satışı başka teknisyen yaptıysa elle yaz veya seç.</div>
       </div>
 
       {/* Okutma kutusu */}
