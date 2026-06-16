@@ -5,6 +5,7 @@ import Link from 'next/link';
 import DeviceEditPanel from '@/components/DeviceEditPanel';
 import CounterReadingPanel from '@/components/CounterReadingPanel';
 import DeviceQRCode from '@/components/DeviceQRCode';
+import TonerPanel from '@/components/TonerPanel';
 
 // statusLabel and priorityLabel removed — replaced with counter columns
 
@@ -13,8 +14,12 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
   const session = await auth();
   if (!session) redirect('/login');
 
-  const device = await prisma.device.findUnique({
-    where: { id },
+  // IDOR koruması: önce kullanıcı, sonra cihazı tenant-scoped çek
+  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  if (!user) redirect('/login');
+
+  const device = await prisma.device.findFirst({
+    where: { id, tenantId: user.tenantId },
     include: {
       customer: true,
       serviceTickets: {
@@ -27,14 +32,18 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
   if (!device) redirect('/devices');
 
   // Tenant varsayılan fiyatlarını al
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
-  const tenant = user ? await prisma.tenant.findUnique({
+  const tenant = await prisma.tenant.findUnique({
     where: { id: user.tenantId },
     select: { pricePerBlack: true, pricePerColor: true },
-  }) : null;
+  });
 
   const effectiveBlackPrice = (device as any).pricePerBlack !== null ? Number((device as any).pricePerBlack) : Number(tenant?.pricePerBlack ?? 0);
   const effectiveColorPrice = (device as any).pricePerColor !== null ? Number((device as any).pricePerColor) : Number(tenant?.pricePerColor ?? 0);
+  const inclBlack = Number((device as any).includedBlack ?? 0);
+  const inclColor = Number((device as any).includedColor ?? 0);
+  // Aşım birim fiyatı = cihaz birim fiyatı (pricePerBlack/Color); billing ile tutarlı (tek kaynak)
+  const overageBlack = effectiveBlackPrice;
+  const overageColor = effectiveColorPrice;
 
   return (
     <div style={{ padding: '2rem', maxWidth: '900px' }}>
@@ -55,6 +64,8 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
               location: device.location, isRental: device.isRental, monthlyRent: Number(device.monthlyRent || 0),
               pricePerBlack: (device as any).pricePerBlack !== null ? Number((device as any).pricePerBlack) : null,
               pricePerColor: (device as any).pricePerColor !== null ? Number((device as any).pricePerColor) : null,
+              includedBlack: inclBlack,
+              includedColor: inclColor,
             }} />
           </div>
         </div>
@@ -104,11 +115,13 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
         {device.isRental && (
           <div style={{ backgroundColor: '#eff6ff', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', border: '1px solid #bfdbfe' }}>
             <h2 style={{ fontWeight: '600', marginBottom: '1rem', color: '#1e40af' }}>🏷️ Kira Bilgileri</h2>
-            {[
+            {([
               ['Aylık Kira', `₺${Number(device.monthlyRent).toFixed(2)}`],
-              ['⚫ Siyah Birim', `₺${effectiveBlackPrice.toFixed(2)}`],
-              ['🟣 Renkli Birim', `₺${effectiveColorPrice.toFixed(2)}`],
-            ].map(([k, v]) => (
+              ...(inclBlack > 0 ? [['⚫ Dahil S/B', `${inclBlack.toLocaleString('tr-TR')} sf`]] : []),
+              ...(inclColor > 0 ? [['🟣 Dahil Renkli', `${inclColor.toLocaleString('tr-TR')} sf`]] : []),
+              [inclBlack > 0 ? '⚫ S/B Aşım Birim' : '⚫ Siyah Birim', `₺${overageBlack.toFixed(2)}`],
+              [inclColor > 0 ? '🟣 Renkli Aşım Birim' : '🟣 Renkli Birim', `₺${overageColor.toFixed(2)}`],
+            ] as [string, string][]).map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #bfdbfe', fontSize: '0.875rem' }}>
                 <span style={{ color: '#1e40af' }}>{k}</span>
                 <span style={{ fontWeight: '600', color: '#1e3a8a' }}>{v}</span>
@@ -123,8 +136,20 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
         )}
       </div>
 
+      {/* Toner Takibi */}
+      <TonerPanel
+        deviceId={device.id}
+        counterBlack={device.counterBlack ?? null}
+        counterColor={device.counterColor ?? null}
+        tonerYieldBlack={(device as any).tonerYieldBlack ?? null}
+        tonerYieldColor={(device as any).tonerYieldColor ?? null}
+        tonerResetBlack={(device as any).tonerResetBlack ?? null}
+        tonerResetColor={(device as any).tonerResetColor ?? null}
+        tonerChangedAt={(device as any).tonerChangedAt ? new Date((device as any).tonerChangedAt).toISOString() : null}
+      />
+
       {/* Servis Fişleri */}
-      <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
+      <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ fontWeight: '600' }}>Servis Fişleri ({device.serviceTickets.length})</h2>
           <Link href={`/tickets/new`} style={{

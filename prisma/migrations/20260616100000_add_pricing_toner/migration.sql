@@ -1,0 +1,10 @@
+-- IDEMPOTENT: Kademeli fiyatlandirma (dahil paket + asim) + toner tukenme tahmini alanlari (Device)
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "includedBlack" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "includedColor" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "overagePriceBlack" DECIMAL(10,4);
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "overagePriceColor" DECIMAL(10,4);
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "tonerYieldBlack" INTEGER;
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "tonerYieldColor" INTEGER;
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "tonerResetBlack" INTEGER;
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "tonerResetColor" INTEGER;
+ALTER TABLE "Device" ADD COLUMN IF NOT EXISTS "tonerChangedAt" TIMESTAMP(3);

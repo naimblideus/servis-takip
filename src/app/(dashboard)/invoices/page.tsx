@@ -6,7 +6,7 @@ import { openWhatsApp, invoiceMessage } from '@/lib/share';
 
 interface Line { kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number; }
 interface Invoice {
-  id: string; invoiceNumber: string; period: string; invoiceDate: string; dueDate: string;
+  id: string; docToken?: string; invoiceNumber: string; period: string; invoiceDate: string; dueDate: string;
   status: string; source: string;
   customer: { id: string; name: string; phone: string } | null;
   subtotal: number; vatAmount: number; totalAmount: number; paidAmount: number; openAmount: number;
@@ -212,9 +212,23 @@ export default function InvoicesPage() {
                 🖨 Yazdır / PDF
               </button>
               {detail.customer && (
-                <button onClick={() => openWhatsApp(detail.customer!.phone, invoiceMessage({ tenantName, customerName: detail.customer!.name, invoiceNumber: detail.invoiceNumber, period: detail.period, totalAmount: detail.totalAmount, openAmount: detail.openAmount, dueDate: detail.dueDate }))}
+                <button onClick={() => {
+                  const link = detail.docToken ? `${window.location.origin}/belge/fatura/${detail.id}/${detail.docToken}` : '';
+                  const msg = invoiceMessage({ tenantName, customerName: detail.customer!.name, invoiceNumber: detail.invoiceNumber, period: detail.period, totalAmount: detail.totalAmount, openAmount: detail.openAmount, dueDate: detail.dueDate })
+                    + (link ? `\n\n📄 Faturanızı görüntüleyin: ${link}` : '');
+                  openWhatsApp(detail.customer!.phone, msg);
+                }}
                   className="flex-1 min-w-[120px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium">
-                  📱 WhatsApp
+                  📱 WhatsApp + Link
+                </button>
+              )}
+              {detail.docToken && (
+                <button onClick={() => {
+                  const link = `${window.location.origin}/belge/fatura/${detail.id}/${detail.docToken}`;
+                  navigator.clipboard?.writeText(link).then(() => setMsg('🔗 Belge linki kopyalandı')).catch(() => window.open(link, '_blank'));
+                }}
+                  className="px-4 py-2.5 bg-white border text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium" title="Girişsiz görüntülenebilir belge linki">
+                  🔗 Link
                 </button>
               )}
               {detail.openAmount > 0 && detail.customer && (

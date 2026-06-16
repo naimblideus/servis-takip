@@ -26,6 +26,8 @@ export default function NewDevicePage() {
     monthlyRent: '',
     pricePerBlack: '',
     pricePerColor: '',
+    includedBlack: '',
+    includedColor: '',
   });
 
   // Müşteri arama state
@@ -228,17 +230,29 @@ export default function NewDevicePage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={lbl}>⚫ Siyah Birim Fiyat (₺)</label>
+                  <label style={lbl}>⚫ Dahil S/B sayfa</label>
+                  <input type="number" step="1" min="0" style={inp} value={form.includedBlack}
+                    onChange={e => setForm({ ...form, includedBlack: e.target.value })} placeholder="örn. 5000" />
+                </div>
+                <div>
+                  <label style={lbl}>🟣 Dahil renkli sayfa</label>
+                  <input type="number" step="1" min="0" style={inp} value={form.includedColor}
+                    onChange={e => setForm({ ...form, includedColor: e.target.value })} placeholder="örn. 0" />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={lbl}>⚫ S/B aşım birim (₺)</label>
                   <input type="number" step="0.01" min="0" style={inp} value={form.pricePerBlack}
                     onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} placeholder="Varsayılan" />
                 </div>
                 <div>
-                  <label style={lbl}>🟣 Renkli Birim Fiyat (₺)</label>
+                  <label style={lbl}>🟣 Renkli aşım birim (₺)</label>
                   <input type="number" step="0.01" min="0" style={inp} value={form.pricePerColor}
                     onChange={e => setForm({ ...form, pricePerColor: e.target.value })} placeholder="Varsayılan" />
                 </div>
               </div>
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>💡 Boş bırakırsanız Ayarlar&apos;daki varsayılan fiyat kullanılır</p>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>💡 <b>Dahil paket:</b> bu kadar sayfa kira içinde (ücretsiz); aşan kısım birim fiyattan faturalanır. Dahil 0 = tüm sayfalar birim fiyattan. Birim fiyat boşsa Ayarlar&apos;daki varsayılan kullanılır.</p>
             </div>
           )}
         </div>

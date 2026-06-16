@@ -190,6 +190,17 @@ model Device {
   monthlyRent    Decimal   @default(0) @db.Decimal(10, 2) // Aylık kira bedeli
   pricePerBlack  Decimal?  @db.Decimal(10, 4) // Cihaz bazlı siyah birim fiyat (null=tenant varsayılan)
   pricePerColor  Decimal?  @db.Decimal(10, 4) // Cihaz bazlı renkli birim fiyat (null=tenant varsayılan)
+  // Kademeli fiyatlandırma (dahil paket + aşım) — TR yazıcı kiralamasının baskın modeli
+  includedBlack     Int      @default(0) // Aylık kiraya dahil S/B sayfa (bu kadarı ücretsiz)
+  includedColor     Int      @default(0) // Aylık kiraya dahil renkli sayfa
+  overagePriceBlack Decimal? @db.Decimal(10, 4) // Aşım S/B birim fiyat (null=pricePerBlack kullanılır)
+  overagePriceColor Decimal? @db.Decimal(10, 4) // Aşım renkli birim fiyat (null=pricePerColor kullanılır)
+  // Toner/sarf tükenme tahmini (proaktif sevkiyat)
+  tonerYieldBlack   Int?      // S/B toner verimi (sayfa/toner)
+  tonerYieldColor   Int?      // Renkli toner verimi (sayfa/toner)
+  tonerResetBlack   Int?      // Son S/B toner değişiminde sayaç değeri (referans)
+  tonerResetColor   Int?      // Son renkli toner değişiminde sayaç değeri
+  tonerChangedAt    DateTime? // Son toner değişim tarihi
   lastInvoicedPeriod String? // Çift kira faturalamayı önlemek için son faturalanan dönem (YYYY-MM)
   publicCode     String    @unique // e.g., DEV-8F3A12 (for QR URL)
   qrTokenHash String // Hashed version of QR token

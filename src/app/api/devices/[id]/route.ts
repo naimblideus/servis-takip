@@ -33,12 +33,21 @@ export async function PATCH(
         if (body.monthlyRent !== undefined) updateData.monthlyRent = parseFloat(body.monthlyRent) || 0;
         if (body.pricePerBlack !== undefined) updateData.pricePerBlack = body.pricePerBlack === '' || body.pricePerBlack === null ? null : parseFloat(body.pricePerBlack);
         if (body.pricePerColor !== undefined) updateData.pricePerColor = body.pricePerColor === '' || body.pricePerColor === null ? null : parseFloat(body.pricePerColor);
+        // Kademeli fiyatlandırma (dahil paket + aşım)
+        if (body.includedBlack !== undefined) updateData.includedBlack = parseInt(body.includedBlack) || 0;
+        if (body.includedColor !== undefined) updateData.includedColor = parseInt(body.includedColor) || 0;
+        if (body.overagePriceBlack !== undefined) updateData.overagePriceBlack = body.overagePriceBlack === '' || body.overagePriceBlack === null ? null : parseFloat(body.overagePriceBlack);
+        if (body.overagePriceColor !== undefined) updateData.overagePriceColor = body.overagePriceColor === '' || body.overagePriceColor === null ? null : parseFloat(body.overagePriceColor);
 
         // Kiralık değilse fiyatları sıfırla
         if (body.isRental === false) {
             updateData.monthlyRent = 0;
             updateData.pricePerBlack = null;
             updateData.pricePerColor = null;
+            updateData.includedBlack = 0;
+            updateData.includedColor = 0;
+            updateData.overagePriceBlack = null;
+            updateData.overagePriceColor = null;
         }
 
         const device = await prisma.device.update({

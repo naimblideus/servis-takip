@@ -1,22 +1,21 @@
-import { auth } from '@/lib/auth';
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { verifyDocToken } from '@/lib/doc-token';
 import PrintNowButton from '@/components/PrintNowButton';
 import InvoiceDocument, { type InvoiceDocData } from '@/components/docs/InvoiceDocument';
 
-export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const session = await auth();
-  if (!session) redirect('/login');
+export const dynamic = 'force-dynamic';
 
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
-  if (!user) redirect('/login');
+// Girişsiz paylaşılabilir fatura belgesi — token doğruysa açılır (müşteriye WhatsApp ile gönderilir).
+export default async function PublicInvoicePage({ params }: { params: Promise<{ id: string; token: string }> }) {
+  const { id, token } = await params;
+  if (!verifyDocToken('fatura', id, token)) notFound();
 
   const invoice = await prisma.customerInvoice.findFirst({
-    where: { id, tenantId: user.tenantId, deletedAt: null },
+    where: { id, deletedAt: null },
     include: { customer: true, tenant: true, lines: { orderBy: { id: 'asc' } } },
   });
-  if (!invoice) redirect('/invoices');
+  if (!invoice) notFound();
 
   const doc: InvoiceDocData = {
     invoiceNumber: invoice.invoiceNumber,

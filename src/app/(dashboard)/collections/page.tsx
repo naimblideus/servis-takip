@@ -5,7 +5,7 @@ import { openWhatsApp, paymentMessage } from '@/lib/share';
 
 interface Cust { id: string; name: string; phone: string; }
 interface OpenInv { id: string; invoiceNumber: string; invoiceDate: string; dueDate: string; status: string; totalAmount: number; paidAmount: number; openAmount: number; }
-interface AllocResult { paymentId: string; allocations: { invoiceNumber: string; amount: number; status: string }[]; allocated: number; unallocated: number; }
+interface AllocResult { paymentId: string; receiptToken?: string; allocations: { invoiceNumber: string; amount: number; status: string }[]; allocated: number; unallocated: number; }
 
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('tr-TR');
@@ -64,7 +64,7 @@ export default function CollectionsPage() {
       });
       const d = await res.json();
       if (res.ok) {
-        setResult({ paymentId: d.paymentId, allocations: d.allocations, allocated: d.allocated, unallocated: d.unallocated });
+        setResult({ paymentId: d.paymentId, receiptToken: d.receiptToken, allocations: d.allocations, allocated: d.allocated, unallocated: d.unallocated });
         setAmount(''); setRefNo('');
         loadOpen(sel.id);
       } else setErr(d.error || 'Hata');
@@ -164,9 +164,14 @@ export default function CollectionsPage() {
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm">
                   🧾 Makbuz Yazdır
                 </button>
-                <button onClick={() => openWhatsApp(sel?.phone, paymentMessage({ tenantName, customerName: sel?.name, amount: result.allocated + result.unallocated, date }))}
+                <button onClick={() => {
+                  const link = result.receiptToken ? `${window.location.origin}/belge/makbuz/${result.paymentId}/${result.receiptToken}` : '';
+                  const msg = paymentMessage({ tenantName, customerName: sel?.name, amount: result.allocated + result.unallocated, date })
+                    + (link ? `\n\n🧾 Makbuzunuz: ${link}` : '');
+                  openWhatsApp(sel?.phone, msg);
+                }}
                   className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm">
-                  📱 WhatsApp
+                  📱 WhatsApp + Link
                 </button>
               </div>
             </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
+import CameraScanner from '@/components/CameraScanner';
 
 interface Part {
   id: string;
@@ -116,7 +117,10 @@ export default function StockScanPage() {
         </div>
         <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Barkod/SKU okut veya yaz + Enter"
           style={{ width: '100%', maxWidth: 360, padding: '0.6rem 0.9rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.95rem', textAlign: 'center' }} />
-        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 6 }}>Okuyucu açık alana okutursa otomatik işlenir (bu kutuya tıklaman şart değil).</div>
+        <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
+          <CameraScanner onDetect={(c) => handleCode(c)} />
+        </div>
+        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 6 }}>USB okuyucu açık alana okutursa otomatik işlenir; telefondaysan <b>📷 Kamerayla Tara</b> ile okut.</div>
       </form>
 
       {/* Özet */}

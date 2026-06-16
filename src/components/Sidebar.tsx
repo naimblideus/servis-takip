@@ -81,6 +81,15 @@ const menuItems = [
     ),
   },
   {
+    href: '/sarf',
+    label: 'Sarf Takibi',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+      </svg>
+    ),
+  },
+  {
     href: '/reports',
     label: 'Raporlar',
     icon: (
@@ -145,6 +154,15 @@ const menuItems = [
     ),
   },
   {
+    href: '/kacan-gelir',
+    label: 'Kaçan Gelir',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      </svg>
+    ),
+  },
+  {
     href: '/admin',
     label: 'Süper Admin',
     icon: (
@@ -155,7 +173,7 @@ const menuItems = [
   },
 ];
 
-const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/invoices', '/collections', '/import'];
+const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/invoices', '/collections', '/kacan-gelir', '/import'];
 const SUPER_ADMIN_ONLY = ['/admin'];
 
 export default function Sidebar() {

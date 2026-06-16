@@ -14,6 +14,8 @@ interface Props {
         monthlyRent?: number;
         pricePerBlack?: number | null;
         pricePerColor?: number | null;
+        includedBlack?: number;
+        includedColor?: number;
     };
 }
 
@@ -30,6 +32,8 @@ export default function DeviceEditPanel({ device }: Props) {
         monthlyRent: String(device.monthlyRent || 0),
         pricePerBlack: device.pricePerBlack != null ? String(device.pricePerBlack) : '',
         pricePerColor: device.pricePerColor != null ? String(device.pricePerColor) : '',
+        includedBlack: String(device.includedBlack || 0),
+        includedColor: String(device.includedColor || 0),
     });
 
     const save = async () => {
@@ -127,17 +131,29 @@ export default function DeviceEditPanel({ device }: Props) {
                                     </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                                         <div>
-                                            <label style={lbl}>⚫ Siyah Birim Fiyat (₺)</label>
+                                            <label style={lbl}>⚫ Dahil S/B sayfa</label>
+                                            <input type="number" step="1" min="0" style={inp} value={form.includedBlack}
+                                                onChange={e => setForm({ ...form, includedBlack: e.target.value })} placeholder="örn. 5000" />
+                                        </div>
+                                        <div>
+                                            <label style={lbl}>🟣 Dahil renkli sayfa</label>
+                                            <input type="number" step="1" min="0" style={inp} value={form.includedColor}
+                                                onChange={e => setForm({ ...form, includedColor: e.target.value })} placeholder="örn. 0" />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        <div>
+                                            <label style={lbl}>⚫ S/B aşım birim (₺)</label>
                                             <input type="number" step="0.01" min="0" style={inp} value={form.pricePerBlack}
                                                 onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} placeholder="Varsayılan" />
                                         </div>
                                         <div>
-                                            <label style={lbl}>🟣 Renkli Birim Fiyat (₺)</label>
+                                            <label style={lbl}>🟣 Renkli aşım birim (₺)</label>
                                             <input type="number" step="0.01" min="0" style={inp} value={form.pricePerColor}
                                                 onChange={e => setForm({ ...form, pricePerColor: e.target.value })} placeholder="Varsayılan" />
                                         </div>
                                     </div>
-                                    <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: 0 }}>💡 Boş bırakırsanız Ayarlar&apos;daki varsayılan fiyat kullanılır</p>
+                                    <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: 0 }}>💡 <b>Dahil paket:</b> bu kadar sayfa kira içinde (ücretsiz); aşan kısım birim fiyattan faturalanır. Dahil 0 ise tüm sayfalar birim fiyattan. Birim fiyat boşsa Ayarlar&apos;daki varsayılan kullanılır.</p>
                                 </div>
                             )}
                         </div>

@@ -1,26 +1,25 @@
-import { auth } from '@/lib/auth';
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { verifyDocToken } from '@/lib/doc-token';
 import PrintNowButton from '@/components/PrintNowButton';
 import ReceiptDocument, { type ReceiptDocData } from '@/components/docs/ReceiptDocument';
 
-export default async function ReceiptPrintPage({ params }: { params: Promise<{ paymentId: string }> }) {
-  const { paymentId } = await params;
-  const session = await auth();
-  if (!session) redirect('/login');
+export const dynamic = 'force-dynamic';
 
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
-  if (!user) redirect('/login');
+// Girişsiz paylaşılabilir tahsilat makbuzu — token doğruysa açılır.
+export default async function PublicReceiptPage({ params }: { params: Promise<{ paymentId: string; token: string }> }) {
+  const { paymentId, token } = await params;
+  if (!verifyDocToken('makbuz', paymentId, token)) notFound();
 
   const payment = await prisma.payment.findFirst({
-    where: { id: paymentId, tenantId: user.tenantId },
+    where: { id: paymentId },
     include: {
       customer: true,
       tenant: true,
       allocations: { include: { invoice: { select: { invoiceNumber: true, status: true, totalAmount: true, paidAmount: true } } } },
     },
   });
-  if (!payment) redirect('/collections');
+  if (!payment) notFound();
 
   const receipt: ReceiptDocData = {
     receiptNo: `SF-MKB-${payment.id.slice(-6).toUpperCase()}`,

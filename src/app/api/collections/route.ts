@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { allocatePayment } from '@/lib/invoicing';
+import { docToken } from '@/lib/doc-token';
 
 // POST — cari-bazlı tahsilat (IBAN/havale/nakit) → FIFO otomatik mahsup, onaysız
 export async function POST(req: Request) {
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       date: date ? new Date(date) : undefined,
     });
 
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json({ success: true, ...result, receiptToken: docToken('makbuz', result.paymentId) });
   } catch (e: any) {
     console.error('COLLECTION ERROR:', e?.message);
     return NextResponse.json({ error: e?.message }, { status: 500 });

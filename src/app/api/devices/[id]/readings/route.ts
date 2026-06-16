@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { counterOverage } from '@/lib/invoicing';
 
 export async function POST(
     req: Request,
@@ -39,18 +40,22 @@ export async function POST(
         const deltaBlack = prev ? Math.max(0, counterBlack - prev.counterBlack) : 0;
         const deltaColor = prev ? Math.max(0, counterColor - prev.counterColor) : 0;
 
-        // Birim fiyat: cihaz bazlı varsa onu kullan, yoksa tenant varsayılanı
-        const effectiveBlackPrice = device.pricePerBlack !== null ? Number(device.pricePerBlack) : Number(tenant.pricePerBlack);
-        const effectiveColorPrice = device.pricePerColor !== null ? Number(device.pricePerColor) : Number(tenant.pricePerColor);
-
-        // Kiralık cihaz ise ücret hesapla
+        // Kiralık cihaz ise kademeli (dahil paket + aşım) ücret hesapla — gerçek fatura mantığıyla aynı (tek kaynak)
         let calculatedCost = 0;
         let monthlyRentAmount = 0;
+        let ch: ReturnType<typeof counterOverage> | null = null;
 
         if (device.isRental) {
-            const blackCost = deltaBlack * effectiveBlackPrice;
-            const colorCost = deltaColor * effectiveColorPrice;
-            calculatedCost = blackCost + colorCost;
+            // Bu dönemde daha önce okunan sayfalar — dahil paketi kümülatif uygula (mükerrer indirim önle)
+            const now = new Date();
+            const pStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const pEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            const prevAgg = await prisma.counterReading.aggregate({
+                where: { tenantId: user.tenantId, deviceId, readingDate: { gte: pStart, lt: pEnd } },
+                _sum: { deltaBlack: true, deltaColor: true },
+            });
+            ch = counterOverage(device, deltaBlack, deltaColor, tenant, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+            calculatedCost = ch.total;
 
             if (includeMonthlyRent) {
                 monthlyRentAmount = Number(device.monthlyRent);
@@ -86,13 +91,14 @@ export async function POST(
 
         return NextResponse.json({
             ...reading,
-            breakdown: device.isRental ? {
-                deltaBlack,
-                deltaColor,
-                pricePerBlack: effectiveBlackPrice,
-                pricePerColor: effectiveColorPrice,
-                blackCost: deltaBlack * effectiveBlackPrice,
-                colorCost: deltaColor * effectiveColorPrice,
+            breakdown: device.isRental && ch ? {
+                // Faturalanan (aşım) sayfa adedi — dahil paket düşülmüş; included=0 ise delta'nın aynısı
+                deltaBlack: ch.billB,
+                deltaColor: ch.billC,
+                pricePerBlack: ch.overBlack,
+                pricePerColor: ch.overColor,
+                blackCost: ch.blackTotal,
+                colorCost: ch.colorTotal,
                 monthlyRent: monthlyRentAmount,
                 total: calculatedCost,
             } : null,
@@ -232,8 +238,6 @@ export async function PATCH(
         if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
 
         const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
-        const effectiveBlackPrice = device.pricePerBlack !== null ? Number(device.pricePerBlack) : Number(tenant?.pricePerBlack ?? 0);
-        const effectiveColorPrice = device.pricePerColor !== null ? Number(device.pricePerColor) : Number(tenant?.pricePerColor ?? 0);
 
         // Bir önceki okumayı bul (bu okumadan önce)
         const prev = await prisma.counterReading.findFirst({
@@ -245,8 +249,16 @@ export async function PATCH(
         const deltaColor = prev ? Math.max(0, counterColor - prev.counterColor) : 0;
 
         let calculatedCost = 0;
-        if (device.isRental) {
-            calculatedCost = deltaBlack * effectiveBlackPrice + deltaColor * effectiveColorPrice + Number(reading.monthlyRent);
+        if (device.isRental && tenant) {
+            // Kademeli ücret — bu dönemde bu okumadan ÖNCEKİ sayfalar dahil paketi kümülatif yer
+            const rd = reading.readingDate;
+            const pStart = new Date(rd.getFullYear(), rd.getMonth(), 1);
+            const prevAgg = await prisma.counterReading.aggregate({
+                where: { tenantId: user.tenantId, deviceId, id: { not: readingId }, readingDate: { gte: pStart, lt: rd } },
+                _sum: { deltaBlack: true, deltaColor: true },
+            });
+            const ch = counterOverage(device, deltaBlack, deltaColor, tenant, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+            calculatedCost = ch.total + Number(reading.monthlyRent);
         }
 
         // Okuyu güncelle

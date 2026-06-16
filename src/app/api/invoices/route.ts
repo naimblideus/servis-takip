@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { buildInvoiceForCustomerPeriod, periodOf } from '@/lib/invoicing';
+import { docToken } from '@/lib/doc-token';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -54,6 +55,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     invoices: invoices.map((i) => ({
       id: i.id,
+      docToken: docToken('fatura', i.id),
       invoiceNumber: i.invoiceNumber,
       period: i.period,
       invoiceDate: i.invoiceDate.toISOString(),

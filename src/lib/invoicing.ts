@@ -15,6 +15,46 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+type PriceDevice = {
+  pricePerBlack: unknown;
+  pricePerColor: unknown;
+  includedBlack?: number | null;
+  includedColor?: number | null;
+};
+type PriceTenant = { pricePerBlack: unknown; pricePerColor: unknown };
+
+/** Cihazın efektif birim/aşım fiyatları: cihaz bazlı > tenant varsayılanı. */
+export function effectivePrices(device: PriceDevice, tenant: PriceTenant) {
+  const black = device.pricePerBlack != null ? Number(device.pricePerBlack) : Number(tenant.pricePerBlack);
+  const color = device.pricePerColor != null ? Number(device.pricePerColor) : Number(tenant.pricePerColor);
+  return { black, color };
+}
+
+/**
+ * Kademeli sayaç ücreti (dahil paket + aşım). dahil sayfa kira içinde (ücretsiz),
+ * aşan kısım birim fiyattan faturalanır. includedBlack/Color=0 ise klasik düz fiyat.
+ *
+ * prevBlack/prevColor = bu dönemde DAHA ÖNCE faturalanmış sayfa adedi. Dahil paket dönem
+ * boyunca KÜMÜLATİF tek kez uygulanır; aynı dönemde ikinci kesimde mükerrer indirim olmaz
+ * (marjinal aşım = kümülatif aşım − önceki aşım).
+ */
+export function counterOverage(
+  device: PriceDevice, sumBlack: number, sumColor: number, tenant: PriceTenant,
+  prevBlack = 0, prevColor = 0
+) {
+  const inclB = device.includedBlack ?? 0;
+  const inclC = device.includedColor ?? 0;
+  const { black, color } = effectivePrices(device, tenant);
+  const billB = Math.max(0, (prevBlack + sumBlack) - inclB) - Math.max(0, prevBlack - inclB);
+  const billC = Math.max(0, (prevColor + sumColor) - inclC) - Math.max(0, prevColor - inclC);
+  return {
+    inclB, inclC, billB, billC, overBlack: black, overColor: color,
+    blackTotal: round2(billB * black),
+    colorTotal: round2(billC * color),
+    total: round2(billB * black + billC * color),
+  };
+}
+
 /** Bugünün dönemi: "YYYY-MM" */
 export function periodOf(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -160,11 +200,6 @@ export async function buildInvoiceForCustomerPeriod(
     const devices = await tx.device.findMany({ where: { tenantId, customerId } });
 
     for (const device of devices) {
-      const blackPrice =
-        device.pricePerBlack !== null ? Number(device.pricePerBlack) : Number(tenant.pricePerBlack);
-      const colorPrice =
-        device.pricePerColor !== null ? Number(device.pricePerColor) : Number(tenant.pricePerColor);
-
       // a) Faturalanmamış sayaç okumaları (bu dönem)
       const readings = await tx.counterReading.findMany({
         where: { tenantId, deviceId: device.id, billed: false, readingDate: { gte: start, lt: end } },
@@ -177,25 +212,33 @@ export async function buildInvoiceForCustomerPeriod(
         readingIdsToBill.push(r.id);
       }
       if (device.isRental) {
-        if (sumBlack > 0)
+        // Dahil paketi dönem boyunca KÜMÜLATİF uygula: bu dönemde daha önce faturalanmış sayfaları çek
+        const prevAgg = await tx.counterReading.aggregate({
+          where: { tenantId, deviceId: device.id, billed: true, readingDate: { gte: start, lt: end } },
+          _sum: { deltaBlack: true, deltaColor: true },
+        });
+        // Kademeli: dahil sayfa kira içinde; yalnız aşım faturalanır (included=0 ise düz fiyat)
+        const ch = counterOverage(device, sumBlack, sumColor, tenant, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+        const fmtN = (n: number) => n.toLocaleString('tr-TR');
+        if (ch.billB > 0)
           lines.push({
             tenantId,
             kind: 'COUNTER',
-            description: `Sayaç (S/B) — ${device.brand} ${device.model}`,
+            description: `Sayaç (S/B) — ${device.brand} ${device.model}${ch.inclB > 0 ? ` · ${fmtN(sumBlack)} okundu, ${fmtN(ch.inclB)} dahil, ${fmtN(ch.billB)} aşım` : ''}`,
             deviceId: device.id,
-            quantity: sumBlack,
-            unitPrice: blackPrice,
-            lineTotal: round2(sumBlack * blackPrice),
+            quantity: ch.billB,
+            unitPrice: ch.overBlack,
+            lineTotal: ch.blackTotal,
           });
-        if (sumColor > 0)
+        if (ch.billC > 0)
           lines.push({
             tenantId,
             kind: 'COUNTER',
-            description: `Sayaç (Renkli) — ${device.brand} ${device.model}`,
+            description: `Sayaç (Renkli) — ${device.brand} ${device.model}${ch.inclC > 0 ? ` · ${fmtN(sumColor)} okundu, ${fmtN(ch.inclC)} dahil, ${fmtN(ch.billC)} aşım` : ''}`,
             deviceId: device.id,
-            quantity: sumColor,
-            unitPrice: colorPrice,
-            lineTotal: round2(sumColor * colorPrice),
+            quantity: ch.billC,
+            unitPrice: ch.overColor,
+            lineTotal: ch.colorTotal,
           });
       }
 
