@@ -21,11 +21,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   });
   if (!reading?.photo) return NextResponse.json({ error: 'Foto yok' }, { status: 404 });
 
-  const m = reading.photo.match(/^data:(.+?);base64,(.*)$/);
-  if (!m) return NextResponse.json({ error: 'Geçersiz foto' }, { status: 500 });
-
-  const buf = Buffer.from(m[2], 'base64');
-  return new NextResponse(new Uint8Array(buf), {
-    headers: { 'Content-Type': m[1], 'Cache-Control': 'private, max-age=3600' },
-  });
+  // Yalnız image/* MIME kabul + bozuk base64'te 400 (500 değil)
+  const m = reading.photo.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+  if (!m) return NextResponse.json({ error: 'Geçersiz foto formatı' }, { status: 400 });
+  try {
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length === 0) return NextResponse.json({ error: 'Boş foto' }, { status: 400 });
+    return new NextResponse(new Uint8Array(buf), {
+      headers: { 'Content-Type': m[1], 'Cache-Control': 'private, max-age=3600' },
+    });
+  } catch {
+    return NextResponse.json({ error: 'Foto çözümlenemedi' }, { status: 400 });
+  }
 }

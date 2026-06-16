@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// ── Basit in-memory rate limit (tek container; spam/DoS + publicCode brute-force'a karşı) ──
+const hits = new Map<string, number[]>();
+function rateLimited(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  if (hits.size > 5000) hits.clear(); // sınırsız büyümeyi önle (kaba ama yeterli)
+  const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
+  if (arr.length >= max) { hits.set(key, arr); return true; }
+  arr.push(now); hits.set(key, arr);
+  return false;
+}
+
 // PUBLIC (oturumsuz) — müşteri, cihazdaki QR'ı okutup arıza bildirir.
 // Güvenlik: yalnızca GEÇERLİ publicCode ile çalışır; ticket o cihazın tenant'ına açılır.
 // createdByUserId zorunlu olduğu için cihazın tenant'ındaki bir kullanıcıya (tercihen ADMIN) atfedilir.
@@ -24,9 +35,18 @@ async function genTicketNumber(tenantId: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
+    // Rate limit: IP başına (brute-force/spam) + cihaz başına (tek cihazı bombalamayı önle)
+    const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
+    if (rateLimited(`ip:${ip}`, 8, 15 * 60 * 1000)) {
+      return NextResponse.json({ error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' }, { status: 429 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const code = String(body.code || '').trim();
     const issue = String(body.issue || '').trim();
+    if (code && rateLimited(`code:${code}`, 5, 60 * 60 * 1000)) {
+      return NextResponse.json({ error: 'Bu cihaz için çok fazla bildirim alındı. Lütfen sonra deneyin.' }, { status: 429 });
+    }
     const name = String(body.name || '').trim().slice(0, 120);
     const phone = String(body.phone || '').trim().slice(0, 40);
 
