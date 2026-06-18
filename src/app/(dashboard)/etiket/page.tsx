@@ -9,17 +9,28 @@ interface Row { key: string; code: string; name: string; price: number; copies: 
 
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Code 128 — yalnız yazdırılabilir ASCII. Esnek kutuyu doldurur (preserveAspectRatio=none, 1D barkod için güvenli).
+// Code 128 — yalnız yazdırılabilir ASCII. JsBarcode viewBox koymaz; el ile ekleyip
+// width/height attribute'larını kaldırınca svg kutuyu DOLDURACAK şekilde ölçeklenir (yoksa minik kalır).
 function Barcode({ value }: { value: string }) {
   const ref = useRef<SVGSVGElement>(null);
   const valid = /^[\x20-\x7E]+$/.test(value || '');
   useEffect(() => {
-    if (ref.current && valid) {
-      try { JsBarcode(ref.current, value, { format: 'CODE128', height: 80, width: 2, margin: 0, displayValue: false }); } catch { /* yoksay */ }
+    const el = ref.current;
+    if (el && valid) {
+      try {
+        JsBarcode(el, value, { format: 'CODE128', height: 100, width: 2, margin: 0, displayValue: false });
+        const bw = parseFloat(el.getAttribute('width') || '0');
+        const bh = parseFloat(el.getAttribute('height') || '0');
+        if (bw > 0 && bh > 0) {
+          el.setAttribute('viewBox', `0 0 ${bw} ${bh}`);
+          el.removeAttribute('width');
+          el.removeAttribute('height');
+        }
+      } catch { /* yoksay */ }
     }
   }, [value, valid]);
   if (!valid) return <div style={{ fontSize: '2mm', color: '#b91c1c' }}>⚠ Barkod uyumsuz</div>;
-  return <svg ref={ref} preserveAspectRatio="none" style={{ width: '100%', height: '100%', shapeRendering: 'crispEdges' }} />;
+  return <svg ref={ref} preserveAspectRatio="none" style={{ display: 'block', width: '100%', height: '100%', shapeRendering: 'crispEdges' }} />;
 }
 
 function LabelInner({ r, showName, showCode, showPrice }: { r: Row; showName: boolean; showCode: boolean; showPrice: boolean }) {
