@@ -12,8 +12,12 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
     const session = await auth();
     if (!session) redirect('/login');
 
-    const ticket = await prisma.serviceTicket.findUnique({
-        where: { id },
+    // IDOR koruması: önce kullanıcı, sonra fişi TENANT-SCOPED çek (başka bayinin fişi yazdırılamasın)
+    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    if (!user) redirect('/login');
+
+    const ticket = await prisma.serviceTicket.findFirst({
+        where: { id, tenantId: user.tenantId },
         include: {
             device: { include: { customer: true } },
             assignedUser: true,
@@ -25,9 +29,9 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
 
     if (!ticket) redirect('/tickets');
 
-    // Son sayaç okumasını al
+    // Son sayaç okumasını al (tenant-scoped)
     const latestReading = await prisma.counterReading.findFirst({
-        where: { deviceId: ticket.deviceId },
+        where: { deviceId: ticket.deviceId, tenantId: user.tenantId },
         orderBy: { readingDate: 'desc' },
     });
 
