@@ -62,6 +62,11 @@ export default function TicketStatusPanel({
     const [loading, setLoading] = useState(false);
     const [showPanel, setShowPanel] = useState(false);
     const [notifyStatus, setNotifyStatus] = useState<string | null>(null);
+    const [cariMsg, setCariMsg] = useState<string | null>(null);
+    const applyCari = (data: any) => {
+        if (data?.cari?.synced) setCariMsg(`💼 ₺${Number(data.cari.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} müşteri carisine (Muhasebe) işlendi.`);
+        else setCariMsg(null);
+    };
     const [assignedUserId, setAssignedUserId] = useState(currentAssignedUserId);
     const [paymentStatus, setPaymentStatus] = useState(currentPaymentStatus);
     const [totalCost, setTotalCost] = useState(currentTotalCost.toFixed(2));
@@ -78,11 +83,13 @@ export default function TicketStatusPanel({
 
     const updateStatus = async (newStatus: string) => {
         setLoading(true);
-        await fetch(`/api/tickets/${ticketId}`, {
+        const res = await fetch(`/api/tickets/${ticketId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus }),
         });
+        const data = await res.json().catch(() => null);
+        applyCari(data); // teslim edilince cariye otomatik işlenir → onay göster
         // Feature 8: bildirilebilir bir duruma geçtiyse müşteriye WhatsApp önerisi göster
         if (customerPhone && NOTIFY_STATUSES.includes(newStatus)) setNotifyStatus(newStatus);
         router.refresh();
@@ -91,7 +98,7 @@ export default function TicketStatusPanel({
 
     const savePanel = async () => {
         setLoading(true);
-        await fetch(`/api/tickets/${ticketId}`, {
+        const res = await fetch(`/api/tickets/${ticketId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -104,6 +111,8 @@ export default function TicketStatusPanel({
                 createdAt: createdAt ? new Date(createdAt).toISOString() : undefined,
             }),
         });
+        const data = await res.json().catch(() => null);
+        applyCari(data);
         router.refresh();
         setShowPanel(false);
         setLoading(false);
@@ -130,6 +139,13 @@ export default function TicketStatusPanel({
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-end' }}>
+            {/* Servis fişi cariye otomatik işlendi onayı */}
+            {cariMsg && (
+                <div style={{ width: '100%', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#3730a3', fontWeight: 600 }}>{cariMsg}</span>
+                    <button onClick={() => setCariMsg(null)} style={{ padding: '0.3rem 0.55rem', background: 'white', border: '1px solid #c7d2fe', borderRadius: '0.4rem', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer' }}>Kapat</button>
+                </div>
+            )}
             {/* Feature 8: durum değişince müşteriye WhatsApp bildirimi önerisi */}
             {notifyStatus && customerPhone && (
                 <div style={{ width: '100%', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>

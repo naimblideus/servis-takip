@@ -260,8 +260,18 @@ export async function buildInvoiceForCustomerPeriod(
     // c) Teslim edilmiş, faturalanmamış ve HENÜZ ÖDENMEMİŞ iş emirleri (parça + işçilik).
     // Fişten doğrudan ödenmiş (PAID) servisler gelirini ödeme anında yazdığı için
     // burada tekrar faturalanmaz (mükerrer gelir önlenir).
+    // Cariye (AccountEntry) otomatik işlenmiş servis fişlerini aylık faturadan HARİÇ tut — çift sayım önle
+    const cariRows = await tx.accountEntry.findMany({
+      where: { tenantId, customerId, ticketId: { not: null } },
+      select: { ticketId: true },
+    });
+    const cariTicketIds = cariRows.map((r) => r.ticketId).filter((x): x is string => !!x);
+
     const tickets = await tx.serviceTicket.findMany({
-      where: { tenantId, customerId, status: 'DELIVERED', invoiceId: null, deletedAt: null, paymentStatus: 'UNPAID' },
+      where: {
+        tenantId, customerId, status: 'DELIVERED', invoiceId: null, deletedAt: null, paymentStatus: 'UNPAID',
+        ...(cariTicketIds.length ? { id: { notIn: cariTicketIds } } : {}),
+      },
       include: { ticketParts: { include: { part: true } } },
     });
     const ticketIdsToMark: string[] = [];

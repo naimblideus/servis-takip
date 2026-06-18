@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
+import { syncTicketToCari } from '@/lib/ticket-cari';
 
 export async function GET(
     req: Request,
@@ -93,6 +94,9 @@ export async function POST(
                 },
             }),
         ]);
+
+        // Ödeme sonrası Muhasebe/Cari'yi güncelle (fiş teslim edildiyse TAHSİLAT yansır)
+        try { await syncTicketToCari(ticketId, user.tenantId); } catch (e: any) { console.error('PAYMENT CARI SYNC ERROR:', e?.message); }
 
         return NextResponse.json({ ...payment, newPaymentStatus });
     } catch (e: any) {

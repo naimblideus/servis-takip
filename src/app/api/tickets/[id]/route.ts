@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { syncTicketToCari } from '@/lib/ticket-cari';
 
 export async function GET(
     req: Request,
@@ -70,7 +71,11 @@ export async function PATCH(
             data: updateData,
         });
 
-        return NextResponse.json(ticket);
+        // Servis fişini Muhasebe/Cari'ye otomatik yansıt (teslim edilince SATIŞ + ödendiyse TAHSİLAT)
+        let cari = { synced: false, amount: 0 };
+        try { cari = await syncTicketToCari(id, user.tenantId); } catch (e: any) { console.error('TICKET CARI SYNC ERROR:', e?.message); }
+
+        return NextResponse.json({ ...ticket, cari });
     } catch (e: any) {
         console.error('TICKET UPDATE ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
@@ -95,6 +100,8 @@ export async function DELETE(
 
         // IDOR koruması: yalnızca bu tenant'ın fişi
         if (permanent) {
+            // Fişe bağlı cari kayıtlarını da temizle (artık fiş yok)
+            await prisma.accountEntry.deleteMany({ where: { tenantId: user.tenantId, ticketId: id } });
             const res = await prisma.serviceTicket.deleteMany({ where: { id, tenantId: user.tenantId } });
             if (res.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
         } else {
@@ -103,6 +110,8 @@ export async function DELETE(
                 data: { deletedAt: new Date() },
             });
             if (res.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+            // Çöpe atılan fişin cari kayıtlarını kaldır (sync: shouldHave=false → siler)
+            try { await syncTicketToCari(id, user.tenantId); } catch (e: any) { console.error('TICKET CARI SYNC (delete) ERROR:', e?.message); }
         }
         return NextResponse.json({ ok: true });
     } catch (e: any) {

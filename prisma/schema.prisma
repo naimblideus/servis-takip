@@ -724,6 +724,7 @@ model AccountEntry {
   notes       String?
   createdByUserId String?      // Kaydı/satışı yapan kullanıcı (teknisyen) id
   createdByName   String?      // İsim (denormalize — geçmiş kayıt için anlık kar)
+  ticketId    String?          // Servis fişinden otomatik cari kaydı ise bağlı fiş (idempotency)
   date        DateTime         @default(now())
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -734,6 +735,7 @@ model AccountEntry {
 
   @@index([tenantId, customerId, date(sort: Desc)])
   @@index([tenantId, type])
+  @@index([tenantId, ticketId])
   @@index([tenantId, date(sort: Desc)])
 }
 
