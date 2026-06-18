@@ -61,6 +61,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             <DeviceQRCode publicCode={device.publicCode} deviceName={`${device.brand} ${device.model}`} />
             <DeviceEditPanel device={{
               id: device.id, brand: device.brand, model: device.model, serialNo: device.serialNo,
+              barcode: (device as any).barcode ?? null,
               location: device.location, isRental: device.isRental, monthlyRent: Number(device.monthlyRent || 0),
               pricePerBlack: (device as any).pricePerBlack !== null ? Number((device as any).pricePerBlack) : null,
               pricePerColor: (device as any).pricePerColor !== null ? Number((device as any).pricePerColor) : null,

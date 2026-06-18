@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/devices/lookup?code=DEV-8F3A12  (veya seri no)
-// Barkod okuyucu akışı: cihazı TENANT-SCOPED bul (publicCode veya serialNo).
+// GET /api/devices/lookup?code=DEV-8F3A12  (veya seri no / cihazın üstündeki mevcut barkod)
+// Barkod okuyucu akışı: cihazı TENANT-SCOPED bul (publicCode, serialNo veya barcode).
 export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   if (!code) return NextResponse.json({ error: 'code gerekli' }, { status: 400 });
 
   const device = await prisma.device.findFirst({
-    where: { tenantId: user.tenantId, OR: [{ publicCode: code }, { serialNo: code }] },
+    where: { tenantId: user.tenantId, OR: [{ publicCode: code }, { serialNo: code }, { barcode: code }] },
     include: { customer: { select: { id: true, name: true, phone: true } } },
   });
   if (!device) return NextResponse.json({ error: `Cihaz bulunamadı: ${code}` }, { status: 404 });

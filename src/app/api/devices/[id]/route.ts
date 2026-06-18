@@ -27,6 +27,7 @@ export async function PATCH(
         if (body.brand !== undefined) updateData.brand = body.brand;
         if (body.model !== undefined) updateData.model = body.model;
         if (body.serialNo !== undefined) updateData.serialNo = body.serialNo;
+        if (body.barcode !== undefined) updateData.barcode = body.barcode?.trim() || null;
         if (body.location !== undefined) updateData.location = body.location || null;
         if (body.customerId !== undefined) updateData.customerId = body.customerId;
         if (body.isRental !== undefined) updateData.isRental = body.isRental;
@@ -57,6 +58,10 @@ export async function PATCH(
         return NextResponse.json(device);
     } catch (e: any) {
         console.error('DEVICE UPDATE ERROR:', e.message);
+        if (e.code === 'P2002') {
+            const f = (e.meta?.target || []).join(',');
+            return NextResponse.json({ error: f.includes('barcode') ? 'Bu barkod başka bir cihaza atanmış (model-bazlı barkod olabilir; seri no kullanın)' : 'Bu seri no zaten kayıtlı' }, { status: 409 });
+        }
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
 }

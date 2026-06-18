@@ -33,6 +33,7 @@ export async function POST(req: Request) {
         brand: body.brand,
         model: body.model,
         serialNo: body.serialNo,
+        barcode: body.barcode?.trim() || null,
         location: body.location || null,
         isRental: body.isRental || false,
         monthlyRent: body.isRental ? (parseFloat(body.monthlyRent) || 0) : 0,
@@ -51,6 +52,10 @@ export async function POST(req: Request) {
     return NextResponse.json(device);
   } catch (e: any) {
     console.error('DEVICE CREATE ERROR:', e.message);
+    if (e.code === 'P2002') {
+      const f = (e.meta?.target || []).join(',');
+      return NextResponse.json({ error: f.includes('barcode') ? 'Bu barkod başka bir cihaza atanmış (model-bazlı barkod olabilir; seri no kullanın)' : 'Bu seri no zaten kayıtlı' }, { status: 409 });
+    }
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

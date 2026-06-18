@@ -9,6 +9,7 @@ interface Props {
         brand: string;
         model: string;
         serialNo: string;
+        barcode?: string | null;
         location: string | null;
         isRental?: boolean;
         monthlyRent?: number;
@@ -27,6 +28,7 @@ export default function DeviceEditPanel({ device }: Props) {
         brand: device.brand,
         model: device.model,
         serialNo: device.serialNo,
+        barcode: device.barcode || '',
         location: device.location || '',
         isRental: device.isRental || false,
         monthlyRent: String(device.monthlyRent || 0),
@@ -110,6 +112,10 @@ export default function DeviceEditPanel({ device }: Props) {
                         <div style={{ marginBottom: '1rem' }}>
                             <label style={lbl}>Seri No *</label>
                             <input style={inp} value={form.serialNo} onChange={e => setForm({ ...form, serialNo: e.target.value })} />
+                        </div>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={lbl}>📷 Barkod (cihazın üstündeki)</label>
+                            <input style={inp} value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder="Mevcut barkodu okut/yaz — okutunca cihaz açılır" />
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
                             <label style={lbl}>Konum</label>

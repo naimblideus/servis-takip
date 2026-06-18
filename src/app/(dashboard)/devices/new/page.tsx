@@ -19,6 +19,7 @@ export default function NewDevicePage() {
     brand: '',
     model: '',
     serialNo: '',
+    barcode: '',
     location: '',
     counterBlack: '',
     counterColor: '',
@@ -188,6 +189,13 @@ export default function NewDevicePage() {
             <input required style={inp} value={form.serialNo}
               onChange={e => setForm({ ...form, serialNo: e.target.value })}
               placeholder="Örn: CNR987654" />
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={lbl}>📷 Barkod (cihazın üstündeki — varsa)</label>
+            <input style={inp} value={form.barcode}
+              onChange={e => setForm({ ...form, barcode: e.target.value })}
+              placeholder="Mevcut barkodu okut/yaz — okutunca cihaz açılır (yeni etiket gerekmez)" />
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
