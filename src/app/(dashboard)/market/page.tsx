@@ -7,6 +7,7 @@ interface Listing {
   id: string; kind: string; title: string; brand: string | null; model: string | null;
   condition: string | null; price: number; currency: string; quantity: number; unit: string | null;
   city: string | null; photos: string[]; sellerName: string | null; isOwner: boolean;
+  sellerRating: number | null; sellerRatingCount: number;
 }
 
 const KINDS: Record<string, string> = { PART: '🔧 Parça', PRINTER: '🖨️ Yazıcı/Toner', MACHINE: '🏭 Makine', OTHER: '📦 Diğer' };
@@ -108,6 +109,7 @@ export default function MarketPage() {
           <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>Ağdaki bayilerden parça/makine al-sat.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link href="/market/siparislerim" style={navBtn}>📦 Siparişlerim</Link>
           <Link href="/market/mesajlar" style={navBtn}>💬 Mesajlar</Link>
           <Link href="/market/ilanlarim" style={navBtn}>📋 İlanlarım</Link>
           <Link href="/market/yeni" style={{ ...navBtn, background: '#16a34a', color: 'white', border: 'none' }}>＋ Yeni İlan</Link>
@@ -144,7 +146,7 @@ export default function MarketPage() {
                 {(l.brand || l.model) && <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{[l.brand, l.model].filter(Boolean).join(' ')}</div>}
                 <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: 6 }}>
                   <span style={{ fontWeight: 800, color: '#16a34a' }}>{fmt(l.price)}</span>
-                  <span style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'right' }}>{l.sellerName}{l.city ? `· ${l.city}` : ''}</span>
+                  <span style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'right' }}>{l.sellerRating ? `⭐${l.sellerRating} · ` : ''}{l.sellerName}{l.city ? `· ${l.city}` : ''}</span>
                 </div>
               </div>
             </Link>

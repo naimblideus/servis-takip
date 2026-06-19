@@ -8,6 +8,7 @@ interface Listing {
   id: string; kind: string; title: string; description: string | null; brand: string | null; model: string | null;
   condition: string | null; category: string | null; price: number; currency: string; quantity: number; unit: string | null;
   city: string | null; photos: string[]; status: string; sellerName: string | null; isOwner: boolean;
+  sellerRating: number | null; sellerRatingCount: number;
 }
 interface Msg { id: string; body: string; senderName: string | null; mine: boolean; createdAt: string; }
 
@@ -24,6 +25,10 @@ export default function ListingDetail({ params }: { params: Promise<{ id: string
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [qty, setQty] = useState(1);
+  const [orderNote, setOrderNote] = useState('');
+  const [ordering, setOrdering] = useState(false);
+  const [orderDone, setOrderDone] = useState(false);
 
   const loadListing = useCallback(async () => {
     setLoading(true);
@@ -53,6 +58,17 @@ export default function ListingDetail({ params }: { params: Promise<{ id: string
       else { const d = await r.json().catch(() => ({})); alert(d.error || 'Gönderilemedi'); }
     } catch { alert('Sunucuya bağlanılamadı'); }
     setSending(false);
+  };
+
+  const placeOrder = async () => {
+    setOrdering(true);
+    try {
+      const r = await fetch('/api/market/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listingId: id, quantity: qty, note: orderNote.trim() || undefined }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) setOrderDone(true);
+      else alert(d.error || 'Sipariş oluşturulamadı');
+    } catch { alert('Sunucuya bağlanılamadı'); }
+    setOrdering(false);
   };
 
   const setStatus = async (status: string) => {
@@ -88,7 +104,7 @@ export default function ListingDetail({ params }: { params: Promise<{ id: string
           {(l.brand || l.model) && <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>{[l.brand, l.model].filter(Boolean).join(' ')}</div>}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.6rem', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontSize: '1.6rem', fontWeight: 800, color: '#16a34a' }}>{fmt(l.price)}</span>
-            <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>Adet: {l.quantity}{l.unit ? ` ${l.unit}` : ''} · 🏪 {l.sellerName}{l.city ? ` · ${l.city}` : ''}</span>
+            <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>Adet: {l.quantity}{l.unit ? ` ${l.unit}` : ''} · 🏪 {l.sellerName}{l.sellerRating ? ` · ⭐${l.sellerRating} (${l.sellerRatingCount})` : ''}{l.city ? ` · ${l.city}` : ''}</span>
           </div>
           {l.description && <p style={{ marginTop: '0.85rem', color: '#374151', fontSize: '0.9rem', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{l.description}</p>}
         </div>
@@ -107,6 +123,26 @@ export default function ListingDetail({ params }: { params: Promise<{ id: string
           </div>
         </div>
       ) : (
+        <>
+        {l.status === 'ACTIVE' && (
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '1rem', marginTop: '0.85rem' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#15803d', marginBottom: 8 }}>📦 Sipariş Ver</div>
+            {orderDone ? (
+              <div style={{ fontSize: '0.9rem', color: '#166534' }}>✓ Sipariş talebin gönderildi. <Link href="/market/siparislerim" style={{ color: '#2563eb', fontWeight: 700 }}>Siparişlerim →</Link></div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '0.82rem', color: '#374151' }}>Adet:</label>
+                  <input type="number" min={1} max={l.quantity} value={qty} onChange={(e) => setQty(Math.max(1, Math.min(l.quantity, parseInt(e.target.value) || 1)))} style={{ width: 80, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8 }} />
+                  <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>× {fmt(l.price)} = <b style={{ color: '#16a34a' }}>{fmt(l.price * qty)}</b></span>
+                </div>
+                <textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Not (opsiyonel): teslimat, kargo vb." rows={2} style={{ width: '100%', marginTop: 8, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.85rem', resize: 'vertical' }} />
+                <button onClick={placeOrder} disabled={ordering} style={{ marginTop: 8, padding: '0.6rem 1.2rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', opacity: ordering ? 0.6 : 1 }}>{ordering ? 'Gönderiliyor…' : 'Sipariş Talebi Gönder'}</button>
+                <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0.5rem 0 0' }}>Talebin satıcıya iletilir; onaylayınca süreç başlar. Ödeme/teslimat bayiler arasındadır.</p>
+              </>
+            )}
+          </div>
+        )}
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem', marginTop: '0.85rem' }}>
           <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 8 }}>💬 Satıcıya mesaj</div>
           {msgs.length > 0 && (
@@ -125,6 +161,7 @@ export default function ListingDetail({ params }: { params: Promise<{ id: string
           </div>
           <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0.5rem 0 0' }}>İletişim bilgisi baştan paylaşılmaz; satıcı dönünce burada konuşursunuz.</p>
         </div>
+        </>
       )}
     </div>
   );

@@ -38,8 +38,18 @@ export async function sellerDisplayMap(tenantIds: string[]) {
   return m;
 }
 
+/** Satıcı puan ortalaması + adedi (Faz 3). */
+export async function sellerRatings(tenantIds: string[]) {
+  const ids = Array.from(new Set(tenantIds.filter(Boolean)));
+  const m = new Map<string, { rating: number; count: number }>();
+  if (!ids.length) return m;
+  const grouped = await prisma.marketReview.groupBy({ by: ['ratedTenantId'], where: { ratedTenantId: { in: ids } }, _avg: { score: true }, _count: true });
+  grouped.forEach((g) => m.set(g.ratedTenantId, { rating: g._avg.score ? Math.round(g._avg.score * 10) / 10 : 0, count: g._count }));
+  return m;
+}
+
 /** İlanı güvenli (publik) DTO'ya çevir — iç alan sızdırmaz. listMode=true ise yalnız ilk foto (vitrin yükü düşsün). */
-export function publicListing(l: any, seller?: { name: string; city: string | null }, isOwner = false, listMode = false) {
+export function publicListing(l: any, seller?: { name: string; city: string | null; rating?: number; count?: number }, isOwner = false, listMode = false) {
   const photos = Array.isArray(l.photos) ? l.photos : [];
   return {
     id: l.id, kind: l.kind, title: l.title, description: l.description ?? null,
@@ -48,6 +58,8 @@ export function publicListing(l: any, seller?: { name: string; city: string | nu
     city: l.city ?? seller?.city ?? null, photos: listMode ? photos.slice(0, 1) : photos,
     status: l.status, createdAt: l.createdAt,
     sellerName: seller?.name ?? null,
+    sellerRating: seller?.rating ?? null,
+    sellerRatingCount: seller?.count ?? 0,
     isOwner,
     // sourceKind/sourceId yalnız sahibine
     ...(isOwner ? { sourceKind: l.sourceKind ?? null, sourceId: l.sourceId ?? null } : {}),

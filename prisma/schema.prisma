@@ -659,6 +659,7 @@ model PlatformSettings {
   maintenanceMode     Boolean @default(false)
   announcementText    String?
   announcementActive  Boolean @default(false)
+  marketCommissionPct Decimal @default(0) @db.Decimal(5, 2) // Bayi Pazarı komisyon % (Faz 3)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
@@ -820,6 +821,46 @@ model MarketMessage {
   @@index([listingId])
   @@index([sellerTenantId, listingId])
   @@index([buyerTenantId, listingId])
+}
+
+// Faz 1: Sipariş/teklif · Faz 2: tamamlanınca iki tarafın stok+muhasebesine işlenir · Faz 3: komisyon
+model MarketOrder {
+  id               String    @id @default(cuid())
+  listingId        String
+  sellerTenantId   String
+  buyerTenantId    String
+  quantity         Int       @default(1)
+  unitPrice        Decimal   @db.Decimal(10, 2)
+  totalPrice       Decimal   @db.Decimal(10, 2)
+  status           String    @default("REQUESTED") // REQUESTED|ACCEPTED|REJECTED|CANCELLED|SHIPPED|COMPLETED
+  note             String?
+  buyerName        String?   // görünüm için denormalize
+  sellerName       String?
+  listingTitle     String?
+  listingKind      String?
+  settledAt        DateTime? // Faz 2: stok+muhasebe işlendi (idempotency)
+  commissionPct    Decimal?  @db.Decimal(5, 2)  // Faz 3
+  commissionAmount Decimal?  @db.Decimal(10, 2)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([sellerTenantId, status])
+  @@index([buyerTenantId, status])
+  @@index([listingId])
+}
+
+// Faz 3: Alıcının satıcıyı değerlendirmesi (tamamlanan sipariş sonrası)
+model MarketReview {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  listingId     String
+  raterTenantId String   // değerlendiren (alıcı)
+  ratedTenantId String   // değerlendirilen (satıcı)
+  score         Int      // 1-5
+  comment       String?
+  createdAt     DateTime @default(now())
+
+  @@index([ratedTenantId])
 }
 
 // ============================================

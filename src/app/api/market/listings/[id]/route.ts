@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { marketAuth, publicListing } from '@/lib/market';
+import { marketAuth, publicListing, sellerRatings } from '@/lib/market';
 
 const MAX_PHOTOS = 4;
 const sanitizePhotos = (v: any): string[] =>
@@ -25,7 +25,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // Satıcı pazardan ayrıldıysa ilan başkalarına görünmez (hayalet ilan önle)
   if (!isOwner && !sellerTenant?.marketEnabled) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
 
-  const seller = sellerTenant ? { name: sellerTenant.marketDisplayName || sellerTenant.name, city: sellerTenant.marketCity || null } : undefined;
+  const ratings = await sellerRatings([l.sellerTenantId]);
+  const seller = sellerTenant ? { name: sellerTenant.marketDisplayName || sellerTenant.name, city: sellerTenant.marketCity || null, ...(ratings.get(l.sellerTenantId) || {}) } : undefined;
   return NextResponse.json({ listing: publicListing(l, seller, isOwner) });
 }
 

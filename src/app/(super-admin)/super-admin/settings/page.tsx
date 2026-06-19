@@ -96,6 +96,17 @@ export default function PlatformSettingsPage() {
                         rows={3} placeholder="Duyuru metni..."
                         className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500 resize-none" />
                 </div>
+
+                {/* Bayi Pazarı */}
+                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-violet-300 mb-4">🤝 Bayi Pazarı</h3>
+                    <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Komisyon Oranı (%)</label>
+                        <input value={settings.marketCommissionPct ?? 0} onChange={e => set('marketCommissionPct', e.target.value)} type="number" min={0} max={100} step="0.5"
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500" />
+                        <p className="text-xs text-gray-500 mt-1">0 = komisyon yok. Bir sipariş tamamlandığında o anki oran üzerinden komisyon tutarı siparişe işlenir.</p>
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { marketAuth, publicListing } from '@/lib/market';
+import { marketAuth, publicListing, sellerRatings } from '@/lib/market';
 
 const MAX_PHOTOS = 4;
 const sanitizePhotos = (v: any): string[] =>
@@ -42,7 +42,8 @@ export async function GET(req: Request) {
     where: { id: { in: sellerIds }, marketEnabled: true },
     select: { id: true, name: true, marketDisplayName: true, marketCity: true },
   });
-  const smap = new Map(enabled.map((t) => [t.id, { name: t.marketDisplayName || t.name, city: t.marketCity || null }]));
+  const ratings = await sellerRatings(enabled.map((t) => t.id));
+  const smap = new Map(enabled.map((t) => [t.id, { name: t.marketDisplayName || t.name, city: t.marketCity || null, ...(ratings.get(t.id) || {}) }]));
   const visible = page.filter((l) => smap.has(l.sellerTenantId));
 
   return NextResponse.json({
