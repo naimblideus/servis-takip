@@ -41,6 +41,12 @@ model Tenant {
   // Sektör
   businessType   String   @default("general")
 
+  // Bayi Pazarı (B2B) — bayiler arası parça/makine ticareti (opt-in)
+  marketEnabled       Boolean @default(false)
+  marketDisplayName   String?
+  marketCity          String?
+  marketContactPhone  String?
+
   // Abonelik
   plan              String   @default("trial")
   planStartDate     DateTime @default(now())
@@ -765,6 +771,55 @@ model Expense {
 enum AccountEntryType {
   SALE    // Satış / Ürün teslimi
   PAYMENT // Ödeme alındı
+}
+
+// ============================================
+// BAYİ PAZARI (B2B — bayiler arası ticaret)
+// Çapraz-kiracılı: ACTIVE ilanlar tüm marketEnabled bayilerce görülür.
+// tenant id'leri düz string (ilişki yok) — çapraz-tenant erişim API katmanında kontrol edilir.
+// ============================================
+
+model MarketListing {
+  id             String    @id @default(cuid())
+  sellerTenantId String    // ilanı veren bayi (tenant)
+  kind           String    // PART | PRINTER | MACHINE | OTHER
+  title          String
+  description    String?
+  brand          String?
+  model          String?
+  condition      String?   // SIFIR | IKINCI_EL
+  category       String?
+  price          Decimal   @default(0) @db.Decimal(10, 2)
+  currency       String    @default("TRY")
+  quantity       Int       @default(1)
+  unit           String?
+  city           String?
+  photos         String[]  @default([]) // küçültülmüş base64 (mevcut foto deseni)
+  sourceKind     String?   // PART | PRINTER (kendi stoğundan üretildiyse)
+  sourceId       String?
+  status         String    @default("ACTIVE") // ACTIVE | PAUSED | SOLD | REMOVED | DRAFT
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, kind])
+  @@index([sellerTenantId, status])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model MarketMessage {
+  id             String   @id @default(cuid())
+  listingId      String
+  sellerTenantId String   // ilan sahibi (yetki + gruplama için denormalize)
+  buyerTenantId  String   // karşı taraf (mesajı başlatan alıcı)
+  senderTenantId String   // bu mesajı yazan taraf
+  senderName     String?
+  body           String
+  createdAt      DateTime @default(now())
+
+  @@index([listingId])
+  @@index([sellerTenantId, listingId])
+  @@index([buyerTenantId, listingId])
 }
 
 // ============================================
