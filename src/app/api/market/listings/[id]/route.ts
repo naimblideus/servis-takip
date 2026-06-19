@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { marketAuth, sellerDisplayMap, publicListing } from '@/lib/market';
+import { marketAuth, publicListing } from '@/lib/market';
 
 const MAX_PHOTOS = 4;
 const sanitizePhotos = (v: any): string[] =>
@@ -18,8 +18,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const isOwner = l.sellerTenantId === a.user!.tenantId;
   if (l.status !== 'ACTIVE' && !isOwner) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
 
-  const sellers = await sellerDisplayMap([l.sellerTenantId]);
-  return NextResponse.json({ listing: publicListing(l, sellers.get(l.sellerTenantId), isOwner) });
+  const sellerTenant = await prisma.tenant.findUnique({
+    where: { id: l.sellerTenantId },
+    select: { name: true, marketDisplayName: true, marketCity: true, marketEnabled: true },
+  });
+  // Satıcı pazardan ayrıldıysa ilan başkalarına görünmez (hayalet ilan önle)
+  if (!isOwner && !sellerTenant?.marketEnabled) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
+
+  const seller = sellerTenant ? { name: sellerTenant.marketDisplayName || sellerTenant.name, city: sellerTenant.marketCity || null } : undefined;
+  return NextResponse.json({ listing: publicListing(l, seller, isOwner) });
 }
 
 // PATCH /api/market/listings/[id] — yalnız sahibi (IDOR koruması)

@@ -47,6 +47,11 @@ export async function POST(req: Request) {
   if (!listingId || !text) return NextResponse.json({ error: 'listingId ve mesaj zorunlu' }, { status: 400 });
   if (text.length > 2000) return NextResponse.json({ error: 'Mesaj çok uzun' }, { status: 400 });
 
+  // Basit hız sınırı (flood): son 60 saniyede 20 mesaj
+  const since = new Date(Date.now() - 60 * 1000);
+  const recent = await prisma.marketMessage.count({ where: { senderTenantId: me, createdAt: { gte: since } } });
+  if (recent >= 20) return NextResponse.json({ error: 'Çok hızlı mesaj gönderiyorsunuz, biraz bekleyin' }, { status: 429 });
+
   const listing = await prisma.marketListing.findUnique({ where: { id: listingId }, select: { id: true, sellerTenantId: true, status: true } });
   if (!listing) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
 

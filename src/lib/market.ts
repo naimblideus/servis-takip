@@ -38,13 +38,14 @@ export async function sellerDisplayMap(tenantIds: string[]) {
   return m;
 }
 
-/** İlanı güvenli (publik) DTO'ya çevir — iç alan sızdırmaz. */
-export function publicListing(l: any, seller?: { name: string; city: string | null }, isOwner = false) {
+/** İlanı güvenli (publik) DTO'ya çevir — iç alan sızdırmaz. listMode=true ise yalnız ilk foto (vitrin yükü düşsün). */
+export function publicListing(l: any, seller?: { name: string; city: string | null }, isOwner = false, listMode = false) {
+  const photos = Array.isArray(l.photos) ? l.photos : [];
   return {
     id: l.id, kind: l.kind, title: l.title, description: l.description ?? null,
     brand: l.brand ?? null, model: l.model ?? null, condition: l.condition ?? null, category: l.category ?? null,
     price: Number(l.price), currency: l.currency, quantity: l.quantity, unit: l.unit ?? null,
-    city: l.city ?? seller?.city ?? null, photos: Array.isArray(l.photos) ? l.photos : [],
+    city: l.city ?? seller?.city ?? null, photos: listMode ? photos.slice(0, 1) : photos,
     status: l.status, createdAt: l.createdAt,
     sellerName: seller?.name ?? null,
     isOwner,

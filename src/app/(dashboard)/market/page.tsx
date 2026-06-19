@@ -19,6 +19,9 @@ export default function MarketPage() {
   const [q, setQ] = useState('');
   const [kind, setKind] = useState('');
   const [city, setCity] = useState('');
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   // Katılım formu
   const [jName, setJName] = useState('');
   const [jCity, setJCity] = useState('');
@@ -34,20 +37,21 @@ export default function MarketPage() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (off = 0, append = false) => {
+    if (append) setLoadingMore(true); else setLoading(true);
     const p = new URLSearchParams();
     if (q.trim()) p.set('q', q.trim());
     if (kind) p.set('kind', kind);
     if (city.trim()) p.set('city', city.trim());
+    p.set('offset', String(off));
     try {
       const r = await fetch(`/api/market/listings?${p}`);
-      if (r.ok) { const d = await r.json(); setListings(d.listings || []); }
+      if (r.ok) { const d = await r.json(); setListings((prev) => append ? [...prev, ...(d.listings || [])] : (d.listings || [])); setHasMore(!!d.hasMore); setNextOffset(d.offset || 0); }
     } catch { /* yoksay */ }
-    setLoading(false);
+    setLoading(false); setLoadingMore(false);
   }, [q, kind, city]);
 
-  useEffect(() => { if (profile?.enabled) load(); }, [profile?.enabled, kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (profile?.enabled) load(0, false); }, [profile?.enabled, kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const join = async () => {
     setJoining(true); setErr(null);
@@ -111,7 +115,7 @@ export default function MarketPage() {
       </div>
 
       {/* Filtreler */}
-      <form onSubmit={(e) => { e.preventDefault(); load(); }} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+      <form onSubmit={(e) => { e.preventDefault(); load(0, false); }} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Ara (ad / marka / model)…" style={{ ...inp, flex: 1, minWidth: 200 }} />
         <select value={kind} onChange={(e) => setKind(e.target.value)} style={{ ...inp, width: 'auto' }}>
           <option value="">Tüm türler</option>
@@ -145,6 +149,15 @@ export default function MarketPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {hasMore && !loading && (
+        <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+          <button onClick={() => load(nextOffset, true)} disabled={loadingMore}
+            style={{ padding: '0.6rem 1.4rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 10, fontWeight: 700, cursor: 'pointer', color: '#374151' }}>
+            {loadingMore ? 'Yükleniyor…' : '↓ Daha fazla göster'}
+          </button>
         </div>
       )}
     </div>

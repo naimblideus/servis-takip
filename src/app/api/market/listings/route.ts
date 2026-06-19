@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { marketAuth, sellerDisplayMap, publicListing } from '@/lib/market';
+import { marketAuth, publicListing } from '@/lib/market';
 
 const MAX_PHOTOS = 4;
 const sanitizePhotos = (v: any): string[] =>
@@ -29,11 +29,26 @@ export async function GET(req: Request) {
     { description: { contains: q, mode: 'insensitive' } },
   ];
 
-  const listings = await prisma.marketListing.findMany({ where, orderBy: { createdAt: 'desc' }, take: 80 });
-  const sellers = await sellerDisplayMap(listings.map((l) => l.sellerTenantId));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '48')));
+  const offset = Math.max(0, parseInt(searchParams.get('offset') || '0'));
+
+  const rows = await prisma.marketListing.findMany({ where, orderBy: { createdAt: 'desc' }, skip: offset, take: limit + 1 });
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit);
+
+  // Yalnız hâlâ pazara açık (marketEnabled) satıcıların ilanları görünsün — "hayalet ilan" önle
+  const sellerIds = Array.from(new Set(page.map((l) => l.sellerTenantId)));
+  const enabled = await prisma.tenant.findMany({
+    where: { id: { in: sellerIds }, marketEnabled: true },
+    select: { id: true, name: true, marketDisplayName: true, marketCity: true },
+  });
+  const smap = new Map(enabled.map((t) => [t.id, { name: t.marketDisplayName || t.name, city: t.marketCity || null }]));
+  const visible = page.filter((l) => smap.has(l.sellerTenantId));
 
   return NextResponse.json({
-    listings: listings.map((l) => publicListing(l, sellers.get(l.sellerTenantId), l.sellerTenantId === a.user!.tenantId)),
+    listings: visible.map((l) => publicListing(l, smap.get(l.sellerTenantId), l.sellerTenantId === a.user!.tenantId, true)),
+    hasMore,
+    offset: offset + limit,
   });
 }
 
@@ -50,6 +65,11 @@ export async function POST(req: Request) {
   if (!title) return NextResponse.json({ error: 'Başlık zorunlu' }, { status: 400 });
   const price = Math.max(0, parseFloat(body.price) || 0);
   const quantity = Math.max(1, parseInt(body.quantity) || 1);
+
+  // Basit hız sınırı (spam/DB şişmesi): son 24 saatte 50 ilan
+  const since = new Date(Date.now() - 24 * 3600 * 1000);
+  const todayCount = await prisma.marketListing.count({ where: { sellerTenantId: a.user!.tenantId, createdAt: { gte: since } } });
+  if (todayCount >= 50) return NextResponse.json({ error: 'Günlük ilan limiti doldu (50). Yarın tekrar deneyin.' }, { status: 429 });
 
   const listing = await prisma.marketListing.create({
     data: {

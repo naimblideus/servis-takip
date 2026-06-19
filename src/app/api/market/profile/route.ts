@@ -32,6 +32,11 @@ export async function PATCH(req: Request) {
   if (body.city !== undefined) data.marketCity = body.city ? String(body.city).slice(0, 80) : null;
   if (body.contactPhone !== undefined) data.marketContactPhone = body.contactPhone ? String(body.contactPhone).slice(0, 40) : null;
 
-  await prisma.tenant.update({ where: { id: a.user!.tenantId }, data });
+  const ops: any[] = [prisma.tenant.update({ where: { id: a.user!.tenantId }, data })];
+  // Pazardan ayrılınca aktif ilanları duraklat (hayalet ilan + cevapsız alıcı önle)
+  if (body.enabled === false) {
+    ops.push(prisma.marketListing.updateMany({ where: { sellerTenantId: a.user!.tenantId, status: 'ACTIVE' }, data: { status: 'PAUSED' } }));
+  }
+  await prisma.$transaction(ops);
   return NextResponse.json({ ok: true });
 }

@@ -13,5 +13,5 @@ export async function GET() {
     take: 200,
   });
   const seller = { name: a.tenant!.marketDisplayName || a.tenant!.name, city: a.tenant!.marketCity || null };
-  return NextResponse.json({ listings: listings.map((l) => publicListing(l, seller, true)) });
+  return NextResponse.json({ listings: listings.map((l) => publicListing(l, seller, true, true)) });
 }
