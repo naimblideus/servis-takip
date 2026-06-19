@@ -12,8 +12,9 @@ interface Row { key: string; code: string; name: string; price: number; copies: 
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const MAX_LABELS = 1500; // tek baskıda makul üst sınır
 
-// Code 128 — JsBarcode viewBox koymaz; el ile ekleyip width/height attribute'larını kaldırınca svg kutuyu DOLDURUR.
-function Barcode({ value }: { value: string }) {
+// Code 128 — JsBarcode viewBox koymaz; el ile ekliyoruz. SVG'yi SABİT mm boyuta veriyoruz
+// (flex/% yazdırmada çöküp barkodu küçültüyordu); preserveAspectRatio=none ile kutuyu birebir doldurur.
+function Barcode({ value, wmm, hmm }: { value: string; wmm: number; hmm: number }) {
   const ref = useRef<SVGSVGElement>(null);
   const valid = /^[\x20-\x7E]+$/.test(value || '');
   useEffect(() => {
@@ -23,19 +24,24 @@ function Barcode({ value }: { value: string }) {
         JsBarcode(el, value, { format: 'CODE128', height: 100, width: 2, margin: 0, displayValue: false });
         const bw = parseFloat(el.getAttribute('width') || '0');
         const bh = parseFloat(el.getAttribute('height') || '0');
-        if (bw > 0 && bh > 0) { el.setAttribute('viewBox', `0 0 ${bw} ${bh}`); el.removeAttribute('width'); el.removeAttribute('height'); }
+        if (bw > 0 && bh > 0) el.setAttribute('viewBox', `0 0 ${bw} ${bh}`);
+        el.removeAttribute('width'); el.removeAttribute('height');
       } catch { /* yoksay */ }
     }
   }, [value, valid]);
-  if (!valid) return <div style={{ fontSize: '2mm', color: '#b91c1c' }}>⚠ Barkod uyumsuz</div>;
-  return <svg ref={ref} preserveAspectRatio="none" style={{ display: 'block', width: '100%', height: '100%', shapeRendering: 'crispEdges' }} />;
+  if (!valid) return <div style={{ fontSize: '2.4mm', color: '#b91c1c' }}>⚠ Barkod uyumsuz</div>;
+  return <svg ref={ref} preserveAspectRatio="none" style={{ display: 'block', width: `${wmm}mm`, height: `${hmm}mm`, shapeRendering: 'crispEdges' }} />;
 }
 
-function LabelInner({ r, showName, showCode, showPrice }: { r: Row; showName: boolean; showCode: boolean; showPrice: boolean }) {
+function LabelInner({ r, w, h, showName, showCode, showPrice }: { r: Row; w: number; h: number; showName: boolean; showCode: boolean; showPrice: boolean }) {
+  // Barkod boyutunu etikete göre mm cinsinden hesapla: metin alanlarını düş, kalanı barkoda ver (büyük çıksın)
+  const reserved = 2 /*padding*/ + (showName ? 3.6 : 0) + (showCode ? 3 : 0) + (showPrice && r.price > 0 ? 4 : 0);
+  const bcH = Math.max(8, h - reserved);
+  const bcW = Math.max(10, w - 3);
   return (
     <>
       {showName && <div className="zl-name">{r.name}</div>}
-      <div className="zl-bc"><Barcode value={r.code} /></div>
+      <Barcode value={r.code} wmm={bcW} hmm={bcH} />
       {showCode && <div className="zl-code">{r.code}</div>}
       {showPrice && r.price > 0 && <div className="zl-price">{fmt(r.price)}</div>}
     </>
@@ -255,7 +261,7 @@ export default function EtiketPage() {
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Önizleme — gerçek boyut ({w}×{h} mm)</div>
             <div style={{ border: '1px dashed #cbd5e1', borderRadius: 8, padding: 12, display: 'inline-block', background: '#f8fafc' }}>
               <div className="zlabel" style={{ border: '1px solid #e5e7eb' }}>
-                <LabelInner r={rows[0]} showName={showName} showCode={showCode} showPrice={showPrice} />
+                <LabelInner r={rows[0]} w={w} h={h} showName={showName} showCode={showCode} showPrice={showPrice} />
               </div>
             </div>
           </div>
@@ -266,7 +272,7 @@ export default function EtiketPage() {
       <div className="zsheet">
         {labels.map((l) => (
           <div key={l.key} className="zlabel">
-            <LabelInner r={l} showName={showName} showCode={showCode} showPrice={showPrice} />
+            <LabelInner r={l} w={w} h={h} showName={showName} showCode={showCode} showPrice={showPrice} />
           </div>
         ))}
       </div>
