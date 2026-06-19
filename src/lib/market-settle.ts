@@ -57,7 +57,12 @@ export async function completeOrder(orderId: string, buyerTenantId: string): Pro
       await tx.marketListing.update({ where: { id: listing.id }, data: { quantity: remaining, ...(remaining <= 0 ? { status: 'SOLD' } : {}) } });
     }
 
-    // ── SATICI geliri ──
+    // ── Faz 3: komisyon (raporlama + satıcı gideri); 0..100 clamp ile overflow önle ──
+    const ps = await tx.platformSettings.findFirst({ select: { marketCommissionPct: true } });
+    const pct = ps ? Math.max(0, Math.min(100, Number(ps.marketCommissionPct))) : 0;
+    const commission = round2((total * pct) / 100);
+
+    // ── SATICI geliri (brüt) ──
     await tx.financialTransaction.create({
       data: {
         tenantId: o.sellerTenantId, type: 'INCOME' as TransactionType, category: incomeCategory(kind),
@@ -66,18 +71,27 @@ export async function completeOrder(orderId: string, buyerTenantId: string): Pro
       },
     });
 
-    // ── ALICI: stoğa gir ──
-    if (kind === 'PART' || kind === 'OTHER') {
-      await tx.part.create({
-        data: { tenantId: o.buyerTenantId, sku: `PZR-${o.id}`, name: title, buyPrice: unit, sellPrice: 0, stockQty: qty, group: 'Pazar' },
-      });
-    } else {
-      await tx.printerStock.create({
-        data: { tenantId: o.buyerTenantId, category: kind === 'MACHINE' ? 'YAZICI' : 'TONER', brand: listing?.brand || title.slice(0, 60), model: listing?.model || '-', quantity: qty, buyPrice: unit, sellPrice: 0, notes: 'Bayi Pazarı alımı' },
+    // ── SATICI komisyon gideri (komisyon > 0) → net hakediş = total − komisyon defterde ──
+    if (commission > 0) {
+      await tx.financialTransaction.create({
+        data: {
+          tenantId: o.sellerTenantId, type: 'EXPENSE' as TransactionType, category: 'GENERAL_EXPENSE' as TransactionCategory,
+          amount: commission, method: 'OTHER' as PaymentMethod,
+          description: `Bayi Pazarı komisyonu (%${pct}) — ${title}`, date: new Date(),
+        },
       });
     }
 
-    // ── ALICI gideri ──
+    // ── ALICI: stoğa gir — HER alım AYRI lot (sku=PZR-orderId). Birleştirme YAPILMAZ: farklı satıcı/
+    //    farklı fiyat alımları birleşirse maliyet (buyPrice) ve kaynak izlenebilirliği bozulur. ──
+    if (kind === 'PART' || kind === 'OTHER') {
+      await tx.part.create({ data: { tenantId: o.buyerTenantId, sku: `PZR-${o.id}`, name: title, buyPrice: unit, sellPrice: 0, stockQty: qty, group: 'Pazar' } });
+    } else {
+      // PRINTER ve MACHINE muhasebede MACHINE_SALE/PURCHASE → stokta da donanım (YAZICI), TONER değil
+      await tx.printerStock.create({ data: { tenantId: o.buyerTenantId, category: 'YAZICI', brand: listing?.brand || title.slice(0, 60), model: listing?.model || '-', quantity: qty, buyPrice: unit, sellPrice: 0, notes: 'Bayi Pazarı alımı' } });
+    }
+
+    // ── ALICI gideri (brüt total) ──
     await tx.financialTransaction.create({
       data: {
         tenantId: o.buyerTenantId, type: 'EXPENSE' as TransactionType, category: expenseCategory(kind),
@@ -86,10 +100,7 @@ export async function completeOrder(orderId: string, buyerTenantId: string): Pro
       },
     });
 
-    // ── Faz 3: komisyon kaydı (raporlama amaçlı; 0..100 clamp ile overflow önle) ──
-    const ps = await tx.platformSettings.findFirst({ select: { marketCommissionPct: true } });
-    const pct = ps ? Math.max(0, Math.min(100, Number(ps.marketCommissionPct))) : 0;
-    const commission = round2((total * pct) / 100);
+    // ── Komisyonu siparişe işle (platform geliri = Σ commissionAmount) ──
     await tx.marketOrder.update({ where: { id: o.id }, data: { commissionPct: pct, commissionAmount: commission } });
 
     return { ok: true, settled: true };

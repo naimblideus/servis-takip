@@ -249,6 +249,15 @@ export default function Sidebar() {
 
   const [open, setOpen] = useState(false);
   const [advOpen, setAdvOpen] = useState(false);
+  // Bayi Pazarı: aksiyon bekleyen sipariş rozeti (60sn'de bir tazele)
+  const [marketBadge, setMarketBadge] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = () => fetch('/api/market/notifications').then((r) => (r.ok ? r.json() : null)).then((d) => { if (alive && d) setMarketBadge(d.actionable || 0); }).catch(() => {});
+    load();
+    const t = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
   // Aktif sayfa "Gelişmiş" grubundaysa grubu otomatik aç (kullanıcı kaybolmasın)
   useEffect(() => {
     if (advItems.some((i) => pathname === i.href || pathname.startsWith(i.href + '/'))) setAdvOpen(true);
@@ -324,6 +333,9 @@ export default function Sidebar() {
             >
               {item.icon}
               {item.label}
+              {item.href === '/market' && marketBadge > 0 && (
+                <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{marketBadge}</span>
+              )}
             </Link>
           ))}
 

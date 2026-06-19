@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart } from 'lucide-react';
 
 const navItems = [
     { href: '/super-admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/super-admin/tenants', label: 'İşletmeler', icon: Building2 },
     { href: '/super-admin/billing', label: 'Faturalama', icon: Receipt },
     { href: '/super-admin/plans', label: 'Paketler', icon: Package },
+    { href: '/super-admin/pazar', label: 'Bayi Pazarı', icon: ShoppingCart },
     { href: '/super-admin/settings', label: 'Platform Ayarları', icon: Settings },
 ];
 
