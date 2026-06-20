@@ -598,6 +598,7 @@ export default function InventoryPage() {
                                                         stockQty: String(p.stockQty),
                                                         minStock: String(p.minStock),
                                                         group: p.group || '',
+                                                        barcode: p.barcode || '',
                                                     });
                                                 }}
                                                 style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✏</button>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { marketAuth, sellerDisplayMap } from '@/lib/market';
+import { marketAuth } from '@/lib/market';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
