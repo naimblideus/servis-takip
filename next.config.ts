@@ -7,10 +7,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // ESLint uyarıları build'i engellemesin
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Not: Next 16 yerleşik ESLint-build entegrasyonunu kaldırdı; `eslint` config anahtarı yok.
   // Büyük dosya yükleme desteği (SQL importu için, 50MB)
   experimental: {
     serverActions: {
