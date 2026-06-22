@@ -35,7 +35,7 @@ function Barcode({ value, wmm, hmm }: { value: string; wmm: number; hmm: number 
 
 function LabelInner({ r, w, h, showName, showCode, showPrice }: { r: Row; w: number; h: number; showName: boolean; showCode: boolean; showPrice: boolean }) {
   // Barkod boyutunu etikete göre mm cinsinden hesapla: metin alanlarını düş, kalanı barkoda ver (büyük çıksın)
-  const reserved = 2 /*padding*/ + (showName ? 3.6 : 0) + (showCode ? 3 : 0) + (showPrice && r.price > 0 ? 4 : 0);
+  const reserved = 2 /*padding*/ + (showName ? 5.2 : 0) + (showCode ? 3 : 0) + (showPrice && r.price > 0 ? 4 : 0);
   const bcH = Math.max(8, h - reserved);
   const bcW = Math.max(10, w - 3);
   return (
@@ -142,7 +142,7 @@ export default function EtiketPage() {
           padding: 1mm 1.5mm; display: flex; flex-direction: column; align-items: center; justify-content: center;
           gap: 0.4mm; overflow: hidden; background: #fff; color: #000;
         }
-        .zl-name { font-size: 2.4mm; font-weight: 700; line-height: 1.05; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .zl-name { font-size: 3.4mm; font-weight: 800; line-height: 1.05; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .zl-bc { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
         .zl-bc svg { width: 100%; height: 100%; }
         .zl-code { font-size: 2.2mm; font-family: 'Courier New', monospace; letter-spacing: 0.3mm; line-height: 1; }
