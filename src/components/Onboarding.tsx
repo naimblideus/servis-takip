@@ -267,9 +267,12 @@ export default function Onboarding() {
 
   return (
     <>
+      {/* Yazdırma sırasında onboarding ASLA görünmesin (etiket/fatura vb. baskısına binmesin) */}
+      <style>{`@media print { .gs-noprint { display: none !important; } }`}</style>
+
       {/* ═══════════ HOŞ GELDİN SİHİRBAZI ═══════════ */}
       {showWizard && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div className="gs-noprint" style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div style={{ background: 'white', borderRadius: '1rem', width: '100%', maxWidth: '560px', boxShadow: '0 25px 70px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
             {/* İlerleme çubuğu */}
             <div style={{ height: '5px', background: '#e2e8f0' }}>
@@ -307,7 +310,7 @@ export default function Onboarding() {
 
       {/* ═══════════ YÜZEN BAŞLANGIÇ REHBERİ ═══════════ */}
       {!hidden && !showWizard && (
-        <div style={{ position: 'fixed', right: '1.25rem', bottom: '1.25rem', zIndex: 1500, fontFamily: 'inherit' }}>
+        <div className="gs-noprint" style={{ position: 'fixed', right: '1.25rem', bottom: '1.25rem', zIndex: 1500, fontFamily: 'inherit' }}>
           {/* Panel */}
           {panelOpen && (
             <div style={{ width: '360px', maxWidth: 'calc(100vw - 2.5rem)', background: 'white', borderRadius: '0.9rem', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: '0.75rem' }}>
