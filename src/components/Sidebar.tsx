@@ -231,7 +231,7 @@ const MENU_ORDER = [
 const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i === -1 ? 999 : i; };
 
 // Az kullanılan / ileri özellikler — tek "Gelişmiş" başlığı altında toplanır (menü kalabalığını azaltır).
-const ADVANCED = new Set(['/rota', '/market', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import']);
+const ADVANCED = new Set(['/rota', '/market', '/invoices', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import']);
 
 export default function Sidebar() {
   const pathname = usePathname();

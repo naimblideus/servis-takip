@@ -235,6 +235,24 @@ export default function AccountingPage() {
     setBackfilling(false);
   };
 
+  // Kira + sayaç bedelini hesapla (otomatik) → kullanıcı onayıyla cariye ekle (otomatik EKLEMEZ)
+  const addPeriodCharges = async () => {
+    if (!selCust) return;
+    try {
+      const pr = await fetch(`/api/customers/${selCust.id}/period-charges`);
+      const c = await pr.json().catch(() => ({}));
+      if (!pr.ok) { alert(c.error || 'Hesaplanamadı'); return; }
+      const rent = c.rent || 0, counter = c.counter || 0;
+      if (rent <= 0 && counter <= 0) { alert('Bu dönem için eklenecek kira/sayaç yok (zaten eklenmiş ya da kiralık cihaz/okuma yok).'); return; }
+      const f = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+      if (!confirm(`${c.period} dönemi — ${selCust.name}\n\n🖨️ Kira: ${f(rent)}\n🔢 Sayaç: ${f(counter)}\n───────────\nToplam: ${f(rent + counter)}\n\nBu tutarlar cari hesaba eklensin mi?`)) return;
+      const r = await fetch(`/api/customers/${selCust.id}/period-charges`, { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { alert(`✓ ${d.added} kayıt cariye eklendi.`); loadData(); loadDetail(selCust.id); }
+      else alert(d.error || 'Eklenemedi');
+    } catch { alert('Sunucuya bağlanılamadı'); }
+  };
+
   const debtors = customers.filter(c => c.balance > 0);
 
   const openBulkWA = () => {
@@ -746,6 +764,7 @@ export default function AccountingPage() {
                     {detail.summary.balance > 0 && (
                       <button onClick={() => sendWhatsApp(detail.customer, detail.summary.balance)} style={{backgroundColor:'#25d366',color:'white',border:'none',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>📱 WhatsApp</button>
                     )}
+                    <button onClick={addPeriodCharges} title="Bu dönemin kira + sayaç bedelini hesaplar; onayınla cariye ekler (otomatik eklemez)" style={{backgroundColor:'rgba(255,255,255,0.18)',color:'white',border:'1px solid rgba(255,255,255,0.35)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'700'}}>🖨️🔢 Kira/Sayaç Ekle</button>
                     <button onClick={() => { selectFormCust({ id: selCust.id, name: selCust.name, phone: selCust.phone }); setShowForm(true); }} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>+ Kayıt Ekle</button>
                   </div>
                 </div>
