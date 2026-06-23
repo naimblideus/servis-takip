@@ -231,7 +231,7 @@ const MENU_ORDER = [
 const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i === -1 ? 999 : i; };
 
 // Az kullanılan / ileri özellikler — tek "Gelişmiş" başlığı altında toplanır (menü kalabalığını azaltır).
-const ADVANCED = new Set(['/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import']);
+const ADVANCED = new Set(['/rota', '/market', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import']);
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -366,6 +366,9 @@ export default function Sidebar() {
                 >
                   {item.icon}
                   {item.label}
+                  {item.href === '/market' && marketBadge > 0 && (
+                    <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{marketBadge}</span>
+                  )}
                 </Link>
               ))}
             </>
