@@ -38,6 +38,7 @@ export default function AccountingPage() {
   const [quickCustSaving, setQuickCustSaving] = useState(false);
   const [editModal, setEditModal] = useState<{id:string;type:'SALE'|'PAYMENT';product:string;amount:string;method:string;notes:string;date:string}|null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   // Toplu WhatsApp
   const [showBulkWA, setShowBulkWA] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
@@ -219,6 +220,19 @@ export default function AccountingPage() {
     const phone = formatPhone(cust.phone);
     const msg = `Sayın ${cust.name},\n\nÖdenmemiş borcunuz: ₺${debt.toFixed(2)}\n\nSaygılarımızla`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  // Açık servis fişlerini toplu olarak cariye işle (idempotent, güvenli)
+  const backfillCari = async () => {
+    if (!confirm('Tüm açık servis fişleri muhasebeye (cariye) işlensin mi? Güvenli ve tekrarlanabilir bir işlemdir.')) return;
+    setBackfilling(true);
+    try {
+      const r = await fetch('/api/tickets/backfill-cari', { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { alert(`✓ ${d.synced}/${d.processed} servis fişi cariye işlendi.`); loadData(); }
+      else alert(d.error || 'Aktarım yapılamadı');
+    } catch { alert('Sunucuya bağlanılamadı'); }
+    setBackfilling(false);
   };
 
   const debtors = customers.filter(c => c.balance > 0);
@@ -449,6 +463,7 @@ export default function AccountingPage() {
           {activeTab==='accounting' && (
             <>
               <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>🖨️ Yazdır</button>
+              <button onClick={backfillCari} disabled={backfilling} title="Teslim edilmemiş dahil tüm açık servis fişlerini cariye işler" style={{padding:'0.625rem 1rem',backgroundColor:'#eef2ff',color:'#4338ca',border:'1px solid #c7d2fe',borderRadius:'0.5rem',cursor:backfilling?'not-allowed':'pointer',fontWeight:'600',opacity:backfilling?0.6:1}}>{backfilling ? '⏳ Aktarılıyor…' : '🔄 Fişleri cariye aktar'}</button>
               {debtors.length > 0 && (
                 <button onClick={openBulkWA} style={{padding:'0.625rem 1rem',backgroundColor:'#dcfce7',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',display:'flex',alignItems:'center',gap:'0.4rem'}}>
                   📱 Toplu WhatsApp <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>

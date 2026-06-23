@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Priority } from '@prisma/client';
+import { syncTicketToCari } from '@/lib/ticket-cari';
 
 async function generateTicketNumber(tenantId: string): Promise<string> {
   // TSK- ve SF- prefix'li tüm fişlerin en yüksek numarasını bul
@@ -91,6 +92,9 @@ export async function POST(req: Request) {
         priority: (body.priority || 'NORMAL') as Priority,
       },
     });
+
+    // Fiş kesilir kesilmez Muhasebe/Cari'ye borç olarak yansıt (tutarı>0 ise)
+    try { await syncTicketToCari(ticket.id, user.tenantId); } catch (e: any) { console.error('TICKET CREATE CARI SYNC ERROR:', e?.message); }
 
     return NextResponse.json(ticket);
   } catch (e: any) {

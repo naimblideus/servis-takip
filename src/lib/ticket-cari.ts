@@ -1,6 +1,7 @@
 // Servis fişini Muhasebe/Cari (AccountEntry) defterine otomatik yansıt.
 // Tek kaynak + idempotent: her çağrıda fişin cari kayıtlarını (SATIŞ + TAHSİLAT) gerçek duruma göre
-// yeniden uzlaştırır. Yalnız DELIVERED + tutarı>0 + silinmemiş fişler cariye yazılır; aksi halde temizlenir.
+// yeniden uzlaştırır. Fiş kesilir kesilmez (tutarı>0 + müşterisi var + İPTAL/silinmemiş) cariye
+// BORÇ olarak yazılır; ödeme girilince TAHSİLAT düşülür; iptal/silinince cari kaydı temizlenir.
 import { prisma } from '@/lib/prisma';
 
 export async function syncTicketToCari(ticketId: string, tenantId: string): Promise<{ synced: boolean; amount: number }> {
@@ -18,7 +19,7 @@ export async function syncTicketToCari(ticketId: string, tenantId: string): Prom
 
     const existing = await tx.accountEntry.findMany({ where: { tenantId: t.tenantId, ticketId: t.id } });
     const total = Number(t.totalCost) || 0;
-    const shouldHave = t.status === 'DELIVERED' && !t.deletedAt && total > 0 && !!t.customerId;
+    const shouldHave = t.status !== 'CANCELLED' && !t.deletedAt && total > 0 && !!t.customerId;
 
     if (!shouldHave) {
       if (existing.length) await tx.accountEntry.deleteMany({ where: { tenantId: t.tenantId, ticketId: t.id } });
@@ -27,7 +28,7 @@ export async function syncTicketToCari(ticketId: string, tenantId: string): Prom
 
     const who = t.assignedUser?.name || t.createdBy?.name || null;
     const product = `Servis ${t.ticketNumber}`;
-    const saleDate = t.statusUpdatedAt ?? new Date(); // SATIŞ = teslim/ücretlendirme anı (açılış değil)
+    const saleDate = t.createdAt ?? t.statusUpdatedAt ?? new Date(); // SATIŞ = fiş tarihi (kesildiği an)
     const sale = existing.find((e) => e.type === 'SALE');
     const pay = existing.find((e) => e.type === 'PAYMENT');
 
