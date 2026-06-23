@@ -1,62 +1,45 @@
-name: Build & Deploy
+name: Auto Deploy (Coolify)
 
-# main'e her push'ta: Docker image'i CI'da (sunucu DIŞINDA) derle → GHCR'a yükle → Coolify'a deploy webhook.
-# Sonuç: sunucuda build YOK (OOM biter), elle redeploy YOK.
+# Her main push'unda Coolify'ın deploy webhook'unu tetikler → Coolify otomatik build+deploy eder.
+# Sunucuda build (swap ile çalışıyor); GHCR/izin gerektirmez.
 #
-# Kurulum (tek seferlik):
-#  1) GHCR otomatik (GITHUB_TOKEN ile). Paket görünürlüğü gerekiyorsa GitHub > Packages > visibility.
-#  2) Coolify uygulamasını "Docker Image" kaynağına çevir: ghcr.io/naimblideus/servis-takip:latest
-#     (private ise Coolify'a GHCR pull kimliği ekle).
-#  3) Coolify'ın "Deploy Webhook" URL'sini GitHub repo Secret olarak ekle: COOLIFY_WEBHOOK
-#     (yoksa adım atlanır; image yine GHCR'da hazır olur, elle deploy edebilirsin).
+# TEK KURULUM (bir kez):
+#   1) Coolify → servis-takip uygulaması → "Webhooks" (veya API token) → deploy URL'sini al.
+#      - Per-resource webhook ise: tam URL (POST).
+#      - Coolify API ise: https://<coolify>/api/v1/deploy?uuid=<uuid>  + bir API token.
+#   2) GitHub → repo → Settings → Secrets and variables → Actions → New repository secret:
+#        COOLIFY_WEBHOOK = (yukarıdaki URL)
+#        COOLIFY_TOKEN   = (yalnız Coolify API kullanıyorsan; per-resource webhook'ta GEREKMEZ)
+#   3) Bitti. Bundan sonra her push otomatik deploy eder. (Secret yoksa adım sessizce atlanır, hata vermez.)
 
-# NOT: Şimdilik yalnız ELLE çalışır (Actions sekmesi → Run workflow). Otomatik push tetiği,
-# Coolify "Docker Image" kaynağına çevrilip COOLIFY_WEBHOOK eklendikten SONRA aşağıdaki
-# "push" bloğu yorumdan çıkarılarak aktifleştirilir. (Aksi halde her push'ta GHCR push denenir.)
 on:
+  push:
+    branches: [main]
   workflow_dispatch: {}
-  # push:
-  #   branches: [main]
 
 concurrency:
-  group: deploy-main
-  cancel-in-progress: true
+  group: coolify-deploy
+  cancel-in-progress: false
 
 jobs:
-  build-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Repo adını küçük harfe çevir (GHCR gereği)
-        id: img
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ steps.img.outputs.name }}:latest
-            ${{ steps.img.outputs.name }}:${{ github.sha }}
-
-      - name: Coolify deploy webhook
+      - name: Coolify deploy tetikle
         env:
           HOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
-          if [ -n "$HOOK" ]; then
-            curl -fsSL -X POST "$HOOK" && echo "Coolify deploy tetiklendi"
-          else
-            echo "COOLIFY_WEBHOOK secret yok — image GHCR'da hazır, Coolify'dan elle deploy edebilirsin."
+          if [ -z "$HOOK" ]; then
+            echo "COOLIFY_WEBHOOK secret henüz eklenmemiş — otomatik deploy pasif. (Kurulum için workflow başlığındaki adımlar.)"
+            exit 0
           fi
+          if [ -n "$TOKEN" ]; then
+            echo "Coolify API (Bearer) ile tetikleniyor..."
+            curl -fsSL "$HOOK" -H "Authorization: Bearer $TOKEN"
+          else
+            echo "Per-resource webhook (POST) ile tetikleniyor..."
+            curl -fsSL -X POST "$HOOK"
+          fi
+          echo ""
+          echo "✓ Coolify deploy tetiklendi."
