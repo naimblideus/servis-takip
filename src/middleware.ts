@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const SECRET = new TextEncoder().encode(
-    process.env.SUPER_ADMIN_SECRET || process.env.NEXTAUTH_SECRET || 'super-admin-secret-key-change-in-production'
-);
+// Fail-closed: gömülü fallback YOK. Secret tanımlı değilse süper-admin erişimi tümden reddedilir.
+const RAW_SECRET = process.env.SUPER_ADMIN_SECRET || process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || '';
+const SECRET = RAW_SECRET ? new TextEncoder().encode(RAW_SECRET) : null;
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
     // ─── Super Admin Routes ────────────────────────────────────────────────────
     if (pathname.startsWith('/super-admin') && pathname !== '/super-admin/login') {
         const token = request.cookies.get('sa_session')?.value;
-        if (!token) {
+        if (!token || !SECRET) {
             return NextResponse.redirect(new URL('/super-admin/login', request.url));
         }
         try {
@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
     // ─── Super-admin API Routes ────────────────────────────────────────────────
     if (pathname.startsWith('/api/super-admin') && !pathname.includes('/api/super-admin/login')) {
         const token = request.cookies.get('sa_session')?.value;
-        if (!token) {
+        if (!token || !SECRET) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         try {
