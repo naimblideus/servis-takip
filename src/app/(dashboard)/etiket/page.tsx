@@ -125,12 +125,17 @@ export default function EtiketPage() {
   }, [rows]);
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 760, margin: '0 auto' }}>
+    <div className="zl-page" style={{ padding: '1.5rem', maxWidth: 760, margin: '0 auto' }}>
       <style>{`
         @media print {
           .no-print { display: none !important; }
           #app-sidebar { display: none !important; }
-          html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+          html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; min-height: 0 !important; height: auto !important; }
+          /* Layout sarmalayıcısı + dış kapsayıcı boşlukları etiketi itip taşırıyordu — hepsini sıfırla */
+          #app-main { padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+          .zl-page { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+          /* Yalnız etiket alanı bassın — UI/önizleme/diğer her şey gizli */
+          .zl-page > *:not(.zsheet) { display: none !important; }
           .zsheet { display: block !important; }
           .zlabel { page-break-after: always; break-after: page; page-break-inside: avoid; }
           .zlabel:last-child { page-break-after: auto; break-after: auto; }
