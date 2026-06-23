@@ -3,6 +3,7 @@
 // Satıcının iç verisi (müşteri/maliyet/cari) ASLA dışarı verilmez — sadece görünen ad + şehir.
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { hasModule } from '@/lib/modules';
 
 export interface MarketAuth {
   error: string | null;
@@ -18,10 +19,11 @@ export async function marketAuth(requireEnabled = true): Promise<MarketAuth> {
   if (!user) return { error: 'User not found', status: 404, user: null, tenant: null };
   const tenant = await prisma.tenant.findUnique({
     where: { id: user.tenantId },
-    select: { id: true, name: true, marketEnabled: true, marketDisplayName: true, marketCity: true, marketContactPhone: true },
+    select: { id: true, name: true, marketEnabled: true, marketDisplayName: true, marketCity: true, marketContactPhone: true, plan: true, modules: true },
   });
   if (!tenant) return { error: 'Tenant not found', status: 404, user, tenant: null };
-  if (requireEnabled && !tenant.marketEnabled) return { error: 'Bayi Pazarına katılmanız gerekiyor', status: 403, user, tenant };
+  // Modül kapısı: Bayi Pazarı MARKETPLACE modülü açık mı? (marketEnabled eski bayrak geriye-uyumlu)
+  if (requireEnabled && !hasModule(tenant, 'MARKETPLACE')) return { error: 'Bayi Pazarı paketinizde yok', status: 403, user, tenant };
   return { error: null, status: 200, user, tenant };
 }
 

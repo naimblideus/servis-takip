@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Building2, BarChart3, Receipt, Package, Users, Edit3, AlertTriangle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { ALL_MODULE_KEYS, MODULES, effectiveModules } from '@/lib/modules';
 
 const PLAN_LABELS: Record<string, string> = { trial: 'Deneme', starter: 'Başlangıç', professional: 'Profesyonel', enterprise: 'Kurumsal' };
 const TABS = ['Genel', 'İstatistikler', 'Abonelik', 'Faturalar', 'Kullanıcılar', 'Notlar'];
@@ -70,6 +71,24 @@ export default function TenantDetailPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ days: parseInt(days) }),
+        });
+        await fetchTenant();
+    };
+
+    const handleToggleModule = async (key: string) => {
+        const eff = new Set(Array.from(effectiveModules(tenant)) as string[]);
+        if (eff.has(key)) eff.delete(key); else eff.add(key);
+        await fetch(`/api/super-admin/tenants/${id}/modules`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ modules: Array.from(eff) }),
+        });
+        await fetchTenant();
+    };
+
+    const handleResetModules = async () => {
+        await fetch(`/api/super-admin/tenants/${id}/modules`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ modules: [] }),
         });
         await fetchTenant();
     };
@@ -234,6 +253,28 @@ export default function TenantDetailPage() {
                                 </div>
                             </div>
                         </div>
+                        <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
+                            <div className="flex justify-between items-center mb-4">
+                                <div className="text-sm font-semibold">Modüller (Paket Özellikleri)</div>
+                                <button onClick={handleResetModules} className="text-xs text-gray-400 hover:text-white">↺ Plan varsayılanına dön</button>
+                            </div>
+                            <div className="space-y-1">
+                                {ALL_MODULE_KEYS.map((k) => {
+                                    const on = effectiveModules(tenant).has(k);
+                                    return (
+                                        <div key={k} className="flex items-center justify-between py-1.5">
+                                            <span className="text-sm text-gray-200">{MODULES[k].label}</span>
+                                            <button onClick={() => handleToggleModule(k)}
+                                                className={`relative w-11 h-6 rounded-full transition-all ${on ? 'bg-violet-500' : 'bg-gray-600'}`}>
+                                                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${on ? 'left-5' : 'left-0.5'}`} />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-3">Çekirdek (fiş, müşteri, cihaz, stok, satış, etiket, muhasebe) her zaman açıktır. Boş = plan varsayılanı kullanılır.</p>
+                        </div>
+
                         <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
                             <div className="text-sm font-semibold mb-4">Abonelik Geçmişi</div>
                             <div className="space-y-2">

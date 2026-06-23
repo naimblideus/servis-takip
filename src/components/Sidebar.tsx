@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import GlobalSearch from '@/components/GlobalSearch';
+import { moduleForHref } from '@/lib/modules';
 
 const menuItems = [
   {
@@ -233,7 +234,7 @@ const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i
 // Az kullanılan / ileri özellikler — tek "Gelişmiş" başlığı altında toplanır (menü kalabalığını azaltır).
 const ADVANCED = new Set(['/rota', '/market', '/invoices', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import']);
 
-export default function Sidebar() {
+export default function Sidebar({ modules = [] }: { modules?: string[] }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = (session?.user as any)?.role || '';
@@ -241,6 +242,9 @@ export default function Sidebar() {
   const visibleMenuItems = menuItems.filter(item => {
     if (SUPER_ADMIN_ONLY.includes(item.href) && role !== 'SUPER_ADMIN') return false;
     if (ADMIN_ONLY_ITEMS.includes(item.href) && role !== 'ADMIN' && role !== 'SUPER_ADMIN') return false;
+    // Modül kapısı: eklenti modüle ait link, bayide kapalıysa gizle (CORE → her zaman görünür)
+    const mod = moduleForHref(item.href);
+    if (mod && !modules.includes(mod)) return false;
     return true;
   }).sort((a, b) => orderOf(a.href) - orderOf(b.href));
 

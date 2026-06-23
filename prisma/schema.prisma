@@ -47,6 +47,10 @@ model Tenant {
   marketCity          String?
   marketContactPhone  String?
 
+  // Modüler özellik yetkilendirme (boş = plan varsayılanı; dolu = bayiye özel override)
+  // Anahtarlar: INVOICING, ROUTE, TRACKING, REVENUE_RISK, REPORTS, MARKETPLACE (bkz. src/lib/modules.ts)
+  modules           String[] @default([])
+
   // Abonelik
   plan              String   @default("trial")
   planStartDate     DateTime @default(now())
