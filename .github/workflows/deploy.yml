@@ -10,10 +10,13 @@ name: Build & Deploy
 #  3) Coolify'ın "Deploy Webhook" URL'sini GitHub repo Secret olarak ekle: COOLIFY_WEBHOOK
 #     (yoksa adım atlanır; image yine GHCR'da hazır olur, elle deploy edebilirsin).
 
+# NOT: Şimdilik yalnız ELLE çalışır (Actions sekmesi → Run workflow). Otomatik push tetiği,
+# Coolify "Docker Image" kaynağına çevrilip COOLIFY_WEBHOOK eklendikten SONRA aşağıdaki
+# "push" bloğu yorumdan çıkarılarak aktifleştirilir. (Aksi halde her push'ta GHCR push denenir.)
 on:
-  push:
-    branches: [main]
   workflow_dispatch: {}
+  # push:
+  #   branches: [main]
 
 concurrency:
   group: deploy-main
@@ -47,8 +50,6 @@ jobs:
           tags: |
             ${{ steps.img.outputs.name }}:latest
             ${{ steps.img.outputs.name }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Coolify deploy webhook
         env:
