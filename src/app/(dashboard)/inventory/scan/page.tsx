@@ -109,19 +109,19 @@ export default function StockScanPage() {
         </div>
       </div>
 
-      {/* Okutma kutusu (görsel + manuel) */}
-      <form onSubmit={(e) => { e.preventDefault(); if (manual.trim()) { handleCode(manual); setManual(''); } }}
-        style={{ border: `2px dashed ${modeColor}`, borderRadius: 12, padding: '1.25rem', textAlign: 'center', marginBottom: '1rem', background: mode === 'in' ? '#f0fdf4' : '#fef2f2' }}>
+      {/* Okutma kutusu (görsel + manuel) — <form> YOK: Enter doğrudan yakalanır (sayfa yenilenmez) */}
+      <div style={{ border: `2px dashed ${modeColor}`, borderRadius: 12, padding: '1.25rem', textAlign: 'center', marginBottom: '1rem', background: mode === 'in' ? '#f0fdf4' : '#fef2f2' }}>
         <div style={{ fontSize: '1.05rem', fontWeight: 700, color: modeColor, marginBottom: 8 }}>
           {mode === 'in' ? '📥 GİRİŞ modu' : '📤 ÇIKIŞ modu'} — okutmaya hazır
         </div>
         <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Barkod/SKU okut veya yaz + Enter"
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (manual.trim()) { handleCode(manual); setManual(''); } } }}
           style={{ width: '100%', maxWidth: 360, padding: '0.6rem 0.9rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.95rem', textAlign: 'center' }} />
         <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
           <CameraScanner onDetect={(c) => handleCode(c)} />
         </div>
         <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 6 }}>USB okuyucu açık alana okutursa otomatik işlenir; telefondaysan <b>📷 Kamerayla Tara</b> ile okut.</div>
-      </form>
+      </div>
 
       {/* Özet */}
       <div style={{ display: 'flex', gap: 12, marginBottom: '1rem' }}>

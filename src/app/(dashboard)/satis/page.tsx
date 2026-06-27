@@ -159,16 +159,16 @@ export default function SatisPage() {
         <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>Varsayılan giriş yapan kişidir; satışı başka teknisyen yaptıysa elle yaz veya seç.</div>
       </div>
 
-      {/* Okutma kutusu */}
-      <form onSubmit={(e) => { e.preventDefault(); if (manual.trim()) { addByCode(manual); setManual(''); } }}
-        style={{ border: '2px dashed #16a34a', borderRadius: 12, padding: '1rem', textAlign: 'center', marginBottom: '1rem', background: '#f0fdf4' }}>
+      {/* Okutma kutusu — <form> YOK: Enter doğrudan yakalanır (hiçbir koşulda sayfa gönderimi/yenilenmesi olmaz) */}
+      <div style={{ border: '2px dashed #16a34a', borderRadius: 12, padding: '1rem', textAlign: 'center', marginBottom: '1rem', background: '#f0fdf4' }}>
         <div style={{ fontWeight: 700, color: '#15803d', marginBottom: 8, fontSize: '0.95rem' }}>📷 Ürünü okut veya kodu yaz</div>
         <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Barkod/SKU + Enter"
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (manual.trim()) { addByCode(manual); setManual(''); } } }}
           style={{ width: '100%', maxWidth: 340, padding: '0.55rem 0.9rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.95rem', textAlign: 'center' }} />
         <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
           <CameraScanner onDetect={(c) => addByCode(c)} />
         </div>
-      </form>
+      </div>
 
       {/* Sepet */}
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: '1rem' }}>
