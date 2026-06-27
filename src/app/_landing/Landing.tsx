@@ -270,7 +270,7 @@ const BODY = `
 <header>
   <div class="wrap">
     <nav>
-      <a href="#" class="brand"><span class="dot"></span> Servis Takip</a>
+      <a href="#" class="brand"><span class="dot"></span> Servora</a>
       <div class="nav-links" id="navlinks">
         <a href="#ozellikler">Özellikler</a>
         <a href="#nasil">Nasıl Çalışır</a>
@@ -279,7 +279,7 @@ const BODY = `
         <a href="#kurucu">Kurucu</a>
       </div>
       <div class="nav-cta">
-        <!-- /login app içinde doğru. Landing'i ayrı domaine taşırsan tam URL yaz (ör. https://app.servistakip.com/login) -->
+        <!-- /login app içinde doğru. Landing'i ayrı domaine taşırsan tam URL yaz (ör. https://app.servora.com/login) -->
         <a class="login" href="/login">Giriş Yap</a>
         <a class="btn lp-btn-primary" href="#basla">Ücretsiz Dene →</a>
       </div>
@@ -320,7 +320,7 @@ const BODY = `
     <div class="float f1"><div class="ico" style="background:rgba(16,185,129,.18)">🧾</div><div><b>Fatura otomatik kesildi</b><small>Kira + 4.280 sayfa + servis</small></div></div>
     <div class="float f2"><div class="ico" style="background:rgba(245,158,11,.18)">⚠️</div><div><b>₺12.450 kaçan gelir</b><small>3 okunmamış sayaç</small></div></div>
     <div class="mock-frame">
-      <div class="mock-bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span class="u">app.servistakip.com/panel</span><span class="demo">örnek ekran</span></div>
+      <div class="mock-bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span class="u">app.servora.com/panel</span><span class="demo">örnek ekran</span></div>
       <div class="mock-body">
         <div class="mock-side">
           <div class="it active">📊 Panel</div>
@@ -353,7 +353,7 @@ const BODY = `
 <section class="pad wrap" id="neden">
   <div class="shead reveal">
     <span class="eyebrow">Tanıdık geldi mi?</span>
-    <h2>Manuel kaos &nbsp;→&nbsp; Servis Takip düzeni</h2>
+    <h2>Manuel kaos &nbsp;→&nbsp; Servora düzeni</h2>
     <p>Sayaç defterde, fatura Excel'de, servis WhatsApp'ta. Her ay biraz gelir kaçar, kimse fark etmez.</p>
   </div>
   <div class="vs reveal-stagger">
@@ -369,7 +369,7 @@ const BODY = `
       </ul>
     </div>
     <div class="col good">
-      <h3>🚀 Servis Takip ile</h3>
+      <h3>🚀 Servora ile</h3>
       <ul>
         <li><span class="v">✓</span> Her okunan sayaç anında faturaya dönüşür</li>
         <li><span class="v">✓</span> Kira + aşım + servis tek faturada otomatik birleşir</li>
@@ -426,7 +426,7 @@ const BODY = `
       <div class="lbl">Tahmini aylık kaçan gelir</div>
       <div class="big" id="outM">₺6.240</div>
       <div class="yr" id="outY">yılda ≈ ₺74.880</div>
-      <div class="lossbox">⚠️ Bu para zaten <b>sizin</b> — sadece faturalanmadığı için cebinizde değil. Servis Takip aylık ücretini <span class="em">ilk haftada</span> çıkarır.</div>
+      <div class="lossbox">⚠️ Bu para zaten <b>sizin</b> — sadece faturalanmadığı için cebinizde değil. Servora aylık ücretini <span class="em">ilk haftada</span> çıkarır.</div>
       <a class="btn lp-btn-primary" href="#basla" style="width:100%;justify-content:center">Bu parayı yakalamaya başla →</a>
       <div class="roi" id="roi">Aylık ₺599 ödeyip yıllık kaçağı yakalamak — net kazanç hesaplanıyor…</div>
     </div>
@@ -453,7 +453,7 @@ const BODY = `
   <div class="shead reveal"><span class="eyebrow">Çekinmeyin</span><h2>"Bizde zaten var" diyorsanız okuyun</h2></div>
   <div class="grid reveal-stagger">
     <div class="fcard"><div class="fi">📊</div><h3>"Excel yetiyor"</h3><p>Excel sayaç okumayı hatırlatmaz, aşımı kendi hesaplamaz, kesilmemiş faturayı söylemez. Kaçan gelir tam da Excel'in <b style="color:var(--text)">göstermediği</b> yerde. 14 gün dene, kendi gözünle gör.</p></div>
-    <div class="fcard"><div class="fi">🧮</div><h3>"Logo'm var"</h3><p>Logo muhasebeyi tutar; sayaç-kira ve saha servisini bilmez. Servis Takip servisi yönetir, faturayı üretir, <b style="color:var(--text)">veriyi Logo'ya akıtır.</b> Rakip değil, Logo'nuzu besler.</p></div>
+    <div class="fcard"><div class="fi">🧮</div><h3>"Logo'm var"</h3><p>Logo muhasebeyi tutar; sayaç-kira ve saha servisini bilmez. Servora servisi yönetir, faturayı üretir, <b style="color:var(--text)">veriyi Logo'ya akıtır.</b> Rakip değil, Logo'nuzu besler.</p></div>
     <div class="fcard"><div class="fi">🔒</div><h3>"Ya verim takılı kalırsa?"</h3><p>Verileriniz <b style="color:var(--text)">her zaman sizindir.</b> Tek tıkla Excel/PDF dışa aktarın. Girmesi kolay, <b style="color:var(--text)">çıkması da kolay.</b> İlk kurulumu da biz yaparız, siz hazıra oturursunuz.</p></div>
   </div>
 </section>
@@ -541,12 +541,12 @@ const BODY = `
     <div>
       <h3>Mehmet Naim Çetin</h3>
       <div class="role">Kurucu · Yazılım Mühendisi</div>
-      <p>"Bir fotokopi bayisinin sayaç okumayı kaçırdığı için her ay binlerce lira eksik faturaladığını gördüm. Buna dayanamadım — çözümünü sahada, bayinin yanında oturup yazdım. Servis Takip masa başında değil, gerçek bir işin içinde doğdu. Sorun yaşayan kim varsa, doğrudan bana yazabilir."</p>
+      <p>"Bir fotokopi bayisinin sayaç okumayı kaçırdığı için her ay binlerce lira eksik faturaladığını gördüm. Buna dayanamadım — çözümünü sahada, bayinin yanında oturup yazdım. Servora masa başında değil, gerçek bir işin içinde doğdu. Sorun yaşayan kim varsa, doğrudan bana yazabilir."</p>
       <div class="socials">
         <!-- DEĞİŞTİR: gerçek profil linkleri (yoksa o anchor'ı sil) -->
         <a href="#" target="_blank" rel="noopener">in/ LinkedIn</a>
         <a href="#" target="_blank" rel="noopener">@ Instagram</a>
-        <a data-wa data-wa-text="Merhaba Mehmet Bey, Servis Takip hakkında size yazıyorum">💬 Doğrudan bana yaz</a>
+        <a data-wa data-wa-text="Merhaba Mehmet Bey, Servora hakkında size yazıyorum">💬 Doğrudan bana yaz</a>
       </div>
     </div>
   </div>
@@ -557,7 +557,7 @@ const BODY = `
   <div class="shead reveal"><span class="eyebrow">SSS</span><h2>Aklındaki sorular</h2></div>
   <div class="faq reveal">
     <details class="qa"><summary>Verilerimi taşımak zor mu?</summary><div class="a">Hayır. Excel müşteri/cihaz listenizi bizim için bir paylaşman yeterli — kurulumda biz aktarıyoruz. İlk 50 bayiye veri aktarımı ve kurulum ücretsiz.</div></details>
-    <details class="qa"><summary>Logo / muhasebe programım var, yine de gerekir mi?</summary><div class="a">Evet, çünkü Logo sayaç-kira mantığını ve saha servisini bilmez. Servis Takip servis tarafını yönetir, faturayı otomatik üretir ve verisini Logo'ya akıtır — rakip değil, tamamlayıcıdır.</div></details>
+    <details class="qa"><summary>Logo / muhasebe programım var, yine de gerekir mi?</summary><div class="a">Evet, çünkü Logo sayaç-kira mantığını ve saha servisini bilmez. Servora servis tarafını yönetir, faturayı otomatik üretir ve verisini Logo'ya akıtır — rakip değil, tamamlayıcıdır.</div></details>
     <details class="qa"><summary>Barkod okuyucu / özel cihaz gerekir mi?</summary><div class="a">Sıradan bir USB barkod okuyucu (ör. LS2208) klavye gibi takılır, sürücü gerekmez. Telefon kamerası QR arıza bildirimi için yeterli. Özel donanım şart değil.</div></details>
     <details class="qa"><summary>Kaç günde kurulur?</summary><div class="a">Genellikle 1 gün. Aynı gün ilk müşteri/cihazını ekleyip ilk faturanı kesebilirsin.</div></details>
     <details class="qa"><summary>Taahhüt var mı, iptal edebilir miyim?</summary><div class="a">Taahhüt yok. Aylık ödersin, istediğin an iptal edersin. Yıllık ödersen 2 ay bedava kazanırsın. Verilerini her zaman dışa aktarabilirsin.</div></details>
@@ -582,7 +582,7 @@ const BODY = `
       <button type="submit" class="btn lp-btn-primary">Ücretsiz Başla →</button>
     </form>
     <div class="form-alt">
-      <a class="btn wa" data-wa data-wa-text="Merhaba, Servis Takip demosu istiyorum">💬 Formla uğraşma — WhatsApp'tan 2 dakikada demo iste</a>
+      <a class="btn wa" data-wa data-wa-text="Merhaba, Servora demosu istiyorum">💬 Formla uğraşma — WhatsApp'tan 2 dakikada demo iste</a>
     </div>
     <div class="form-note">📱 Formu doldur ya da WhatsApp butonuna bas — 2 dakikada demo, hemen yanıt.</div>
     <div class="ok-msg" id="okMsg">✓ Teşekkürler! WhatsApp penceresi açıldıysa mesajı gönder; açılmadıysa en geç 1 iş günü içinde sana ulaşacağız.</div>
@@ -591,21 +591,21 @@ const BODY = `
 
 <footer>
   <div class="wrap foot">
-    <div><span class="brand" style="font-size:1.1rem"><span class="dot"></span> Servis Takip</span><div style="margin-top:8px">Kiralık cihaz servis & sayaç-kira yönetimi</div></div>
+    <div><span class="brand" style="font-size:1.1rem"><span class="dot"></span> Servora</span><div style="margin-top:8px">Kiralık cihaz servis & sayaç-kira yönetimi</div></div>
     <div style="display:flex;gap:22px;flex-wrap:wrap">
       <a href="#ozellikler">Özellikler</a>
       <a href="#fiyatlar">Fiyatlar</a>
       <a href="#hesapla">Kaçan Gelir</a>
       <a href="#basla">İletişim</a>
     </div>
-    <div>© 2026 Servis Takip · Tüm hakları saklıdır</div>
+    <div>© 2026 Servora · Tüm hakları saklıdır</div>
   </div>
 </footer>
 
 <!-- MOBİL STICKY CTA -->
 <div class="mcta" id="mcta">
   <a class="btn lp-btn-primary" href="#basla">14 Gün Ücretsiz →</a>
-  <a class="btn wa" data-wa data-wa-text="Merhaba, Servis Takip demosu istiyorum" aria-label="WhatsApp ile demo iste">💬</a>
+  <a class="btn wa" data-wa data-wa-text="Merhaba, Servora demosu istiyorum" aria-label="WhatsApp ile demo iste">💬</a>
 </div>
 
 `;
@@ -640,7 +640,7 @@ const JS = `
     var net=Math.round(m-pro);
     roi.innerHTML = net>0
       ? 'Aylık ₺'+pro.toLocaleString('tr-TR')+' ödeyip ayda <b style="color:var(--emerald)">'+fmt(m)+'</b> kurtarmak. Net kazanç ≈ <b style="color:var(--emerald)">'+fmt(net)+'/ay</b>'
-      : 'Servis Takip Profesyonel — kaçağınızı görünür kılar.';
+      : 'Servora Profesyonel — kaçağınızı görünür kılar.';
   }
   [rN,rA,rR].forEach(function(el){el.addEventListener('input',calc);}); calc();
 
@@ -667,7 +667,7 @@ const JS = `
   document.getElementById('leadForm').addEventListener('submit',function(e){
     e.preventDefault();
     var f=this;
-    var text='Merhaba, Servis Takip denemek istiyorum.\\n'
+    var text='Merhaba, Servora denemek istiyorum.\\n'
       +'Firma: '+(f.firma.value||'-')+'\\n'
       +'Ad: '+(f.ad.value||'-')+'\\n'
       +'Telefon: '+(f.telefon.value||'-')
@@ -684,7 +684,7 @@ const JS = `
   (function(){
     if(typeof STK_WHATSAPP==='undefined') return;
     document.querySelectorAll('[data-wa]').forEach(function(a){
-      var t=a.getAttribute('data-wa-text')||'Merhaba, Servis Takip hakkında bilgi almak istiyorum';
+      var t=a.getAttribute('data-wa-text')||'Merhaba, Servora hakkında bilgi almak istiyorum';
       a.setAttribute('href','https://wa.me/'+STK_WHATSAPP+'?text='+encodeURIComponent(t));
       a.setAttribute('target','_blank'); a.setAttribute('rel','noopener');
     });

@@ -3,7 +3,7 @@ import '../globals.css';
 import SuperAdminSidebar from '@/components/super-admin/SuperAdminSidebar';
 
 export const metadata: Metadata = {
-    title: 'Süper Admin — Servis Takip',
+    title: 'Süper Admin — Servora',
     description: 'Platform yönetim paneli',
 };
 

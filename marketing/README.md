@@ -1,12 +1,12 @@
-# Servis Takip — Pazarlama Paketi
+# Servora — Pazarlama Paketi
 
-> Servis Takip ürününün pazarlama sistemi. **Tek odak: sadece servis takibini pazarlıyoruz**
+> Servora ürününün pazarlama sistemi. **Tek odak: sadece servis takibini pazarlıyoruz**
 > (rent-a-car / makine-takip bu kampanyada yok). Kurucu kişisel markası (Mehmet Naim) ile birlikte yürür.
 
 ## İçindekiler
 | Dosya | Ne işe yarar |
 |---|---|
-| [00-MARKA-VE-ISIM.md](00-MARKA-VE-ISIM.md) | Marka kimliği: **"Servis Takip" kararı**, jenerik ismi çalıştırma (SEO/tescil), ton, renk, logo, domain checklist |
+| [00-MARKA-VE-ISIM.md](00-MARKA-VE-ISIM.md) | Marka kimliği: **"Servora" kararı**, jenerik ismi çalıştırma (SEO/tescil), ton, renk, logo, domain checklist |
 | [01-GTM-STRATEJI.md](01-GTM-STRATEJI.md) | ICP, konumlandırma, fiyat (₺299/599/1499), kanallar, huni, 90 günlük plan, metrikler |
 | [02-ICERIK-KREATIF.md](02-ICERIK-KREATIF.md) | Reklam metni, WhatsApp/soğuk temas, 6-mail onboarding dizisi, sosyal takvim, **personal branding** |
 | [03-CRM-OTOMASYON.md](03-CRM-OTOMASYON.md) | Araç yığını, pipeline, otomasyon akışları, ürün↔pazarlama köprüsü, ölçüm panosu |
@@ -19,7 +19,7 @@ landing'i görür, girişli kullanıcı doğrudan `/dashboard`'a gider. Landing'
 `landing/index.html`'i düzenle, sonra `node marketing/landing/build-landing.js` çalıştır.
 
 ## YAPILDI ✅
-- [x] Marka kararı: "Servis Takip" (00) + tüm paket bu isme çevrildi
+- [x] Marka kararı: "Servora" (00) + tüm paket bu isme çevrildi
 - [x] Landing uygulamanın `/` rotasına gömüldü (dev:3002'de doğrulandı)
 - [x] Notion CRM pipeline veritabanı + 6 örnek lead → https://app.notion.com/p/70d80e03498e40eaa43a851a549a85f4
 - [x] Canva: acı-odaklı Instagram reklamı için 4 aday üretildi (seçim bekliyor)

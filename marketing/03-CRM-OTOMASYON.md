@@ -1,4 +1,4 @@
-# CRM & Pazarlama Otomasyonu — Servis Takip
+# CRM & Pazarlama Otomasyonu — Servora
 
 > Amaç: Tek kişi (sen) varken bile hiçbir lead düşmesin, deneme→ödeme akışı kendi yürüsün.
 > Felsefe: **Önce ucuz/bedava araçla başla, gelir gelince yükselt.** Aşırı mühendislik yapma.
