@@ -24,6 +24,10 @@ export function useBarcodeWedge(
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
+      // Ctrl/Alt/Meta basılıyken (ör. yanlış ayarlı okuyucunun gönderdiği Ctrl+T gibi kontrol
+      // kombinasyonları) tuşu YOK SAY — barkod buffer'ı bozulmasın. (Tarayıcı kısayolunu JS
+      // tamamen engelleyemez; asıl düzeltme okuyucu ayarındadır.)
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
 
