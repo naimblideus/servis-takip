@@ -44,6 +44,7 @@ export default function AccountingPage() {
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkMsgTpl, setBulkMsgTpl] = useState('Sayın {ad},\n\nHesabınızda ₺{borç} tutarında ödenmemiş bakiye bulunmaktadır.\n\nLütfen en kısa sürede ödeme yapmanızı rica ederiz.\n\nSaygılarımızla');
   const [bulkIdx, setBulkIdx] = useState(-1);
+  const [bulkQueue, setBulkQueue] = useState<Customer[]>([]); // gönderim başında dondurulan liste
   // Stok picker
   const [allStock, setAllStock] = useState<StockItem[]>([]);
   const [formStockSearch, setFormStockSearch] = useState('');
@@ -210,11 +211,15 @@ export default function AccountingPage() {
   };
 
   const formatPhone = (raw: string) => {
-    let p = raw.replace(/[^0-9]/g,'');
-    if (p.startsWith('0')) p = '90'+p.substring(1);
-    if (!p.startsWith('90')) p = '90'+p;
-    return p;
+    let p = (raw || '').replace(/[^0-9]/g,'');
+    if (p.startsWith('0090')) p = p.slice(2);            // 0090... -> 90...
+    if (p.startsWith('90') && p.length === 12) return p;  // zaten 90 + 10 hane
+    if (p.startsWith('0')) p = p.slice(1);                // 0532... -> 532...
+    if (p.length === 10) return '90' + p;                 // 5XXXXXXXXX -> 90...
+    return p.startsWith('90') ? p : '90' + p;
   };
+  // Geçerli TR WhatsApp numarası mı? (90 + 10 hane). Boş/eksik numaralar elenir.
+  const isValidWa = (raw: string) => /^90\d{10}$/.test(formatPhone(raw));
 
   const sendWhatsApp = (cust: {name:string;phone:string}, debt: number) => {
     const phone = formatPhone(cust.phone);
@@ -254,22 +259,30 @@ export default function AccountingPage() {
   };
 
   const debtors = customers.filter(c => c.balance > 0);
+  const debtorsWithPhone = debtors.filter(c => isValidWa(c.phone)); // sadece geçerli telefonu olanlar
+  const noPhoneCount = debtors.length - debtorsWithPhone.length;    // telefonu olmayan/bozuk borçlu sayısı
 
   const openBulkWA = () => {
-    setBulkSelected(new Set(debtors.map(c => c.id)));
+    setBulkSelected(new Set(debtorsWithPhone.map(c => c.id)));
     setBulkIdx(-1);
+    setBulkQueue([]);
     setShowBulkWA(true);
   };
 
   const bulkSendNext = () => {
-    const list = debtors.filter(c => bulkSelected.has(c.id));
+    // Gönderim başında listeyi DONDUR (veri yenilenirse sıra kaymasın, atlama/çift olmasın).
+    let list = bulkQueue;
+    if (bulkIdx === -1) {
+      list = debtorsWithPhone.filter(c => bulkSelected.has(c.id));
+      setBulkQueue(list);
+    }
     const nextIdx = bulkIdx + 1;
     if (nextIdx >= list.length) { setShowBulkWA(false); setBulkIdx(-1); return; }
     const c = list[nextIdx];
     const phone = formatPhone(c.phone);
     const msg = bulkMsgTpl
       .replace(/{ad}/g, c.name)
-      .replace(/{borç}/g, c.balance.toFixed(2))
+      .replace(/{borç}/g, c.balance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
       .replace(/{telefon}/g, c.phone);
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     setBulkIdx(nextIdx);
@@ -333,7 +346,7 @@ export default function AccountingPage() {
             <div style={{background:'linear-gradient(135deg,#15803d,#22c55e)',color:'white',padding:'1rem 1.25rem',borderRadius:'1rem 1rem 0 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
                 <div style={{fontWeight:'700',fontSize:'1.05rem'}}>📱 Toplu WhatsApp Hatırlatma</div>
-                <div style={{fontSize:'0.78rem',opacity:0.85,marginTop:'0.15rem'}}>{debtors.filter(c=>bulkSelected.has(c.id)).length} borçlu müşteri seçili</div>
+                <div style={{fontSize:'0.78rem',opacity:0.85,marginTop:'0.15rem'}}>{debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} borçlu müşteri seçili</div>
               </div>
               <button onClick={() => setShowBulkWA(false)} style={{background:'rgba(255,255,255,0.2)',color:'white',border:'none',borderRadius:'50%',width:'30px',height:'30px',cursor:'pointer',fontSize:'1rem'}}>✕</button>
             </div>
@@ -353,13 +366,16 @@ export default function AccountingPage() {
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
                       <label style={{...lbl,color:'#374151',fontSize:'0.85rem',marginBottom:0}}>👥 Borçlu Müşteriler</label>
                       <div style={{display:'flex',gap:'0.5rem'}}>
-                        <button onClick={() => setBulkSelected(new Set(debtors.map(c=>c.id)))} style={{fontSize:'0.72rem',color:'#2563eb',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>Tümünü Seç</button>
+                        <button onClick={() => setBulkSelected(new Set(debtorsWithPhone.map(c=>c.id)))} style={{fontSize:'0.72rem',color:'#2563eb',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>Tümünü Seç</button>
                         <span style={{color:'#d1d5db'}}>|</span>
                         <button onClick={() => setBulkSelected(new Set())} style={{fontSize:'0.72rem',color:'#dc2626',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>Hiçbirini Seçme</button>
                       </div>
                     </div>
+                    {noPhoneCount > 0 && (
+                      <div style={{fontSize:'0.72rem',color:'#b45309',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:'0.4rem',padding:'0.4rem 0.6rem',marginBottom:'0.5rem'}}>⚠️ {noPhoneCount} borçluda geçerli telefon yok — listeye alınmadı.</div>
+                    )}
                     <div style={{border:'1px solid #e5e7eb',borderRadius:'0.5rem',overflow:'hidden',maxHeight:'220px',overflowY:'auto'}}>
-                      {debtors.map(c => (
+                      {debtorsWithPhone.map(c => (
                         <label key={c.id} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.6rem 0.875rem',borderBottom:'1px solid #f3f4f6',cursor:'pointer',backgroundColor:bulkSelected.has(c.id)?'#f0fdf4':'white'}}>
                           <input type="checkbox" checked={bulkSelected.has(c.id)} onChange={e => {
                             const s = new Set(bulkSelected);
@@ -377,17 +393,17 @@ export default function AccountingPage() {
                   </div>
 
                   {/* Önizleme */}
-                  {debtors[0] && bulkSelected.has(debtors[0].id) && (
+                  {debtorsWithPhone[0] && bulkSelected.has(debtorsWithPhone[0].id) && (
                     <div style={{backgroundColor:'#f0fdf4',border:'1px solid #86efac',borderRadius:'0.5rem',padding:'0.75rem',marginBottom:'1rem'}}>
-                      <div style={{fontSize:'0.72rem',color:'#15803d',fontWeight:'600',marginBottom:'0.35rem'}}>👁️ Mesaj Önizleme ({debtors[0].name})</div>
+                      <div style={{fontSize:'0.72rem',color:'#15803d',fontWeight:'600',marginBottom:'0.35rem'}}>👁️ Mesaj Önizleme ({debtorsWithPhone[0].name})</div>
                       <div style={{fontSize:'0.8rem',color:'#374151',whiteSpace:'pre-wrap',lineHeight:'1.5'}}>
-                        {bulkMsgTpl.replace(/{ad}/g,debtors[0].name).replace(/{borç}/g,debtors[0].balance.toFixed(2)).replace(/{telefon}/g,debtors[0].phone)}
+                        {bulkMsgTpl.replace(/{ad}/g,debtorsWithPhone[0].name).replace(/{borç}/g,debtorsWithPhone[0].balance.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})).replace(/{telefon}/g,debtorsWithPhone[0].phone)}
                       </div>
                     </div>
                   )}
 
                   <button onClick={bulkSendNext} disabled={bulkSelected.size===0} style={{width:'100%',padding:'0.75rem',backgroundColor:'#22c55e',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:bulkSelected.size===0?0.5:1}}>
-                    📱 Göndermeye Başla ({debtors.filter(c=>bulkSelected.has(c.id)).length} mesaj)
+                    📱 Göndermeye Başla ({debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} mesaj)
                   </button>
                 </>
               ) : (
@@ -396,18 +412,18 @@ export default function AccountingPage() {
                   <div style={{textAlign:'center',marginBottom:'1.25rem'}}>
                     <div style={{fontSize:'2.5rem',marginBottom:'0.5rem'}}>📱</div>
                     <div style={{fontWeight:'700',fontSize:'1.1rem',color:'#15803d'}}>
-                      {bulkIdx + 1} / {debtors.filter(c=>bulkSelected.has(c.id)).length} gönderildi
+                      {bulkIdx + 1} / {bulkQueue.length} gönderildi
                     </div>
                     <div style={{color:'#6b7280',fontSize:'0.85rem',marginTop:'0.25rem'}}>WhatsApp açıldı, mesajı gönderdikten sonra buraya dönün</div>
                   </div>
 
                   {/* İlerleme çubuğu */}
                   <div style={{backgroundColor:'#f3f4f6',borderRadius:'9999px',height:'8px',marginBottom:'1.25rem'}}>
-                    <div style={{backgroundColor:'#22c55e',borderRadius:'9999px',height:'8px',width:`${((bulkIdx+1)/debtors.filter(c=>bulkSelected.has(c.id)).length)*100}%`,transition:'width 0.3s'}} />
+                    <div style={{backgroundColor:'#22c55e',borderRadius:'9999px',height:'8px',width:`${((bulkIdx+1)/bulkQueue.length)*100}%`,transition:'width 0.3s'}} />
                   </div>
 
                   {/* Gönderilen kişi */}
-                  {(() => { const list=debtors.filter(c=>bulkSelected.has(c.id)); const sent=list.slice(0,bulkIdx+1); const remaining=list.slice(bulkIdx+1); return (
+                  {(() => { const list=bulkQueue; const sent=list.slice(0,bulkIdx+1); const remaining=list.slice(bulkIdx+1); return (
                     <>
                       <div style={{border:'1px solid #e5e7eb',borderRadius:'0.5rem',overflow:'hidden',maxHeight:'180px',overflowY:'auto',marginBottom:'1rem'}}>
                         {sent.map((c,i) => (
@@ -431,7 +447,7 @@ export default function AccountingPage() {
                   <div style={{display:'flex',gap:'0.75rem'}}>
                     <button onClick={() => {setShowBulkWA(false); setBulkIdx(-1);}} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>Bitir</button>
                     <button onClick={bulkSendNext} style={{flex:2,padding:'0.625rem',backgroundColor:'#22c55e',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
-                      {bulkIdx + 1 >= debtors.filter(c=>bulkSelected.has(c.id)).length ? '✅ Tamamlandı' : `Sıradaki → ${debtors.filter(c=>bulkSelected.has(c.id))[bulkIdx+1]?.name}`}
+                      {bulkIdx + 1 >= bulkQueue.length ? '✅ Tamamlandı' : `Sıradaki → ${bulkQueue[bulkIdx+1]?.name}`}
                     </button>
                   </div>
                 </>
