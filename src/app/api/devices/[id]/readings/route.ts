@@ -16,7 +16,7 @@ export async function POST(
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();
-        const { counterBlack, counterColor, ticketId, includeMonthlyRent, photo } = body;
+        const { counterBlack, counterColor, ticketId, includeMonthlyRent, photo, reset } = body;
         // Sayaç fotoğrafı (küçültülmüş JPEG data URL); güvenli boyut sınırı
         const safePhoto = typeof photo === 'string' && photo.startsWith('data:image/') && photo.length < 800000 ? photo : null;
 
@@ -37,8 +37,19 @@ export async function POST(
             orderBy: { readingDate: 'desc' },
         });
 
-        const deltaBlack = prev ? Math.max(0, counterBlack - prev.counterBlack) : 0;
-        const deltaColor = prev ? Math.max(0, counterColor - prev.counterColor) : 0;
+        // Düşüş kontrolü: sayaç gerilemişse (rollover / cihaz değişimi / yanlış giriş) SESSİZCE 0 yazma.
+        // 'reset' onayı yoksa REDDET — yoksa ya gelir kaybı (delta=0) ya da yanlış devasa delta oluşur.
+        const prevB = prev ? prev.counterBlack : null;
+        const prevC = prev ? prev.counterColor : null;
+        const decreased = (prevB !== null && counterBlack < prevB) || (prevC !== null && counterColor < prevC);
+        if (decreased && !reset) {
+            return NextResponse.json({ error: 'Sayaç değeri öncekinden düşük. Cihaz sıfırlandıysa/değiştiyse "sayaç sıfırlandı" onayıyla tekrar gönderin.', code: 'COUNTER_DECREASE' }, { status: 400 });
+        }
+        const deltaBlack = prevB === null ? 0 : (reset && counterBlack < prevB ? Math.max(0, counterBlack) : Math.max(0, counterBlack - prevB));
+        const deltaColor = prevC === null ? 0 : (reset && counterColor < prevC ? Math.max(0, counterColor) : Math.max(0, counterColor - prevC));
+        // Anomali uyarısı (bloklamaz): tek okumada olağandışı yüksek artış
+        const ANOMALY = 200000;
+        const anomaly = deltaBlack > ANOMALY || deltaColor > ANOMALY ? 'Olağandışı yüksek sayfa artışı — lütfen kontrol edin.' : null;
 
         // Kiralık cihaz ise kademeli (dahil paket + aşım) ücret hesapla — gerçek fatura mantığıyla aynı (tek kaynak)
         let calculatedCost = 0;
@@ -91,6 +102,7 @@ export async function POST(
 
         return NextResponse.json({
             ...reading,
+            warning: anomaly,
             breakdown: device.isRental && ch ? {
                 // Faturalanan (aşım) sayfa adedi — dahil paket düşülmüş; included=0 ise delta'nın aynısı
                 deltaBlack: ch.billB,
@@ -222,7 +234,7 @@ export async function PATCH(
         if (!readingId) return NextResponse.json({ error: 'readingId zorunlu' }, { status: 400 });
 
         const body = await req.json();
-        const { counterBlack, counterColor } = body;
+        const { counterBlack, counterColor, reset } = body;
 
         if (counterBlack === undefined || counterColor === undefined) {
             return NextResponse.json({ error: 'counterBlack ve counterColor zorunlu' }, { status: 400 });
@@ -233,6 +245,8 @@ export async function PATCH(
             where: { id: readingId, tenantId: user.tenantId, deviceId },
         });
         if (!reading) return NextResponse.json({ error: 'Okuma bulunamadı' }, { status: 404 });
+        // Faturalanmış okuma DEĞİŞTİRİLEMEZ (immutable evidence — fatura/defter desync olmasın).
+        if (reading.billed) return NextResponse.json({ error: 'Bu okuma faturalandığı için düzenlenemez.' }, { status: 409 });
 
         const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
         if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
@@ -245,8 +259,14 @@ export async function PATCH(
             orderBy: { readingDate: 'desc' },
         });
 
-        const deltaBlack = prev ? Math.max(0, counterBlack - prev.counterBlack) : 0;
-        const deltaColor = prev ? Math.max(0, counterColor - prev.counterColor) : 0;
+        const prevB = prev ? prev.counterBlack : null;
+        const prevC = prev ? prev.counterColor : null;
+        const decreased = (prevB !== null && counterBlack < prevB) || (prevC !== null && counterColor < prevC);
+        if (decreased && !reset) {
+            return NextResponse.json({ error: 'Sayaç değeri öncekinden düşük. Cihaz sıfırlandıysa/değiştiyse "sayaç sıfırlandı" onayıyla tekrar gönderin.', code: 'COUNTER_DECREASE' }, { status: 400 });
+        }
+        const deltaBlack = prevB === null ? 0 : (reset && counterBlack < prevB ? Math.max(0, counterBlack) : Math.max(0, counterBlack - prevB));
+        const deltaColor = prevC === null ? 0 : (reset && counterColor < prevC ? Math.max(0, counterColor) : Math.max(0, counterColor - prevC));
 
         let calculatedCost = 0;
         if (device.isRental && tenant) {

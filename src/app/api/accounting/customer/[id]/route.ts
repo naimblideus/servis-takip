@@ -14,8 +14,9 @@ export async function GET(
     const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const customer = await prisma.customer.findUnique({
-        where: { id: customerId },
+    // TENANT-scoped (cross-tenant müşteri PII sızıntısı kapalı): yabancı id null → 404
+    const customer = await prisma.customer.findFirst({
+        where: { id: customerId, tenantId: user.tenantId },
         select: { id: true, name: true, phone: true },
     });
 

@@ -11,8 +11,12 @@ export async function GET(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const ticket = await prisma.serviceTicket.findUnique({
-        where: { id },
+    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // TENANT-scoped (cross-tenant PII sızıntısı kapalı): yabancı id null → 404
+    const ticket = await prisma.serviceTicket.findFirst({
+        where: { id, tenantId: user.tenantId },
         include: {
             device: { include: { customer: true } },
             assignedUser: true,
