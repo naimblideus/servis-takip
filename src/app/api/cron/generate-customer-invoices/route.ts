@@ -8,7 +8,7 @@ export const maxDuration = 300;
 // CRON_SECRET ile koruma (Vercel Cron: Authorization: Bearer <secret>)
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // dev ortamı: secret yoksa serbest
+  if (!secret) return false; // FAIL-CLOSED: CRON_SECRET yoksa erişimi REDDET (asla open)
   const header = req.headers.get('authorization');
   const qp = new URL(req.url).searchParams.get('secret');
   return header === `Bearer ${secret}` || qp === secret;

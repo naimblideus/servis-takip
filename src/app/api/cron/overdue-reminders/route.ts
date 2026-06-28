@@ -6,7 +6,7 @@ export const maxDuration = 120;
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
+  if (!secret) return false; // FAIL-CLOSED: CRON_SECRET yoksa erişimi REDDET (asla open)
   const header = req.headers.get('authorization');
   const qp = new URL(req.url).searchParams.get('secret');
   return header === `Bearer ${secret}` || qp === secret;
