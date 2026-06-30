@@ -45,6 +45,7 @@ export default function AccountingPage() {
   const [bulkMsgTpl, setBulkMsgTpl] = useState('Sayın {ad},\n\nHesabınızda ₺{borç} tutarında ödenmemiş bakiye bulunmaktadır.\n\nLütfen en kısa sürede ödeme yapmanızı rica ederiz.\n\nSaygılarımızla');
   const [bulkIdx, setBulkIdx] = useState(-1);
   const [bulkQueue, setBulkQueue] = useState<Customer[]>([]); // gönderim başında dondurulan liste
+  const [smsSending, setSmsSending] = useState(false);
   // Stok picker
   const [allStock, setAllStock] = useState<StockItem[]>([]);
   const [formStockSearch, setFormStockSearch] = useState('');
@@ -288,6 +289,21 @@ export default function AccountingPage() {
     setBulkIdx(nextIdx);
   };
 
+  // Toplu SMS: seçili borçlulara TEK TIKLA (sunucu üzerinden Netgsm). Mesaj sunucuda üretilir.
+  const handleBulkSms = async () => {
+    const ids = debtorsWithPhone.filter(c => bulkSelected.has(c.id)).map(c => c.id);
+    if (!ids.length) return;
+    if (!confirm(`${ids.length} kişiye SMS gönderilecek. (Uzun/Türkçe karakterli mesaj birden fazla SMS sayılabilir.) Onaylıyor musunuz?`)) return;
+    setSmsSending(true);
+    try {
+      const res = await fetch('/api/sms/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerIds: ids, template: bulkMsgTpl }) });
+      const d = await res.json();
+      if (res.ok) { alert(`✅ ${d.sent} SMS gönderildi${d.skipped ? `, ${d.skipped} telefonsuz atlandı` : ''}.`); setShowBulkWA(false); }
+      else alert(`❌ ${d.error || 'SMS gönderilemedi'}${d.code ? ` (${d.code})` : ''}`);
+    } catch { alert('❌ Bağlantı hatası, tekrar deneyin.'); }
+    setSmsSending(false);
+  };
+
   const handlePrint = () => {
     if (!selCust) { alert('Lütfen önce soldan bir müşteri seçin, sonra "Yazdır"a basın.'); return; }
     window.open(`/accounting/${selCust.id}/print`, '_blank');
@@ -345,7 +361,7 @@ export default function AccountingPage() {
             {/* Modal Başlık */}
             <div style={{background:'linear-gradient(135deg,#15803d,#22c55e)',color:'white',padding:'1rem 1.25rem',borderRadius:'1rem 1rem 0 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
-                <div style={{fontWeight:'700',fontSize:'1.05rem'}}>📱 Toplu WhatsApp Hatırlatma</div>
+                <div style={{fontWeight:'700',fontSize:'1.05rem'}}>📩 Toplu Hatırlatma (SMS / WhatsApp)</div>
                 <div style={{fontSize:'0.78rem',opacity:0.85,marginTop:'0.15rem'}}>{debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} borçlu müşteri seçili</div>
               </div>
               <button onClick={() => setShowBulkWA(false)} style={{background:'rgba(255,255,255,0.2)',color:'white',border:'none',borderRadius:'50%',width:'30px',height:'30px',cursor:'pointer',fontSize:'1rem'}}>✕</button>
@@ -402,8 +418,12 @@ export default function AccountingPage() {
                     </div>
                   )}
 
-                  <button onClick={bulkSendNext} disabled={bulkSelected.size===0} style={{width:'100%',padding:'0.75rem',backgroundColor:'#22c55e',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:bulkSelected.size===0?0.5:1}}>
-                    📱 Göndermeye Başla ({debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} mesaj)
+                  <button onClick={handleBulkSms} disabled={bulkSelected.size===0 || smsSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#2563eb',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||smsSending)?0.5:1,marginBottom:'0.6rem'}}>
+                    {smsSending ? '📩 Gönderiliyor…' : `📩 SMS ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
+                  </button>
+                  <div style={{fontSize:'0.72rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.5rem'}}>— veya ücretsiz, tek tek WhatsApp —</div>
+                  <button onClick={bulkSendNext} disabled={bulkSelected.size===0} style={{width:'100%',padding:'0.6rem',backgroundColor:'white',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',fontSize:'0.88rem',opacity:bulkSelected.size===0?0.5:1}}>
+                    📱 WhatsApp ile tek tek aç ({debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length})
                   </button>
                 </>
               ) : (
@@ -500,7 +520,7 @@ export default function AccountingPage() {
               <button onClick={backfillCari} disabled={backfilling} title="Teslim edilmemiş dahil tüm açık servis fişlerini cariye işler" style={{padding:'0.625rem 1rem',backgroundColor:'#eef2ff',color:'#4338ca',border:'1px solid #c7d2fe',borderRadius:'0.5rem',cursor:backfilling?'not-allowed':'pointer',fontWeight:'600',opacity:backfilling?0.6:1}}>{backfilling ? '⏳ Aktarılıyor…' : '🔄 Fişleri cariye aktar'}</button>
               {debtors.length > 0 && (
                 <button onClick={openBulkWA} style={{padding:'0.625rem 1rem',backgroundColor:'#dcfce7',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',display:'flex',alignItems:'center',gap:'0.4rem'}}>
-                  📱 Toplu WhatsApp <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>
+                  📩 Toplu Hatırlatma <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>
                 </button>
               )}
               <button onClick={()=>{ if(showForm){resetForm();setShowForm(false);}else{setShowForm(true);if(selCust)selectFormCust({id:selCust.id,name:selCust.name,phone:selCust.phone});} }} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>

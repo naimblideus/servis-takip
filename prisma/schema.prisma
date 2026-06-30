@@ -461,6 +461,10 @@ model AuditLog {
   oldValue   String? // JSON string
   newValue   String? // JSON string
   ipAddress  String?
+  actorType  String? // USER | SUPER_ADMIN | SYSTEM
+  actorName  String? // süper-admin/sistem aktörü (User FK olmayan) için ad
+  prevHash   String? // önceki audit kaydının hash'i (zincir)
+  hash       String? // sha256(canonical(satır) + prevHash) — tamper-evident
   createdAt  DateTime @default(now())
 
   // Relations
