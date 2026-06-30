@@ -46,6 +46,7 @@ export default function AccountingPage() {
   const [bulkIdx, setBulkIdx] = useState(-1);
   const [bulkQueue, setBulkQueue] = useState<Customer[]>([]); // gönderim başında dondurulan liste
   const [smsSending, setSmsSending] = useState(false);
+  const [waSending, setWaSending] = useState(false);
   // Stok picker
   const [allStock, setAllStock] = useState<StockItem[]>([]);
   const [formStockSearch, setFormStockSearch] = useState('');
@@ -304,6 +305,23 @@ export default function AccountingPage() {
     setSmsSending(false);
   };
 
+  // Toplu WhatsApp: seçili borçlulara TEK TIKLA (Meta Cloud API, onaylı şablon). Sunucu üzerinden.
+  const handleBulkWa = async () => {
+    const ids = debtorsWithPhone.filter(c => bulkSelected.has(c.id)).map(c => c.id);
+    if (!ids.length) return;
+    if (!confirm(`${ids.length} kişiye WhatsApp gönderilecek (Meta onaylı şablonla). Onaylıyor musunuz?`)) return;
+    setWaSending(true);
+    try {
+      const res = await fetch('/api/whatsapp/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerIds: ids }) });
+      const d = await res.json();
+      if (res.ok) {
+        alert(`✅ ${d.sent} WhatsApp gönderildi${d.failed ? `, ${d.failed} başarısız` : ''}${d.skipped ? `, ${d.skipped} telefonsuz atlandı` : ''}.${d.errors?.length ? `\n\n${d.errors.join('\n')}` : ''}`);
+        setShowBulkWA(false);
+      } else alert(`❌ ${d.error || 'WhatsApp gönderilemedi'}`);
+    } catch { alert('❌ Bağlantı hatası, tekrar deneyin.'); }
+    setWaSending(false);
+  };
+
   const handlePrint = () => {
     if (!selCust) { alert('Lütfen önce soldan bir müşteri seçin, sonra "Yazdır"a basın.'); return; }
     window.open(`/accounting/${selCust.id}/print`, '_blank');
@@ -421,6 +439,10 @@ export default function AccountingPage() {
                   <button onClick={handleBulkSms} disabled={bulkSelected.size===0 || smsSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#2563eb',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||smsSending)?0.5:1,marginBottom:'0.6rem'}}>
                     {smsSending ? '📩 Gönderiliyor…' : `📩 SMS ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
                   </button>
+                  <button onClick={handleBulkWa} disabled={bulkSelected.size===0 || waSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#16a34a',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||waSending)?0.5:1,marginBottom:'0.35rem'}}>
+                    {waSending ? '🟢 Gönderiliyor…' : `🟢 WhatsApp ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
+                  </button>
+                  <div style={{fontSize:'0.68rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.6rem'}}>WhatsApp metni Meta onaylı şablondan gelir; SMS metni yukarıdaki kutudan.</div>
                   <div style={{fontSize:'0.72rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.5rem'}}>— veya ücretsiz, tek tek WhatsApp —</div>
                   <button onClick={bulkSendNext} disabled={bulkSelected.size===0} style={{width:'100%',padding:'0.6rem',backgroundColor:'white',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',fontSize:'0.88rem',opacity:bulkSelected.size===0?0.5:1}}>
                     📱 WhatsApp ile tek tek aç ({debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length})
