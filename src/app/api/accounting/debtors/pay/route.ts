@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     const runTxn = (): Promise<PayResult> => prisma.$transaction(async (tx) => {
       const ticket = await tx.serviceTicket.findFirst({
-        where: { id: ticketId, tenantId }, // <-- tenant guard (IDOR fix)
+        where: { id: ticketId, tenantId, deletedAt: null, status: { not: 'CANCELLED' as any } }, // tenant + iptal/silinmiş guard
         include: { payments: { select: { amount: true } } },
       });
       if (!ticket) return { ok: false, status: 404, error: 'Fiş bulunamadı' };

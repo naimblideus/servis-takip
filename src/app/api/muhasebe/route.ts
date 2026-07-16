@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { AccountEntryType } from '@prisma/client';
+import { validateAmount } from '@/lib/money';
 
 // GET /api/muhasebe — Tüm hesap kayıtlarını listele (filtrelerle)
 export async function GET(req: Request) {
@@ -131,13 +132,20 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Satış kaydı için ürün/hizmet adı zorunlu' }, { status: 400 });
         }
 
+        const amt = validateAmount(amount);
+        if (!amt) return NextResponse.json({ error: 'Geçerli (pozitif) bir tutar girin' }, { status: 400 });
+
+        // Müşteri bu bayiye mi ait? (cross-tenant IDOR + PII sızıntısı engeli)
+        const owned = await prisma.customer.findFirst({ where: { id: customerId, tenantId: user.tenantId }, select: { id: true } });
+        if (!owned) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+
         const entry = await prisma.accountEntry.create({
             data: {
                 tenantId: user.tenantId,
                 customerId,
                 type: type as AccountEntryType,
                 product: product || null,
-                amount: parseFloat(amount),
+                amount: amt,
                 method: (method || 'CASH') as string,
                 notes: notes || null,
                 createdByUserId: user.id,

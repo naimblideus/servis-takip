@@ -19,6 +19,8 @@ export async function GET(req: Request) {
     const unpaidTickets = await prisma.serviceTicket.findMany({
         where: {
             tenantId: user.tenantId,
+            deletedAt: null,                          // çöp kutusundaki fişler borç sayılmasın
+            status: { not: 'CANCELLED' as any },      // iptal fişler borç sayılmasın
             paymentStatus: { in: ['UNPAID', 'PARTIAL'] },
             totalCost: { gt: 0 },
         },

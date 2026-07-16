@@ -61,7 +61,13 @@ function parseLogoCSV(content: string): Array<{
         const hesapKodu = cols[2]?.trim() || '';
 
         // Sayısal değerleri parse et (virgül → nokta, TL işareti vs. temizle)
-        const parseNum = (s: string) => parseFloat((s || '0').trim().replace(',', '.').replace(/[^0-9.]/g, '')) || 0;
+        // TR sayı formatı: binlik ayraç NOKTA, ondalık VİRGÜL (1.234,56). Önce noktaları at, sonra virgül→nokta.
+        const parseNum = (s: string) => {
+            const cleaned = (s || '0').trim().replace(/[^0-9,.-]/g, '');
+            const norm = cleaned.replace(/\./g, '').replace(',', '.');
+            const v = parseFloat(norm);
+            return Number.isFinite(v) ? v : 0;
+        };
         const borc = parseNum(cols[4]);
         const alacak = parseNum(cols[5] || '0');
         const aciklama = cols[6]?.trim() || cols[3]?.trim() || '';

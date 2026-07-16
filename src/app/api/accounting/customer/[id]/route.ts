@@ -39,13 +39,17 @@ export async function GET(
     const totalIncome = Number(totals.find(t => t.type === 'INCOME')?._sum.amount || 0);
     const totalExpense = Number(totals.find(t => t.type === 'EXPENSE')?._sum.amount || 0);
 
-    // Ödenmemiş fişler
-    const unpaidTickets = await prisma.serviceTicket.findMany({
-        where: { tenantId: user.tenantId, customerId, paymentStatus: { in: ['UNPAID', 'PARTIAL'] } },
-        select: { id: true, ticketNumber: true, totalCost: true, paymentStatus: true, createdAt: true },
+    // Ödenmemiş fişler — silinmiş/iptal hariç; PARTIAL'da KALAN tutar üzerinden (şişirme yok)
+    const unpaidRaw = await prisma.serviceTicket.findMany({
+        where: { tenantId: user.tenantId, customerId, deletedAt: null, status: { not: 'CANCELLED' as any }, paymentStatus: { in: ['UNPAID', 'PARTIAL'] } },
+        select: { id: true, ticketNumber: true, totalCost: true, paymentStatus: true, createdAt: true, payments: { select: { amount: true } } },
+    });
+    const unpaidTickets = unpaidRaw.map(({ payments, ...t }) => {
+        const paid = payments.reduce((s, p) => s + Number(p.amount), 0);
+        return { ...t, remaining: Math.max(0, Number(t.totalCost) - paid) };
     });
 
-    const unpaidTotal = unpaidTickets.reduce((s, t) => s + Number(t.totalCost), 0);
+    const unpaidTotal = unpaidTickets.reduce((s, t) => s + t.remaining, 0);
 
     return NextResponse.json({
         customer,
