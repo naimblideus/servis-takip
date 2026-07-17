@@ -428,7 +428,7 @@ const BODY = `
       <div class="yr" id="outY">yılda ≈ ₺74.880</div>
       <div class="lossbox">⚠️ Bu para zaten <b>sizin</b> — sadece faturalanmadığı için cebinizde değil. Servora aylık ücretini <span class="em">ilk haftada</span> çıkarır.</div>
       <a class="btn lp-btn-primary" href="#basla" style="width:100%;justify-content:center">Bu parayı yakalamaya başla →</a>
-      <div class="roi" id="roi">Aylık ₺599 ödeyip yıllık kaçağı yakalamak — net kazanç hesaplanıyor…</div>
+      <div class="roi" id="roi">Aylık ₺2.099 ödeyip yıllık kaçağı yakalamak — net kazanç hesaplanıyor…</div>
     </div>
   </div>
 </section>
@@ -482,7 +482,7 @@ const BODY = `
     <div class="plan">
       <h3>Başlangıç</h3>
       <div class="who">Yeni başlayan, az cihazlı bayi</div>
-      <div class="price" data-m="299" data-y="2990">₺299<small>/ay</small></div>
+      <div class="price" data-m="1049" data-y="10490">₺1.049<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
       <ul>
         <li><span class="c">✓</span> Müşteri, cihaz, servis fişi</li>
@@ -496,7 +496,7 @@ const BODY = `
       <div class="tag">EN POPÜLER</div>
       <h3>Profesyonel</h3>
       <div class="who">Çoğu bayi için ideal</div>
-      <div class="price" data-m="599" data-y="5990">₺599<small>/ay</small></div>
+      <div class="price" data-m="2099" data-y="20990">₺2.099<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
       <ul>
         <li><span class="c">✓</span> Başlangıç'taki her şey</li>
@@ -510,7 +510,7 @@ const BODY = `
     <div class="plan">
       <h3>Kurumsal</h3>
       <div class="who">Çok şubeli / büyük filo</div>
-      <div class="price" data-m="1499" data-y="14990">₺1.499<small>/ay</small></div>
+      <div class="price" data-m="5249" data-y="52490">₺5.249<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
       <ul>
         <li><span class="c">✓</span> Profesyonel'deki her şey</li>
@@ -636,7 +636,7 @@ const JS = `
     var btnCalc=document.querySelector('.calc .result .lp-btn-primary');
     if(btnCalc) btnCalc.textContent=fmt(m*12)+"'yi yakalamaya başla →";
     var proEl=document.querySelector('.plan.pop .price');
-    var pro=proEl?(+proEl.dataset.m||599):599;
+    var pro=proEl?(+proEl.dataset.m||2099):2099;
     var net=Math.round(m-pro);
     roi.innerHTML = net>0
       ? 'Aylık ₺'+pro.toLocaleString('tr-TR')+' ödeyip ayda <b style="color:var(--emerald)">'+fmt(m)+'</b> kurtarmak. Net kazanç ≈ <b style="color:var(--emerald)">'+fmt(net)+'/ay</b>'

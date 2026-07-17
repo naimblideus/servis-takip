@@ -26,7 +26,7 @@ kesilmemiş faturalar önüne düşsün. Servora ile ilk ay kaçan geliri gör. 
 ### Meta — kazanç odaklı
 **Başlık:** Bu ay kaç sayfa faturalanmadı, biliyor musun?
 **Metin:** Servora her okunan sayacı faturaya çevirir, eksik kalanı "Kaçan Gelir" panelinde gösterir.
-Bir bayi ilk ay ₺12.000 kaçan gelir buldu. Çözüm: ayda ₺599. Hesabı sen yap.
+Bir bayi ilk ay ₺12.000 kaçan gelir buldu. Çözüm: ayda ₺2.099. Hesabı sen yap.
 **CTA:** Demoyu İzle
 
 ### Google Search (arama reklamı)

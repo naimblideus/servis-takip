@@ -7,7 +7,7 @@
 | Dosya | Ne işe yarar |
 |---|---|
 | [00-MARKA-VE-ISIM.md](00-MARKA-VE-ISIM.md) | Marka kimliği: **"Servora" kararı**, jenerik ismi çalıştırma (SEO/tescil), ton, renk, logo, domain checklist |
-| [01-GTM-STRATEJI.md](01-GTM-STRATEJI.md) | ICP, konumlandırma, fiyat (₺299/599/1499), kanallar, huni, 90 günlük plan, metrikler |
+| [01-GTM-STRATEJI.md](01-GTM-STRATEJI.md) | ICP, konumlandırma, fiyat (₺1.049/2.099/5.249), kanallar, huni, 90 günlük plan, metrikler |
 | [02-ICERIK-KREATIF.md](02-ICERIK-KREATIF.md) | Reklam metni, WhatsApp/soğuk temas, 6-mail onboarding dizisi, sosyal takvim, **personal branding** |
 | [03-CRM-OTOMASYON.md](03-CRM-OTOMASYON.md) | Araç yığını, pipeline, otomasyon akışları, ürün↔pazarlama köprüsü, ölçüm panosu |
 | [landing/index.html](landing/index.html) | Tek dosya tanıtım sayfası (kaynak) — Kaçan Gelir hesaplayıcı + fiyat + kurucu + lead formu |

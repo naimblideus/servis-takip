@@ -8,9 +8,9 @@ export async function POST(req: NextRequest) {
     const targetPeriod = period || new Date().toISOString().slice(0, 7);
 
     const PLAN_PRICES: Record<string, number> = {
-        starter: 299,
-        professional: 599,
-        enterprise: 1499,
+        starter: 1049,
+        professional: 2099,
+        enterprise: 5249,
     };
 
     // Aktif ve trial olmayan tenantları al
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
             continue;
         }
 
-        const amount = PLAN_PRICES[tenant.plan] || 299;
+        const amount = PLAN_PRICES[tenant.plan] || 1049;
         const vatAmount = amount * 0.20;
         const totalAmount = amount + vatAmount;
         const invoiceNumber = await generateInvoiceNumber();
