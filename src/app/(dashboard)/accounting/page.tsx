@@ -830,7 +830,7 @@ export default function AccountingPage() {
                   {[
                     {label:'Toplam Satış',value:detail.summary.totalSales,color:'#fbbf24'},
                     {label:'Toplam Ödeme',value:detail.summary.totalPayments,color:'#34d399'},
-                    {label:'Bakiye (Borç)',value:detail.summary.balance,color:detail.summary.balance>0?'#f87171':'#34d399'},
+                    {label:detail.summary.balance>0?'Bakiye (Borç)':detail.summary.balance<0?'Alacak (Kredi)':'Bakiye (Kapalı)',value:detail.summary.balance,color:detail.summary.balance>0?'#f87171':detail.summary.balance<0?'#34d399':'#9ca3af'},
                   ].map(b => (
                     <div key={b.label} style={{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:'0.5rem',padding:'0.75rem'}}>
                       <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>{b.label}</div>
