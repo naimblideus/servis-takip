@@ -396,6 +396,11 @@ export async function allocatePayment(params: {
   const pmethod = PaymentMethod[(params.method ?? '') as keyof typeof PaymentMethod] ?? PaymentMethod.TRANSFER;
 
   return prisma.$transaction(async (tx) => {
+    // IDEMPOTENCY: verilen paymentId zaten dağıtıldıysa (invoicePayment var) TEKRAR dağıtma → çift INCOME/kredi engeli.
+    if (params.paymentId) {
+      const already = await tx.invoicePayment.count({ where: { tenantId, paymentId: params.paymentId } });
+      if (already > 0) return { paymentId: params.paymentId, allocations: [], allocated: 0, unallocated: amount, alreadyAllocated: true };
+    }
     let paymentId = params.paymentId;
     if (!paymentId) {
       const p = await tx.payment.create({

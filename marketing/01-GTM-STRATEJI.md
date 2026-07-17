@@ -13,7 +13,7 @@ huni. (Çoklu ürün = bulanık mesaj = düşük dönüşüm. "Platform" hikâye
 Markete giriş cümlesi (elevator pitch):
 > "Fotokopi/yazıcı kiralıyor ya da servis veriyorsan: sayacı okur, kira+aşım+servisi tek faturada
 > otomatik birleştiririz, ödenmemiş ve eksik faturalanmış geliri (kaçan gelir) önüne koyarız.
-> Ayda ₺1.049'dan başlar, kurulum 1 gün."
+> Ayda ₺1.749'dan başlar, kurulum 1 gün."
 
 ---
 
@@ -24,7 +24,7 @@ Markete giriş cümlesi (elevator pitch):
 - 50–500 kiralık cihaz, sayaç-bazlı (mono/renkli) faturalama yapan.
 - 2–10 çalışan, 1–4 saha teknisyeni.
 - Bugün **Excel + WhatsApp + defter** ile yönetiyor → sayaç okumayı/faturalamayı kaçırıyor.
-- Yıllık ciro ~₺3–30M. Aylık ₺1.049–5.249 onların için "yuvarlama hatası".
+- Yıllık ciro ~₺3–30M. Aylık ₺1.749–5.249 onların için "yuvarlama hatası".
 - Coğrafya: Anadolu sanayi şehirleri (Kütahya, Konya, Kayseri, Gaziantep, Bursa) + İstanbul OSB'leri. (Anadolu = rakipsiz, sıcak satışa açık.)
 
 **Neden bu kişi:** Acısı en somut (sayaç = para), karar verici = sahip (tek imza), satış döngüsü kısa, ürün birebir onun için yazıldı (SAYGILI FOTOKOPİ ilk müşteri referansı).
@@ -62,12 +62,13 @@ Markete giriş cümlesi (elevator pitch):
 
 | Plan | Fiyat | Kime | İçindekiler |
 |---|---|---|---|
-| **Başlangıç** | ₺1.049/ay | Yeni başlayan, az cihazlı | Çekirdek: müşteri, cihaz, fiş, stok+barkod, muhasebe/cari. 3 kullanıcı, 200 fiş/ay |
+| **Başlangıç** | ₺1.749/ay | Yeni başlayan, az cihazlı | Çekirdek: müşteri, cihaz, fiş, stok+barkod, muhasebe/cari. 3 kullanıcı, 200 fiş/ay |
 | **Profesyonel** ⭐ | ₺2.099/ay | Çoğu bayi (varsayılan öneri) | + Otomatik Faturalama, Rota, Geç-Sayaç Takip. 10 kullanıcı, sınırsız fiş |
 | **Kurumsal** | ₺5.249/ay | Çok şubeli/büyük filo | + Kaçan Gelir, Raporlar, Bayi Pazarı. 50 kullanıcı |
 | **Deneme** | 14 gün ücretsiz | Herkes | Tüm özellikler açık, kart istemeden |
 
 **Fiyat taktikleri:**
+- **Decoy/Starbucks etkisi (2026-07-17):** Başlangıç bilinçli olarak Profesyonel'e yakın fiyatlandı (₺1.749 vs ₺2.099 = sadece ₺350 fark, özellik farkı uçurum) → rasyonel bayi Profesyonel'i seçer. Kurumsal (₺5.249) çapa: Profesyonel'i "makul orta yol" gösterir. Başlangıç'ı cazip yapma; o satış aracı, gelir planı değil.
 - **Yıllık öde = 2 ay bedava** (₺2.099 → yıllık ₺20.990). Nakit akışını öne çeker, churn'ü düşürür.
 - **Demo'da "Kaçan Gelir" hesaplat** → "ayda ₺12.000 kaçırıyorsun, çözüm ₺2.099" = kapanış argümanı (~6x ROI görünür).
 - Kurulum/veri aktarımı (Excel import zaten var) ilk 50 bayiye **ücretsiz** = giriş engelini kaldır.

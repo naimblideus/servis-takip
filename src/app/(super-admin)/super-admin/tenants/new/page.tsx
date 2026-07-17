@@ -12,7 +12,7 @@ const BIZ_TYPES = [
 ];
 
 const PLANS = [
-    { value: 'trial', label: 'Deneme' }, { value: 'starter', label: 'Başlangıç — ₺1.049/ay' },
+    { value: 'trial', label: 'Deneme' }, { value: 'starter', label: 'Başlangıç — ₺1.749/ay' },
     { value: 'professional', label: 'Profesyonel — ₺2.099/ay' }, { value: 'enterprise', label: 'Kurumsal — ₺5.249/ay' },
 ];
 

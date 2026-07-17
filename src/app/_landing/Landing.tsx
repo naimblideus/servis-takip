@@ -482,7 +482,7 @@ const BODY = `
     <div class="plan">
       <h3>Başlangıç</h3>
       <div class="who">Yeni başlayan, az cihazlı bayi</div>
-      <div class="price" data-m="1049" data-y="10490">₺1.049<small>/ay</small></div>
+      <div class="price" data-m="1749" data-y="17490">₺1.749<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
       <ul>
         <li><span class="c">✓</span> Müşteri, cihaz, servis fişi</li>

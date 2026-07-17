@@ -71,22 +71,28 @@ export async function commitPeriodCharges(tenantId: string, customerId: string) 
     const c = await compute(tx, tenantId, customerId);
     let added = 0;
 
-    if (c.rent > 0) {
+    // ÖNCE CLAIM (atomik mükerrer engeli): işaretlemeyi CREATE'ten ÖNCE yap. updateMany row-lock +
+    // koşullu where → eşzamanlı çift çağrıda ikinci count=0 alır, çift SALE (çift fatura) yazmaz.
+    const readClaim = c.readingIds.length
+      ? await tx.counterReading.updateMany({ where: { tenantId, id: { in: c.readingIds }, billed: false }, data: { billed: true } })
+      : { count: 0 };
+    const rentClaim = c.rentDeviceIds.length
+      ? await tx.device.updateMany({ where: { tenantId, id: { in: c.rentDeviceIds }, lastInvoicedPeriod: { not: c.period } }, data: { lastInvoicedPeriod: c.period } })
+      : { count: 0 };
+
+    // SALE yalnız GERÇEKTEN bu çağrının claim ettiği kalemler için yazılır.
+    if (c.rent > 0 && rentClaim.count > 0) {
       await tx.accountEntry.create({
         data: { tenantId, customerId, type: 'SALE', product: `Aylık Kira — ${c.period}`, amount: c.rent, method: 'OPEN_ACCOUNT', notes: 'Kira (elle eklendi)', date: new Date() },
       });
       added++;
     }
-    if (c.counter > 0) {
+    if (c.counter > 0 && readClaim.count > 0) {
       await tx.accountEntry.create({
         data: { tenantId, customerId, type: 'SALE', product: `Sayaç — ${c.period}`, amount: c.counter, method: 'OPEN_ACCOUNT', notes: 'Sayaç (elle eklendi)', date: new Date() },
       });
       added++;
     }
-
-    // Mükerrer engeli: işlenen okumaları billed, kiraya giren cihazları lastInvoicedPeriod yap
-    if (c.readingIds.length) await tx.counterReading.updateMany({ where: { id: { in: c.readingIds } }, data: { billed: true } });
-    if (c.rentDeviceIds.length) await tx.device.updateMany({ where: { id: { in: c.rentDeviceIds } }, data: { lastInvoicedPeriod: c.period } });
 
     return { period: c.period, rent: c.rent, counter: c.counter, added };
   });
