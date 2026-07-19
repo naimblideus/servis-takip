@@ -7,9 +7,9 @@ interface Listing { id: string; kind: string; title: string; price: number; quan
 
 const KINDS: Record<string, string> = { PART: '🔧', PRINTER: '🖨️', MACHINE: '🏭', OTHER: '📦' };
 const STATUS: Record<string, { label: string; bg: string; color: string }> = {
-  ACTIVE: { label: 'Aktif', bg: '#dcfce7', color: '#15803d' },
-  PAUSED: { label: 'Duraklatıldı', bg: '#fef3c7', color: '#92400e' },
-  SOLD: { label: 'Satıldı', bg: '#e0e7ff', color: '#3730a3' },
+  ACTIVE: { label: 'Aktif', bg: '#E7F6EF', color: '#0B6B4A' },
+  PAUSED: { label: 'Duraklatıldı', bg: '#FEF6E7', color: '#8A5A08' },
+  SOLD: { label: 'Satıldı', bg: '#EAEDFB', color: '#2E3A8C' },
 };
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -22,31 +22,51 @@ export default function IlanlarimPage() {
   }, []);
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 820, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
+    <div style={{ padding: '1.5rem 1.25rem 2.5rem', maxWidth: 860, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.35rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <Link href="/market" style={{ color: '#6b7280', fontSize: '0.85rem', textDecoration: 'none' }}>← Pazar</Link>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '0.25rem 0 0' }}>📋 İlanlarım</h1>
+          <Link href="/market" className="mk-back">← Pazar</Link>
+          <div className="mk-eyebrow" style={{ marginTop: 10 }}>Satıcı</div>
+          <h1 className="mk-h1">İlanlarım</h1>
         </div>
-        <Link href="/market/yeni" style={{ padding: '0.5rem 0.9rem', background: '#16a34a', color: 'white', borderRadius: 8, fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>＋ Yeni İlan</Link>
+        <Link href="/market/yeni" className="mk-btn mk-btn-p"><span>Yeni İlan</span><span className="mk-ico">＋</span></Link>
       </div>
 
-      {loading ? <p style={{ color: '#9ca3af' }}>Yükleniyor…</p> : listings.length === 0 ? (
-        <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 12, padding: '2rem', textAlign: 'center', color: '#6b7280' }}>Henüz ilanın yok. <Link href="/market/yeni" style={{ color: '#2563eb' }}>＋ İlk ilanı ver</Link></div>
+      {loading ? (
+        <div style={{ display: 'grid', gap: '.6rem' }}>
+          {[0, 1, 2].map((i) => <div key={i} className="mk-sk" style={{ height: 78, borderRadius: 14 }} />)}
+        </div>
+      ) : listings.length === 0 ? (
+        <div className="mk-shell">
+          <div className="mk-core" style={{ padding: '2.75rem 1.5rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '2.3rem', marginBottom: '.55rem' }}>📋</div>
+            <div className="mk-eyebrow">Boş</div>
+            <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--ink)', letterSpacing: '-.02em', margin: '.35rem 0 0' }}>Henüz ilanın yok</div>
+            <p style={{ color: 'var(--ink2)', fontSize: '.9rem', margin: '.5rem auto 1.3rem', maxWidth: 380, lineHeight: 1.6 }}>
+              Rafta bekleyen parçanı bir dakikada ilana çevir — ihtiyacı olan bayi bulsun.
+            </p>
+            <Link href="/market/yeni" className="mk-btn mk-btn-g" style={{ padding: '.7rem .8rem .7rem 1.25rem', fontWeight: 800 }}>
+              <span>İlk ilanını ver</span><span className="mk-ico">＋</span>
+            </Link>
+          </div>
+        </div>
       ) : (
-        <div style={{ display: 'grid', gap: '0.6rem' }}>
+        <div style={{ display: 'grid', gap: '.6rem' }}>
           {listings.map((l) => {
-            const st = STATUS[l.status] || { label: l.status, bg: '#f3f4f6', color: '#374151' };
+            const st = STATUS[l.status] || { label: l.status, bg: '#F2F4F8', color: '#5B6479' };
             return (
-              <Link key={l.id} href={`/market/${l.id}`} style={{ textDecoration: 'none', color: 'inherit', background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '0.7rem 0.9rem', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 52, height: 52, borderRadius: 8, background: '#f3f4f6', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>
+              <Link key={l.id} href={`/market/${l.id}`} className="mk-row">
+                <div style={{ width: 54, height: 54, borderRadius: 12, background: '#F2F4F8', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.35rem' }}>
                   {l.photos[0] ? <img src={l.photos[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (KINDS[l.kind] || '📦')}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.title}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{fmt(l.price)} · {l.quantity} adet{l.city ? ` · ${l.city}` : ''}</div>
+                  <div style={{ fontWeight: 700, fontSize: '.93rem', color: 'var(--ink)', letterSpacing: '-.011em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.title}</div>
+                  <div style={{ fontSize: '.78rem', color: 'var(--ink2)', marginTop: 3 }}>
+                    <span className="mk-price" style={{ fontSize: '.86rem' }}>{fmt(l.price)}</span>
+                    <span style={{ color: 'var(--mut)' }}> · {l.quantity} adet{l.city ? ` · ${l.city}` : ''}</span>
+                  </div>
                 </div>
-                <span style={{ flexShrink: 0, fontSize: '0.72rem', fontWeight: 700, background: st.bg, color: st.color, padding: '0.2rem 0.6rem', borderRadius: 9999 }}>{st.label}</span>
+                <span className="mk-pill" style={{ flexShrink: 0, background: st.bg, color: st.color }}>{st.label}</span>
               </Link>
             );
           })}

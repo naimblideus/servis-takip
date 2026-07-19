@@ -77,81 +77,93 @@ export default function YeniIlanPage() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 640, margin: '0 auto' }}>
-      <Link href="/market" style={{ color: '#6b7280', fontSize: '0.85rem', textDecoration: 'none' }}>← Pazar</Link>
-      <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '0.25rem 0 1rem' }}>＋ Yeni İlan</h1>
+    <div style={{ padding: '1.5rem 1.25rem 2.5rem', maxWidth: 680, margin: '0 auto' }}>
+      <Link href="/market" className="mk-back">← Pazar</Link>
+      <div className="mk-eyebrow" style={{ marginTop: 10 }}>Satıcı</div>
+      <h1 className="mk-h1" style={{ marginBottom: '1.3rem' }}>Yeni İlan</h1>
 
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.25rem', display: 'grid', gap: '0.85rem' }}>
-        {/* Stoktan doldur */}
-        <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-          <label style={lbl}>Stoktan doldur (opsiyonel)</label>
-          <input value={stockSearch} onChange={(e) => { setStockSearch(e.target.value); setShowStock(true); }} placeholder="🔍 Stoktan ürün ara → bilgiler otomatik gelsin" style={inp} />
-          {showStock && filteredStock.length > 0 && (
-            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', borderRadius: 8, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
-              {filteredStock.map((i) => (
-                <div key={`${i.source}-${i.id}`} onClick={() => pickStock(i)} style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '0.85rem' }}>
-                  {i.source === 'PART' ? '🔧' : '🖨️'} {i.name} {i.sellPrice > 0 && <span style={{ color: '#16a34a' }}>· ₺{i.sellPrice}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-          <div><label style={lbl}>Tür</label>
-            <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} style={inp}>
-              <option value="PART">🔧 Parça</option><option value="PRINTER">🖨️ Yazıcı/Toner</option><option value="MACHINE">🏭 Makine</option><option value="OTHER">📦 Diğer</option>
-            </select>
-          </div>
-          <div><label style={lbl}>Durum</label>
-            <select value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })} style={inp}>
-              <option value="">—</option><option value="SIFIR">Sıfır</option><option value="IKINCI_EL">İkinci el</option>
-            </select>
-          </div>
-        </div>
-
-        <div><label style={lbl}>Başlık *</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="örn. HP 26A Toner (orijinal)" style={inp} /></div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-          <div><label style={lbl}>Marka</label><input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} style={inp} /></div>
-          <div><label style={lbl}>Model</label><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} style={inp} /></div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-          <div><label style={lbl}>Fiyat (₺)</label><input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={inp} /></div>
-          <div><label style={lbl}>Adet</label><input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={inp} /></div>
-          <div><label style={lbl}>Şehir</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="(boşsa profil)" style={inp} /></div>
-        </div>
-
-        <div><label style={lbl}>Açıklama</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Durum, uyumluluk, teslim şekli…" style={{ ...inp, minHeight: 80, resize: 'vertical', fontFamily: 'inherit' }} /></div>
-
-        {/* Fotoğraflar */}
-        <div>
-          <label style={lbl}>Fotoğraflar ({photos.length}/{MAX_PHOTOS})</label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {photos.map((p, i) => (
-              <div key={i} style={{ position: 'relative' }}>
-                <img src={p} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }} />
-                <button onClick={() => setPhotos((ph) => ph.filter((_, x) => x !== i))} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#dc2626', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem' }}>✕</button>
+      <div className="mk-shell">
+        <div className="mk-core" style={{ display: 'grid', gap: '.9rem', padding: '1.35rem 1.4rem' }}>
+          {/* Stoktan doldur */}
+          <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+            <label className="mk-lbl">Stoktan doldur (opsiyonel)</label>
+            <input value={stockSearch} onChange={(e) => { setStockSearch(e.target.value); setShowStock(true); }} placeholder="Stoktan ürün ara — bilgiler otomatik gelsin" className="mk-in" />
+            {showStock && filteredStock.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid var(--line)', borderRadius: 14, marginTop: 6, maxHeight: 230, overflowY: 'auto', boxShadow: '0 22px 44px -24px rgba(15,34,83,.6)' }}>
+                {filteredStock.map((i) => (
+                  <div key={`${i.source}-${i.id}`} onClick={() => pickStock(i)} style={{ padding: '.6rem .85rem', cursor: 'pointer', borderBottom: '1px solid var(--line)', fontSize: '.87rem', color: 'var(--ink)' }}>
+                    {i.source === 'PART' ? '🔧' : '🖨️'} {i.name} {i.sellPrice > 0 && <span className="mk-price" style={{ fontSize: '.82rem' }}>· ₺{i.sellPrice}</span>}
+                  </div>
+                ))}
               </div>
-            ))}
-            {photos.length < MAX_PHOTOS && (
-              <label style={{ width: 64, height: 64, border: '1px dashed #cbd5e1', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: '1.3rem' }}>
-                {busy ? '…' : '＋'}
-                <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => { addPhotos(e.target.files); e.target.value = ''; }} />
-              </label>
             )}
           </div>
-        </div>
 
-        {err && <div style={{ color: '#b91c1c', fontSize: '0.85rem' }}>{err}</div>}
-        <button onClick={submit} disabled={saving || !form.title.trim()} style={{ padding: '0.7rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: 10, fontWeight: 800, cursor: 'pointer', opacity: (saving || !form.title.trim()) ? 0.6 : 1 }}>
-          {saving ? 'Yayınlanıyor…' : '📢 İlanı Yayınla'}
-        </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
+            <div>
+              <label className="mk-lbl">Tür</label>
+              <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className="mk-in">
+                <option value="PART">🔧 Parça</option><option value="PRINTER">🖨️ Yazıcı/Toner</option><option value="MACHINE">🏭 Makine</option><option value="OTHER">📦 Diğer</option>
+              </select>
+            </div>
+            <div>
+              <label className="mk-lbl">Durum</label>
+              <select value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })} className="mk-in">
+                <option value="">—</option><option value="SIFIR">Sıfır</option><option value="IKINCI_EL">İkinci el</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="mk-lbl">Başlık *</label>
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="örn. HP 26A Toner (orijinal)" className="mk-in" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
+            <div><label className="mk-lbl">Marka</label><input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className="mk-in" /></div>
+            <div><label className="mk-lbl">Model</label><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mk-in" /></div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.75rem' }}>
+            <div><label className="mk-lbl">Fiyat (₺)</label><input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="mk-in" /></div>
+            <div><label className="mk-lbl">Adet</label><input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mk-in" /></div>
+            <div><label className="mk-lbl">Şehir</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="(boşsa profil)" className="mk-in" /></div>
+          </div>
+
+          <div>
+            <label className="mk-lbl">Açıklama</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Durum, uyumluluk, teslim şekli…" className="mk-in" style={{ minHeight: 84, resize: 'vertical' }} />
+          </div>
+
+          {/* Fotoğraflar */}
+          <div>
+            <label className="mk-lbl">Fotoğraflar ({photos.length}/{MAX_PHOTOS})</label>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              {photos.map((p, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <img src={p} alt="" style={{ width: 68, height: 68, objectFit: 'cover', borderRadius: 12, border: '1px solid var(--line)' }} />
+                  <button onClick={() => setPhotos((ph) => ph.filter((_, x) => x !== i))}
+                    style={{ position: 'absolute', top: -7, right: -7, width: 22, height: 22, borderRadius: '50%', background: '#C6362F', color: 'white', border: '2px solid #fff', cursor: 'pointer', fontSize: '.68rem', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                </div>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <label style={{ width: 68, height: 68, border: '1px dashed rgba(15,34,83,.22)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--mut)', fontSize: '1.35rem', background: 'rgba(15,34,83,.02)' }}>
+                  {busy ? '…' : '＋'}
+                  <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => { addPhotos(e.target.files); e.target.value = ''; }} />
+                </label>
+              )}
+            </div>
+          </div>
+
+          {err && <div style={{ color: '#B91C1C', fontSize: '.85rem' }}>{err}</div>}
+
+          <button onClick={submit} disabled={saving || !form.title.trim()} className="mk-btn mk-btn-g"
+            style={{ justifyContent: 'center', padding: '.8rem 1rem', fontSize: '.95rem', fontWeight: 800, opacity: (saving || !form.title.trim()) ? .55 : 1 }}>
+            <span>{saving ? 'Yayınlanıyor…' : 'İlanı Yayınla'}</span>
+            {!saving && <span className="mk-ico">→</span>}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-
-const inp: React.CSSProperties = { padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', boxSizing: 'border-box', width: '100%' };
-const lbl: React.CSSProperties = { fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 };

@@ -81,90 +81,144 @@ export default function ListingDetail({ params }: { params: Promise<{ id: string
     router.push('/market/ilanlarim');
   };
 
-  if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>Yükleniyor…</div>;
-  if (notFound || !l) return <div style={{ padding: '2rem', color: '#6b7280' }}>İlan bulunamadı. <Link href="/market" style={{ color: '#2563eb' }}>← Pazar</Link></div>;
+  if (loading) return (
+    <div style={{ padding: '1.5rem 1.25rem', maxWidth: 800, margin: '0 auto' }}>
+      <div className="mk-sk" style={{ height: 240 }} />
+      <div className="mk-sk" style={{ height: 120, marginTop: '.85rem' }} />
+    </div>
+  );
+  if (notFound || !l) return (
+    <div style={{ padding: '3rem 1.25rem', maxWidth: 520, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{ fontSize: '2.2rem', marginBottom: '.5rem' }}>🔍</div>
+      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--ink)' }}>İlan bulunamadı</div>
+      <p style={{ color: 'var(--ink2)', fontSize: '.9rem', margin: '.4rem 0 1.2rem' }}>Kaldırılmış ya da satılmış olabilir.</p>
+      <Link href="/market" className="mk-btn mk-btn-p"><span>Pazara dön</span><span className="mk-ico">→</span></Link>
+    </div>
+  );
+
+  const sold = l.status !== 'ACTIVE';
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 760, margin: '0 auto' }}>
-      <Link href="/market" style={{ color: '#6b7280', fontSize: '0.85rem', textDecoration: 'none' }}>← Pazar</Link>
+    <div style={{ padding: '1.5rem 1.25rem 2.5rem', maxWidth: 800, margin: '0 auto' }}>
+      <Link href="/market" className="mk-back">← Pazar</Link>
 
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginTop: '0.5rem' }}>
+      <div className="mk-panel" style={{ overflow: 'hidden', marginTop: '.7rem' }}>
         {/* Fotoğraflar */}
         {l.photos.length > 0 ? (
-          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', background: '#f3f4f6' }}>
-            {l.photos.map((p, i) => <img key={i} src={p} alt="" style={{ height: 220, objectFit: 'cover' }} />)}
+          <div style={{ display: 'flex', gap: 3, overflowX: 'auto', background: '#F2F4F8' }}>
+            {l.photos.map((p, i) => <img key={i} src={p} alt="" style={{ height: 250, objectFit: 'cover', flexShrink: 0 }} />)}
           </div>
         ) : (
-          <div style={{ height: 140, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', opacity: 0.4 }}>{(KINDS[l.kind] || '📦').split(' ')[0]}</div>
+          <div style={{ height: 160, background: '#F2F4F8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.6rem', opacity: .3 }}>
+            {(KINDS[l.kind] || '📦').split(' ')[0]}
+          </div>
         )}
 
-        <div style={{ padding: '1.1rem 1.25rem' }}>
-          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{KINDS[l.kind] || l.kind}{l.condition ? ` · ${l.condition === 'SIFIR' ? 'Sıfır' : 'İkinci el'}` : ''}{l.status !== 'ACTIVE' ? ` · ${STATUS[l.status] || l.status}` : ''}</div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0.2rem 0' }}>{l.title}</h1>
-          {(l.brand || l.model) && <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>{[l.brand, l.model].filter(Boolean).join(' ')}</div>}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.6rem', flexWrap: 'wrap', gap: 8 }}>
-            <span style={{ fontSize: '1.6rem', fontWeight: 800, color: '#16a34a' }}>{fmt(l.price)}</span>
-            <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>Adet: {l.quantity}{l.unit ? ` ${l.unit}` : ''} · 🏪 {l.sellerName}{l.sellerRating ? ` · ⭐${l.sellerRating} (${l.sellerRatingCount})` : ''}{l.city ? ` · ${l.city}` : ''}</span>
+        <div style={{ padding: '1.3rem 1.4rem 1.5rem' }}>
+          <div className="mk-eyebrow">
+            {KINDS[l.kind] || l.kind}{l.condition ? ` · ${l.condition === 'SIFIR' ? 'Sıfır' : 'İkinci el'}` : ''}{sold ? ` · ${STATUS[l.status] || l.status}` : ''}
           </div>
-          {l.description && <p style={{ marginTop: '0.85rem', color: '#374151', fontSize: '0.9rem', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{l.description}</p>}
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-.024em', color: 'var(--ink)', margin: '.4rem 0 0', lineHeight: 1.2 }}>{l.title}</h1>
+          {(l.brand || l.model) && <div style={{ color: 'var(--ink2)', fontSize: '.9rem', marginTop: 4 }}>{[l.brand, l.model].filter(Boolean).join(' ')}</div>}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1rem', flexWrap: 'wrap', gap: 10 }}>
+            <span className="mk-price" style={{ fontSize: '1.75rem' }}>{fmt(l.price)}</span>
+            <span style={{ fontSize: '.82rem', color: 'var(--ink2)', textAlign: 'right' }}>
+              {l.quantity} adet{l.unit ? ` ${l.unit}` : ''} · <b style={{ color: 'var(--ink)' }}>{l.sellerName}</b>
+              {l.sellerRating ? ` · ⭐ ${l.sellerRating} (${l.sellerRatingCount})` : ''}{l.city ? ` · ${l.city}` : ''}
+            </span>
+          </div>
+
+          {l.description && (
+            <p style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--line)', color: 'var(--ink2)', fontSize: '.91rem', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{l.description}</p>
+          )}
         </div>
       </div>
 
-      {/* Sahip: yönetim · Alıcı: mesaj */}
+      {/* Sahip: yönetim · Alıcı: sipariş + mesaj */}
       {l.isOwner ? (
-        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '1rem', marginTop: '0.85rem' }}>
-          <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e40af', marginBottom: 8 }}>Bu senin ilanın</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {l.status !== 'ACTIVE' && <button onClick={() => setStatus('ACTIVE')} style={ownBtn('#16a34a')}>Aktifleştir</button>}
-            {l.status === 'ACTIVE' && <button onClick={() => setStatus('PAUSED')} style={ownBtn('#d97706')}>Duraklat</button>}
-            {l.status !== 'SOLD' && <button onClick={() => setStatus('SOLD')} style={ownBtn('#6366f1')}>Satıldı işaretle</button>}
-            <Link href="/market/mesajlar" style={{ ...ownBtn('#2563eb'), textDecoration: 'none', display: 'inline-block' }}>💬 Gelen mesajlar</Link>
-            <button onClick={remove} style={ownBtn('#dc2626')}>🗑️ Kaldır</button>
+        <div className="mk-shell" style={{ marginTop: '.85rem' }}>
+          <div className="mk-core">
+            <div className="mk-eyebrow">Senin ilanın</div>
+            <div style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--ink)', margin: '.35rem 0 .9rem' }}>İlanı yönet</div>
+            <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+              {l.status !== 'ACTIVE' && <button onClick={() => setStatus('ACTIVE')} style={ownBtn('#0E9F6E')}>Aktifleştir</button>}
+              {l.status === 'ACTIVE' && <button onClick={() => setStatus('PAUSED')} style={ownBtn('#B7791F')}>Duraklat</button>}
+              {l.status !== 'SOLD' && <button onClick={() => setStatus('SOLD')} style={ownBtn('#5B2E90')}>Satıldı işaretle</button>}
+              <Link href="/market/mesajlar" style={{ ...ownBtn('#0F2253'), textDecoration: 'none', display: 'inline-block' }}>Gelen mesajlar</Link>
+              <button onClick={remove} style={ownBtn('#C6362F')}>Kaldır</button>
+            </div>
           </div>
         </div>
       ) : (
         <>
-        {l.status === 'ACTIVE' && (
-          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '1rem', marginTop: '0.85rem' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#15803d', marginBottom: 8 }}>📦 Sipariş Ver</div>
-            {orderDone ? (
-              <div style={{ fontSize: '0.9rem', color: '#166534' }}>✓ Sipariş talebin gönderildi. <Link href="/market/siparislerim" style={{ color: '#2563eb', fontWeight: 700 }}>Siparişlerim →</Link></div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <label style={{ fontSize: '0.82rem', color: '#374151' }}>Adet:</label>
-                  <input type="number" min={1} max={l.quantity} value={qty} onChange={(e) => setQty(Math.max(1, Math.min(l.quantity, parseInt(e.target.value) || 1)))} style={{ width: 80, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8 }} />
-                  <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>× {fmt(l.price)} = <b style={{ color: '#16a34a' }}>{fmt(l.price * qty)}</b></span>
-                </div>
-                <textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Not (opsiyonel): teslimat, kargo vb." rows={2} style={{ width: '100%', marginTop: 8, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.85rem', resize: 'vertical' }} />
-                <button onClick={placeOrder} disabled={ordering} style={{ marginTop: 8, padding: '0.6rem 1.2rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', opacity: ordering ? 0.6 : 1 }}>{ordering ? 'Gönderiliyor…' : 'Sipariş Talebi Gönder'}</button>
-                <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0.5rem 0 0' }}>Talebin satıcıya iletilir; onaylayınca süreç başlar. Ödeme/teslimat bayiler arasındadır.</p>
-              </>
-            )}
-          </div>
-        )}
-        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem', marginTop: '0.85rem' }}>
-          <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 8 }}>💬 Satıcıya mesaj</div>
-          {msgs.length > 0 && (
-            <div style={{ display: 'grid', gap: 6, maxHeight: 260, overflowY: 'auto', marginBottom: 10, padding: '0.25rem' }}>
-              {msgs.map((m) => (
-                <div key={m.id} style={{ alignSelf: m.mine ? 'flex-end' : 'flex-start', justifySelf: m.mine ? 'end' : 'start', maxWidth: '85%', background: m.mine ? '#dcfce7' : '#f3f4f6', borderRadius: 10, padding: '0.45rem 0.7rem' }}>
-                  <div style={{ fontSize: '0.88rem', color: '#111827', whiteSpace: 'pre-wrap' }}>{m.body}</div>
-                  <div style={{ fontSize: '0.66rem', color: '#9ca3af', marginTop: 2 }}>{m.mine ? 'Sen' : (m.senderName || 'Satıcı')} · {new Date(m.createdAt).toLocaleString('tr-TR')}</div>
-                </div>
-              ))}
+          {l.status === 'ACTIVE' && (
+            <div className="mk-shell" style={{ marginTop: '.85rem' }}>
+              <div className="mk-core">
+                <div className="mk-eyebrow">Sipariş</div>
+                {orderDone ? (
+                  <div style={{ marginTop: '.6rem' }}>
+                    <div style={{ fontWeight: 700, color: '#0B6B4A', fontSize: '.95rem' }}>✓ Sipariş talebin gönderildi</div>
+                    <p style={{ color: 'var(--ink2)', fontSize: '.86rem', margin: '.35rem 0 .9rem' }}>Satıcı onaylayınca süreç başlar.</p>
+                    <Link href="/market/siparislerim" className="mk-btn mk-btn-p"><span>Siparişlerim</span><span className="mk-ico">→</span></Link>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--ink)', margin: '.35rem 0 .9rem' }}>Bu üründen sipariş ver</div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <label style={{ fontSize: '.83rem', color: 'var(--ink2)', fontWeight: 600 }}>Adet</label>
+                      <input type="number" min={1} max={l.quantity} value={qty}
+                        onChange={(e) => setQty(Math.max(1, Math.min(l.quantity, parseInt(e.target.value) || 1)))}
+                        className="mk-in" style={{ width: 88 }} />
+                      <span style={{ fontSize: '.85rem', color: 'var(--mut)' }}>
+                        × {fmt(l.price)} = <b className="mk-price" style={{ fontSize: '1rem' }}>{fmt(l.price * qty)}</b>
+                      </span>
+                    </div>
+                    <textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Not (opsiyonel): teslimat, kargo vb." rows={2} className="mk-in" style={{ marginTop: 10, resize: 'vertical' }} />
+                    <button onClick={placeOrder} disabled={ordering} className="mk-btn mk-btn-g" style={{ marginTop: 12, padding: '.7rem .8rem .7rem 1.25rem', fontWeight: 800 }}>
+                      <span>{ordering ? 'Gönderiliyor…' : 'Sipariş Talebi Gönder'}</span>
+                      {!ordering && <span className="mk-ico">→</span>}
+                    </button>
+                    <p style={{ fontSize: '.74rem', color: 'var(--mut)', margin: '.7rem 0 0', lineHeight: 1.55 }}>
+                      Talebin satıcıya iletilir; onaylayınca süreç başlar. Ödeme/teslimat bayiler arasındadır.
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} placeholder="Mesajını yaz…" style={{ flex: 1, padding: '0.6rem 0.8rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem' }} />
-            <button onClick={send} disabled={sending || !text.trim()} style={{ padding: '0.6rem 1.1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', opacity: (sending || !text.trim()) ? 0.6 : 1 }}>Gönder</button>
+
+          <div className="mk-panel" style={{ padding: '1.15rem 1.25rem', marginTop: '.85rem' }}>
+            <div className="mk-eyebrow">Mesaj</div>
+            <div style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--ink)', margin: '.35rem 0 .9rem' }}>Satıcıya sor</div>
+            {msgs.length > 0 && (
+              <div style={{ display: 'grid', gap: 7, maxHeight: 270, overflowY: 'auto', marginBottom: 12 }}>
+                {msgs.map((m) => (
+                  <div key={m.id} className={`mk-bub${m.mine ? ' mk-bub-me' : ''}`} style={{ justifySelf: m.mine ? 'end' : 'start' }}>
+                    <div style={{ fontSize: '.88rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{m.body}</div>
+                    <div style={{ fontSize: '.66rem', color: 'var(--mut)', marginTop: 4 }}>{m.mine ? 'Sen' : (m.senderName || 'Satıcı')} · {new Date(m.createdAt).toLocaleString('tr-TR')}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} placeholder="Mesajını yaz…" className="mk-in" style={{ flex: 1 }} />
+              <button onClick={send} disabled={sending || !text.trim()} className="mk-btn mk-btn-g" style={{ padding: '.6rem .7rem .6rem 1.1rem' }}>
+                <span>Gönder</span><span className="mk-ico">→</span>
+              </button>
+            </div>
+            <p style={{ fontSize: '.74rem', color: 'var(--mut)', margin: '.7rem 0 0', lineHeight: 1.55 }}>
+              İletişim bilgisi baştan paylaşılmaz; satıcı dönünce burada konuşursunuz.
+            </p>
           </div>
-          <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0.5rem 0 0' }}>İletişim bilgisi baştan paylaşılmaz; satıcı dönünce burada konuşursunuz.</p>
-        </div>
         </>
       )}
     </div>
   );
 }
 
-const ownBtn = (c: string): React.CSSProperties => ({ padding: '0.45rem 0.8rem', background: 'white', border: `1px solid ${c}`, color: c, borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' });
+const ownBtn = (c: string): React.CSSProperties => ({
+  padding: '.48rem 1rem', background: 'white', border: `1px solid ${c}`, color: c, borderRadius: 999,
+  fontSize: '.82rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '-.005em',
+  transition: 'transform .2s cubic-bezier(.32,.72,0,1)',
+});
