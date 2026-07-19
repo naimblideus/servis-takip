@@ -19,8 +19,9 @@ export const ALL_MODULE_KEYS = Object.keys(MODULES) as ModuleKey[];
 // Plan → varsayılan açık modüller (bayiye özel `modules` boşsa bu geçerli)
 export const PLAN_MODULES: Record<string, ModuleKey[]> = {
   trial:        ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE'], // denemede her şey görünsün
-  starter:      [],                                        // Başlangıç: yalnız çekirdek
-  professional: ['INVOICING', 'ROUTE', 'TRACKING'],        // Pro
+  // NOT: Bayi Pazarı BİLEREK her planda açık — pazar yeri ancak HERKES içindeyse likidite/ağ etkisi kazanır.
+  starter:      ['MARKETPLACE'],                                          // Başlangıç: çekirdek + Pazar
+  professional: ['INVOICING', 'ROUTE', 'TRACKING', 'MARKETPLACE'],        // Pro
   enterprise:   ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE'], // Premium
 };
 
