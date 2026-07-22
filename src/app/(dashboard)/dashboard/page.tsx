@@ -139,7 +139,25 @@ export default function DashboardPage() {
             Tümünü Gör →
           </Link>
         </div>
-        <div className="overflow-x-auto">
+        {/* Mobil: kart listesi (tablo yerine — yatay kaydırma yok) */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {stats?.recentTickets?.map((t: any) => (
+            <Link key={t.id} href={`/tickets/${t.id}`} className="block py-3 active:bg-blue-50">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-blue-600 font-mono text-sm font-semibold">{t.ticketNumber}</span>
+                <span className={`badge ${getStatusColor(t.status)}`}>{getStatusLabel(t.status)}</span>
+              </div>
+              <div className="text-sm text-gray-800 font-medium mt-1">{t.device?.customer?.name}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{t.device?.brand} {t.device?.model} · {formatDate(t.createdAt)}</div>
+            </Link>
+          ))}
+          {(!stats?.recentTickets || stats.recentTickets.length === 0) && (
+            <div className="py-8 text-center text-gray-400 text-sm">Henüz servis fişi yok</div>
+          )}
+        </div>
+
+        {/* Masaüstü: tablo */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="table-header">
