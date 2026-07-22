@@ -64,6 +64,6 @@ export async function GET(
             quantity: tp.quantity,
             unitPrice: Number(tp.unitPrice),
         })),
-        companyName: tenant?.name || 'Servora',
+        companyName: tenant?.name || 'Nexus Servis',
     });
 }

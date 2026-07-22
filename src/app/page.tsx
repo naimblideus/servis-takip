@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import Landing from './_landing/Landing';
 
 export const metadata: Metadata = {
-  title: 'Servora — Kiralık Cihaz Servis & Sayaç-Kira Yönetimi',
+  title: 'Nexus Servis — Kiralık Cihaz Servis & Sayaç-Kira Yönetimi',
   description:
     'Fotokopi/yazıcı kiralama ve servis bayileri için: sayacı okur, kira + servisi tek faturada otomatik birleştirir, kaçan geliri yakalar. 14 gün ücretsiz, kart yok.',
 };

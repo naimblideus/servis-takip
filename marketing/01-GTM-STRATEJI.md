@@ -1,4 +1,4 @@
-# GTM Stratejisi — Servora (Servora)
+# GTM Stratejisi — Nexus Servis (Nexus Servis)
 
 > Hedef: 12 ayda **40-60 ödeyen bayi**, aylık tekrarlayan gelir (MRR) ile servis-takip'i
 > portföyün **nakit motoru** yapmak. Bu doküman: kimi, neyle, nereden, kaça satacağını anlatır.
@@ -44,7 +44,7 @@ Markete giriş cümlesi (elevator pitch):
 **Kategori:** "Kiralık cihaz servis & sayaç-kira yönetimi" (kendi alt-kategorini yarat, kıyas zorlaşsın).
 
 **Rakip manzarası ve bizim açımız:**
-| Rakip tipi | Onların zayıfı | Servora farkı |
+| Rakip tipi | Onların zayıfı | Nexus Servis farkı |
 |---|---|---|
 | Excel + WhatsApp (gerçek rakip!) | Sayaç/fatura kaçar, geçmiş yok, saha kör | Otomatik birleşik fatura + kaçan gelir alarmı |
 | Genel muhasebe/ERP (Logo, Mikro) | Sayaç-kira mantığı yok, ağır, pahalı | Sektöre özel + **Logo'ya veri akıtır** (rakip değil tamamlayıcı) |

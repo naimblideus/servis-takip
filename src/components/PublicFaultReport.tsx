@@ -74,7 +74,7 @@ export default function PublicFaultReport({ code, deviceName, tenantName }: { co
             </form>
           )}
         </div>
-        <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.72rem', marginTop: '0.9rem' }}>Servora ile güçlendirilmiştir</p>
+        <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.72rem', marginTop: '0.9rem' }}>Nexus Servis ile güçlendirilmiştir</p>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Servora - Yazıcı Servis Yönetimi',
+  title: 'Nexus Servis - Yazıcı Servis Yönetimi',
   description: 'Yazıcı ve fotokopi servis takip sistemi',
 };
 

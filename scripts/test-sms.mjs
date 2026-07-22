@@ -22,7 +22,7 @@ if (!/^5\d{9}$/.test(no)) {
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const msg = 'Servora test mesaji. SMS entegrasyonu calisiyor.';
+const msg = 'Nexus Servis test mesaji. SMS entegrasyonu calisiyor.';
 const xml =
   `<?xml version="1.0" encoding="UTF-8"?>` +
   `<mainbody><header>` +

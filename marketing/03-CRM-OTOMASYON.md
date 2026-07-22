@@ -1,4 +1,4 @@
-# CRM & Pazarlama Otomasyonu — Servora
+# CRM & Pazarlama Otomasyonu — Nexus Servis
 
 > Amaç: Tek kişi (sen) varken bile hiçbir lead düşmesin, deneme→ödeme akışı kendi yürüsün.
 > Felsefe: **Önce ucuz/bedava araçla başla, gelir gelince yükselt.** Aşırı mühendislik yapma.

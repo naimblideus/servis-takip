@@ -1,4 +1,4 @@
-# İçerik & Kreatif Kit — Servora
+# İçerik & Kreatif Kit — Nexus Servis
 
 > Kopyala-yapıştır hazır metinler. Marka adı geçen yerleri seçtiğin isimle değiştir.
 > Ton: net, dürüst, "işten anlayan usta". Jargon yok; para/zaman/kaçan gelir konuşur.
@@ -20,12 +20,12 @@
 ### Meta (Instagram/Facebook) — acı odaklı
 **Başlık:** Sayacı okumayı unuttuğun gün, parayı da unutuyorsun.
 **Metin:** Fotokopi/yazıcı kiralıyorsan: kira + aşım + servis tek faturada otomatik birleşsin,
-kesilmemiş faturalar önüne düşsün. Servora ile ilk ay kaçan geliri gör. 14 gün ücretsiz, kart yok.
+kesilmemiş faturalar önüne düşsün. Nexus Servis ile ilk ay kaçan geliri gör. 14 gün ücretsiz, kart yok.
 **CTA buton:** Ücretsiz Dene
 
 ### Meta — kazanç odaklı
 **Başlık:** Bu ay kaç sayfa faturalanmadı, biliyor musun?
-**Metin:** Servora her okunan sayacı faturaya çevirir, eksik kalanı "Kaçan Gelir" panelinde gösterir.
+**Metin:** Nexus Servis her okunan sayacı faturaya çevirir, eksik kalanı "Kaçan Gelir" panelinde gösterir.
 Bir bayi ilk ay ₺12.000 kaçan gelir buldu. Çözüm: ayda ₺2.099. Hesabı sen yap.
 **CTA:** Demoyu İzle
 
@@ -43,7 +43,7 @@ Bir bayi ilk ay ₺12.000 kaçan gelir buldu. Çözüm: ayda ₺2.099. Hesabı s
 
 ### İlk temas (kısa, izin alan)
 > Merhaba [Ad] Bey, ben Mehmet Naim. Fotokopi/yazıcı kiralama-servis yapan bayiler için sayacı
-> okuyup kira+servisi **tek faturada otomatik** birleştiren bir yazılım geliştirdim (Servora).
+> okuyup kira+servisi **tek faturada otomatik** birleştiren bir yazılım geliştirdim (Nexus Servis).
 > Çoğu bayi ayda epey "kaçan gelir" buluyor. 2 dakikada göstereyim mi? Size uygun olur mu?
 
 ### Cevap gelmezse (2. dokunuş, 3 gün sonra)
@@ -61,7 +61,7 @@ Bir bayi ilk ay ₺12.000 kaçan gelir buldu. Çözüm: ayda ₺2.099. Hesabı s
 ### A) Deneme başlangıç dizisi (trial onboarding)
 
 **Mail 1 — anında (Hoş geldin + tek görev):**
-- Konu: Servora hazır — ilk 10 dakikada ne yapmalısın
+- Konu: Nexus Servis hazır — ilk 10 dakikada ne yapmalısın
 - Gövde: Hoş geldin. Tek hedef: **ilk faturanı kes.** 1) 1 müşteri ekle 2) 1 cihaz + sayaç 3) sayaç oku → fatura otomatik çıkar. [3 dakikalık video] [Panele git]
 
 **Mail 2 — 1. gün (Aha anına it):**
@@ -107,17 +107,17 @@ Bir bayi ilk ay ₺12.000 kaçan gelir buldu. Çözüm: ayda ₺2.099. Hesabı s
 | 3 | "Saha teknisyeni körlüğü" | Reel: QR arıza + rota | "Bir bayinin bulduğu ₺12K" |
 | 4 | "Logo varsa neden buna da ihtiyacım var" | Reel: barkod okut→fiş | Yol haritası / topluluk daveti |
 
-**Hashtag/etiket:** #fotokopi #yazıcıservisi #KOBİ #saas #servora #dijitaldönüşüm
+**Hashtag/etiket:** #fotokopi #yazıcıservisi #KOBİ #saas #nexusservis #dijitaldönüşüm
 
 ---
 
 ## 6. Personal branding — Mehmet Naim (kurucu hikâyesi)
 
-> Strateji: Ürün markası (Servora) + kurucu markası (Mehmet Naim) birlikte yürür. Geleneksel KOBİ
+> Strateji: Ürün markası (Nexus Servis) + kurucu markası (Mehmet Naim) birlikte yürür. Geleneksel KOBİ
 > "yazılıma" değil, **"işini anlayan kişiye"** güvenir. Sen güvenin yüzü olacaksın.
 
 **LinkedIn/Instagram bio:**
-> Mühendis · Kiralık cihaz işini dijitalleştiriyorum · Servora kurucusu · Sahadan koda, gerçek bayi acılarını çözüyorum.
+> Mühendis · Kiralık cihaz işini dijitalleştiriyorum · Nexus Servis kurucusu · Sahadan koda, gerçek bayi acılarını çözüyorum.
 
 **Anlatı yayı (narrative arc) — sürekli işle:**
 1. **Niye:** "Bir fotokopi bayisi sayaç okumayı kaçırdığı için ay sonu binlerce lira eksik faturalıyordu. Buna dayanamadım, çözümünü yazdım."
@@ -130,10 +130,10 @@ Bir bayi ilk ay ₺12.000 kaçan gelir buldu. Çözüm: ayda ₺2.099. Hesabı s
 1) **Acı/içgörü:**
 > Bir fotokopi bayisi bana "ayın 5'i geldi, hangi cihazın sayacını okudum okumadım bilmiyorum" dedi.
 > Bu cümlenin maliyeti: ayda 10–15 bin TL eksik fatura. Excel suçlu değil — **sistem yok.**
-> Servora bunu otomatikleştirsin diye yazdım. Sayaç okunur, fatura kendi çıkar. (yorum: nasıl?)
+> Nexus Servis bunu otomatikleştirsin diye yazdım. Sayaç okunur, fatura kendi çıkar. (yorum: nasıl?)
 
 2) **Build in public:**
-> Bu hafta Servora'e "Kaçan Gelir" panelini ekledim: okunmamış sayaç + kesilmemiş kira +
+> Bu hafta Nexus Servis'e "Kaçan Gelir" panelini ekledim: okunmamış sayaç + kesilmemiş kira +
 > ödenmemiş fatura = "şu an masada duran para". İlk test eden bayi ₺12.000 buldu. Ekran 👇
 
 3) **Kurucu hikâyesi:**
@@ -146,7 +146,7 @@ Bir bayi ilk ay ₺12.000 kaçan gelir buldu. Çözüm: ayda ₺2.099. Hesabı s
 > 3) ödenmemiş fatura unutulması. Üçünü de haftada 1 kez kontrol et — Excel'de bile olsa. (Biz otomatikleştirdik.)
 
 5) **Sosyal kanıt + davet:**
-> 1 ayda [X] bayi Servora'e geçti. Hepsinin ortak cümlesi: "Keşke daha önce başlasaydık."
+> 1 ayda [X] bayi Nexus Servis'e geçti. Hepsinin ortak cümlesi: "Keşke daha önce başlasaydık."
 > Fotokopi/yazıcı kiralama-servis yapan bir tanıdığın varsa etiketle, 2 dakikada gösteririm.
 
 **Ritim:** Haftada 2 LinkedIn + 3 Instagram/Reel. Tutarlılık > mükemmellik. Her postun sonunda
@@ -155,7 +155,7 @@ yumuşak CTA (yorum/DM), her 4. postta net CTA (dene/demo).
 ---
 
 ## 7. Görsel/kreatif üretimi (düşük bütçe)
-- **Reel'ler:** Telefonla ekran kaydı + altyazı. 15–60 sn. "Önce kaos (Excel) → sonra düzen (Servora)".
+- **Reel'ler:** Telefonla ekran kaydı + altyazı. 15–60 sn. "Önce kaos (Excel) → sonra düzen (Nexus Servis)".
 - **Statik görseller:** Canva. (Bu oturumda Canva bağlı — istersen şablon afiş/post tasarlatabilirim.)
 - **Demo GIF:** Landing'e ve maillere göm (sayaç oku→fatura çıkar 5 sn).
-- **Tutarlılık:** Hep aynı renk (indigo+emerald), aynı font, sol altta küçük "Servora" logosu.
+- **Tutarlılık:** Hep aynı renk (indigo+emerald), aynı font, sol altta küçük "Nexus Servis" logosu.
