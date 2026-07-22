@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { effectiveModules } from '@/lib/modules';
 import Sidebar from '@/components/Sidebar';
+import BottomNav from '@/components/BottomNav';
 import ModuleGuard from '@/components/ModuleGuard';
 import AccessLock from '@/components/AccessLock';
 import Onboarding from '@/components/Onboarding';
@@ -54,9 +55,10 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar modules={modules} />
-      <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 min-w-0">
+      <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
         <ModuleGuard modules={modules}>{children}</ModuleGuard>
       </main>
+      <BottomNav modules={modules} />
       <Onboarding />
     </div>
   );

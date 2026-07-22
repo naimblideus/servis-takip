@@ -1,0 +1,17 @@
+{
+  "name": "Nexus Servis",
+  "short_name": "Nexus Servis",
+  "description": "Servis, sayaç faturalama, cari ve Bayi Pazarı — tek panelde.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0F2253",
+  "theme_color": "#0F2253",
+  "lang": "tr",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
