@@ -1,12 +1,14 @@
 'use client';
 
+import { openPrintable } from '@/lib/print';
+
 interface TicketPrintButtonProps {
     ticketId: string;
 }
 
 export default function TicketPrintButton({ ticketId }: TicketPrintButtonProps) {
     const handlePrint = () => {
-        window.open(`/tickets/${ticketId}/print`, '_blank');
+        openPrintable(`/tickets/${ticketId}/print`);
     };
 
     return (

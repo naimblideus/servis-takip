@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { openWhatsApp, invoiceMessage } from '@/lib/share';
+import { openPrintable } from '@/lib/print';
 
 interface Line { kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number; }
 interface Invoice {
@@ -207,7 +208,7 @@ export default function InvoicesPage() {
             </div>
             {/* Aksiyonlar */}
             <div className="p-4 border-t bg-gray-50 flex gap-2 flex-wrap sticky bottom-0">
-              <button onClick={() => window.open(`/invoices/${detail.id}/print`, '_blank')}
+              <button onClick={() => openPrintable(`/invoices/${detail.id}/print`)}
                 className="flex-1 min-w-[120px] px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
                 🖨 Yazdır / PDF
               </button>

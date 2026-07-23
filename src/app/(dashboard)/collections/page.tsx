@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { openWhatsApp, paymentMessage } from '@/lib/share';
+import { openPrintable } from '@/lib/print';
 
 interface Cust { id: string; name: string; phone: string; }
 interface OpenInv { id: string; invoiceNumber: string; invoiceDate: string; dueDate: string; status: string; totalAmount: number; paidAmount: number; openAmount: number; }
@@ -160,7 +161,7 @@ export default function CollectionsPage() {
                 ✓ {fmt(result.allocated)} mahsup edildi{result.unallocated > 0 ? ` · ${fmt(result.unallocated)} avans (gelecek faturaya)` : ''}
               </p>
               <div className="flex gap-2 shrink-0">
-                <button onClick={() => window.open(`/collections/${result.paymentId}/print`, '_blank')}
+                <button onClick={() => openPrintable(`/collections/${result.paymentId}/print`)}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm">
                   🧾 Makbuz Yazdır
                 </button>
