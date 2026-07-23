@@ -78,6 +78,16 @@ export default async function TicketsPage({
 
   const hasFilter = !!(sp.status || sp.priority || sp.assignedUserId || sp.dateFrom || sp.dateTo || sp.customer);
 
+  // Mevcut filtreleri toplu-yazdır sayfasına aynen taşı
+  const printParams = new URLSearchParams();
+  if (sp.status) printParams.set('status', sp.status);
+  if (sp.priority) printParams.set('priority', sp.priority);
+  if (sp.assignedUserId) printParams.set('assignedUserId', sp.assignedUserId);
+  if (sp.dateFrom) printParams.set('dateFrom', sp.dateFrom);
+  if (sp.dateTo) printParams.set('dateTo', sp.dateTo);
+  if (sp.customer) printParams.set('customer', sp.customer);
+  const printHref = `/tickets/toplu-yazdir${printParams.toString() ? `?${printParams.toString()}` : ''}`;
+
   return (
     <div style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -87,6 +97,12 @@ export default async function TicketsPage({
             {hasFilter ? `Filtreli: ${tickets.length} fiş` : `Toplam ${total} fiş`}
           </p>
         </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <Link href={printHref} title={hasFilter ? `${tickets.length} fişi toplu yazdır (mevcut filtreyle)` : 'Tüm fişleri toplu yazdır'} style={{
+          backgroundColor: '#eef2ff', color: '#4338ca', padding: '0.625rem 1rem',
+          borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500', fontSize: '0.875rem',
+          border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: '0.35rem',
+        }}>🖨️ İcmal Yazdır</Link>
         <Link href="/tickets/new" style={{
           backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500',
@@ -96,6 +112,7 @@ export default async function TicketsPage({
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500', fontSize: '0.875rem',
           border: '1px solid #fecaca',
         }}>{deleted > 0 ? `🗑️ (${deleted})` : '🗑️'}</Link>
+        </div>
       </div>
 
       {/* Stat Kartlar */}
