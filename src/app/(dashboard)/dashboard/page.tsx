@@ -5,7 +5,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { formatCurrency, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
-import { openWhatsApp, reminderMessage } from '@/lib/share';
+import { openWhatsApp, reminderMessage, telUrl } from '@/lib/share';
+
+interface StuckTicket {
+  id: string;
+  ticketNumber: string;
+  status: string;
+  days: number;
+  customerName: string;
+  customerPhone: string;
+  device: string;
+  technician: string | null;
+}
 
 interface Stats {
   openTickets: number;
@@ -16,6 +27,8 @@ interface Stats {
   lowStockItems: number;
   rentalDevices: number;
   recentTickets: any[];
+  stuckTickets?: StuckTicket[];
+  stuckDays?: number;
 }
 
 interface OverdueDebtor {
@@ -56,6 +69,8 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const stuck = stats?.stuckTickets || [];
 
   const statCards = [
     { label: 'Açık Fişler', value: stats?.openTickets || 0, color: 'bg-blue-500', icon: '📋' },
@@ -99,6 +114,66 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Duran İşler — durumu N gündür değişmemiş açık fişler */}
+      {stuck.length > 0 && (
+        <div className="card" style={{ borderLeft: '4px solid #f97316' }}>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-semibold text-orange-600">⏳ Duran İşler ({stuck.length})</h2>
+            <Link href="/tickets?status=IN_SERVICE" className="text-blue-600 text-sm hover:underline">Fişler →</Link>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            {stats?.stuckDays ?? 3} gündür durumu değişmedi — müşteri bekliyor olabilir.
+          </p>
+          <div className="divide-y divide-gray-100">
+            {stuck.slice(0, 8).map((t) => {
+              const hot = t.days >= 7;
+              return (
+                <div key={t.id} className="flex items-center gap-3 py-2.5">
+                  <span
+                    title={`${t.days} gündür bekliyor`}
+                    style={{
+                      flexShrink: 0, minWidth: 44, textAlign: 'center',
+                      backgroundColor: hot ? '#fee2e2' : '#ffedd5',
+                      color: hot ? '#b91c1c' : '#9a3412',
+                      fontWeight: 700, fontSize: '0.75rem',
+                      borderRadius: 9999, padding: '0.2rem 0.5rem',
+                    }}
+                  >{t.days} gün</span>
+
+                  <Link href={`/tickets/${t.id}`} className="flex-1 min-w-0 no-underline">
+                    <div className="text-sm font-semibold text-gray-900 truncate">
+                      {t.customerName}
+                      <span className="text-blue-600 font-mono font-normal text-xs ml-2">{t.ticketNumber}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {t.device}
+                      {' · '}{getStatusLabel(t.status)}
+                      {t.technician ? ` · ${t.technician}` : ' · atanmamış'}
+                    </div>
+                  </Link>
+
+                  {t.customerPhone && (
+                    <a
+                      href={telUrl(t.customerPhone)}
+                      onClick={(e) => e.stopPropagation()}
+                      title={`Ara: ${t.customerPhone}`}
+                      className="flex-shrink-0 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2.5 py-1.5 no-underline hover:bg-blue-100"
+                    >📞</a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {stuck.length > 8 && (
+            <div className="text-center mt-3">
+              <Link href="/tickets?status=IN_SERVICE" className="text-blue-600 text-sm hover:underline">
+                +{stuck.length - 8} iş daha →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Overdue Debtors */}
       {overdueDebtors.length > 0 && (
