@@ -13,7 +13,8 @@ export async function POST() {
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Bu işlem için yönetici yetkisi gerekir' }, { status: 403 });
 
   const tickets = await prisma.serviceTicket.findMany({
-    where: { tenantId: user.tenantId, deletedAt: null, status: { not: 'CANCELLED' }, totalCost: { gt: 0 }, customerId: { not: null } },
+    // NOT: customerId şemada zorunlu (nullable değil) — ayrıca filtrelemeye gerek yok
+    where: { tenantId: user.tenantId, deletedAt: null, status: { not: 'CANCELLED' }, totalCost: { gt: 0 } },
     select: { id: true },
   });
 

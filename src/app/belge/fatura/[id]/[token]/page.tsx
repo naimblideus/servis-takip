@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyDocToken } from '@/lib/doc-token';
 import PrintNowButton from '@/components/PrintNowButton';
 import InvoiceDocument, { type InvoiceDocData } from '@/components/docs/InvoiceDocument';
+import { buildCounterAppendix } from '@/lib/invoice-appendix';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,9 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     include: { customer: true, tenant: true, lines: { orderBy: { id: 'asc' } } },
   });
   if (!invoice) notFound();
+
+  // Sayaç eki (2. sayfa) — müşterinin "niye bu kadar?" sorusunu belgenin kendisi cevaplasın
+  const counterAppendix = await buildCounterAppendix(invoice.tenantId, invoice as any);
 
   const doc: InvoiceDocData = {
     invoiceNumber: invoice.invoiceNumber,
@@ -40,6 +44,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       id: l.id, kind: l.kind, description: l.description,
       quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), lineTotal: Number(l.lineTotal),
     })),
+    counterAppendix,
   };
 
   return (

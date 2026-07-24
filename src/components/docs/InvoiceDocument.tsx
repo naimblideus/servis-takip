@@ -24,6 +24,11 @@ export interface InvoiceDocData {
   tenant: { name: string; logo?: string | null; phone?: string | null; address?: string | null; taxOffice?: string | null; taxNumber?: string | null };
   customer: { name: string; phone?: string | null; taxNo?: string | null; contactPerson?: string | null; address?: string | null };
   lines: { id?: string; kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number }[];
+  /** Sayaç eki (2. sayfa) — src/lib/invoice-appendix.ts ile üretilir; yoksa sayfa basılmaz */
+  counterAppendix?: {
+    rows: { device: string; location: string | null; channel: 'BLACK' | 'COLOR'; prev: number | null; current: number | null; pages: number; included: number; billed: number; unitPrice: number; lineTotal: number; lastReadAt: Date | string | null }[];
+    totalPages: number; totalBilled: number; totalAmount: number; hasIncluded: boolean;
+  } | null;
 }
 
 export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }) {
@@ -37,6 +42,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
   const openAmount = Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100);
   const overpaid = Math.max(0, Math.round((paidAmount - totalAmount) * 100) / 100);
   const st = STATUS[invoice.status] || STATUS.OPEN;
+  const ap = invoice.counterAppendix;
 
   return (
     <>
@@ -102,6 +108,19 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
         .sig-label { font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
         .footer { text-align: center; font-size: 10px; color: #9ca3af; padding: 10px 24px 14px; border-top: 1px solid #f3f4f6; background: #fafafa; }
         .empty { text-align: center; color: #9ca3af; padding: 28px; font-size: 13px; }
+        .mono { font-family: 'Courier New', monospace; }
+        /* ── Sayaç Eki (2. sayfa) ── */
+        .appendix { page-break-before: always; break-before: page; }
+        @media screen { .appendix { margin-top: 2rem; } }
+        .ap-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+                   padding-bottom: 10px; border-bottom: 2px solid #0f2253; margin-bottom: 14px; }
+        .ap-title { font-size: 15px; font-weight: 800; color: #0f2253; letter-spacing: -0.01em; }
+        .ap-sub { font-size: 10.5px; color: #6b7280; margin-top: 3px; line-height: 1.5; }
+        .ap-loc { font-size: 9.5px; color: #9ca3af; font-weight: 500; margin-top: 1px; }
+        .ap-ch { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+        .ap-note { font-size: 10px; color: #6b7280; line-height: 1.6; margin-top: 12px;
+                   padding: 8px 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #f3f4f6; }
+        @media print { .appendix .ext-table thead { display: table-header-group; } .appendix tr { page-break-inside: avoid; } }
       `}</style>
 
       <div className="print-wrapper">
@@ -202,6 +221,78 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
             {openAmount > 0 ? ` Ödeme vadesi: ${fmtDate(invoice.dueDate)}.` : ' Ödeme tamamlanmıştır, teşekkür ederiz.'}
           </div>
         </div>
+
+        {/* ── SAYAÇ EKİ (2. sayfa) — "niye bu kadar?" sorusunu bitirir ── */}
+        {ap && ap.rows.length > 0 && (
+          <div className="receipt appendix">
+            <div className="body">
+              <div className="ap-head">
+                <div>
+                  <div className="ap-title">Sayaç Dökümü</div>
+                  <div className="ap-sub">{invoice.invoiceNumber} · {invoice.period} dönemi · {c.name}</div>
+                </div>
+                <div className="ap-sub" style={{ textAlign: 'right' }}>
+                  {t.name}<br />{fmtDate(invoice.invoiceDate)}
+                </div>
+              </div>
+
+              <table className="ext-table">
+                <thead>
+                  <tr>
+                    <th>Cihaz</th>
+                    <th style={{ width: '38px' }}>Tür</th>
+                    <th className="num" style={{ width: '128px' }}>Önceki → Yeni</th>
+                    <th className="num" style={{ width: '62px' }}>Çekilen</th>
+                    {ap.hasIncluded && <th className="num" style={{ width: '56px' }}>Dahil</th>}
+                    {ap.hasIncluded && <th className="num" style={{ width: '58px' }}>Aşım</th>}
+                    <th className="num" style={{ width: '68px' }}>Birim</th>
+                    <th className="num" style={{ width: '82px' }}>Tutar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ap.rows.map((r, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 600 }}>
+                        {r.device}
+                        {r.location && <div className="ap-loc">📍 {r.location}</div>}
+                      </td>
+                      <td>
+                        <span className="ap-ch" style={{ background: r.channel === 'COLOR' ? '#f5f0ff' : '#f3f4f6', color: r.channel === 'COLOR' ? '#6d28d9' : '#374151' }}>
+                          {r.channel === 'COLOR' ? 'Renkli' : 'S/B'}
+                        </span>
+                      </td>
+                      <td className="num mono">
+                        {r.prev != null ? r.prev.toLocaleString('tr-TR') : '—'}
+                        <span style={{ color: '#9ca3af' }}> → </span>
+                        <b>{r.current != null ? r.current.toLocaleString('tr-TR') : '—'}</b>
+                      </td>
+                      <td className="num mono" style={{ fontWeight: 700 }}>{r.pages.toLocaleString('tr-TR')}</td>
+                      {ap.hasIncluded && <td className="num mono" style={{ color: '#059669' }}>{r.included > 0 ? r.included.toLocaleString('tr-TR') : '—'}</td>}
+                      {ap.hasIncluded && <td className="num mono" style={{ fontWeight: 700 }}>{r.billed.toLocaleString('tr-TR')}</td>}
+                      <td className="num mono">{Number(r.unitPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>
+                      <td className="num" style={{ fontWeight: 700 }}>{fmt(r.lineTotal)}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ background: '#f9fafb' }}>
+                    <td colSpan={ap.hasIncluded ? 3 : 2} style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>TOPLAM</td>
+                    <td className="num mono" style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>{ap.totalPages.toLocaleString('tr-TR')}</td>
+                    {ap.hasIncluded && <td className="num" style={{ borderTop: '2px solid #d1d5db' }} />}
+                    {ap.hasIncluded && <td className="num mono" style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>{ap.totalBilled.toLocaleString('tr-TR')}</td>}
+                    <td className="num" style={{ borderTop: '2px solid #d1d5db' }} />
+                    <td className="num" style={{ fontWeight: 800, color: '#0f2253', borderTop: '2px solid #d1d5db' }}>{fmt(ap.totalAmount)}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="ap-note">
+                {ap.hasIncluded
+                  ? 'Kiraya dahil sayfalar ücretlendirilmez; yalnızca dahil paketi aşan sayfalar faturalanır.'
+                  : 'Dönemde çekilen sayfalar birim fiyat üzerinden faturalanmıştır.'}
+                {' '}Sayaç değerleri cihaz üzerinden okunmuştur.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

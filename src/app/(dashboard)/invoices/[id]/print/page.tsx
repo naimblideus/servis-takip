@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PrintNowButton from '@/components/PrintNowButton';
 import InvoiceDocument, { type InvoiceDocData } from '@/components/docs/InvoiceDocument';
+import { buildCounterAppendix } from '@/lib/invoice-appendix';
 
 export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,6 +18,9 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
     include: { customer: true, tenant: true, lines: { orderBy: { id: 'asc' } } },
   });
   if (!invoice) redirect('/invoices');
+
+  // Sayaç eki (2. sayfa) — sayaç satırı yoksa null döner, sayfa basılmaz
+  const counterAppendix = await buildCounterAppendix(user.tenantId, invoice as any);
 
   const doc: InvoiceDocData = {
     invoiceNumber: invoice.invoiceNumber,
@@ -41,6 +45,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
       id: l.id, kind: l.kind, description: l.description,
       quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), lineTotal: Number(l.lineTotal),
     })),
+    counterAppendix,
   };
 
   return (
