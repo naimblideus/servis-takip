@@ -78,6 +78,10 @@ COPY --chown=nextjs:nodejs apply-migrations.js ./apply-migrations.js
 # Demo bayi (tenant) oluşturma scripti — elle çalıştırılır (docker exec node create-demo-tenants.js)
 COPY --chown=nextjs:nodejs create-demo-tenants.js ./create-demo-tenants.js
 
+# Zamanlanmış görev çalıştırıcı — Coolify "Scheduled Tasks" çağırır:
+#   node run-cron.mjs faturalar   (ayın 1'i)   |   node run-cron.mjs hatirlatma  (her gün)
+COPY --chown=nextjs:nodejs run-cron.mjs ./run-cron.mjs
+
 USER nextjs
 
 EXPOSE 3000
