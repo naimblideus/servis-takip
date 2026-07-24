@@ -73,6 +73,15 @@ const menuItems = [
     ),
   },
   {
+    href: '/sayac-turu',
+    label: 'Sayaç Turu',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m4 10V11m4 6v-3M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z" />
+      </svg>
+    ),
+  },
+  {
     href: '/takip',
     label: 'Takip',
     icon: (
@@ -211,6 +220,7 @@ const MENU_ORDER = [
   '/tickets',      // Servis Fişleri — işin kalbi
   '/customers',
   '/devices',
+  '/sayac-turu',   // Sayaç Turu — müşteri bazlı toplu sayaç girişi (sahanın can damarı)
   '/market',       // Bayi Pazarı (B2B ağ)
   '/inventory',    // Stok — üstte
   '/satis',        // Barkodla Satış

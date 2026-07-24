@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { counterOverage } from '@/lib/invoicing';
+import { createReading, ReadingError } from '@/lib/readings';
 
 export async function POST(
     req: Request,
@@ -17,105 +18,25 @@ export async function POST(
 
         const body = await req.json();
         const { counterBlack, counterColor, ticketId, includeMonthlyRent, photo, reset } = body;
-        // Sayaç fotoğrafı (küçültülmüş JPEG data URL); güvenli boyut sınırı
-        const safePhoto = typeof photo === 'string' && photo.startsWith('data:image/') && photo.length < 800000 ? photo : null;
 
-        if (counterBlack === undefined || counterColor === undefined) {
-            return NextResponse.json({ error: 'counterBlack ve counterColor zorunlu' }, { status: 400 });
-        }
-
-        // Cihaz ve tenant bilgilerini al
-        const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
-        if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
-
-        const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
-        if (!tenant) return NextResponse.json({ error: 'Tenant bulunamadı' }, { status: 404 });
-
-        // Son okumayı bul (delta hesabı için)
-        const prev = await prisma.counterReading.findFirst({
-            where: { tenantId: user.tenantId, deviceId },
-            orderBy: { readingDate: 'desc' },
+        // TEK KAYNAK: aşım/dahil-paket/düşüş mantığı src/lib/readings.ts'te (toplu uç da aynısını kullanır)
+        const { reading, breakdown, warning } = await createReading({
+            tenantId: user.tenantId,
+            deviceId,
+            counterBlack,
+            counterColor,
+            ticketId,
+            includeMonthlyRent,
+            photo,
+            reset,
         });
 
-        // Düşüş kontrolü: sayaç gerilemişse (rollover / cihaz değişimi / yanlış giriş) SESSİZCE 0 yazma.
-        // 'reset' onayı yoksa REDDET — yoksa ya gelir kaybı (delta=0) ya da yanlış devasa delta oluşur.
-        const prevB = prev ? prev.counterBlack : null;
-        const prevC = prev ? prev.counterColor : null;
-        const decreased = (prevB !== null && counterBlack < prevB) || (prevC !== null && counterColor < prevC);
-        if (decreased && !reset) {
-            return NextResponse.json({ error: 'Sayaç değeri öncekinden düşük. Cihaz sıfırlandıysa/değiştiyse "sayaç sıfırlandı" onayıyla tekrar gönderin.', code: 'COUNTER_DECREASE' }, { status: 400 });
-        }
-        const deltaBlack = prevB === null ? 0 : (reset && counterBlack < prevB ? Math.max(0, counterBlack) : Math.max(0, counterBlack - prevB));
-        const deltaColor = prevC === null ? 0 : (reset && counterColor < prevC ? Math.max(0, counterColor) : Math.max(0, counterColor - prevC));
-        // Anomali uyarısı (bloklamaz): tek okumada olağandışı yüksek artış
-        const ANOMALY = 200000;
-        const anomaly = deltaBlack > ANOMALY || deltaColor > ANOMALY ? 'Olağandışı yüksek sayfa artışı — lütfen kontrol edin.' : null;
-
-        // Kiralık cihaz ise kademeli (dahil paket + aşım) ücret hesapla — gerçek fatura mantığıyla aynı (tek kaynak)
-        let calculatedCost = 0;
-        let monthlyRentAmount = 0;
-        let ch: ReturnType<typeof counterOverage> | null = null;
-
-        if (device.isRental) {
-            // Bu dönemde daha önce okunan sayfalar — dahil paketi kümülatif uygula (mükerrer indirim önle)
-            const now = new Date();
-            const pStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            const pEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-            const prevAgg = await prisma.counterReading.aggregate({
-                where: { tenantId: user.tenantId, deviceId, readingDate: { gte: pStart, lt: pEnd } },
-                _sum: { deltaBlack: true, deltaColor: true },
-            });
-            ch = counterOverage(device, deltaBlack, deltaColor, tenant, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
-            calculatedCost = ch.total;
-
-            if (includeMonthlyRent) {
-                monthlyRentAmount = Number(device.monthlyRent);
-                calculatedCost += monthlyRentAmount;
-            }
-        }
-
-        const reading = await prisma.counterReading.create({
-            data: {
-                tenantId: user.tenantId,
-                deviceId,
-                ticketId: ticketId || null,
-                counterBlack,
-                counterColor,
-                deltaBlack,
-                deltaColor,
-                calculatedCost,
-                monthlyRent: monthlyRentAmount,
-                photo: safePhoto,
-            },
-        });
-
-        // Cihaz sayaç değerlerini güncelle
-        await prisma.device.update({
-            where: { id: deviceId },
-            data: { counterBlack, counterColor },
-        });
-
-        // NOT: Gelir kaydı artık burada YAZILMAZ. Sayaç okuması sadece kaydedilir;
-        // gelir (FinancialTransaction) dönem faturası kesilince src/lib/invoicing.ts
-        // tarafından oluşturulur (mükerrer gelir önlenir). Bu okuma billed=false olarak
-        // birikir ve aylık cron / DELIVERED tetiğiyle faturaya dönüşür.
-
-        return NextResponse.json({
-            ...reading,
-            warning: anomaly,
-            breakdown: device.isRental && ch ? {
-                // Faturalanan (aşım) sayfa adedi — dahil paket düşülmüş; included=0 ise delta'nın aynısı
-                deltaBlack: ch.billB,
-                deltaColor: ch.billC,
-                pricePerBlack: ch.overBlack,
-                pricePerColor: ch.overColor,
-                blackCost: ch.blackTotal,
-                colorCost: ch.colorTotal,
-                monthlyRent: monthlyRentAmount,
-                total: calculatedCost,
-            } : null,
-        });
+        return NextResponse.json({ ...reading, warning, breakdown });
     } catch (e: any) {
+        // Beklenen iş kuralı hataları (ör. COUNTER_DECREASE) kodu+durumuyla dönmeli — UI buna göre davranıyor
+        if (e instanceof ReadingError) {
+            return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
+        }
         console.error('COUNTER READING ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
