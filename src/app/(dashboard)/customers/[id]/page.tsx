@@ -75,10 +75,19 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ fontWeight: '600' }}>Cihazlar ({customer.devices.length})</h2>
-          <Link href="/devices/new" style={{
-            backgroundColor: '#3b82f6', color: 'white', padding: '0.4rem 0.875rem',
-            borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500'
-          }}>+ Yeni Cihaz</Link>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {customer.devices.length > 0 && (
+              <Link href={`/customers/${customer.id}/cihaz-dokumu`} title="Cihaz dökümü / zimmet listesi yazdır (kat-oda gruplu tek sayfa)" style={{
+                backgroundColor: '#eef2ff', color: '#4338ca', padding: '0.4rem 0.875rem',
+                borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500',
+                border: '1px solid #c7d2fe'
+              }}>🖨️ Döküm</Link>
+            )}
+            <Link href="/devices/new" style={{
+              backgroundColor: '#3b82f6', color: 'white', padding: '0.4rem 0.875rem',
+              borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500'
+            }}>+ Yeni Cihaz</Link>
+          </div>
         </div>
         {customer.devices.length === 0 ? (
           <p style={{ color: '#6b7280', textAlign: 'center', padding: '1.5rem' }}>Henüz cihaz yok</p>
