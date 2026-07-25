@@ -167,6 +167,7 @@ model Customer {
   taxNo         String?
   email         String?  // E-posta adresi (import'tan gelebilir)
   contactPerson String?  // Yetkili kişi adı
+  contractEndDate DateTime? // Kiralama sözleşmesi bitiş tarihi — yaklaşınca/geçince uyarı (sessiz gelir kaybı önlenir)
   consent       Boolean  @default(false) // GDPR/KVKK consent
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

@@ -11,6 +11,7 @@ interface Props {
         phone: string;
         address: string | null;
         taxNo: string | null;
+        contractEndDate?: string | null;
     };
 }
 
@@ -23,6 +24,7 @@ export default function CustomerEditPanel({ customer }: Props) {
         phone: customer.phone,
         address: customer.address || '',
         taxNo: customer.taxNo || '',
+        contractEndDate: customer.contractEndDate ? customer.contractEndDate.slice(0, 10) : '',
     });
 
     const save = async () => {
@@ -98,9 +100,17 @@ export default function CustomerEditPanel({ customer }: Props) {
                             <label style={lbl}>Adres</label>
                             <AddressAutocomplete value={form.address} onChange={v => setForm({ ...form, address: v })} style={inp} />
                         </div>
-                        <div style={{ marginBottom: '1.5rem' }}>
+                        <div style={{ marginBottom: '1rem' }}>
                             <label style={lbl}>Vergi No</label>
                             <input style={inp} value={form.taxNo} onChange={e => setForm({ ...form, taxNo: e.target.value })} />
+                        </div>
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={lbl}>Sözleşme Bitiş Tarihi</label>
+                            <input type="date" style={inp} value={form.contractEndDate}
+                                onChange={e => setForm({ ...form, contractEndDate: e.target.value })} />
+                            <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.3rem' }}>
+                                Girersen bitmeden önce ana ekranda uyarı çıkar (sözleşme unutulup bedava çalışmasın).
+                            </div>
                         </div>
 
                         <div style={{ display: 'flex', gap: '0.75rem' }}>

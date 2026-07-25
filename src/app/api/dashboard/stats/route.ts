@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 
 // Duran iş eşiği: durumu bu kadar gündür değişmemiş açık fişler "duruyor" sayılır.
 const STUCK_DAYS = 3;
+// Sözleşme uyarısı: bu kadar gün içinde bitecek sözleşmeler önceden gösterilir.
+const CONTRACT_WARN_DAYS = 45;
 
 export async function GET() {
   const session = await auth();
@@ -34,6 +36,7 @@ export async function GET() {
     lowStockRaw,
     rentalDevices,
     stuckRaw,
+    contractRaw,
   ] = await Promise.all([
     prisma.serviceTicket.count({
       where: { tenantId, deletedAt: null, status: { in: [...OPEN_STATUSES] } },
@@ -83,6 +86,21 @@ export async function GET() {
       orderBy: { statusUpdatedAt: 'asc' },
       take: 50,
     }),
+    // SÖZLEŞME UYARISI: bitmiş ya da CONTRACT_WARN_DAYS içinde bitecek sözleşmeler.
+    // Yalnız KİRALIK cihazı olan müşteriler (sözleşme kiralamayla anlamlı).
+    prisma.customer.findMany({
+      where: {
+        tenantId,
+        contractEndDate: { not: null, lt: new Date(now.getTime() + CONTRACT_WARN_DAYS * 24 * 3600 * 1000) },
+        devices: { some: { isRental: true } },
+      },
+      select: {
+        id: true, name: true, phone: true, contractEndDate: true,
+        _count: { select: { devices: true } },
+      },
+      orderBy: { contractEndDate: 'asc' },
+      take: 30,
+    }),
   ]);
 
   const lowStockItems = Array.isArray(lowStockRaw)
@@ -100,6 +118,22 @@ export async function GET() {
     technician: t.assignedUser?.name || null,
   }));
 
+  const dayMs = 24 * 3600 * 1000;
+  const contractAlerts = contractRaw.map((c) => {
+    const end = new Date(c.contractEndDate!);
+    // Gün farkı (bugünün başlangıcına göre): negatif = süresi geçmiş
+    const days = Math.ceil((end.getTime() - startOfDay.getTime()) / dayMs);
+    return {
+      id: c.id,
+      name: c.name,
+      phone: c.phone || '',
+      endDate: end.toISOString(),
+      days,
+      expired: days < 0,
+      deviceCount: c._count.devices,
+    };
+  });
+
   return NextResponse.json({
     openTickets,
     todayTickets,
@@ -111,5 +145,6 @@ export async function GET() {
     recentTickets,
     stuckTickets,
     stuckDays: STUCK_DAYS,
+    contractAlerts,
   });
 }

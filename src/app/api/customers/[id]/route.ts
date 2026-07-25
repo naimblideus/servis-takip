@@ -23,6 +23,17 @@ export async function PATCH(
         if (body.phone !== undefined) updateData.phone = body.phone;
         if (body.address !== undefined) updateData.address = body.address || null;
         if (body.taxNo !== undefined) updateData.taxNo = body.taxNo || null;
+        // Sözleşme bitiş tarihi: "" -> null (temizle), "YYYY-MM-DD" -> tarih
+        if (body.contractEndDate !== undefined) {
+            const v = String(body.contractEndDate || '').trim();
+            if (!v) updateData.contractEndDate = null;
+            else {
+                const [y, m, d] = v.split('-').map(Number);
+                const dt = new Date(y, (m || 1) - 1, d || 1);
+                if (isNaN(dt.getTime())) return NextResponse.json({ error: 'Geçersiz sözleşme tarihi' }, { status: 400 });
+                updateData.contractEndDate = dt;
+            }
+        }
 
         const customer = await prisma.customer.update({
             where: { id },

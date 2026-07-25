@@ -29,6 +29,12 @@ interface Stats {
   recentTickets: any[];
   stuckTickets?: StuckTicket[];
   stuckDays?: number;
+  contractAlerts?: ContractAlert[];
+}
+
+interface ContractAlert {
+  id: string; name: string; phone: string;
+  endDate: string; days: number; expired: boolean; deviceCount: number;
 }
 
 interface OverdueDebtor {
@@ -71,6 +77,7 @@ export default function DashboardPage() {
   }
 
   const stuck = stats?.stuckTickets || [];
+  const contracts = stats?.contractAlerts || [];
 
   const statCards = [
     { label: 'Açık Fişler', value: stats?.openTickets || 0, color: 'bg-blue-500', icon: '📋' },
@@ -114,6 +121,52 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Sözleşme Uyarısı — bitmiş / yaklaşan kiralama sözleşmeleri */}
+      {contracts.length > 0 && (
+        <div className="card" style={{ borderLeft: '4px solid #7c3aed' }}>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-semibold" style={{ color: '#6d28d9' }}>📄 Sözleşme Uyarısı ({contracts.length})</h2>
+            <Link href="/customers" className="text-blue-600 text-sm hover:underline">Müşteriler →</Link>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            Süresi dolan sözleşme = cihaz bedava çalışıyor olabilir. Yenile ya da cihazı çek.
+          </p>
+          <div className="divide-y divide-gray-100">
+            {contracts.slice(0, 6).map((c) => (
+              <div key={c.id} className="flex items-center gap-3 py-2.5">
+                <span
+                  style={{
+                    flexShrink: 0, minWidth: 68, textAlign: 'center',
+                    backgroundColor: c.expired ? '#fee2e2' : '#f5f3ff',
+                    color: c.expired ? '#b91c1c' : '#6d28d9',
+                    fontWeight: 700, fontSize: '0.72rem',
+                    borderRadius: 9999, padding: '0.2rem 0.5rem',
+                  }}
+                >{c.expired ? `${Math.abs(c.days)} gün geçti` : `${c.days} gün kaldı`}</span>
+
+                <Link href={`/customers/${c.id}`} className="flex-1 min-w-0 no-underline">
+                  <div className="text-sm font-semibold text-gray-900 truncate">{c.name}</div>
+                  <div className="text-xs text-gray-500 truncate">
+                    {new Date(c.endDate).toLocaleDateString('tr-TR')} · {c.deviceCount} cihaz
+                  </div>
+                </Link>
+
+                {c.phone && (
+                  <a href={telUrl(c.phone)} title={`Ara: ${c.phone}`}
+                    className="flex-shrink-0 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2.5 py-1.5 no-underline hover:bg-blue-100"
+                  >📞</a>
+                )}
+              </div>
+            ))}
+          </div>
+          {contracts.length > 6 && (
+            <div className="text-center mt-3">
+              <Link href="/customers" className="text-blue-600 text-sm hover:underline">+{contracts.length - 6} müşteri daha →</Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Duran İşler — durumu N gündür değişmemiş açık fişler */}
       {stuck.length > 0 && (
