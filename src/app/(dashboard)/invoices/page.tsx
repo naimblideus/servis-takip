@@ -39,6 +39,7 @@ export default function InvoicesPage() {
   const [detail, setDetail] = useState<Invoice | null>(null);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [preflight, setPreflight] = useState<{ loading: boolean; data: any } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,8 +59,19 @@ export default function InvoicesPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ — çıplak onay yerine "hangi cihazın sayacı okunmadı" ekranı
+  const openPreflight = async () => {
+    setPreflight({ loading: true, data: null });
+    try {
+      const r = await fetch('/api/invoices/preflight');
+      const d = await r.json();
+      if (r.ok) setPreflight({ loading: false, data: d });
+      else { setPreflight(null); setMsg('❌ ' + (d.error || 'Kontrol yapılamadı')); }
+    } catch { setPreflight(null); setMsg('❌ Sunucuya bağlanılamadı'); }
+  };
+
   const runBilling = async () => {
-    if (!confirm('Bu dönem için tüm müşterilere otomatik fatura kesilecek (sayaç + kira + ödenmemiş servis). Devam edilsin mi?')) return;
+    setPreflight(null);
     setRunning(true); setMsg(null);
     try {
       const res = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
@@ -77,13 +89,80 @@ export default function InvoicesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Faturalar</h1>
           <p className="text-sm text-gray-500 mt-1">Otomatik kesilen müşteri faturaları — sayaç, kira ve servis tek faturada</p>
         </div>
-        <button onClick={runBilling} disabled={running}
+        <button onClick={openPreflight} disabled={running}
           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
           {running ? 'Kesiliyor…' : '⚡ Bu Dönemi Faturala'}
         </button>
       </div>
 
       {msg && <div className="mb-4 p-3 rounded-lg bg-gray-50 border text-sm text-gray-700">{msg}</div>}
+
+      {/* FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ */}
+      {preflight && (
+        <div onClick={() => setPreflight(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(11,21,51,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: 'white', borderRadius: 16, width: 620, maxWidth: '100%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 30px 70px -30px rgba(11,21,51,.7)' }}>
+            <div style={{ padding: '1.25rem 1.4rem', borderBottom: '1px solid #eef2f7' }}>
+              <div style={{ fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>Faturalama öncesi kontrol</div>
+              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B1533', marginTop: 4 }}>
+                {preflight.loading ? 'Kontrol ediliyor…'
+                  : preflight.data?.missingCount > 0
+                    ? `${preflight.data.missingCount} cihazın bu ay sayacı okunmadı`
+                    : 'Tüm sayaçlar okunmuş ✓'}
+              </div>
+              {!preflight.loading && preflight.data?.missingCount > 0 && (
+                <p style={{ color: '#B45309', fontSize: '.88rem', margin: '.45rem 0 0', lineHeight: 1.55 }}>
+                  Şimdi faturalarsan bu cihazların <b>aşım bedeli faturaya girmez</b> — eksik fatura gider.
+                </p>
+              )}
+              {!preflight.loading && preflight.data?.missingCount === 0 && (
+                <p style={{ color: '#0B6B4A', fontSize: '.88rem', margin: '.45rem 0 0' }}>
+                  {preflight.data.totalRental} kiralık cihazın hepsinde bu dönem okuma var.
+                </p>
+              )}
+            </div>
+
+            {!preflight.loading && preflight.data?.customers?.length > 0 && (
+              <div style={{ padding: '.9rem 1.4rem', maxHeight: '46vh', overflowY: 'auto' }}>
+                {preflight.data.customers.map((c: any) => (
+                  <div key={c.id} style={{ marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <a href={`/customers/${c.id}`} style={{ fontWeight: 700, fontSize: '.92rem', color: '#0B1533', textDecoration: 'none' }}>{c.name}</a>
+                      <a href={`/sayac-turu`} style={{ fontSize: '.78rem', fontWeight: 700, color: '#0E9F6E', textDecoration: 'none', whiteSpace: 'nowrap' }}>Sayaç Turu →</a>
+                    </div>
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      {c.devices.map((d: any) => (
+                        <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '.8rem', color: '#5B6479', background: '#F7F9FC', borderRadius: 8, padding: '.4rem .6rem' }}>
+                          <span>{d.brand} {d.model}{d.location ? ` · 📍 ${d.location}` : ''}</span>
+                          <span style={{ color: '#9AA3B8', fontFamily: 'monospace', fontSize: '.72rem' }}>{d.serialNo}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ padding: '1rem 1.4rem', borderTop: '1px solid #eef2f7', display: 'flex', gap: '.6rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button onClick={() => setPreflight(null)}
+                style={{ padding: '.6rem 1.1rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 10, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+                Vazgeç
+              </button>
+              {!preflight.loading && preflight.data?.missingCount > 0 && (
+                <a href="/sayac-turu"
+                  style={{ padding: '.6rem 1.1rem', background: '#0E9F6E', color: 'white', borderRadius: 10, fontWeight: 700, textDecoration: 'none' }}>
+                  Önce sayaçları oku
+                </a>
+              )}
+              <button onClick={runBilling} disabled={preflight.loading}
+                style={{ padding: '.6rem 1.2rem', background: preflight.data?.missingCount > 0 ? '#B45309' : '#0F2253', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', opacity: preflight.loading ? .5 : 1 }}>
+                {preflight.data?.missingCount > 0 ? 'Yine de faturala' : 'Faturala'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Özet kartlar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
