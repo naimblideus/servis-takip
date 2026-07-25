@@ -159,6 +159,53 @@ export default function SettingsPage() {
             }}>
                 {saving ? 'Kaydediliyor...' : '💾 Tümünü Kaydet'}
             </button>
+
+            <BackupCard />
+        </div>
+    );
+}
+
+/** Yedek alma — verinin bir kopyasını kendi bilgisayarına indir (ayda bir hatırlatır). */
+function BackupCard() {
+    const [last, setLast] = useState<string | null>(null);
+    useEffect(() => { setLast(localStorage.getItem('nx_last_backup')); }, []);
+
+    const days = last ? Math.floor((Date.now() - Number(last)) / 86400000) : null;
+    const overdue = days === null || days >= 30;
+
+    const download = (photos: boolean) => {
+        localStorage.setItem('nx_last_backup', String(Date.now()));
+        setLast(String(Date.now()));
+        window.location.href = `/api/backup${photos ? '?photos=1' : ''}`;
+    };
+
+    return (
+        <div style={{
+            marginTop: '1.5rem', backgroundColor: 'white', borderRadius: '0.75rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem',
+            borderLeft: `4px solid ${overdue ? '#f59e0b' : '#10b981'}`,
+        }}>
+            <h2 style={{ fontWeight: '600', marginBottom: '0.35rem' }}>💾 Verinin Yedeği</h2>
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.6, marginBottom: '0.9rem' }}>
+                Tüm müşteri, cihaz, fiş ve muhasebe kaydınızın kopyasını <b>kendi bilgisayarınıza</b> indirin.
+                Ayda bir almanız yeterli. {overdue
+                    ? <b style={{ color: '#b45309' }}>{days === null ? 'Henüz yedek almadınız.' : `Son yedek ${days} gün önce.`}</b>
+                    : <span style={{ color: '#059669' }}>Son yedek {days} gün önce ✓</span>}
+            </p>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button onClick={() => download(false)} style={{
+                    padding: '0.6rem 1.1rem', backgroundColor: '#0f2253', color: 'white',
+                    border: 'none', borderRadius: '0.5rem', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem',
+                }}>⬇️ Yedeği indir</button>
+                <button onClick={() => download(true)} title="Sayaç fotoğrafları dahil — dosya çok büyük olabilir" style={{
+                    padding: '0.6rem 1.1rem', backgroundColor: 'white', color: '#374151',
+                    border: '1px solid #d1d5db', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem',
+                }}>Fotoğraflarla birlikte</button>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.75rem', lineHeight: 1.5 }}>
+                Dosyayı silmeyin — sistemde bir sorun olursa verileriniz bundan geri yüklenir.
+                (Sunucuda ayrıca otomatik yedek de tutulur.)
+            </p>
         </div>
     );
 }

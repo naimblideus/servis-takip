@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import ExcelImport from '@/components/ExcelImport';
 
 // ── Tipler ──
 interface ImportCounts {
@@ -57,6 +58,7 @@ export default function ImportPage() {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const [source, setSource] = useState<'excel' | 'sql'>('excel');
     const [step, setStep] = useState<ImportStep>('upload');
     const [file, setFile] = useState<File | null>(null);
     const [dragActive, setDragActive] = useState(false);
@@ -249,11 +251,24 @@ export default function ImportPage() {
                     <span className="text-3xl">📥</span>
                     Veri İçe Aktarma
                 </h1>
-                <p className="text-gray-500 mt-1">Eski servis programınızdan SQL yedeği ile veri aktarın</p>
+                <p className="text-gray-500 mt-1">Mevcut verinizi sisteme taşıyın — Excel listesi ya da eski programın SQL yedeği</p>
             </div>
 
+            {/* Kaynak seçimi */}
+            <div className="flex gap-2 mb-6 flex-wrap">
+                {([['excel', '📊 Excel / CSV listesi'], ['sql', '🗄️ SQL yedeği (eski program)']] as const).map(([k, label]) => (
+                    <button key={k} onClick={() => setSource(k)}
+                        className={`px-4 py-2 rounded-full text-sm font-semibold border transition
+                            ${source === k ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+                        {label}
+                    </button>
+                ))}
+            </div>
+
+            {source === 'excel' && <ExcelImport />}
+
             {/* ═══ ADIM 1: DOSYA YÜKLEME ═══ */}
-            {step === 'upload' && (
+            {source === 'sql' && step === 'upload' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     {/* Desteklenen formatlar */}
                     <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
@@ -367,7 +382,7 @@ export default function ImportPage() {
             )}
 
             {/* ═══ ADIM 2: CANLI İLERLEME ═══ */}
-            {step === 'processing' && importSession && (
+            {source === 'sql' && step === 'processing' && importSession && (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="px-6 py-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-yellow-100">
                         <div className="flex items-center gap-3">
@@ -425,7 +440,7 @@ export default function ImportPage() {
             )}
 
             {/* ═══ ADIM 3: SONUÇ RAPORU ═══ */}
-            {step === 'result' && importSession && (
+            {source === 'sql' && step === 'result' && importSession && (
                 <div className="space-y-6">
                     {/* Başlık */}
                     <div className={`rounded-2xl p-6 ${importSession.status === 'COMPLETED' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
