@@ -29,16 +29,33 @@ export default function ExcelImport() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [encodingNote, setEncodingNote] = useState<string | null>(null);
 
   const pick = async (f: File | null) => {
     if (!f) return;
-    setErr(null); setResult(null); setPreview(null);
+    setErr(null); setResult(null); setPreview(null); setEncodingNote(null);
     if (!/\.(csv|txt)$/i.test(f.name)) {
       setErr('Lütfen CSV dosyası seçin. Excel’de: Dosya → Farklı Kaydet → "CSV UTF-8 (virgülle ayrılmış)".');
       return;
     }
     if (f.size > 15 * 1024 * 1024) { setErr('Dosya çok büyük (en fazla 15MB).'); return; }
-    const text = await f.text();
+
+    // KODLAMA: Excel'in düz "CSV" çıktısı UTF-8 DEĞİL (Türkçe'de windows-1254) — Türkçe karakterler bozulur.
+    // Önce katı UTF-8 dene; geçersizse windows-1254'e düş.
+    const buf = await f.arrayBuffer();
+    let text: string;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    } catch {
+      try {
+        text = new TextDecoder('windows-1254').decode(buf);
+        setEncodingNote('Dosya UTF-8 değildi (Excel’in eski CSV formatı) — Türkçe karakterler otomatik düzeltildi. Önizlemede kontrol edin.');
+      } catch {
+        text = new TextDecoder('utf-8').decode(buf);
+        setEncodingNote('Dosya kodlaması tanınamadı — Türkçe karakterlerde bozulma olabilir. Excel’de "CSV UTF-8" olarak kaydedip tekrar deneyin.');
+      }
+    }
+
     setCsv(text); setFileName(f.name);
     await runPreview(text, null);
   };
@@ -140,6 +157,7 @@ export default function ExcelImport() {
         </div>
 
         {err && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{err}</div>}
+        {encodingNote && <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">ℹ️ {encodingNote}</div>}
         {busy && <p className="mt-4 text-sm text-gray-500">Okunuyor…</p>}
 
         {/* Kolon eşleme + önizleme */}
@@ -169,6 +187,16 @@ export default function ExcelImport() {
                 </div>
               ))}
             </div>
+
+            {/* Çakışma uyarıları — aktarımdan ÖNCE bilinsin */}
+            {preview.warnings?.length > 0 && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900">
+                <b>Bilmeniz gerekenler:</b>
+                <ul className="mt-1 space-y-1 list-disc list-inside">
+                  {preview.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                </ul>
+              </div>
+            )}
 
             {/* Örnek satırlar */}
             {preview.sample?.length > 0 && (

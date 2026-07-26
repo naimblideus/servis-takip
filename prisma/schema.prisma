@@ -133,6 +133,11 @@ model User {
   role         UserRole @default(TECHNICIAN)
   isActive     Boolean  @default(true)
   onboardedAt  DateTime? // İlk-giriş eğitim sihirbazı tamamlandı/atlandı mı (null=hiç görmedi)
+  // İki adımlı doğrulama (TOTP — Google/Microsoft Authenticator)
+  totpSecret      String?   // base32 gizli anahtar (yalnız kurulum sırasında üretilir)
+  totpEnabled     Boolean   @default(false)
+  totpLastCounter Int?      // Son kullanılan zaman adımı — aynı kodun tekrar kullanılmasını engeller
+  recoveryCodes   String[]  @default([]) // Kurtarma kodlarının sha256 özetleri (tek kullanımlık)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

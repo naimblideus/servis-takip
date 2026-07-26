@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import TwoFactorCard from '@/components/TwoFactorCard';
 
 interface TenantInfo {
     id: string;
@@ -160,6 +161,7 @@ export default function SettingsPage() {
                 {saving ? 'Kaydediliyor...' : '💾 Tümünü Kaydet'}
             </button>
 
+            <TwoFactorCard />
             <BackupCard />
         </div>
     );

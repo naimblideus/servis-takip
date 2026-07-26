@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { verifyTOTP, hashRecoveryCode } from '@/lib/totp';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -9,6 +10,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Şifre', type: 'password' },
+        totp: { label: 'Doğrulama Kodu', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -22,6 +24,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
         if (!isValid) return null;
+
+        // ── İKİ ADIMLI DOĞRULAMA ──
+        // Açıksa şifre TEK BAŞINA yetmez: geçerli TOTP kodu ya da tek-kullanımlık kurtarma kodu şart.
+        if (user.totpEnabled && user.totpSecret) {
+          const raw = String((credentials as any).totp || '').trim();
+          if (!raw) return null;
+
+          const counter = verifyTOTP(user.totpSecret, raw, { lastCounter: user.totpLastCounter });
+          if (counter != null) {
+            // Aynı kodun ikinci kez kullanılmasını engelle
+            await prisma.user.update({ where: { id: user.id }, data: { totpLastCounter: counter } });
+          } else {
+            // Kurtarma kodu — telefon kaybolduğunda; kullanılan kod listeden düşer
+            const h = hashRecoveryCode(raw);
+            const codes = user.recoveryCodes || [];
+            if (!codes.includes(h)) return null;
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { recoveryCodes: codes.filter((c) => c !== h) },
+            });
+          }
+        }
 
         return {
           id: user.id,

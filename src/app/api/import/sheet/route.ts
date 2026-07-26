@@ -66,17 +66,20 @@ export async function POST(req: NextRequest) {
       isRental: boolean; monthlyRent: number | null; pricePerBlack: number | null; pricePerColor: number | null;
       errors: string[];
     };
+    // Aşırı uzun hücreler DB hatası vermesin — sınırla (Excel'de kazara birleşmiş metinler olur)
+    const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n).trim() : s);
+
     const parsed: Parsed[] = dataRows.map((r, i) => {
       const p: Parsed = {
         row: i + 2, // Excel satır numarası (başlık 1. satır)
-        customerName: get(r, 'customerName'),
+        customerName: cut(get(r, 'customerName'), 160),
         phone: normalizePhone(get(r, 'phone')),
-        address: get(r, 'address'),
-        taxNo: get(r, 'taxNo'),
-        brand: get(r, 'brand'),
-        model: get(r, 'model'),
-        serialNo: get(r, 'serialNo'),
-        location: get(r, 'location'),
+        address: cut(get(r, 'address'), 400),
+        taxNo: cut(get(r, 'taxNo'), 40),
+        brand: cut(get(r, 'brand'), 80),
+        model: cut(get(r, 'model'), 120),
+        serialNo: cut(get(r, 'serialNo'), 80),
+        location: cut(get(r, 'location'), 120),
         counterBlack: trInt(get(r, 'counterBlack')),
         counterColor: trInt(get(r, 'counterColor')),
         isRental: idx('isRental') >= 0 ? trBool(get(r, 'isRental')) : (trNumber(get(r, 'monthlyRent')) || 0) > 0,
@@ -94,6 +97,41 @@ export async function POST(req: NextRequest) {
     const valid = parsed.filter((p) => p.errors.length === 0);
     const invalid = parsed.filter((p) => p.errors.length > 0);
 
+    // ── ÇAKIŞMA UYARILARI (aktarımı durdurmaz; kullanıcı önceden bilsin) ──
+    // Sistem müşteriyi TELEFONLA, cihazı SERİ NO ile eşleştirir. Dosyada aynı telefon farklı
+    // isimlerde geçiyorsa o kayıtlar TEK müşteride birleşir — bu sürpriz olmamalı.
+    const warnings: string[] = [];
+    const namesByPhone = new Map<string, Set<string>>();
+    const custBySerial = new Map<string, Set<string>>();
+    for (const p of valid) {
+      if (p.phone && p.customerName) {
+        if (!namesByPhone.has(p.phone)) namesByPhone.set(p.phone, new Set());
+        namesByPhone.get(p.phone)!.add(p.customerName.toLocaleUpperCase('tr'));
+      }
+      if (p.serialNo && p.customerName) {
+        if (!custBySerial.has(p.serialNo)) custBySerial.set(p.serialNo, new Set());
+        custBySerial.get(p.serialNo)!.add(p.customerName.toLocaleUpperCase('tr'));
+      }
+    }
+    const phoneClashes = [...namesByPhone.entries()].filter(([, names]) => names.size > 1);
+    const serialClashes = [...custBySerial.entries()].filter(([, c]) => c.size > 1);
+    if (phoneClashes.length) {
+      warnings.push(
+        `${phoneClashes.length} telefon numarası birden fazla farklı isimle geçiyor — bunlar TEK müşteride birleşecek ` +
+        `(ör. ${phoneClashes[0][0]}: ${[...phoneClashes[0][1]].slice(0, 2).join(' / ')}).`,
+      );
+    }
+    if (serialClashes.length) {
+      warnings.push(
+        `${serialClashes.length} seri no farklı müşterilerde geçiyor — cihaz son satırdaki müşteriye bağlanacak ` +
+        `(ör. ${serialClashes[0][0]}).`,
+      );
+    }
+    const noSerial = valid.filter((p) => (p.brand || p.model) && !p.serialNo).length;
+    if (noSerial > 0) {
+      warnings.push(`${noSerial} cihazda seri no yok — otomatik geçici seri no üretilecek (sonra düzeltebilirsiniz).`);
+    }
+
     // ── ÖNİZLEME ──
     if (dryRun) {
       return NextResponse.json({
@@ -103,6 +141,7 @@ export async function POST(req: NextRequest) {
         invalidRows: invalid.length,
         willCreateCustomers: new Set(valid.filter((p) => p.customerName && p.phone).map((p) => p.phone)).size,
         willCreateDevices: valid.filter((p) => p.serialNo || p.brand || p.model).length,
+        warnings,
         sample: parsed.slice(0, 8),
         errorsSample: invalid.slice(0, 10),
       });

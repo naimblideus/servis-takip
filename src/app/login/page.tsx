@@ -10,20 +10,37 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [totp, setTotp] = useState('');
+  const [needsTotp, setNeedsTotp] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    // İki adımlı doğrulama açıksa önce kod alanını göster (şifre doğruysa)
+    if (!needsTotp) {
+      try {
+        const r = await fetch('/api/auth/2fa/check', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const d = await r.json();
+        if (d?.needsTotp) { setNeedsTotp(true); setLoading(false); return; }
+      } catch { /* kontrol başarısızsa normal girişe devam et */ }
+    }
+
     const result = await signIn('credentials', {
       email,
       password,
+      totp: totp.trim(),
       redirect: false,
     });
 
     if (result?.error) {
-      setError('E-posta veya şifre hatalı!');
+      setError(needsTotp
+        ? 'Doğrulama kodu hatalı veya süresi geçti. Uygulamadaki güncel kodu girin.'
+        : 'E-posta veya şifre hatalı!');
       setLoading(false);
     } else {
       router.refresh();
@@ -71,6 +88,27 @@ export default function LoginPage() {
             />
           </div>
 
+          {needsTotp && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+              <label className="label">🔐 Doğrulama Kodu</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                value={totp}
+                onChange={(e) => setTotp(e.target.value)}
+                className="input-field text-center tracking-[0.4em] font-mono text-lg"
+                placeholder="000000"
+                maxLength={13}
+              />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                Telefonundaki doğrulama uygulamasındaki 6 haneli kodu gir.
+                Telefonun yanında değilse <b>kurtarma kodlarından</b> birini yazabilirsin.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
               {error}
@@ -82,7 +120,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full btn-primary py-3 text-base"
           >
-            {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+            {loading ? 'Giriş yapılıyor...' : needsTotp ? 'Doğrula ve Gir' : 'Giriş Yap'}
           </button>
         </form>
 
