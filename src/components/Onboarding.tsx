@@ -28,26 +28,29 @@ interface Status {
 }
 
 const HIDE_KEY = 'gs_checklist_hidden_v1';
+const HINT_KEY = 'gs_guide_hint_seen_v1'; // rehber işareti bir kez gösterilir
 
 const CHECKLIST: { key: keyof Steps; title: string; desc: string; href: string; cta: string; icon: string; how: string[] }[] = [
   {
-    key: 'hasCustomers', icon: '👤', title: '1. İlk müşterini ekle',
-    desc: 'Hizmet verdiğin firmayı/kişiyi kaydet. Sonradan cihaz ve fişler buna bağlanır.',
-    href: '/customers', cta: 'Müşteriler',
+    key: 'hasCustomers', icon: '👤', title: '1. Müşterilerini sisteme al',
+    desc: 'Elinde Excel listesi varsa tek seferde aktar; yoksa tek tek ekle.',
+    href: '/import', cta: 'Excel’den aktar',
     how: [
-      'Sol menü → Müşteriler → "＋ Yeni Müşteri".',
-      'Ad ve telefon zorunlu; adres yazmaya başlayınca listeden seç (yoksa elle yaz).',
-      'Kaydet → detayda 📞 Ara · 💬 WhatsApp · 🗺️ Yol Tarifi otomatik gelir.',
+      'HIZLI YOL — Excel listen varsa: Gelişmiş → Veri Aktarma → "Excel / CSV listesi".',
+      'Excel’de: Dosya → Farklı Kaydet → "CSV UTF-8". Dosyayı seç; kolonları sistem kendi tanır.',
+      'Önizlemede ilk satırları kontrol et → "Aktar". Müşteri + cihaz birlikte gelir.',
+      'TEK TEK: Müşteriler → "＋ Yeni Müşteri" → ad ve telefon zorunlu → Kaydet.',
     ],
   },
   {
-    key: 'hasDevices', icon: '🖨️', title: '2. Cihazı/yazıcıyı tanımla',
-    desc: 'Müşterinin yazıcı/fotokopi cihazını ekle. Kiralıksa sayaç ve aylık kira buradan işler.',
+    key: 'hasDevices', icon: '🖨️', title: '2. Cihazları tanımla',
+    desc: 'Müşterinin yazıcısını ekle. Kiralıksa sayaç ve aylık kira buradan işler.',
     href: '/devices', cta: 'Cihazlar',
     how: [
-      'Müşteri detayı veya Cihazlar → "＋ Yeni Cihaz".',
-      'Marka/model/seri no gir; kiralıksa "Kiralık" → aylık kira + sayaç birim fiyatı.',
-      'Kaydet → cihaza otomatik QR üretilir; etiketi basıp makineye yapıştır.',
+      'Müşteri detayı veya Cihazlar → "＋ Yeni Cihaz". Marka/model/seri no gir.',
+      'Kiralıksa "Kiralık" işaretle → aylık kira + sayfa fiyatı (pakete dahil sayfa varsa onu da yaz).',
+      'KONUM (kat/oda) yaz — sayaç turu ve cihaz dökümü bu sıraya göre dizilir, saha işini kolaylaştırır.',
+      'Kaydet → cihaza otomatik QR üretilir; etiketi basıp makineye yapıştırabilirsin.',
     ],
   },
   {
@@ -71,23 +74,26 @@ const CHECKLIST: { key: keyof Steps; title: string; desc: string; href: string; 
     ],
   },
   {
-    key: 'hasInvoices', icon: '📄', title: '5. Faturanı kes',
-    desc: 'Ay sonunda "Bu Dönemi Faturala" ile sayaç + kira + servis tek faturada otomatik kesilir. PDF yazdırabilirsin.',
-    href: '/invoices', cta: 'Faturalar',
+    key: 'hasInvoices', icon: '📄', title: '5. Sayaçları oku ve faturala',
+    desc: 'Ayda bir: sayaçları topluca oku, sonra tek tıkla faturala.',
+    href: '/sayac-turu', cta: 'Sayaç Turu',
     how: [
-      'Önce kiralık cihazların sayacını oku (Cihaz → "Sayaç Okuma").',
-      'Faturalar → "Bu Dönemi Faturala" → sayaç + kira + servis tek faturada birleşir.',
-      'Faturaya tıkla → "🖨 Yazdır/PDF" veya "📱 WhatsApp" ile müşteriye gönder.',
+      'ÖNCE SAYAÇ: Sol menü → Sayaç Turu → müşteriyi seç → tüm cihazlar tek listede çıkar, sadece yeni rakamı yaz → Kaydet.',
+      'SONRA FATURA: Gelişmiş → Faturalar → "⚡ Bu Dönemi Faturala".',
+      'Sistem "şu cihazların sayacı okunmadı" diye uyarır — eksik fatura gitmesin diye.',
+      'Sayaç + kira + servis tek faturada birleşir; arkasına sayaç dökümü otomatik eklenir.',
+      'Faturaya tıkla → "🖨 Yazdır" veya "📱 WhatsApp" ile müşteriye gönder.',
     ],
   },
   {
-    key: 'hasCollections', icon: '💰', title: '6. Tahsilatını al',
-    desc: 'Para geldiğinde tahsilatı gir; en eski açık faturadan otomatik düşülür (FIFO) ve makbuz yazdırabilirsin.',
-    href: '/collections', cta: 'Tahsilat',
+    key: 'hasCollections', icon: '💰', title: '6. Tahsilatını al ve borcu takip et',
+    desc: 'Para geldiğinde gir; borç kendiliğinden düşer. Ödemeyenlere toplu hatırlatma gönder.',
+    href: '/accounting', cta: 'Muhasebe',
     how: [
-      'Tahsilat → müşteri seç → tutar + yöntem → "Kaydet ve Otomatik Mahsup Et".',
-      'En eski açık faturadan otomatik düşülür; artan tutar avans olur.',
-      '"🧾 Makbuz Yazdır" veya "📱 WhatsApp" ile "ödemeniz alındı" mesajı gönder.',
+      'Muhasebe → müşteri seç → tahsilatı gir. Borç kendiliğinden düşer, elle hesap yok.',
+      'Makbuz gerekiyorsa Gelişmiş → Tahsilat ekranından "🧾 Makbuz Yazdır".',
+      'BORÇ HATIRLATMA: Muhasebe → "📩 Toplu Hatırlatma" → borçluları seç → SMS ile topluca gönder.',
+      'Müşteri ekstresi: müşteri detayında "Yazdır" — tüm hareketler + bakiye tek sayfada.',
     ],
   },
 ];
@@ -173,6 +179,7 @@ export default function Onboarding() {
   const [showWizard, setShowWizard] = useState(false);
   const [step, setStep] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const [openHow, setOpenHow] = useState<string | null>(null); // checklist'te açık "nasıl yapılır?"
   const [hidden, setHidden] = useState(true); // localStorage okunana kadar gizli (flash önlenir)
 
@@ -210,10 +217,18 @@ export default function Onboarding() {
 
   const finishWizard = async () => {
     setShowWizard(false);
-    // NOT: Sihirbaz bitince panel OTOMATİK AÇILMAZ — ekranı kaplamasın. Kullanıcı isterse
-    // sağ alttaki butondan açar (buton zaten "2/6" ilerlemeyi gösteriyor).
+    // Panel OTOMATİK AÇILMAZ (ekranı kaplamasın) — bunun yerine butonun yanında tek seferlik
+    // küçük bir işaret çıkar; kullanıcı rehberi kaçırmasın ama ekranı da kapatmasın.
+    try {
+      if (!localStorage.getItem(HINT_KEY)) setShowHint(true);
+    } catch { /* yoksay */ }
     try { await fetch('/api/onboarding/dismiss', { method: 'POST' }); } catch { /* yoksay */ }
     setData((d) => (d ? { ...d, onboarded: true } : d));
+  };
+
+  const dismissHint = () => {
+    setShowHint(false);
+    try { localStorage.setItem(HINT_KEY, '1'); } catch { /* yoksay */ }
   };
 
   const go = (href: string) => { setPanelOpen(false); router.push(href); };
@@ -342,8 +357,27 @@ export default function Onboarding() {
           )}
 
           {/* Yüzen buton */}
+          {/* Tek seferlik işaret — rehberi kaçırmasınlar */}
+          {showHint && !panelOpen && (
+            <div onClick={() => { dismissHint(); setPanelOpen(true); }}
+              style={{
+                marginBottom: '0.6rem', marginLeft: 'auto', maxWidth: 250, cursor: 'pointer',
+                background: '#0f172a', color: 'white', borderRadius: 12, padding: '0.7rem 0.85rem',
+                boxShadow: '0 12px 30px rgba(15,23,42,.35)', fontSize: '0.82rem', lineHeight: 1.5,
+              }}>
+              <b>Ne yapacağını buradan takip et 👇</b>
+              <div style={{ opacity: 0.85, marginTop: 2 }}>
+                {total} adım — her adımda “nasıl yapılır?” yazılı.
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); dismissHint(); }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.6)', fontSize: '0.75rem', cursor: 'pointer', padding: '4px 0 0', fontWeight: 600 }}>
+                Tamam, anladım
+              </button>
+            </div>
+          )}
+
           <button
-            onClick={() => setPanelOpen((o) => !o)}
+            onClick={() => { setPanelOpen((o) => !o); dismissHint(); }}
             className="gs-fab-btn"
             title="Başlangıç Rehberi"
             style={{
