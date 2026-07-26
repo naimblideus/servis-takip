@@ -7,142 +7,231 @@ interface Section { id: string; icon: string; title: string; intro?: string; ste
 
 const SECTIONS: Section[] = [
   {
-    id: 'mantik', icon: '🔗', title: 'Sistem nasıl çalışır? (önce bunu oku)',
-    intro: 'Her şey basit bir zincir: Müşteri → Cihaz → Servis Fişi → Fatura → Tahsilat. Aşağıdaki sıra, sıfırdan başlayıp sistemi tam kullanmanı sağlar.',
+    id: 'musteri', icon: '👤', title: 'Müşteri ekleme (ve Excel’den toplu aktarma)',
     steps: [
-      'Müşteri = hizmet verdiğin firma/kişi.',
-      'Cihaz = müşterinin yazıcı/fotokopisi (kiralıksa sayaç + aylık kira buradan işler).',
-      'Servis Fişi = arıza/bakım kaydı; parça + işçilik girilir.',
-      'Fatura = sayaç + kira + servis tek faturada (ay sonu otomatik birleşir).',
-      'Tahsilat = ödeme girilir, en eski açık faturadan otomatik düşülür (FIFO), makbuz çıkar.',
+      'Tek tek: Sol menü → Müşteriler → “＋ Yeni Müşteri”. Ad ve telefon zorunlu.',
+      'TOPLU: Elinde müşteri/cihaz listesi varsa → Gelişmiş → Veri Aktarma → “Excel / CSV listesi”.',
+      'Excel’de: Dosya → Farklı Kaydet → “CSV UTF-8”. Sonra dosyayı seç — kolonları sistem kendi tanır.',
+      'Önizlemede ilk satırları kontrol et, yanlış eşleşen kolon varsa açılır menüden düzelt → Aktar.',
+      'Aynı telefon/seri no zaten varsa güncellenir, kopyası oluşmaz — tekrar çalıştırmak güvenlidir.',
     ],
-    tip: 'Aşağıdaki bölümleri sırayla yaparsan ilk gününde sistemi uçtan uca kullanmış olursun.',
+    tip: 'Adresi düzgün girersen müşteri kartındaki “Yol Tarifi” tek dokunuşla navigasyon başlatır.',
   },
   {
-    id: 'musteri', icon: '👤', title: '1) Müşteri ekleme',
+    id: 'cihaz', icon: '🖨️', title: 'Cihaz ekleme + kiralama ayarları',
     steps: [
-      'Sol menü → Müşteriler → "＋ Yeni Müşteri".',
-      'Ad ve telefon zorunlu. Adres alanına yazmaya başla → çıkan listeden seç (otomatik dolar); listede yoksa elle yaz, yine kaydedebilirsin.',
-      'Kaydet. Müşteri detayında 📞 Ara · 💬 WhatsApp · 🗺️ Yol Tarifi butonları otomatik gelir.',
-    ],
-    tip: 'Adresi düzgün girersen "Yol Tarifi" tek dokunuşla navigasyon başlatır.',
-  },
-  {
-    id: 'cihaz', icon: '🖨️', title: '2) Cihaz (makine) ekleme',
-    steps: [
-      'Müşteri detayı veya Cihazlar → "＋ Yeni Cihaz".',
-      'Marka, model, seri no gir. Kiralıksa "Kiralık" işaretle → aylık kira + sayaç birim fiyatlarını gir.',
-      'Kaydet. Cihaza otomatik bir QR kod üretilir (cihaz detayındaki "QR Kod").',
-      'Cihaz detayından QR etiketini bas, makineye yapıştır → müşteri o QR ile arıza bildirebilir (bkz. bölüm 9).',
+      'Müşteri detayı ya da Cihazlar → “＋ Yeni Cihaz”. Marka, model, seri no gir.',
+      'Kiralıksa “Kiralık” işaretle → aylık kira + sayfa fiyatlarını gir. Pakete dahil sayfa varsa “dahil” alanlarına yaz (yalnız aşan sayfa faturalanır).',
+      'KONUM (kat/oda) yaz — sayaç turu ve cihaz dökümü bu sıraya göre dizilir, saha işini çok kolaylaştırır.',
+      'Cihaza otomatik QR üretilir; “QR Kod” ile basıp makineye yapıştırabilirsin.',
     ],
   },
   {
-    id: 'stok', icon: '📦', title: '3) Stok & barkod (parça)',
+    id: 'fis', icon: '🧾', title: 'Servis fişi açma (günlük ana iş)',
     steps: [
-      'Stok ekranından parça (toner, drum, yedek parça) ekle.',
-      'Barkodu olan parçada "Barkod" alanına okuyucuyla okut/yaz → kaydet (artık okutunca bulunur).',
-      'Barkodu yoksa: "🏷️ Etiket Yazdır" → Code 128 etiket bas, ürüne yapıştır (SKU kodlanır).',
-      '"📦 Hızlı Giriş/Çıkış" → mal gelince Giriş(+), kullanınca Çıkış(−) modunda arka arkaya okut.',
+      'Servis Fişleri → “＋ Yeni Fiş” (telefonda: alttaki ＋ → Yeni Servis Fişi).',
+      'Müşteri + cihaz seç, arızayı yaz.',
+      'Kullanılan parçaları ekle — barkod okuyucun varsa parçayı okut, otomatik bulunur ve stoktan düşer.',
+      'İş bitince durumu “Teslim Edildi” yap. Fiş tutarı otomatik olarak müşterinin cari hesabına borç yazılır.',
+      '“🖨️ Yazdır” ile müşteriye imzalı fiş çıktısı verebilirsin.',
     ],
-    tip: 'USB barkod okuyucu (LS2208) bilgisayara takılır, klavye gibi çalışır — sürücü gerekmez.',
+    tip: 'Durumu 3 gündür değişmeyen fişler ana ekranda “Duran İşler” olarak turuncu görünür — müşteri beklemede kalmaz.',
   },
   {
-    id: 'fis', icon: '🧾', title: '4) Servis fişi açma',
+    id: 'sayac', icon: '🔢', title: 'Sayaç okuma — “Sayaç Turu” ile toplu',
+    intro: 'Kiralık cihazın parası sayaçtan çıkar. Ayda bir okumak yeterli.',
     steps: [
-      'Yeni Fiş → müşteri + cihaz seç (ya da makinenin barkodunu okut, müşteri+cihaz otomatik gelsin).',
-      'Arızayı yaz. "Kullanılan Parçalar"da parçayı okut → otomatik eklenir, stoktan düşer.',
-      'Durum butonları: Yeni → Serviste → Hazır → Teslim. Durumu değiştirince "📱 müşteriye WhatsApp ile bildir" önerisi çıkar.',
-      'İşçilik/ücret gir, gerekiyorsa fişi yazdır.',
+      'Sol menü → Sayaç Turu → müşteriyi seç.',
+      'O müşterinin TÜM kiralık cihazları kat/oda sırasına dizili tek listede çıkar.',
+      'Her cihaz için yalnızca YENİ rakamı yaz — fark (kaç sayfa çekilmiş) anında görünür.',
+      'Altta “12/60 okundu” yazar; “Kaydet”e bas, hepsi tek seferde işlenir.',
+      'Sayaç önceki değerden düşükse satır kırmızı kalır. Cihaz sıfırlandıysa/değiştiyse “sayaç sıfırlandı” kutusunu işaretle, tekrar dene.',
     ],
+    tip: 'Cihaz dökümünü “sayaç sütunu boş” yazdırıp kâğıtla gezebilir, sonra sisteme girebilirsin.',
   },
   {
-    id: 'sayac', icon: '🔢', title: '5) Sayaç okuma (kiralık cihaz)',
+    id: 'fatura', icon: '📄', title: 'Faturalama (ay sonu)',
     steps: [
-      'Cihaz detayı → "Sayaç Okuma" → siyah/renkli sayaç değerini gir.',
-      'İstersen "📷 Çek/Yükle" ile sayaç ekranının fotoğrafını ekle (kanıt; geçmişte "📷 Foto" ile açılır).',
-      'Ekle → sistem önceki okumaya göre farkı ve ücreti otomatik hesaplar.',
-    ],
-    tip: 'Düzenli sayaç oku; geç kalanları "🔔 Takip" ekranı gösterir (bkz. bölüm 8).',
-  },
-  {
-    id: 'fatura', icon: '📄', title: '6) Faturalama',
-    steps: [
-      'Faturalar → "Bu Dönemi Faturala" → sayaç + kira + ödenmemiş servis tek faturada otomatik kesilir.',
-      'Faturaya tıkla → "🖨 Yazdır / PDF" ile profesyonel belge; "📱 WhatsApp" ile müşteriye özet gönder.',
-      'Açık/kalan tutar ve vade otomatik takip edilir.',
+      'Gelişmiş → Faturalar → “⚡ Bu Dönemi Faturala”.',
+      'ÖNCE KONTROL: Sistem “şu 5 cihazın sayacı okunmadı” diye uyarır — eksik aşım faturası gitmesin.',
+      'İstersen “Önce sayaçları oku” ile Sayaç Turu’na gidersin, ya da “Yine de faturala” dersin.',
+      'Sayaç + kira + ödenmemiş servis TEK faturada birleşir.',
+      'Faturanın arkasına otomatik SAYAÇ EKİ eklenir: her cihazın önceki → yeni sayacı, çekilen sayfa, aşım ve tutar. Müşteri “niye bu kadar?” diye sormaz.',
     ],
   },
   {
-    id: 'tahsilat', icon: '💰', title: '7) Tahsilat',
+    id: 'tahsilat', icon: '💰', title: 'Muhasebe, tahsilat ve borç hatırlatma',
     steps: [
-      'Tahsilat → müşteri seç → tutar + yöntem gir → "Kaydet ve Otomatik Mahsup Et".',
-      'En eski açık faturadan başlayarak otomatik düşülür (FIFO); artan tutar avans olur.',
-      '"🧾 Makbuz Yazdır" ile makbuz; "📱 WhatsApp" ile "ödemeniz alındı" mesajı.',
+      'Muhasebe = cari hesap. Her fiş borç, her ödeme alacak olarak işlenir; bakiye otomatik hesaplanır.',
+      'Ödeme gelince: Muhasebe → müşteri → tahsilat gir. Borç kendiliğinden düşer.',
+      'Kiralık cihazın aylık kira/sayaç bedelini cariye elle eklemek istersen: müşteri detayında “🖨️🔢 Kira/Sayaç Ekle” (hesaplar, sen onaylayınca cariye düşer).',
+      'BORÇ HATIRLATMA: Muhasebe → “📩 Toplu Hatırlatma” → borçluları seç → SMS ile topluca gönder ya da WhatsApp’tan tek tek.',
+      'Ekstre: müşteri detayında “Yazdır” — tüm hareketler + bakiye tek sayfada.',
     ],
-    tip: 'Dashboard\'da borçlu müşteri kartında "📱 Hatırlat" → vadesi geçenlere tek tık WhatsApp.',
+    tip: 'Bakiye yeşil “Alacak (Kredi)” görünüyorsa müşteri fazla ödemiş demektir.',
   },
   {
-    id: 'takip', icon: '🗺️', title: '8) Takip & Rota (saha)',
+    id: 'ciktilar', icon: '🖨️', title: 'Çıktılar — hangi kâğıt nereden çıkar',
     steps: [
-      '🔔 Takip → sayacı geç okunan kiralık cihazlar (kaçan faturalama) → "Sayaç Oku"ya git.',
-      '🗺️ Rota → aktif fişli müşteriler durak durak; "Tüm rotayı haritada aç" ile sıralı yol tarifi.',
-      'Her durakta 📞 Ara · 💬 WhatsApp · 🗺️ Yol Tarifi.',
+      'Servis fişi: fiş detayı → “🖨️ Yazdır” (müşteri imzalı nüsha).',
+      'İCMAL (çok fiş tek sayfada): Servis Fişleri → tarih aralığı + müşteri filtrele → “🖨️ İcmal Yazdır”. 100 fiş ≈ 3 sayfa.',
+      'CİHAZ DÖKÜMÜ / ZİMMET: müşteri detayı → “🖨️ Döküm”. Kat/oda gruplu tüm cihazlar + imza alanı. “Sayaç sütunu boş” seçeneği saha föyü olur.',
+      'Fatura ve tahsilat makbuzu: ilgili kayıtta “Yazdır”.',
+      'Barkod/QR etiketi: Zebra Etiket ekranı (termal yazıcı).',
     ],
   },
   {
-    id: 'qr', icon: '🔔', title: '9) QR ile müşteri arıza bildirimi',
+    id: 'patron', icon: '📊', title: 'Patron ekranı — ne kontrol etmeli',
     steps: [
-      'Cihaz detayındaki QR kodu bas, makineye yapıştır.',
-      'Müşteri telefonuyla QR\'ı okutur → giriş gerekmeden "Arıza Bildir" formu açılır.',
-      'Müşteri sorunu yazıp gönderir → sistemde otomatik servis fişi açılır.',
+      'ANA SAYFA: “Duran İşler” (3+ gündür kımıldamayan fişler), “Sözleşme Uyarısı” (biten/bitmek üzere olan kiralama sözleşmeleri), borçlu müşteriler. Sorun yoksa bu bölümler görünmez.',
+      'Sözleşme tarihini girmek için: müşteri → Düzenle → “Sözleşme Bitiş Tarihi”.',
+      'Gelişmiş → Cihaz Kârlılığı: hangi kiralık makine kazandırıyor, hangisi zarar ediyor (gelir − parça maliyeti).',
+      'Gelişmiş → Toplu Zam: müşteri/cihaz süz → %X zam → önizleme → uygula → zam listesini yazdır.',
+      'Gelişmiş → Kaçan Gelir: faturalanmamış sayaç/kira burada birikir.',
     ],
-    tip: 'Bu QR (telefonla okunur) ile masadaki Code 128 etiketi (LS2208 ile okunur) farklıdır; ikisi de işine yarar.',
   },
   {
-    id: 'mobil', icon: '📱', title: '10) Telefon & barkod okuyucu ipuçları',
+    id: 'saha', icon: '🗺️', title: 'Sahada: rota, telefon ve QR',
     steps: [
-      'Telefonda: sol üstteki ☰ ile menü açılır; tüm ekranlar mobil uyumlu.',
-      'Barkod okuyucu (LS2208): USB\'den tak, Not Defteri\'nde test et (okutunca yazıp Enter atmalı).',
-      'İmleç bir yazı kutusunda değilken okut → sistem otomatik yakalar.',
+      'TELEFON: Siteyi telefonda aç → tarayıcı menüsünden “Ana Ekrana Ekle” → uygulama gibi tam ekran açılır.',
+      'Altta sekme çubuğu: Ana · Fişler · ＋ (hızlı işlem) · Pazar · Muhasebe.',
+      'Rota (Gelişmiş): açık fişli müşteriler durak durak listelenir, haritada sıralı yol tarifi alırsın.',
+      'QR ARIZA: cihazdaki QR’ı müşteri okutur → giriş gerekmeden arıza bildirir → sisteminde otomatik fiş oluşur.',
+      'Her müşteride 📞 Ara · 💬 WhatsApp · 🗺️ Yol Tarifi butonları hazırdır.',
+    ],
+  },
+  {
+    id: 'pazar', icon: '🤝', title: 'Bayi Pazarı (diğer bayilerle al-sat)',
+    steps: [
+      'Sol menü → Bayi Pazarı → “Pazara Katıl” (yalnız yönetici açabilir). Her pakete dahildir, ücretsizdir.',
+      'İlan ver: elindeki fazla parçayı/makineyi sat. Stoktan seçerek bilgileri otomatik doldurabilirsin.',
+      'Satın al: ihtiyacın olan parçayı ağdaki bayilerde ara, mesaj at, sipariş ver.',
+      'Sipariş “Teslim aldım” yapılınca stok ve muhasebe kayıtları HER İKİ tarafta otomatik oluşur.',
+      'Telefonun ilanda görünmez; önce uygulama içi mesajlaşılır.',
+    ],
+  },
+  {
+    id: 'guvenlik', icon: '🔐', title: 'Güvenlik ve yedek',
+    steps: [
+      'YEDEK: Ayarlar → “💾 Verinin Yedeği” → “Yedeği indir”. Tüm müşteri, cihaz, fiş ve muhasebe kaydın bilgisayarına iner. Ayda bir alman yeterli.',
+      'İKİ ADIMLI DOĞRULAMA (isteğe bağlı): Ayarlar → “🔐 İki Adımlı Doğrulama” → “Kur ve Aç” → telefonundaki Google Authenticator ile QR’ı okut → çıkan 6 haneli kodu gir.',
+      'Açarsan girişte şifrenin yanında kod da istenir; şifren çalınsa bile hesabına girilemez.',
+      'Kurulumda verilen KURTARMA KODLARINI sakla — telefonunu kaybedersen giriş yolun onlardır.',
+      'Kullanıcılar (Gelişmiş → Kullanıcılar): her çalışana ayrı hesap aç, kimin ne yaptığı kayıtlarda görünür.',
     ],
   },
 ];
 
+const QUICK = [
+  { i: '🧾', t: 'Arıza gelince', d: 'Yeni Fiş aç, parçayı okut, teslim et' },
+  { i: '🔢', t: 'Ayda bir', d: 'Sayaç Turu — tüm cihazları tek listede oku' },
+  { i: '💰', t: 'Para gelince', d: 'Muhasebe’den tahsilatı gir' },
+];
+
+const CHAIN = [
+  { i: '👤', t: 'Müşteri' },
+  { i: '🖨️', t: 'Cihaz' },
+  { i: '🧾', t: 'Servis Fişi' },
+  { i: '💰', t: 'Para' },
+];
+
 export default function YardimPage() {
-  const [open, setOpen] = useState<string>('mantik');
+  const [open, setOpen] = useState<string>('');
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 820, margin: '0 auto' }}>
-      <div style={{ background: 'linear-gradient(135deg,#0f2253,#2563eb)', color: 'white', borderRadius: '1rem', padding: '1.5rem 1.75rem', marginBottom: '1.25rem' }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>📘 Nasıl Kullanılır?</h1>
-        <p style={{ margin: '0.4rem 0 0', opacity: 0.9, fontSize: '0.95rem', lineHeight: 1.5 }}>
-          Sıfırdan başlayan biri için adım adım rehber. Sırayla ilerle; sonunda sistemi uçtan uca kullanabilir hale gelirsin.
+    <div style={{ padding: '1.5rem 1.25rem 3rem', maxWidth: 820, margin: '0 auto' }}>
+      <div style={{ background: 'linear-gradient(135deg,#0f2253,#2563eb)', color: 'white', borderRadius: '1rem', padding: '1.4rem 1.6rem', marginBottom: '1rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>📘 Nasıl Kullanılır?</h1>
+        <p style={{ margin: '0.35rem 0 0', opacity: 0.9, fontSize: '0.92rem' }}>
+          Önce aşağıdaki <b>2 dakikalık özet</b> — sistemi anlamak için yeterli. Ayrıntı gerekirse altındaki başlıkları aç.
         </p>
       </div>
 
-      <div style={{ display: 'grid', gap: '0.6rem' }}>
+      {/* ═══ 2 DAKİKADA SİSTEM (hep açık) ═══ */}
+      <div style={{ background: 'white', border: '2px solid #0f2253', borderRadius: 14, padding: '1.2rem 1.3rem', marginBottom: '1.25rem' }}>
+        <div style={{ fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 800, color: '#2563eb' }}>2 dakikada sistem</div>
+
+        <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '.6rem 0 .5rem', color: '#0f172a' }}>Her şey tek bir zincir</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: '1.1rem' }}>
+          {CHAIN.map((c, i) => (
+            <div key={c.t} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f1f5f9', borderRadius: 999, padding: '.35rem .8rem' }}>
+                <span>{c.i}</span>
+                <span style={{ fontWeight: 700, fontSize: '.86rem', color: '#0f172a' }}>{c.t}</span>
+              </div>
+              {i < CHAIN.length - 1 && <span style={{ color: '#94a3b8', fontWeight: 700 }}>→</span>}
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: '.88rem', color: '#475569', margin: '0 0 1.1rem', lineHeight: 1.6 }}>
+          Müşteriyi ve cihazını bir kere kaydedersin. Sonra her serviste fiş açarsın; <b>fatura, cari hesap ve borç
+          takibini sistem kendi yapar</b>.
+        </p>
+
+        <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 .6rem', color: '#0f172a' }}>Günde yaptığın 3 şey</h2>
+        <div style={{ display: 'grid', gap: '.5rem', marginBottom: '1.1rem' }}>
+          {QUICK.map((q) => (
+            <div key={q.t} style={{ display: 'flex', gap: '.7rem', alignItems: 'center', background: '#f8fafc', borderRadius: 10, padding: '.6rem .8rem' }}>
+              <span style={{ fontSize: '1.15rem' }}>{q.i}</span>
+              <span style={{ fontSize: '.9rem', color: '#0f172a' }}><b>{q.t}</b> <span style={{ color: '#64748b' }}>— {q.d}</span></span>
+            </div>
+          ))}
+        </div>
+
+        <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 .6rem', color: '#0f172a' }}>Nerede ne var</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '.4rem', fontSize: '.85rem', color: '#334155' }}>
+          {[
+            ['Ana Sayfa', 'dikkat gereken her şey (duran iş, borç, sözleşme)'],
+            ['Servis Fişleri', 'işler + icmal yazdırma'],
+            ['Sayaç Turu', 'toplu sayaç girişi'],
+            ['Muhasebe', 'cari, tahsilat, borç hatırlatma'],
+            ['Stok / Barkodla Satış', 'parça ve tezgâh satışı'],
+            ['Gelişmiş', 'fatura, rota, rapor, zam, kârlılık'],
+          ].map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', gap: 6 }}>
+              <b style={{ whiteSpace: 'nowrap', color: '#0f2253' }}>{k}</b>
+              <span style={{ color: '#64748b' }}>— {v}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: '1.1rem', display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+          <Link href="/import" style={{ padding: '.55rem 1rem', background: '#0f2253', color: 'white', borderRadius: 9, fontWeight: 700, fontSize: '.86rem', textDecoration: 'none' }}>
+            Excel’den verimi aktar →
+          </Link>
+          <Link href="/customers/new" style={{ padding: '.55rem 1rem', background: 'white', border: '1px solid #cbd5e1', color: '#334155', borderRadius: 9, fontWeight: 700, fontSize: '.86rem', textDecoration: 'none' }}>
+            İlk müşteriyi ekle
+          </Link>
+        </div>
+      </div>
+
+      {/* ═══ AYRINTILI BÖLÜMLER (katlanır) ═══ */}
+      <div style={{ fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 800, color: '#94a3b8', margin: '0 0 .6rem .2rem' }}>
+        Ayrıntı gerekirse
+      </div>
+      <div style={{ display: 'grid', gap: '0.5rem' }}>
         {SECTIONS.map((s) => {
           const isOpen = open === s.id;
           return (
             <div key={s.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
               <button
                 onClick={() => setOpen(isOpen ? '' : s.id)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.9rem 1.1rem', background: isOpen ? '#f8fafc' : 'white', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.85rem 1.05rem', background: isOpen ? '#f8fafc' : 'white', border: 'none', cursor: 'pointer', textAlign: 'left' }}
               >
-                <span style={{ fontSize: '1.2rem' }}>{s.icon}</span>
-                <span style={{ flex: 1, fontWeight: 700, fontSize: '0.98rem', color: '#111827' }}>{s.title}</span>
+                <span style={{ fontSize: '1.15rem' }}>{s.icon}</span>
+                <span style={{ flex: 1, fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>{s.title}</span>
                 <span style={{ color: '#9ca3af', fontSize: '1.1rem' }}>{isOpen ? '−' : '+'}</span>
               </button>
               {isOpen && (
-                <div style={{ padding: '0 1.1rem 1.1rem', borderTop: '1px solid #f3f4f6' }}>
-                  {s.intro && <p style={{ color: '#374151', fontSize: '0.9rem', lineHeight: 1.55, margin: '0.85rem 0 0.6rem' }}>{s.intro}</p>}
+                <div style={{ padding: '0 1.05rem 1.05rem', borderTop: '1px solid #f3f4f6' }}>
+                  {s.intro && <p style={{ color: '#374151', fontSize: '0.89rem', lineHeight: 1.55, margin: '0.8rem 0 0.5rem' }}>{s.intro}</p>}
                   <ol style={{ margin: '0.6rem 0 0', paddingLeft: '1.2rem', display: 'grid', gap: '0.45rem' }}>
                     {s.steps.map((st, i) => (
-                      <li key={i} style={{ color: '#1e293b', fontSize: '0.9rem', lineHeight: 1.5 }}>{st}</li>
+                      <li key={i} style={{ color: '#1e293b', fontSize: '0.89rem', lineHeight: 1.55 }}>{st}</li>
                     ))}
                   </ol>
                   {s.tip && (
-                    <div style={{ marginTop: '0.85rem', background: '#ecfeff', border: '1px solid #a5f3fc', color: '#0e7490', borderRadius: 8, padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}>
+                    <div style={{ marginTop: '0.8rem', background: '#ecfeff', border: '1px solid #a5f3fc', color: '#0e7490', borderRadius: 8, padding: '0.55rem 0.75rem', fontSize: '0.84rem', lineHeight: 1.5 }}>
                       💡 {s.tip}
                     </div>
                   )}
@@ -153,11 +242,9 @@ export default function YardimPage() {
         })}
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-        <Link href="/customers/new" style={{ display: 'inline-block', padding: '0.7rem 1.4rem', background: 'linear-gradient(135deg,#059669,#10b981)', color: 'white', borderRadius: 10, fontWeight: 700, textDecoration: 'none', fontSize: '0.95rem' }}>
-          Hadi başlayalım → İlk müşterini ekle
-        </Link>
-      </div>
+      <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', marginTop: '1.5rem' }}>
+        Takıldığın bir yer olursa bize yazabilirsin — birlikte hallederiz.
+      </p>
     </div>
   );
 }

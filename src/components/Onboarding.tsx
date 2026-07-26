@@ -92,115 +92,73 @@ const CHECKLIST: { key: keyof Steps; title: string; desc: string; href: string; 
   },
 ];
 
+// 3 EKRAN — hedef: sistemi 2 DAKİKADAN kısa sürede kavratmak.
+// Ayrıntı burada DEĞİL: "Nasıl Kullanılır?" sayfasında. Burada yalnız çalışma mantığı var.
 const WIZARD: { title: string; body: React.ReactNode }[] = [
   {
-    title: 'Hoş geldiniz! 👋',
+    title: 'Sistem tek bir zincir',
     body: (
       <>
-        <p style={{ margin: '0 0 0.75rem' }}>
-          Bu sistem <b>tüm işletmenizi tek yerden</b> yönetmeniz için kuruldu: müşteriler, yazıcı/fotokopi
-          cihazları, servis fişleri, sayaç faturalama, stok ve tahsilat.
-        </p>
-        <p style={{ margin: 0, color: '#475569' }}>
-          Hiç kullanmadıysanız endişelenmeyin — bu kısa rehber 1 dakikada mantığı anlatır, sonra sağ alttaki
-          <b> “Başlangıç Rehberi”</b> sizi adım adım elinizden tutar.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: 'Sistem nasıl çalışır? 🔗',
-    body: (
-      <>
-        <p style={{ margin: '0 0 0.75rem' }}>Her şey basit bir zincirle bağlıdır:</p>
-        <div style={{ display: 'grid', gap: '0.5rem' }}>
+        <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '0.9rem' }}>
           {[
-            ['👤', 'Müşteri', 'Hizmet verdiğiniz firma/kişi'],
-            ['🖨️', 'Cihaz', 'Müşterinin yazıcısı (kiralıksa sayaç + kira)'],
-            ['🧾', 'Servis Fişi', 'Arıza/bakım kaydı + parça + işçilik'],
-            ['📄', 'Fatura', 'Sayaç + kira + servis → tek faturada otomatik'],
-            ['💰', 'Tahsilat', 'Ödeme girilir, açık faturadan düşülür, makbuz çıkar'],
-          ].map(([i, t, d]) => (
-            <div key={t} style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '1.1rem' }}>{i}</span>
-              <span><b>{t}</b> <span style={{ color: '#64748b' }}>— {d}</span></span>
+            ['👤', 'Müşteri', 'kime hizmet veriyorsun'],
+            ['🖨️', 'Cihaz', 'onun yazıcısı (kiralıksa sayaç + kira)'],
+            ['🧾', 'Servis Fişi', 'yapılan iş + parça'],
+            ['💰', 'Para', 'fatura ve tahsilat otomatik işler'],
+          ].map(([i, t, d], idx, arr) => (
+            <div key={t as string}>
+              <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.3rem', width: 28, textAlign: 'center' }}>{i}</span>
+                <span style={{ fontSize: '0.95rem' }}><b>{t}</b> <span style={{ color: '#64748b' }}>— {d}</span></span>
+              </div>
+              {idx < arr.length - 1 && (
+                <div style={{ marginLeft: 13, height: 12, borderLeft: '2px solid #cbd5e1' }} />
+              )}
             </div>
           ))}
         </div>
+        <p style={{ margin: 0, color: '#475569', fontSize: '0.9rem' }}>
+          Hepsi bu. Müşteriyi ve cihazı bir kere kaydedersin; gerisi her fişte kendiliğinden bağlanır.
+        </p>
       </>
     ),
   },
   {
-    title: 'Günlük kullanım (tipik gün) 📅',
+    title: 'Günde yaptığın 3 şey',
     body: (
       <>
-        <ol style={{ margin: 0, paddingLeft: '1.1rem', display: 'grid', gap: '0.45rem', color: '#334155' }}>
-          <li>Yeni müşteri/cihaz geldiyse <b>kaydedin</b>.</li>
-          <li>Arıza gelince <b>Servis Fişi</b> açın; kullanılan parçaları ekleyin (<b>barkod okuyucuyla okutabilirsiniz</b>).</li>
-          <li>İş bitince fişi <b>“Teslim Edildi”</b> yapın.</li>
-          <li>Ay sonunda <b>“Bu Dönemi Faturala”</b> — sayaç, kira ve servis tek tıkla faturalanır.</li>
-          <li>Para gelince <b>Tahsilat</b> girin; makbuzu yazdırıp müşteriye verin.</li>
-        </ol>
-      </>
-    ),
-  },
-  {
-    title: 'İşinizi kolaylaştıran özellikler ⚡',
-    body: (
-      <>
-        <div style={{ display: 'grid', gap: '0.55rem', color: '#334155' }}>
-          <div>📷 <b>Barkod okuyucu:</b> Parçayı/cihazı okutunca otomatik bulunur ve fişe eklenir (USB barkod okuyucu, ör. LS2208 — bilgisayara takılır, klavye gibi çalışır, sürücü gerekmez).</div>
-          <div>🏷️ <b>Etiket yazdırma:</b> Barkodu olmayan parçaya/cihaza Code 128 etiket basıp yapıştırabilirsiniz.</div>
-          <div>🖨️ <b>Yazdır / PDF:</b> Fatura ve tahsilat makbuzunu profesyonel görünümde yazdırabilirsiniz.</div>
-          <div>🔄 <b>Otomatik faturalama:</b> Sayaç + kira + servis ay sonunda tek faturada birleşir.</div>
-          <div>💸 <b>Akıllı tahsilat:</b> Ödeme en eski açık faturadan otomatik düşülür (FIFO), elle hesap yok.</div>
+        <div style={{ display: 'grid', gap: '0.7rem' }}>
+          {[
+            ['🧾', 'Arıza gelince', 'Yeni Fiş aç — parçayı barkoddan okut, işi yaz, teslim et.'],
+            ['🔢', 'Ayda bir', 'Sayaç Turu — müşteriyi seç, tüm cihazların sayacını tek listede gir.'],
+            ['💰', 'Para gelince', 'Muhasebe — tahsilatı gir, borç kendiliğinden düşer.'],
+          ].map(([i, t, d]) => (
+            <div key={t as string} style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', background: '#f8fafc', borderRadius: 10, padding: '0.7rem 0.8rem' }}>
+              <span style={{ fontSize: '1.2rem' }}>{i}</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>{t}</div>
+                <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: 2, lineHeight: 1.5 }}>{d}</div>
+              </div>
+            </div>
+          ))}
         </div>
+        <p style={{ margin: '0.9rem 0 0', color: '#475569', fontSize: '0.88rem' }}>
+          Fatura, cari hesap ve borç takibini <b>sistem kendi yapar</b> — sen girmezsin.
+        </p>
       </>
     ),
   },
   {
-    title: 'Sahada & müşteriyle iletişim 🗺️',
+    title: 'Hazırsın',
     body: (
       <>
-        <div style={{ display: 'grid', gap: '0.55rem', color: '#334155' }}>
-          <div>🗺️ <b>Rota:</b> Aktif fişli müşteriler durak durak listelenir; "Tüm rotayı haritada aç" ile sıralı yol tarifi alırsınız.</div>
-          <div>🔔 <b>Takip:</b> Sayacı geç okunan kiralık cihazları gösterir — kaçan faturalamayı önler.</div>
-          <div>📞 <b>Tek dokunuş iletişim:</b> Her müşteride 📞 Ara · 💬 WhatsApp · 🗺️ Yol Tarifi butonları hazırdır.</div>
-          <div>📱 <b>Telefondan kullanım:</b> Tüm ekranlar mobil uyumlu; sol üstteki ☰ ile menü açılır, sahada telefondan çalışırsınız.</div>
+        <p style={{ margin: '0 0 0.8rem', fontSize: '0.95rem' }}>
+          İlk iş: <b>müşterilerini sisteme al.</b> Elinde Excel listesi varsa tek seferde aktarabilirsin.
+        </p>
+        <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '0.75rem 0.9rem', fontSize: '0.86rem', color: '#075985', lineHeight: 1.6 }}>
+          Takıldığın an sol menüde <b>“Nasıl Kullanılır?”</b> var — her ekranın ne işe yaradığı orada yazılı.
+          Sağ alttaki <b>rehber</b> de ilk kurulumda sana adım adım eşlik eder.
         </div>
-      </>
-    ),
-  },
-  {
-    title: 'Müşteri kendi arızasını bildirsin 🔔',
-    body: (
-      <>
-        <p style={{ margin: '0 0 0.75rem' }}>
-          Her cihaza otomatik bir <b>QR kod</b> üretilir. Bu QR'ı basıp makineye yapıştırın.
-        </p>
-        <ol style={{ margin: 0, paddingLeft: '1.1rem', display: 'grid', gap: '0.45rem', color: '#334155' }}>
-          <li>Müşteri telefonuyla QR'ı okutur → <b>giriş gerekmeden</b> "Arıza Bildir" formu açılır.</li>
-          <li>Sorunu yazıp gönderir → sisteminizde <b>otomatik servis fişi</b> oluşur.</li>
-          <li>Siz fişi görüp işleme alırsınız — telefon trafiği azalır, hiçbir talep kaçmaz.</li>
-        </ol>
-      </>
-    ),
-  },
-  {
-    title: 'Hazırsınız! 🚀',
-    body: (
-      <>
-        <p style={{ margin: '0 0 0.75rem' }}>
-          İlk işiniz: <b>ilk müşterinizi eklemek</b>. Aşağıdaki butona basın, ya da istediğiniz zaman sağ alttaki
-          <b> “Başlangıç Rehberi”</b>nden devam edin — orada 6 adımın hepsi adım adım yazılı.
-        </p>
-        <p style={{ margin: '0 0 0.75rem', color: '#334155' }}>
-          Takıldığınız her an sol menüdeki <b>“Nasıl Kullanılır?”</b> sayfasında her özelliğin
-          ayrıntılı, resimli anlatımını bulabilirsiniz.
-        </p>
-        <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
-          Bu rehbere bir daha ihtiyacınız olmaz; sistem her adımı sizin yerinize takip eder.
-        </p>
       </>
     ),
   },
@@ -252,7 +210,8 @@ export default function Onboarding() {
 
   const finishWizard = async () => {
     setShowWizard(false);
-    setPanelOpen(true); // sihirbaz biter bitmez rehberi aç
+    // NOT: Sihirbaz bitince panel OTOMATİK AÇILMAZ — ekranı kaplamasın. Kullanıcı isterse
+    // sağ alttaki butondan açar (buton zaten "2/6" ilerlemeyi gösteriyor).
     try { await fetch('/api/onboarding/dismiss', { method: 'POST' }); } catch { /* yoksay */ }
     setData((d) => (d ? { ...d, onboarded: true } : d));
   };
@@ -268,7 +227,18 @@ export default function Onboarding() {
   return (
     <>
       {/* Yazdırma sırasında onboarding ASLA görünmesin (etiket/fatura vb. baskısına binmesin) */}
-      <style>{`@media print { .gs-noprint { display: none !important; } }`}</style>
+      <style>{`
+        @media print { .gs-noprint { display: none !important; } }
+        /* Yüzen rehber butonu — MASAÜSTÜ */
+        .gs-fab { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1500; }
+        /* MOBİL: alt sekme çubuğunun ÜSTÜNE al (çakışmasın) ve küçült — yer kaplamasın */
+        @media (max-width: 767px) {
+          .gs-fab { right: .8rem; bottom: calc(5rem + env(safe-area-inset-bottom)); }
+          .gs-fab-text { display: none; }
+          .gs-fab-btn { padding: .6rem .8rem !important; }
+          .gs-panel { max-height: 62vh !important; }
+        }
+      `}</style>
 
       {/* ═══════════ HOŞ GELDİN SİHİRBAZI ═══════════ */}
       {showWizard && (
@@ -300,7 +270,10 @@ export default function Onboarding() {
                 {step < WIZARD.length - 1 ? (
                   <button onClick={() => setStep((s) => s + 1)} style={{ padding: '0.55rem 1.2rem', background: '#2563eb', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>İleri →</button>
                 ) : (
-                  <button onClick={async () => { await finishWizard(); router.push('/customers'); }} style={{ padding: '0.55rem 1.2rem', background: 'linear-gradient(135deg,#059669,#10b981)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>İlk müşterimi ekle →</button>
+                  <>
+                    <button onClick={async () => { await finishWizard(); router.push('/import'); }} style={{ padding: '0.55rem 0.9rem', background: 'white', border: '1px solid #cbd5e1', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: '#334155' }}>Excel'den aktar</button>
+                    <button onClick={async () => { await finishWizard(); router.push('/customers/new'); }} style={{ padding: '0.55rem 1.2rem', background: 'linear-gradient(135deg,#059669,#10b981)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>Müşteri ekle →</button>
+                  </>
                 )}
               </div>
             </div>
@@ -310,7 +283,7 @@ export default function Onboarding() {
 
       {/* ═══════════ YÜZEN BAŞLANGIÇ REHBERİ ═══════════ */}
       {!hidden && !showWizard && (
-        <div className="gs-noprint" style={{ position: 'fixed', right: '1.25rem', bottom: '1.25rem', zIndex: 1500, fontFamily: 'inherit' }}>
+        <div className="gs-noprint gs-fab" style={{ fontFamily: 'inherit' }}>
           {/* Panel */}
           {panelOpen && (
             <div style={{ width: '360px', maxWidth: 'calc(100vw - 2.5rem)', background: 'white', borderRadius: '0.9rem', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: '0.75rem' }}>
@@ -326,7 +299,7 @@ export default function Onboarding() {
                   <div style={{ height: '100%', width: `${(doneCount / total) * 100}%`, background: '#34d399', borderRadius: 99, transition: 'width .3s ease' }} />
                 </div>
               </div>
-              <div style={{ maxHeight: '52vh', overflowY: 'auto', padding: '0.5rem' }}>
+              <div className="gs-panel" style={{ maxHeight: '52vh', overflowY: 'auto', padding: '0.5rem' }}>
                 {CHECKLIST.map((c) => {
                   const done = steps[c.key];
                   const howOpen = openHow === c.key;
@@ -371,6 +344,8 @@ export default function Onboarding() {
           {/* Yüzen buton */}
           <button
             onClick={() => setPanelOpen((o) => !o)}
+            className="gs-fab-btn"
+            title="Başlangıç Rehberi"
             style={{
               display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto',
               padding: '0.7rem 1.1rem', borderRadius: 999, border: 'none', cursor: 'pointer',
@@ -379,7 +354,7 @@ export default function Onboarding() {
             }}
           >
             <span style={{ fontSize: '1.05rem' }}>🚀</span>
-            Başlangıç Rehberi
+            <span className="gs-fab-text">Başlangıç Rehberi</span>
             <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 999, padding: '0.05rem 0.5rem', fontSize: '0.78rem', fontWeight: 800 }}>
               {allDone ? '✓' : `${doneCount}/${total}`}
             </span>
