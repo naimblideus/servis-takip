@@ -87,13 +87,20 @@ export default function TwoFactorCard() {
 
   return (
     <div style={card}>
-      <h2 style={{ fontWeight: 600, marginBottom: '0.35rem' }}>
-        🔐 İki Adımlı Doğrulama {status?.enabled && <span style={{ color: '#059669', fontSize: '0.85rem', fontWeight: 700 }}>· Açık</span>}
+      <h2 style={{ fontWeight: 600, marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        🔐 İki Adımlı Doğrulama
+        {status?.enabled
+          ? <span style={{ color: '#059669', fontSize: '0.8rem', fontWeight: 700, background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 999, padding: '2px 10px' }}>Açık</span>
+          : <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 999, padding: '2px 10px' }}>İsteğe bağlı · Kapalı</span>}
       </h2>
       <p style={{ fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.6, marginBottom: '0.9rem' }}>
         {status?.enabled
-          ? <>Girişte şifrenizin yanında telefonunuzdaki 6 haneli kod istenir. Şifreniz çalınsa bile hesabınıza girilemez. Kalan kurtarma kodu: <b>{status.recoveryLeft}</b></>
-          : <>Şifreniz çalınsa bile hesabınıza girilmesini engeller. Telefonunuzdaki doğrulama uygulamasıyla (Google Authenticator, Microsoft Authenticator) QR kodu okutmanız yeterli.</>}
+          ? <>Girişte şifrenizin yanında telefonunuzdaki 6 haneli kod istenir. Şifreniz çalınsa bile hesabınıza girilemez. Kalan kurtarma kodu: <b>{status.recoveryLeft}</b> · İstediğiniz zaman kapatabilirsiniz.</>
+          : <>
+            <b>Zorunlu değildir</b> — açmazsanız giriş şu anki gibi devam eder. Açarsanız, şifreniz çalınsa bile
+            hesabınıza girilemez: girişte telefonunuzdaki 6 haneli kod da istenir.
+            Kurulum 1 dakika (QR okutup kodu yazmanız yeterli).
+          </>}
       </p>
 
       {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '0.6rem 0.8rem', fontSize: '0.85rem', marginBottom: '0.8rem' }}>{err}</div>}
