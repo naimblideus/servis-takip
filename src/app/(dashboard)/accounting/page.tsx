@@ -48,6 +48,8 @@ export default function AccountingPage() {
   const [bulkQueue, setBulkQueue] = useState<Customer[]>([]); // gönderim başında dondurulan liste
   const [smsSending, setSmsSending] = useState(false);
   const [waSending, setWaSending] = useState(false);
+  // Hangi toplu kanal kurulu? (kurulu değilse buton hata vermek yerine "kurulum gerekli" görünür)
+  const [channels, setChannels] = useState<{sms:boolean;whatsapp:boolean}|null>(null);
   // Stok picker
   const [allStock, setAllStock] = useState<StockItem[]>([]);
   const [formStockSearch, setFormStockSearch] = useState('');
@@ -223,6 +225,12 @@ export default function AccountingPage() {
   };
   // Geçerli TR WhatsApp numarası mı? (90 + 10 hane). Boş/eksik numaralar elenir.
   const isValidWa = (raw: string) => /^90\d{10}$/.test(formatPhone(raw));
+
+  // Modal açılınca kanal durumunu bir kez öğren
+  useEffect(() => {
+    if (!showBulkWA || channels) return;
+    fetch('/api/sms/bulk').then(r => r.ok ? r.json() : null).then(d => { if (d) setChannels(d); }).catch(() => {});
+  }, [showBulkWA, channels]);
 
   const sendWhatsApp = (cust: {name:string;phone:string}, debt: number) => {
     const phone = formatPhone(cust.phone);
@@ -437,17 +445,38 @@ export default function AccountingPage() {
                     </div>
                   )}
 
-                  <button onClick={handleBulkSms} disabled={bulkSelected.size===0 || smsSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#2563eb',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||smsSending)?0.5:1,marginBottom:'0.6rem'}}>
-                    {smsSending ? '📩 Gönderiliyor…' : `📩 SMS ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
-                  </button>
-                  <button onClick={handleBulkWa} disabled={bulkSelected.size===0 || waSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#16a34a',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||waSending)?0.5:1,marginBottom:'0.35rem'}}>
-                    {waSending ? '🟢 Gönderiliyor…' : `🟢 WhatsApp ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
-                  </button>
-                  <div style={{fontSize:'0.68rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.6rem'}}>WhatsApp metni Meta onaylı şablondan gelir; SMS metni yukarıdaki kutudan.</div>
-                  <div style={{fontSize:'0.72rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.5rem'}}>— veya ücretsiz, tek tek WhatsApp —</div>
-                  <button onClick={bulkSendNext} disabled={bulkSelected.size===0} style={{width:'100%',padding:'0.6rem',backgroundColor:'white',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',fontSize:'0.88rem',opacity:bulkSelected.size===0?0.5:1}}>
-                    📱 WhatsApp ile tek tek aç ({debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length})
-                  </button>
+                  {/* Toplu kanallar — sadece KURULU olan buton olarak çıkar; kurulu değilse hata vermez, "kurulum gerekli" der */}
+                  {channels?.sms !== false && (
+                    <button onClick={handleBulkSms} disabled={bulkSelected.size===0 || smsSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#2563eb',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||smsSending)?0.5:1,marginBottom:'0.6rem'}}>
+                      {smsSending ? '📩 Gönderiliyor…' : `📩 SMS ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
+                    </button>
+                  )}
+                  {channels?.whatsapp !== false && (
+                    <button onClick={handleBulkWa} disabled={bulkSelected.size===0 || waSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#16a34a',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||waSending)?0.5:1,marginBottom:'0.35rem'}}>
+                      {waSending ? '🟢 Gönderiliyor…' : `🟢 WhatsApp ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
+                    </button>
+                  )}
+                  {(channels?.sms || channels?.whatsapp || channels === null) && (
+                    <div style={{fontSize:'0.68rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.6rem'}}>WhatsApp metni Meta onaylı şablondan gelir; SMS metni yukarıdaki kutudan.</div>
+                  )}
+                  {channels && (!channels.sms || !channels.whatsapp) && (
+                    <div style={{fontSize:'0.72rem',color:'#64748b',background:'#f8fafc',border:'1px dashed #cbd5e1',borderRadius:'0.5rem',padding:'0.6rem 0.75rem',marginBottom:'0.7rem',lineHeight:1.6}}>
+                      ⚙️ <b>Tek tıkla toplu gönderim</b>{!channels.sms && !channels.whatsapp ? '' : !channels.sms ? ' (SMS)' : ' (WhatsApp)'} için hat tanımlanmamış.
+                      {!channels.sms && <> Toplu <b>SMS</b> için Netgsm hattı,</>}{!channels.whatsapp && <> toplu <b>WhatsApp</b> için Meta onayı</>} gerekir.
+                      <br />Aşağıdaki <b>tek tek WhatsApp</b> seçeneği kurulum istemez — mesaj hazır gelir, siz yalnızca gönder’e basarsınız.
+                    </div>
+                  )}
+                  <div style={{fontSize:'0.72rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.5rem'}}>
+                    {channels && !channels.sms && !channels.whatsapp ? '— ücretsiz, kurulum gerektirmez —' : '— veya ücretsiz, tek tek WhatsApp —'}
+                  </div>
+                  {(() => {
+                    const solo = !!channels && !channels.sms && !channels.whatsapp; // tek seçenek kaldıysa ana buton gibi görünsün
+                    return (
+                      <button onClick={bulkSendNext} disabled={bulkSelected.size===0} style={{width:'100%',padding:solo?'0.8rem':'0.6rem',backgroundColor:solo?'#16a34a':'white',color:solo?'white':'#15803d',border:solo?'none':'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:solo?'700':'600',fontSize:solo?'0.95rem':'0.88rem',opacity:bulkSelected.size===0?0.5:1}}>
+                        📱 WhatsApp ile tek tek aç ({debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length})
+                      </button>
+                    );
+                  })()}
                 </>
               ) : (
                 // Gönderim aşaması

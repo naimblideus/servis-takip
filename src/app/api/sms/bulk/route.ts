@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { resolveRecipients, fmtTLm } from '@/lib/reminders';
 import { sendBulkSms, smsConfigured, netgsmPhone } from '@/lib/sms';
+import { waConfigured } from '@/lib/whatsapp';
+
+// GET /api/sms/bulk — kanal durumu (UI, kurulu olmayan kanalı hata vermeden gizler/pasifleştirir)
+export async function GET() {
+  try {
+    await requireTenantUser();
+    return NextResponse.json({ sms: smsConfigured(), whatsapp: waConfigured() });
+  } catch (e) {
+    return authErrorResponse(e);
+  }
+}
 
 // POST /api/sms/bulk — Seçili müşterilere TEK TIKLA toplu (kişiselleştirilmiş) SMS.
 // Güvenlik: müşteriler TENANT-scoped; mesaj SUNUCUDA şablondan üretilir ({ad}/{borç}/{telefon}).
