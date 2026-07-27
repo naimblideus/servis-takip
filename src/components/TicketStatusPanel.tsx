@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { openWhatsApp, statusMessage } from '@/lib/share';
-
-const NOTIFY_STATUSES = ['IN_SERVICE', 'WAITING_FOR_PART', 'READY', 'DELIVERED'];
+import { openWhatsApp, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 const STATUS_FLOW = [
     { value: 'NEW', label: 'Yeni', color: '#f59e0b' },
     { value: 'IN_SERVICE', label: 'Serviste', color: '#3b82f6' },
@@ -151,7 +149,7 @@ export default function TicketStatusPanel({
                 <div style={{ width: '100%', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>Durum güncellendi — müşteriye haber verelim mi?</span>
                     <span style={{ display: 'flex', gap: '0.4rem' }}>
-                        <button onClick={() => { openWhatsApp(customerPhone, statusMessage(notifyStatus, { tenantName, customerName, deviceName, ticketNumber })); setNotifyStatus(null); }}
+                        <button onClick={() => { openWhatsApp(customerPhone, statusMessage(notifyStatus, { tenantName, customerName, deviceName, ticketNumber, actionText, totalCost: Number(totalCost) })); setNotifyStatus(null); }}
                             style={{ padding: '0.4rem 0.8rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.4rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>📱 WhatsApp ile bildir</button>
                         <button onClick={() => setNotifyStatus(null)} style={{ padding: '0.4rem 0.6rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer' }}>Kapat</button>
                     </span>

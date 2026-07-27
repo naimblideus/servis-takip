@@ -43,29 +43,37 @@ export function reminderMessage(p: { tenantName?: string; customerName?: string;
   return lines.join('\n');
 }
 
-/** Servis durumu değişince müşteriye WhatsApp bildirimi. */
-export function statusMessage(status: string, p: { tenantName?: string; customerName?: string; deviceName?: string; ticketNumber?: string }): string {
+/** Bu durumda müşteriye bildirim anlamlı mı? (NEW/CANCELLED için değil) */
+export const NOTIFY_STATUSES = ['IN_SERVICE', 'WAITING_FOR_PART', 'READY', 'DELIVERED'];
+
+/**
+ * Servis durumu değişince müşteriye WhatsApp bildirimi.
+ * İş bitmişse (READY/DELIVERED) yapılan işlem ve tutar da eklenir — müşteri
+ * "ne yapıldı, ne ödeyeceğim" diye aramak zorunda kalmasın.
+ */
+export function statusMessage(status: string, p: {
+  tenantName?: string; customerName?: string; deviceName?: string; ticketNumber?: string;
+  actionText?: string; totalCost?: number;
+}): string {
   const head = p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,';
   const dev = p.deviceName ? `${p.deviceName} ` : '';
   let body: string;
   switch (status) {
     case 'IN_SERVICE': body = `${dev}cihazınız servise alınmıştır, en kısa sürede ilgilenilecektir.`; break;
     case 'WAITING_FOR_PART': body = `${dev}cihazınız için parça temin ediliyor; süreç biraz uzayabilir, bilginize.`; break;
-    case 'READY': body = `${dev}cihazınız hazır, teslim alabilirsiniz.`; break;
-    case 'DELIVERED': body = `${dev}cihazınız teslim edilmiştir. Teşekkür ederiz.`; break;
+    case 'READY': body = `${dev}cihazınızdaki arıza giderildi, teslim alabilirsiniz.`; break;
+    case 'DELIVERED': body = `${dev}cihazınızdaki arıza giderildi ve teslim edilmiştir. Teşekkür ederiz.`; break;
     default: body = `${dev}cihazınızın servis durumu güncellendi.`;
   }
   const lines = [head, body + (p.ticketNumber ? ` (Fiş: ${p.ticketNumber})` : '')];
-  if (p.tenantName) lines.push('', p.tenantName);
-  return lines.join('\n');
-}
 
-/** "Cihazınız hazır" WhatsApp mesajı (müşteriye). */
-export function readyMessage(p: { tenantName?: string; customerName?: string; deviceName?: string; ticketNumber?: string }): string {
-  const lines = [
-    p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,',
-    `${p.deviceName ? p.deviceName + ' ' : ''}cihazınız hazır, teslim alabilirsiniz.${p.ticketNumber ? ` (Fiş: ${p.ticketNumber})` : ''}`,
-  ];
+  // İş bittiyse detay ekle — boş alan varsa satırı hiç koyma (yarım mesaj gitmesin)
+  if (status === 'READY' || status === 'DELIVERED') {
+    const action = (p.actionText || '').trim();
+    if (action) lines.push('', `Yapılan işlem: ${action}`);
+    if (Number(p.totalCost) > 0) lines.push(`${action ? '' : '\n'}Tutar: ${fmtTL(Number(p.totalCost))}`);
+  }
+
   if (p.tenantName) lines.push('', p.tenantName);
   return lines.join('\n');
 }

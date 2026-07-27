@@ -8,7 +8,7 @@ import TicketPaymentPanel from '@/components/TicketPaymentPanel';
 import TicketPrintButton from '@/components/TicketPrintButton';
 import TicketDeleteButton from '@/components/TicketDeleteButton';
 import ContactActions from '@/components/ContactActions';
-import { waUrl, readyMessage } from '@/lib/share';
+import { waUrl, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 
 const statusLabel: Record<string, { label: string; color: string; text: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
@@ -122,16 +122,38 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           {/* Mobil iletişim aksiyonları */}
           <ContactActions phone={ticket.device.customer.phone} address={ticket.device.customer.address} />
 
-          {/* Fiş "Hazır" ise: müşteriye tek tık "cihazınız hazır" bildir */}
-          {ticket.status === 'READY' && (
-            <a
-              href={waUrl(ticket.device.customer.phone, readyMessage({ tenantName, customerName: ticket.device.customer.name, deviceName: `${ticket.device.brand} ${ticket.device.model}`, ticketNumber: ticket.ticketNumber }))}
-              target="_blank" rel="noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: '0.6rem', padding: '0.55rem 1rem', backgroundColor: '#16a34a', color: 'white', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none' }}
-            >
-              🔔 Cihazınız hazır — WhatsApp'tan bildir
-            </a>
-          )}
+          {/* Müşteriye durum bildirimi — durum değiştirdiğin an değil, fiş açık olduğu SÜRECE burada durur */}
+          {NOTIFY_STATUSES.includes(ticket.status) && ticket.device.customer.phone && (() => {
+            const done = ticket.status === 'READY' || ticket.status === 'DELIVERED';
+            const label = ticket.status === 'READY' ? '🔔 Arıza giderildi — müşteriye bildir'
+              : ticket.status === 'DELIVERED' ? '🔔 Müşteriye işlem özetini gönder'
+              : '🔔 Müşteriye durumu bildir';
+            return (
+              <div style={{ marginTop: '0.6rem' }}>
+                <a
+                  href={waUrl(ticket.device.customer.phone, statusMessage(ticket.status, {
+                    tenantName,
+                    customerName: ticket.device.customer.name,
+                    deviceName: `${ticket.device.brand} ${ticket.device.model}`,
+                    ticketNumber: ticket.ticketNumber,
+                    actionText: ticket.actionText ?? '',
+                    totalCost: Number(ticket.totalCost),
+                  }))}
+                  target="_blank" rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0.55rem 1rem', backgroundColor: '#16a34a', color: 'white', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none' }}
+                >
+                  {label}
+                </a>
+                {done && (
+                  <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: '0.35rem', lineHeight: 1.5 }}>
+                    {ticket.actionText?.trim() || Number(ticket.totalCost) > 0
+                      ? <>Mesaja {ticket.actionText?.trim() ? <b>yapılan işlem</b> : null}{ticket.actionText?.trim() && Number(ticket.totalCost) > 0 ? ' ve ' : null}{Number(ticket.totalCost) > 0 ? <b>tutar</b> : null} da eklenir.</>
+                      : <>💡 “Yapılan İşlem” ve tutarı girerseniz mesaja otomatik eklenir.</>}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Fiş Bilgileri */}
