@@ -482,8 +482,9 @@ const BODY = `
     <div class="plan">
       <h3>Başlangıç</h3>
       <div class="who">Yeni başlayan, az cihazlı bayi</div>
-      <div class="price" data-m="1749" data-y="17490">₺1.749<small>/ay</small></div>
+      <div class="price" data-m="1749" data-inc="20" data-per="25">₺1.749<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
+      <div data-dev style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">ilk 20 cihaz dahil · sonrası ₺25/cihaz</div>
       <ul>
         <li><span class="c">✓</span> Müşteri, cihaz, servis fişi</li>
         <li><span class="c">✓</span> Stok + barkod (LS2208)</li>
@@ -496,8 +497,9 @@ const BODY = `
       <div class="tag">EN POPÜLER</div>
       <h3>Profesyonel</h3>
       <div class="who">Çoğu bayi için ideal</div>
-      <div class="price" data-m="2099" data-y="20990">₺2.099<small>/ay</small></div>
+      <div class="price" data-m="2099" data-inc="25" data-per="25">₺2.099<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
+      <div data-dev style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">ilk 25 cihaz dahil · sonrası ₺25/cihaz</div>
       <ul>
         <li><span class="c">✓</span> Başlangıç'taki her şey</li>
         <li><span class="c">✓</span> Otomatik birleşik faturalama</li>
@@ -510,8 +512,9 @@ const BODY = `
     <div class="plan">
       <h3>Kurumsal</h3>
       <div class="who">Çok şubeli / büyük filo</div>
-      <div class="price" data-m="5249" data-y="52490">₺5.249<small>/ay</small></div>
+      <div class="price" data-m="5249" data-inc="100" data-per="25">₺5.249<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
+      <div data-dev style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">ilk 100 cihaz dahil · sonrası ₺25/cihaz</div>
       <ul>
         <li><span class="c">✓</span> Profesyonel'deki her şey</li>
         <li><span class="c">✓</span> Kaçan Gelir paneli</li>
@@ -522,7 +525,11 @@ const BODY = `
       <a class="btn btn-ghost" href="#basla">İletişime geç</a>
     </div>
   </div>
-  <p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:24px">💡 Logo entegrasyonu mevcut · e-Faturaya hazır · veriniz size ait, istediğiniz an dışa aktarın</p>
+  <div style="max-width:720px;margin:28px auto 0;text-align:center;background:var(--card-2);border:1px solid var(--line);border-radius:14px;padding:16px 20px">
+    <div style="font-weight:700;font-size:.95rem">Kurulum + mevcut Excel'inizin aktarımı + 2 saat yerinde eğitim: <span style="text-decoration:line-through;opacity:.6">₺12.000</span> <span style="color:var(--emerald)">ücretsiz</span></div>
+    <div style="color:var(--muted);font-size:.82rem;margin-top:6px">Kuruluş dönemi — ilk 50 bayiye özel. Verinizi biz taşıyoruz, siz ilk gün çalışmaya başlıyorsunuz.</div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:20px">💡 Logo'ya aktarım mevcut · e-Fatura yolda · veriniz size ait, istediğiniz an dışa aktarın</p>
 </section>
 
 <!-- TESTIMONIAL -->
@@ -622,12 +629,17 @@ const JS = `
   });
   nav.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){nav.classList.remove('open');burger.setAttribute('aria-expanded','false');});});
 
+  // Ziyaretçinin seçtiği kiralık cihaz sayısı — hem kaçak hem FİYAT bunun üstünden döner.
+  // 0 = henüz seçmedi → planlarda taban fiyat görünür (peşinen sticker şoku olmasın).
+  var devCount=0, sw=document.getElementById('sw');
+
   // Kaçan gelir hesaplayıcı (kapanış aracı: dinamik CTA + net kâr + kaybı forma taşı)
   var rN=document.getElementById('rN'),rA=document.getElementById('rA'),rR=document.getElementById('rR');
   var vN=document.getElementById('vN'),vA=document.getElementById('vA'),vR=document.getElementById('vR');
   var outM=document.getElementById('outM'),outY=document.getElementById('outY'),roi=document.getElementById('roi');
   function fmt(n){return '₺'+Math.round(n).toLocaleString('tr-TR');}
-  function calc(){
+  // fromUser: kaydırıcıya dokunuldu mu? (input olayı geldiğinde dolu, ilk çizimde boş)
+  function calc(fromUser){
     var N=+rN.value,A=+rA.value,R=+rR.value;
     vN.textContent=N; vA.textContent=fmt(A); vR.textContent='%'+R;
     var m=N*A*(R/100);
@@ -635,8 +647,12 @@ const JS = `
     window.__yillikKayip=fmt(m*12);
     var btnCalc=document.querySelector('.calc .result .lp-btn-primary');
     if(btnCalc) btnCalc.textContent=fmt(m*12)+"'yi yakalamaya başla →";
+    // Ziyaretçi kaydırıcıya DOKUNDUYSA paket fiyatları da onun işine göre yeniden çizilsin.
+    // Sayfa ilk açıldığında dokunulmamış sayılır → planlarda taban fiyat kalır.
+    if(fromUser){ devCount=N; setYearly(sw.classList.contains('on')); }
     var proEl=document.querySelector('.plan.pop .price');
-    var pro=proEl?(+proEl.dataset.m||2099):2099;
+    var pro=2099;
+    if(proEl){ var pb=+proEl.dataset.m||2099, pi=+proEl.dataset.inc||0, pp=+proEl.dataset.per||0; pro=pb+(devCount>pi?(devCount-pi)*pp:0); }
     var net=Math.round(m-pro);
     roi.innerHTML = net>0
       ? 'Aylık ₺'+pro.toLocaleString('tr-TR')+' ödeyip ayda <b style="color:var(--emerald)">'+fmt(m)+'</b> kurtarmak. Net kazanç ≈ <b style="color:var(--emerald)">'+fmt(net)+'/ay</b>'
@@ -644,14 +660,22 @@ const JS = `
   }
   [rN,rA,rR].forEach(function(el){el.addEventListener('input',calc);}); calc();
 
-  // Fiyat aylık/yıllık geçişi (tek innerHTML; klavye + aria)
-  var sw=document.getElementById('sw');
+  // Fiyat aylık/yıllık geçişi + cihaz sayısına göre yeniden hesap (klavye + aria)
   function setYearly(yearly){
     sw.classList.toggle('on', yearly);
     sw.setAttribute('aria-checked', yearly?'true':'false');
-    document.querySelectorAll('.plan .price').forEach(function(p){
-      var val=yearly?p.dataset.y:p.dataset.m;
-      p.innerHTML='₺'+(+val).toLocaleString('tr-TR')+'<small>/'+(yearly?'yıl':'ay')+'</small>';
+    document.querySelectorAll('.plan').forEach(function(pl){
+      var p=pl.querySelector('.price'); if(!p) return;
+      var base=+p.dataset.m||0, inc=+p.dataset.inc||0, per=+p.dataset.per||0;
+      var m=base+(devCount>inc?(devCount-inc)*per:0);
+      var val=yearly?m*10:m;
+      p.innerHTML='₺'+val.toLocaleString('tr-TR')+'<small>/'+(yearly?'yıl':'ay')+'</small>';
+      var note=pl.querySelector('[data-dev]'); if(!note) return;
+      note.innerHTML = devCount>inc
+        ? '<b>'+devCount+' cihaz</b> için: ₺'+base.toLocaleString('tr-TR')+' + '+(devCount-inc)+' × ₺'+per
+        : devCount>0
+          ? '<b>'+devCount+' cihaz</b> pakete dahil — ek ücret yok'
+          : 'ilk '+inc+' cihaz dahil · sonrası ₺'+per+'/cihaz';
     });
     document.querySelectorAll('[data-pa]').forEach(function(e){e.textContent=yearly?'yıllık — 2 ay bedava':'aylık faturalandırılır';});
   }
