@@ -89,6 +89,11 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                         backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.625rem 1rem',
                         borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem',
                     }}>🏷️ Etiket Yazdır</Link>
+                    {/* İsteğe bağlı: cihaz yaşı toplu giriş. Zorlamaz, akışa girmez. */}
+                    <Link href="/devices/kurulum-tarihi" style={{
+                        backgroundColor: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '0.625rem 1rem',
+                        borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem',
+                    }}>📅 Cihaz Yaşı</Link>
                     <Link href="/devices/new" style={{
                         backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
                         borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500'

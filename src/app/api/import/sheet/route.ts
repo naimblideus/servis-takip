@@ -5,6 +5,7 @@ import {
   parseCSV, detectDelimiter, autoMap, trNumber, trInt, trBool, normalizePhone,
   type FieldKey,
 } from '@/lib/sheet-import';
+import { normalizeBrandModel } from '@/lib/device-brands';
 import crypto from 'crypto';
 
 // POST /api/import/sheet
@@ -201,9 +202,13 @@ export async function POST(req: NextRequest) {
             select: { id: true },
           });
 
+          // Marka/model sütunları sık sık ters doldurulmuş geliyor (bir bayide %97).
+          // Tek yerde düzeltiliyor ki hata sisteme birikmesin.
+          // Tanınmayan marka olduğu gibi bırakılır — tahmin YAZILMAZ.
+          const nz = normalizeBrandModel(p.brand, p.model);
           const base: any = {
-            brand: p.brand || 'Bilinmiyor',
-            model: p.model || 'Bilinmiyor',
+            brand: nz.brand || 'Bilinmiyor',
+            model: nz.model || 'Bilinmiyor',
             location: p.location || null,
             isRental: p.isRental,
           };

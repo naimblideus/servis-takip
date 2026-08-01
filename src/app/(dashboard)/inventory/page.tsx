@@ -30,7 +30,7 @@ export default function InventoryPage() {
     const [sortField, setSortField] = useState<SortField>('stockQty');
     const [sortAsc, setSortAsc] = useState(true);
     const [form, setForm] = useState({
-        sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '',
+        sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '', oemCode: '',
     });
     // Satır düzenlemesi
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -124,7 +124,7 @@ export default function InventoryPage() {
             body: JSON.stringify(form),
         });
         if (res.ok) {
-            setForm({ sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '' });
+            setForm({ sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '', oemCode: '' });
             setShowForm(false);
             load();
         } else {
@@ -369,6 +369,20 @@ export default function InventoryPage() {
                                 placeholder="📷 Okuyucuyla okutun veya elle girin (EAN-13 / Code 128)"
                             />
                             <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>USB barkod okuyucu (Symbol/Zebra LS2208 vb.) ile okutabilirsiniz</span>
+                        </div>
+                        {/* Üretici parça kodu — isteğe bağlı, sürtünme eklemez.
+                            Kendi stok kodun sana özeldir; üreticinin kodu aynı parçayı her bayide aynı şey yapar. */}
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={lbl}>Üretici Parça Kodu (opsiyonel)</label>
+                            <input
+                                style={inp}
+                                value={form.oemCode}
+                                onChange={e => setForm({ ...form, oemCode: e.target.value })}
+                                placeholder="Örn. FM1-A606-000 — kutunun veya faturanın üstündeki orijinal kod"
+                            />
+                            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+                                Girerseniz aynı parçayı farklı isimle kaydetseniz bile sistem tek parça olarak tanır. Marka, parça adından otomatik algılanır.
+                            </span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                             <div>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { detectBrandInText } from '@/lib/device-brands';
 
 export async function GET() {
     const session = await auth();
@@ -57,6 +58,12 @@ export async function POST(req: Request) {
                 minStock: parseInt(body.minStock) || 5,
                 group: body.group || null,
                 barcode: body.barcode?.trim() || null,
+                // OEM kodu: bayiye özel sku'yu üreticinin resmî koduna bağlar —
+                // çapraz-bayi parça analizinin tek yolu. İsteğe bağlı, sürtünme eklemez.
+                oemCode: body.oemCode?.trim() || null,
+                // Marka yazılmadıysa parça adından yakala ("Canon fırın ünitesi" -> Canon).
+                // Bulunamazsa boş kalır; tahmin YAZILMAZ.
+                oemBrand: body.oemBrand?.trim() || detectBrandInText(body.name),
             },
         });
 

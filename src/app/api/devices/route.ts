@@ -2,6 +2,7 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
+import { normalizeBrandModel } from '@/lib/device-brands';
 
 function generatePublicCode() {
   return 'DEV-' + randomBytes(3).toString('hex').toUpperCase();
@@ -26,12 +27,15 @@ export async function POST(req: Request) {
     const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const body = await req.json();
+    // Marka/model ters girilmişse düzelt, yazımı kanonikleştir ("canon" -> "Canon").
+    // Marka tanınmıyorsa dokunulmaz.
+    const nz = normalizeBrandModel(body.brand, body.model);
     const device = await prisma.device.create({
       data: {
         tenantId: user.tenantId,
         customerId: body.customerId,
-        brand: body.brand,
-        model: body.model,
+        brand: nz.brand,
+        model: nz.model,
         serialNo: body.serialNo,
         barcode: body.barcode?.trim() || null,
         location: body.location || null,

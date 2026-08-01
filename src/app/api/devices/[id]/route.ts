@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { normalizeBrandModel } from '@/lib/device-brands';
 
 export async function PATCH(
     req: Request,
@@ -24,8 +25,15 @@ export async function PATCH(
             if (!target) return NextResponse.json({ error: 'Geçersiz müşteri' }, { status: 400 });
         }
         const updateData: any = {};
-        if (body.brand !== undefined) updateData.brand = body.brand;
-        if (body.model !== undefined) updateData.model = body.model;
+        // Marka/model birlikte gönderildiyse ters kayıt düzeltmesinden geçir
+        if (body.brand !== undefined || body.model !== undefined) {
+            const nz = normalizeBrandModel(
+                body.brand !== undefined ? body.brand : existing.brand,
+                body.model !== undefined ? body.model : existing.model,
+            );
+            updateData.brand = nz.brand;
+            updateData.model = nz.model;
+        }
         if (body.serialNo !== undefined) updateData.serialNo = body.serialNo;
         if (body.barcode !== undefined) updateData.barcode = body.barcode?.trim() || null;
         if (body.location !== undefined) updateData.location = body.location || null;

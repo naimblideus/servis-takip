@@ -26,6 +26,9 @@ export async function PATCH(
         if (body.minStock !== undefined) updateData.minStock = parseInt(body.minStock);
         if (body.group !== undefined) updateData.group = body.group || null;
         if (body.barcode !== undefined) updateData.barcode = body.barcode?.trim() || null;
+        // OEM kodu / markası — çapraz-bayi parça analizi için (isteğe bağlı)
+        if (body.oemCode !== undefined) updateData.oemCode = body.oemCode?.trim() || null;
+        if (body.oemBrand !== undefined) updateData.oemBrand = body.oemBrand?.trim() || null;
         // Stok artırma/azaltma
         if (body.adjustQty !== undefined) {
             updateData.stockQty = { increment: parseInt(body.adjustQty) };
