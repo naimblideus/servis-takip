@@ -1,17 +1,12 @@
 'use client';
 
 /**
- * Fiş tamamlanma göstergesi.
+ * Fiş tamamlanma göstergesi — YOL GÖSTERİCİ, kutlama değil.
  *
- * Amaç: teknisyene "ne kaldı" sorusunu tek bakışta göstermek ve tamamlandığında
- * küçük bir tamamlanma hissi vermek. Zorlama yerine geri bildirim —
- * doğru doldurmayı ceza değil, akış teşvik eder.
- *
- * Abartılı kutlama YOK: tek bir onay + yumuşak dolum. Sahada günde 30 fiş açan
- * biri için gösterişli animasyon üçüncü seferde sinir bozucu olur.
+ * "Ne kaldı" sorusunu tek bakışta cevaplar. Kutlama bilinçli olarak burada DEĞİL:
+ * form dolunca kutlamak "doldurdum" hissini ödüllendirir, oysa asıl iş fişin
+ * kaydedilmesidir. Tamamlanma anı SaveSuccess'te (kaydetme sonrası).
  */
-import { useEffect, useRef, useState } from 'react';
-
 interface Step { label: string; done: boolean }
 
 export default function TicketProgress({ steps }: { steps: Step[] }) {
@@ -20,24 +15,10 @@ export default function TicketProgress({ steps }: { steps: Step[] }) {
   const complete = doneCount === total && total > 0;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
-  // Sadece "tamamlandı" ANINDA kutla; her render'da değil.
-  const [celebrate, setCelebrate] = useState(false);
-  const wasComplete = useRef(false);
-  useEffect(() => {
-    if (complete && !wasComplete.current) {
-      setCelebrate(true);
-      const t = window.setTimeout(() => setCelebrate(false), 900);
-      wasComplete.current = true;
-      return () => window.clearTimeout(t);
-    }
-    if (!complete) wasComplete.current = false;
-  }, [complete]);
-
   const next = steps.find((s) => !s.done);
 
   return (
     <div
-      className={celebrate ? 'sa-pop' : undefined}
       style={{
         backgroundColor: complete ? '#f0fdf4' : 'white',
         border: `1px solid ${complete ? '#86efac' : '#e5e7eb'}`,
@@ -48,7 +29,7 @@ export default function TicketProgress({ steps }: { steps: Step[] }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.85rem', fontWeight: 600, color: complete ? '#15803d' : '#374151' }}>
-          {complete ? '✓ Fiş hazır — kaydedebilirsiniz' : `${doneCount}/${total} tamam`}
+          {complete ? 'Fiş hazır — kaydedebilirsiniz' : `${doneCount}/${total} tamam`}
         </span>
         {!complete && next && (
           <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>sıradaki: {next.label}</span>
@@ -58,7 +39,6 @@ export default function TicketProgress({ steps }: { steps: Step[] }) {
       <div style={{ marginTop: '0.55rem', height: '6px', borderRadius: '9999px',
         backgroundColor: '#f3f4f6', overflow: 'hidden' }}>
         <div
-          className={celebrate ? 'sa-sheen' : undefined}
           style={{
             height: '100%', width: `${pct}%`, borderRadius: '9999px',
             backgroundColor: complete ? '#16a34a' : '#3b82f6',

@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 import FaultCategoryPicker from '@/components/FaultCategoryPicker';
 import TicketProgress from '@/components/TicketProgress';
+import FaultInsight, { type FaultHistory } from '@/components/FaultInsight';
+import SaveSuccess from '@/components/SaveSuccess';
 
 interface Customer { id: string; name: string; phone: string; address: string | null; }
 interface Device {
@@ -191,6 +193,10 @@ export default function NewTicketPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAddDevice, setShowAddDevice] = useState(false);
   const [nextTicketNumber, setNextTicketNumber] = useState('');
+  // Cihazın 12 aylık arıza geçmişi (teşhis bilgisi için)
+  const [faultHistory, setFaultHistory] = useState<FaultHistory | null>(null);
+  // Kaydedildi ekranı — asıl tamamlanma anı
+  const [saved, setSaved] = useState<{ ticketNumber?: string } | null>(null);
 
   const [form, setForm] = useState({
     customerId: '',
@@ -331,6 +337,18 @@ export default function NewTicketPage() {
     setShowAddDevice(false);
   };
 
+  // Cihazın arıza geçmişi — cihaz seçilince BİR kez çekilir, kategori değişince
+  // yeniden istek atılmaz. Böylece bilgi anında görünür, akış yavaşlamaz.
+  useEffect(() => {
+    if (!form.deviceId) { setFaultHistory(null); return; }
+    let iptal = false;
+    fetch(`/api/devices/${form.deviceId}/fault-history`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!iptal) setFaultHistory(d); })
+      .catch(() => { if (!iptal) setFaultHistory(null); }); // geçmiş alınamazsa sessiz geç
+    return () => { iptal = true; };
+  }, [form.deviceId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Kategori seçici native "required" taşımaz (input değil, buton listesi).
@@ -361,7 +379,9 @@ export default function NewTicketPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      router.push(`/tickets/${data.id}`);
+      // Asıl tamamlanma anı burası — kısa bir onay göster, sonra fişe geç.
+      setSaved({ ticketNumber: data.ticketNumber });
+      window.setTimeout(() => router.push(`/tickets/${data.id}`), 1100);
     } else {
       alert('Hata: ' + (data.error || JSON.stringify(data)));
       setLoading(false);
@@ -412,6 +432,8 @@ export default function NewTicketPage() {
         <span style={{ fontSize: '1rem' }}>📷</span>
         {scanMsg ? scanMsg.text : 'İpucu: Makinenin barkod etiketini okutun — müşteri ve cihaz otomatik seçilir.'}
       </div>
+
+      {saved && <SaveSuccess ticketNumber={saved.ticketNumber} />}
 
       <form onSubmit={handleSubmit}>
         <TicketProgress steps={[
@@ -687,6 +709,9 @@ export default function NewTicketPage() {
                     issueText: f.issueText.trim() ? f.issueText : catLabel,
                   }))}
                 />
+                {/* Kategori seçilir seçilmez teşhis bilgisi — kategoriyi zorunluluktan
+                    araca çevirir; doğru seçmek teknisyenin kendi işine yarar. */}
+                <FaultInsight history={faultHistory} category={form.faultCategory} />
               </div>
 
               <div style={{ marginBottom: '1rem' }}>

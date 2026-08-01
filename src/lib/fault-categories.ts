@@ -29,16 +29,20 @@ export const FAULT_CATEGORIES: { code: FaultCategory; label: string; isFailure: 
 
 const BY_CODE = new Map(FAULT_CATEGORIES.map((c) => [c.code, c]));
 
-/** Ekranda gösterilecek Türkçe etiket. Bilinmeyen/eski kayıt için '—'. */
-export function faultLabel(code?: FaultCategory | null): string {
+/**
+ * Ekranda gösterilecek Türkçe etiket. Bilinmeyen/eski kayıt için '—'.
+ * Geniş `string` kabul eder: API'den/forma bağlı state'ten gelen ham değerler
+ * her zaman dar enum tipinde olmaz.
+ */
+export function faultLabel(code?: FaultCategory | string | null): string {
   if (!code) return '—';
-  return BY_CODE.get(code)?.label ?? String(code);
+  return BY_CODE.get(code as FaultCategory)?.label ?? String(code);
 }
 
 /** Gerçek arıza mı, yoksa planlı ziyaret mi (bakım/kurulum). */
-export function isFailure(code?: FaultCategory | null): boolean {
+export function isFailure(code?: FaultCategory | string | null): boolean {
   if (!code) return false;
-  return BY_CODE.get(code)?.isFailure ?? false;
+  return BY_CODE.get(code as FaultCategory)?.isFailure ?? false;
 }
 
 /** API'den gelen değeri doğrula — geçersizse null (uydurma kategori yazılmaz). */
