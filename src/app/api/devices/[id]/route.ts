@@ -29,6 +29,9 @@ export async function PATCH(
         if (body.serialNo !== undefined) updateData.serialNo = body.serialNo;
         if (body.barcode !== undefined) updateData.barcode = body.barcode?.trim() || null;
         if (body.location !== undefined) updateData.location = body.location || null;
+        // Cihaz yaşı — mevcut cihazlarda sonradan doldurulabilsin diye düzenlemede de açık
+        if (body.installedAt !== undefined) updateData.installedAt = body.installedAt ? new Date(body.installedAt) : null;
+        if (body.manufacturedAt !== undefined) updateData.manufacturedAt = body.manufacturedAt ? new Date(body.manufacturedAt) : null;
         if (body.customerId !== undefined) updateData.customerId = body.customerId;
         if (body.isRental !== undefined) updateData.isRental = body.isRental;
         if (body.monthlyRent !== undefined) updateData.monthlyRent = parseFloat(body.monthlyRent) || 0;

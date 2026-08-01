@@ -103,6 +103,49 @@
   color: #374151;
 }
 
+/* ── Mikro geri bildirim (fiş akışı) ──
+   Kısa ve sakin tutuldu: günde onlarca fiş açan teknisyen için
+   gösterişli animasyon üçüncü tekrarda rahatsız eder. */
+@keyframes sa-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+
+.sa-pop {
+  animation: sa-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sa-check {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.sa-check {
+  display: inline-block;
+  animation: sa-check 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Dolum çubuğunda tek seferlik parıltı — "bitti" hissi */
+@keyframes sa-sheen {
+  0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
+  100% { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); }
+}
+
+.sa-sheen {
+  animation: sa-sheen 0.8s ease-out;
+}
+
+/* Hareket hassasiyeti olan kullanıcılar için kapat */
+@media (prefers-reduced-motion: reduce) {
+  .sa-pop,
+  .sa-check,
+  .sa-sheen {
+    animation: none !important;
+  }
+}
+
 /* ── Yazdırma ── */
 @media print {
 

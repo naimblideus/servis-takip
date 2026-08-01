@@ -21,6 +21,7 @@ export default function NewDevicePage() {
     serialNo: '',
     barcode: '',
     location: '',
+    installedAt: '',
     counterBlack: '',
     counterColor: '',
     isRental: false,
@@ -203,6 +204,18 @@ export default function NewDevicePage() {
             <input style={inp} value={form.location}
               onChange={e => setForm({ ...form, location: e.target.value })}
               placeholder="Muhasebe Odası, Zemin Kat..." />
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={lbl}>Kurulum Tarihi</label>
+            <input type="date" style={inp} value={form.installedAt}
+              onChange={e => setForm({ ...form, installedAt: e.target.value })}
+              /* yerel tarihe göre: toISOString UTC verir, TR'de gece yarısı-03:00 arası bugünü engellerdi */
+              max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)} />
+            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+              Cihazın müşteride çalışmaya başladığı tarih. Bilmiyorsanız boş bırakın — cihazın yaşını
+              gösterir, arıza geçmişi bununla anlam kazanır.
+            </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

@@ -35,6 +35,9 @@ export async function POST(req: Request) {
         serialNo: body.serialNo,
         barcode: body.barcode?.trim() || null,
         location: body.location || null,
+        // Cihaz yaşı — geriye dönük telafi edilemez, bu yüzden ilk kayıtta yakalanır
+        installedAt: body.installedAt ? new Date(body.installedAt) : null,
+        manufacturedAt: body.manufacturedAt ? new Date(body.manufacturedAt) : null,
         isRental: body.isRental || false,
         monthlyRent: body.isRental ? (parseFloat(body.monthlyRent) || 0) : 0,
         pricePerBlack: body.isRental && body.pricePerBlack ? parseFloat(body.pricePerBlack) : null,

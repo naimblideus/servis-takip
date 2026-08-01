@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Priority } from '@prisma/client';
 import { syncTicketToCari } from '@/lib/ticket-cari';
+import { parseFaultCategory, faultCategoryFromLegacyText } from '@/lib/fault-categories';
 
 async function generateTicketNumber(tenantId: string): Promise<string> {
   // TSK- ve SF- prefix'li tüm fişlerin en yüksek numarasını bul
@@ -76,6 +77,12 @@ export async function POST(req: Request) {
 
     const ticketNumber = await generateTicketNumber(user.tenantId);
 
+    // Arıza kategorisi: önce gönderilen kod, olmazsa eski şablon metninden eşle.
+    // Hiçbiri tutmuyorsa null bırakılır — rastgele bir kategori YAZILMAZ.
+    const faultCategory =
+      parseFaultCategory(body.faultCategory) ??
+      faultCategoryFromLegacyText(body.issueTemplate);
+
     const ticket = await prisma.serviceTicket.create({
       data: {
         tenantId: user.tenantId,
@@ -83,6 +90,7 @@ export async function POST(req: Request) {
         customerId: device.customerId,
         ticketNumber,
         issueTemplate: body.issueTemplate || null,
+        faultCategory,
         issueText: body.issueText,
         actionText: body.actionText || null,
         notes: body.notes || null,

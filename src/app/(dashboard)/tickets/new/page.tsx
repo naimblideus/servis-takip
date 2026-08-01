@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
+import FaultCategoryPicker from '@/components/FaultCategoryPicker';
+import TicketProgress from '@/components/TicketProgress';
 
 interface Customer { id: string; name: string; phone: string; address: string | null; }
 interface Device {
@@ -194,6 +196,7 @@ export default function NewTicketPage() {
     customerId: '',
     deviceId: '',
     issueTemplate: '',
+    faultCategory: '',
     issueText: '',
     actionText: '',
     notes: '',
@@ -330,6 +333,14 @@ export default function NewTicketPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Kategori seçici native "required" taşımaz (input değil, buton listesi).
+    // Tek dokunuşluk bir alan olduğu için engelliyoruz — ama tahmin ürettirmemek adına
+    // otomatik varsayılan ATANMAZ; kullanıcı bilerek seçer.
+    if (!form.faultCategory) {
+      alert('Arıza kategorisini seçin — tek dokunuş yeterli.');
+      document.getElementById('ariza-kategorisi')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     setLoading(true);
     const res = await fetch('/api/tickets', {
       method: 'POST',
@@ -337,6 +348,7 @@ export default function NewTicketPage() {
       body: JSON.stringify({
         deviceId: form.deviceId,
         issueTemplate: form.issueTemplate || undefined,
+        faultCategory: form.faultCategory || undefined,
         issueText: form.issueText,
         actionText: form.actionText || undefined,
         notes: form.notes || undefined,
@@ -402,6 +414,13 @@ export default function NewTicketPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
+        <TicketProgress steps={[
+          { label: 'Müşteri', done: !!form.customerId },
+          { label: 'Cihaz', done: !!form.deviceId },
+          { label: 'Arıza kategorisi', done: !!form.faultCategory },
+          { label: 'Açıklama', done: !!form.issueText.trim() },
+        ]} />
+
         {/* ═══ 1. Müşteri Seçimi ═══ */}
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
           <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>👤 Müşteri Bilgileri</h2>
@@ -656,14 +675,18 @@ export default function NewTicketPage() {
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
               <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>🔧 Arıza Bilgileri</h2>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={label}>Arıza Şablonu</label>
-                <select style={input} value={form.issueTemplate} onChange={e => setForm({ ...form, issueTemplate: e.target.value, issueText: e.target.value })}>
-                  <option value="">Seçin veya manuel yazın...</option>
-                  {['Kağıt Sıkışması', 'Toner Sorunu', 'Baskı Kalitesi', 'Besleme Hatası', 'Ağ Bağlantısı', 'Fırın Arızası', 'Drum Sorunu', 'Elektronik Sorun', 'Dişli Arızası', 'Paten Sorunu', 'Kafa Arızası', 'Diğer'].map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+              <div id="ariza-kategorisi" style={{ marginBottom: '1rem' }}>
+                <label style={label}>Arıza Kategorisi *</label>
+                <FaultCategoryPicker
+                  value={form.faultCategory}
+                  onChange={(code, catLabel) => setForm(f => ({
+                    ...f,
+                    faultCategory: code,
+                    issueTemplate: catLabel,
+                    // Açıklama boşsa kategoriyle başlat; teknisyen yazdıysa ÜZERİNE YAZMA
+                    issueText: f.issueText.trim() ? f.issueText : catLabel,
+                  }))}
+                />
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
