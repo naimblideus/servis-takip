@@ -207,6 +207,12 @@ model Device {
   // createdAt = sisteme eklenme (yazılımla ilgili), installedAt = cihazın sahada çalışmaya başladığı an (gerçek yaş).
   // Bu ikisi karıştırılmamalı: yaş bilinmeden "kaçıncı ayında arızalanıyor" hesaplanamaz ve geriye dönük telafi edilemez.
   installedAt    DateTime? // Müşteriye kurulduğu/teslim edildiği tarih
+  // Kurulum tarihi ne kadar kesin? Bayi genelde günü değil YILI hatırlar ("2019'da aldık").
+  // Hassasiyeti saklamak, "1 Ocak 2019" değerini kesin tarih sanmayı önler.
+  installedAtPrecision DatePrecision? // YEAR | MONTH | DAY
+  // Soruldu ve bilinmiyor. Bu işaret olmazsa sistem aynı cihazı sonsuza dek sorar
+  // ve kullanıcı rastgele tarih girerek kurtulmaya çalışır — veri bozulur.
+  installDateUnknown Boolean @default(false)
   manufacturedAt DateTime? // Üretim tarihi (biliniyorsa; bilinmiyorsa boş bırakılır — tahmin YAZILMAZ)
   isRental       Boolean   @default(false) // Kiralık cihaz mı?
   monthlyRent    Decimal   @default(0) @db.Decimal(10, 2) // Aylık kira bedeli
@@ -301,6 +307,14 @@ model ServiceTicket {
   @@index([tenantId, faultCategory])
   // Kiracıdan bağımsız toplu analiz (marka/model güvenilirliği) bu indeksi kullanır
   @@index([faultCategory, createdAt])
+}
+
+// Tarih hassasiyeti — "2019" ile "14.03.2019" aynı şey değildir.
+// Raporlarda YEAR olanlar "±1 yıl" diye gösterilir; kesinlik uydurulmaz.
+enum DatePrecision {
+  YEAR
+  MONTH
+  DAY
 }
 
 // Arıza kategorileri — KODLAR SABİT, etiketler değişebilir.
