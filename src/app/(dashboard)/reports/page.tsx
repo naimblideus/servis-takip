@@ -55,6 +55,28 @@ export default function ReportsPage() {
                 <p style={{ color: '#6b7280' }}>Genel istatistikler ve trendler</p>
             </div>
 
+            {/* Veri girildikçe canlanan raporlar — döngünün geri ödeme tarafı */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(15rem, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <a href="/reports/yenileme" style={{
+                    display: 'block', textDecoration: 'none', backgroundColor: 'white', borderRadius: '0.75rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '1rem', borderLeft: '3px solid #f59e0b',
+                }}>
+                    <div style={{ fontWeight: 700, color: '#111827' }}>💰 Yenileme Fırsatları</div>
+                    <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: '0.2rem' }}>
+                        Masrafı gelirini aşan, yaşlanıp sürekli bozulan cihazlar
+                    </div>
+                </a>
+                <a href="/reports/model-guvenilirlik" style={{
+                    display: 'block', textDecoration: 'none', backgroundColor: 'white', borderRadius: '0.75rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '1rem', borderLeft: '3px solid #3b82f6',
+                }}>
+                    <div style={{ fontWeight: 700, color: '#111827' }}>📊 Marka / Model Güvenilirliği</div>
+                    <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: '0.2rem' }}>
+                        Hangi model ne sıklıkta bozuluyor — alım kararına dayanak
+                    </div>
+                </a>
+            </div>
+
             {/* Toplam Kartlar */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
