@@ -1,6 +1,13 @@
 /**
  * Tek seferlik düzeltme: marka/model ters kaydedilmiş cihazları düzeltir.
  *
+ * ⚠️ ÜRETİMDE BUNU ÇALIŞTIRMAYA GEREK YOK.
+ * Aynı düzeltme artık migration olarak da var:
+ *   prisma/migrations/20260803120000_fix_device_brand_model_swap
+ * ve deploy sırasında startup.sh ile kendiliğinden uygulanıyor.
+ * (scripts/ klasörü üretim imajına kopyalanmıyor, bu yüzden orada erişilemez.)
+ * Bu script yerelde inceleme/kuru çalıştırma için duruyor.
+ *
  * Kullanım:
  *   node scripts/fix-device-brands.js            → KURU ÇALIŞTIRMA (hiçbir şey yazmaz)
  *   node scripts/fix-device-brands.js --apply    → uygular
