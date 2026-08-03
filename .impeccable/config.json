@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "ai-color-palette",
+        "value": "*",
+        "files": [
+          "src/app/(super-admin)/super-admin/veri-kapsami/page.tsx"
+        ],
+        "createdAt": "2026-08-03T11:25:07.607Z",
+        "reason": "Super-admin paneli mevcut violet tasarim dilini izliyor (sidebar, login, billing, pazar ayni paleti kullaniyor); kullanici onayladi"
+      }
+    ]
+  }
+}
