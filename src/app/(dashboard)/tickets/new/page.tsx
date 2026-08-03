@@ -379,6 +379,14 @@ export default function NewTicketPage() {
     });
     const data = await res.json();
     if (res.ok) {
+      // Sayaç kaydedilemediyse SESSİZ GEÇME — kullanıcı bunu bilmeli, yoksa
+      // eski davranıştaki gibi veri sessizce kaybolur.
+      if (data.counterError) {
+        alert(
+          'Fiş kaydedildi, ancak SAYAÇ KAYDEDİLEMEDİ:\n' + data.counterError.message +
+          '\n\nSayacı cihaz sayfasındaki "Sayaç Okuması" bölümünden girebilirsiniz.'
+        );
+      }
       // Asıl tamamlanma anı burası — kısa bir onay göster, sonra fişe geç.
       setSaved({ ticketNumber: data.ticketNumber });
       window.setTimeout(() => router.push(`/tickets/${data.id}`), 1100);
