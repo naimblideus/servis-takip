@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { detectBrandInText } from '@/lib/device-brands';
+import { normalizePartGroup, guessPartGroup } from '@/lib/part-groups';
 
 export async function GET() {
     const session = await auth();
@@ -56,7 +57,9 @@ export async function POST(req: Request) {
                 sellPrice: parseFloat(body.sellPrice) || 0,
                 stockQty: parseInt(body.stockQty) || 0,
                 minStock: parseInt(body.minStock) || 5,
-                group: body.group || null,
+                // Grup: seçilen değeri kanonikleştir; boşsa parça adından yakalamayı dene
+                // ("...MÜREKKEP SARI DOLUM" -> Mürekkep). Emin olunamazsa BOŞ kalır.
+                group: normalizePartGroup(body.group) ?? guessPartGroup(body.name),
                 barcode: body.barcode?.trim() || null,
                 // OEM kodu: bayiye özel sku'yu üreticinin resmî koduna bağlar —
                 // çapraz-bayi parça analizinin tek yolu. İsteğe bağlı, sürtünme eklemez.

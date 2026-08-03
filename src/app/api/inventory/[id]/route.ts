@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { normalizePartGroup } from '@/lib/part-groups';
 
 export async function PATCH(
     req: Request,
@@ -24,7 +25,8 @@ export async function PATCH(
         if (body.sellPrice !== undefined) updateData.sellPrice = parseFloat(body.sellPrice);
         if (body.stockQty !== undefined) updateData.stockQty = parseInt(body.stockQty);
         if (body.minStock !== undefined) updateData.minStock = parseInt(body.minStock);
-        if (body.group !== undefined) updateData.group = body.group || null;
+        // Grup yazımını kanonikleştir ("FIRIN GURUBU" -> "Fırın Grubu")
+        if (body.group !== undefined) updateData.group = normalizePartGroup(body.group);
         if (body.barcode !== undefined) updateData.barcode = body.barcode?.trim() || null;
         // OEM kodu / markası — çapraz-bayi parça analizi için (isteğe bağlı)
         if (body.oemCode !== undefined) updateData.oemCode = body.oemCode?.trim() || null;

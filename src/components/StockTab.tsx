@@ -2,10 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
+import { PART_GROUPS } from '@/lib/part-groups';
 
 interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; barcode?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; minStock?:number; notes?:string|null; }
 
-const PART_GROUPS = ['Fırın Grubu','Paten','İşçilik','Dişli Grubu','Yedek Parça','Toner','Tamirat','Diğer'];
 const PRINTER_CATS = ['TONER','MUREKEP','YAZICI'];
 const s = { inp:{padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem',width:'100%',boxSizing:'border-box' as const}, lbl:{display:'block' as const,fontSize:'0.78rem',fontWeight:'500' as const,color:'#6b7280',marginBottom:'0.2rem'} };
 

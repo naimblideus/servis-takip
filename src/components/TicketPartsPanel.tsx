@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
+import { PART_GROUPS } from '@/lib/part-groups';
 
 interface Part {
     id: string;
@@ -369,7 +370,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                                 onChange={e => setNewPart({ ...newPart, group: e.target.value })}
                             >
                                 <option value="">Grup seçin...</option>
-                                {['FIRIN GURUBU', 'PATEN', 'İŞÇİLİK', 'DİŞLİ GURUBU', 'YEDEK PARÇA', 'TONER', 'TAMIRAT'].map(g => (
+                                {PART_GROUPS.map(g => (
                                     <option key={g} value={g}>{g}</option>
                                 ))}
                             </select>

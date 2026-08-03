@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
+import { PART_GROUPS } from '@/lib/part-groups';
 
 interface Part {
     id: string;
@@ -14,8 +15,6 @@ interface Part {
     group: string | null;
     barcode?: string | null;
 }
-
-const PART_GROUPS = ['Fırın Grubu', 'Paten', 'İşçilik', 'Dişli Grubu', 'Yedek Parça', 'Toner', 'Tamirat'];
 
 type SortField = 'name' | 'sku' | 'stockQty' | 'sellPrice' | 'buyPrice' | 'group';
 type StockFilter = 'all' | 'critical' | 'ok';

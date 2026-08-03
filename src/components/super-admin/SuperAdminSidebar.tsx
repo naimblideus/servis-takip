@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database } from 'lucide-react';
 
 const navItems = [
     { href: '/super-admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/super-admin/tenants', label: 'İşletmeler', icon: Building2 },
+    // Ağın veri ürettiğini gösteren panel — veri katmanının sağlık göstergesi
+    { href: '/super-admin/veri-kapsami', label: 'Veri Kapsamı', icon: Database },
     { href: '/super-admin/billing', label: 'Faturalama', icon: Receipt },
     { href: '/super-admin/plans', label: 'Paketler', icon: Package },
     { href: '/super-admin/pazar', label: 'Bayi Pazarı', icon: ShoppingCart },
