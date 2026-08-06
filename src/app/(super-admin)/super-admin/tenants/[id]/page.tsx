@@ -33,11 +33,19 @@ export default function TenantDetailPage() {
 
     const handleSave = async () => {
         setSaving(true);
-        await fetch(`/api/super-admin/tenants/${id}`, {
+        // Hata sessizce yutulmamalı: WhatsApp numara kimliği başka bayide tanımlıysa
+        // sunucu 409 döner ve kullanıcı kaydettiğini sanmamalı.
+        const res = await fetch(`/api/super-admin/tenants/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(form),
         });
+        if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            alert('❌ ' + (d.error || 'Kaydedilemedi'));
+            setSaving(false);
+            return;
+        }
         await fetchTenant();
         setEditMode(false);
         setSaving(false);
@@ -197,6 +205,23 @@ export default function TenantDetailPage() {
                                     readOnly={!editMode} className={inpCls} />
                             </div>
                         ))}
+                        {/* WhatsApp bağlantısı — gelen mesajın HANGİ bayiye ait olduğu yalnızca buradan bulunur */}
+                        <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
+                            <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                                <div className="text-xs text-gray-400">WhatsApp Numara Kimliği (Meta phone_number_id)</div>
+                                {form.whatsappPhoneId
+                                    ? <span className="text-[11px] font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded-full px-2 py-0.5">bağlı</span>
+                                    : <span className="text-[11px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">bağlı değil</span>}
+                            </div>
+                            <input value={form.whatsappPhoneId || ''}
+                                onChange={e => setForm((p: any) => ({ ...p, whatsappPhoneId: e.target.value }))}
+                                readOnly={!editMode} placeholder="örn. 123456789012345" className={inpCls} />
+                            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                                Meta Business panelinde <b>WhatsApp → API Setup</b> altındaki <b>Phone number ID</b> değeri.
+                                Telefon numarası <b>değildir</b>. Boş bırakılırsa bu bayiye gelen WhatsApp mesajları kaydedilmez.
+                                Bir numara kimliği yalnızca <b>tek</b> bayiye bağlanabilir.
+                            </p>
+                        </div>
                         <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
                             <div className="text-xs text-gray-500 mb-1">Admin Notu</div>
                             <textarea value={form.adminNotes || ''} onChange={e => setForm((p: any) => ({ ...p, adminNotes: e.target.value }))}
