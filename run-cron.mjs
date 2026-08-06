@@ -13,17 +13,21 @@
 const JOBS = {
   faturalar: { path: '/api/cron/generate-customer-invoices', label: 'Aylık müşteri faturaları' },
   hatirlatma: { path: '/api/cron/overdue-reminders', label: 'Vadesi geçen kontrolü' },
+  // Ayın başında çalıştırılır: sayacı okunmamış kiralık cihazların müşterilerine
+  // WhatsApp'tan "sayaç fotoğrafı" hatırlatması gider. Faturalama döngüsünü besler.
+  sayac: { path: '/api/cron/sayac-hatirlatma', label: 'Aylık sayaç hatırlatma' },
 };
 // Takma adlar
 JOBS.invoices = JOBS.faturalar;
 JOBS.overdue = JOBS.hatirlatma;
+JOBS.counters = JOBS.sayac;
 
 const name = (process.argv[2] || '').toLowerCase();
 const job = JOBS[name];
 const stamp = () => new Date().toISOString();
 
 if (!job) {
-  console.error(`[cron ${stamp()}] Geçersiz görev: "${name}". Kullanılabilir: faturalar | hatirlatma`);
+  console.error(`[cron ${stamp()}] Geçersiz görev: "${name}". Kullanılabilir: faturalar | hatirlatma | sayac`);
   process.exit(1);
 }
 
@@ -60,6 +64,10 @@ try {
     const d = JSON.parse(text);
     if (name === 'faturalar' || name === 'invoices') {
       summary = `dönem=${d.period} · ${d.tenants} bayi işlendi`;
+    } else if (name === 'sayac' || name === 'counters') {
+      summary = d.skipped
+        ? `atlandı · ${d.skipped}`
+        : `dönem=${d.period} · ${(d.results || []).reduce((a, r) => a + r.sent, 0)} hatırlatma gönderildi`;
     } else {
       summary = `${d.overdueCount} fatura OVERDUE işaretlendi · ${d.queued} hatırlatma kuyruğa alındı`;
     }

@@ -95,6 +95,6 @@ export async function findCustomerByPhone(
 export async function findTenantByPhoneNumberId(phoneNumberId: string) {
   return prisma.tenant.findFirst({
     where: { whatsappPhoneId: phoneNumberId },
-    select: { id: true },
+    select: { id: true, name: true }, // name: otomatik cevabın altındaki imza için
   });
 }

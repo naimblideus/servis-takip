@@ -146,6 +146,9 @@ model WhatsAppMessage {
   receivedAt  DateTime
   handled     Boolean  @default(false) // bayi bu mesajla ilgilendi mi
   ticketId    String?  // bu mesajdan fiş açıldıysa
+  readingId   String?  // bu mesajdaki fotoğraftan sayaç okuması kaydedildiyse
+  isFaultReport Boolean @default(false) // metin arıza bildirimine benziyor mu (anahtar kelime)
+  autoReplied Boolean  @default(false) // otomatik cevap gönderildi mi (tekrar göndermeyi önler)
   createdAt   DateTime @default(now())
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)

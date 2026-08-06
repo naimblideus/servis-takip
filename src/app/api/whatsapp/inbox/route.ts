@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { findCustomerByPhone } from '@/lib/whatsapp-inbound';
+import { createReading, ReadingError } from '@/lib/readings';
 
 /**
  * GET /api/whatsapp/inbox — gelen WhatsApp mesajları + müşteri bağlamı.
@@ -14,7 +15,8 @@ export async function GET(req: NextRequest) {
 
     const messages = await prisma.whatsAppMessage.findMany({
       where: { tenantId, ...(showAll ? {} : { handled: false }) },
-      orderBy: { receivedAt: 'desc' },
+      // Arıza bildirimleri en üstte: bekleyen iş onlar.
+      orderBy: [{ isFaultReport: 'desc' }, { receivedAt: 'desc' }],
       take: 200,
       include: { customer: { select: { id: true, name: true, phone: true } } },
     });
@@ -56,6 +58,9 @@ export async function GET(req: NextRequest) {
         mediaType: m.mediaType,
         receivedAt: m.receivedAt.toISOString(),
         handled: m.handled,
+        isFaultReport: m.isFaultReport,
+        autoReplied: m.autoReplied,
+        readingId: m.readingId,
         customer: m.customer
           ? {
               ...m.customer,
@@ -80,7 +85,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { tenantId } = await requireTenantUser();
-    const { action, messageId, name, handled } = await req.json();
+    const body = await req.json();
+    const { action, messageId, name, handled } = body;
 
     const msg = await prisma.whatsAppMessage.findFirst({ where: { id: messageId, tenantId } });
     if (!msg) return NextResponse.json({ error: 'Mesaj bulunamadı' }, { status: 404 });
@@ -112,6 +118,33 @@ export async function POST(req: NextRequest) {
       });
 
       return NextResponse.json({ ok: true, customerId: customer.id, created: !existing });
+    }
+
+    // Fotoğraftaki sayacı cihaza işle. OCR yok — bayi rakamı okuyup yazar, çünkü
+    // yanlış okunan tek bir sayaç yanlış fatura demektir. createReading zaten
+    // düşüş kontrolü ve dönem/aşım hesabını yapıyor; o mantığı burada tekrarlamıyoruz.
+    if (action === 'saveReading') {
+      const { deviceId, counterBlack, counterColor, reset } = body;
+      if (!deviceId) return NextResponse.json({ error: 'Cihaz seçilmedi' }, { status: 400 });
+      try {
+        const r = await createReading({
+          tenantId,
+          deviceId,
+          counterBlack: Number(counterBlack) || 0,
+          counterColor: Number(counterColor) || 0,
+          reset: !!reset,
+        });
+        await prisma.whatsAppMessage.update({
+          where: { id: msg.id },
+          data: { readingId: r.reading.id, handled: true },
+        });
+        return NextResponse.json({ ok: true, warning: r.warning ?? null });
+      } catch (e: any) {
+        if (e instanceof ReadingError) {
+          return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
+        }
+        throw e;
+      }
     }
 
     return NextResponse.json({ error: 'Bilinmeyen işlem' }, { status: 400 });

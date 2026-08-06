@@ -6,6 +6,8 @@ import {
   findCustomerByPhone,
   findTenantByPhoneNumberId,
 } from '@/lib/whatsapp-inbound';
+import { looksLikeFaultReport } from '@/lib/whatsapp-out';
+import { handleAutoReply } from '@/lib/whatsapp-autoreply';
 
 // Bu uç HERKESE AÇIK olmak zorunda (Meta çağırır). Tek koruma imza doğrulaması.
 export const dynamic = 'force-dynamic';
@@ -61,8 +63,9 @@ export async function POST(req: NextRequest) {
       if (!tenant) continue;
 
       const customer = await findCustomerByPhone(tenant.id, m.fromPhone);
+      const isFaultReport = looksLikeFaultReport(m.text);
 
-      await prisma.whatsAppMessage.create({
+      const created = await prisma.whatsAppMessage.create({
         data: {
           tenantId: tenant.id,
           customerId: customer?.id ?? null,
@@ -73,9 +76,28 @@ export async function POST(req: NextRequest) {
           mediaId: m.mediaId ?? null,
           mediaType: m.mediaType ?? null,
           receivedAt: m.receivedAt,
+          isFaultReport,
         },
       });
       saved++;
+
+      // Otomatik cevap — 24 saatlik pencerede ücretsiz. Kayıt BAŞARILI olduktan
+      // sonra denenir; cevap gönderilemezse mesaj yine de kaydedilmiş olur.
+      try {
+        const r = await handleAutoReply({
+          tenantId: tenant.id,
+          tenantName: tenant.name,
+          customerId: customer?.id ?? null,
+          fromPhone: m.fromPhone,
+          text: m.text,
+          isFaultReport,
+        });
+        if (r.replied) {
+          await prisma.whatsAppMessage.update({ where: { id: created.id }, data: { autoReplied: true } });
+        }
+      } catch (e: any) {
+        console.error('[whatsapp-webhook] otomatik cevap hatası:', e?.message);
+      }
     } catch (e: any) {
       // P2002 = aynı mesaj zaten kayıtlı (Meta tekrarı). Hata değil, beklenen durum.
       if (e?.code !== 'P2002') {
