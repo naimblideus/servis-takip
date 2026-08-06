@@ -14,42 +14,51 @@ echo "=== [3/5] TÜM migration'ları dinamik + idempotent uygula (KALICI ÇÖZÜ
 # dosyalarını uygular. Yeni migration eklenince otomatik yakalanır -> bir daha eksik-kolon krizi olmaz.
 node apply-migrations.js 2>&1 || echo "!!! apply-migrations sorun yaşadı (non-fatal)"
 
-echo "=== [4/5] Ensuring admin user exists (şifre admin170305 garanti) ==="
+echo "=== [4/5] Admin BOOTSTRAP — yalnızca HİÇ kullanıcı yoksa; mevcut şifreye DOKUNMAZ ==="
+# GÜVENLİK (2026-08-06): Burada eskiden her açılışta admin@demo.com şifresi kod içine
+# gömülü sabit bir değere GERİ YAZILIYORDU. Depo herkese açık olduğu için bu, üretim
+# admin şifresinin kamuya açık olması ve her deploy'da kendini yeniden kurması demekti.
+# Artık: mevcut kullanıcıya asla dokunulmaz. Boş veritabanında ilk admin ADMIN_BOOTSTRAP_EMAIL/
+# ADMIN_BOOTSTRAP_PASSWORD ile açılır; verilmemişse rastgele şifre üretilip SADECE loga yazılır.
 node -e "
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const p = new PrismaClient();
-async function ensureAdmin() {
+async function bootstrapAdmin() {
   try {
-    const tenants = await p.tenant.findMany({ take: 1 });
+    const userCount = await p.user.count();
+    if (userCount > 0) {
+      console.log('[OK] Kullanıcı mevcut (' + userCount + ') — bootstrap atlandı, şifrelere dokunulmadı.');
+      return;
+    }
     let tenantId;
+    const tenants = await p.tenant.findMany({ take: 1 });
     if (tenants.length === 0) {
       const t = await p.tenant.create({
-        data: { name: 'Saygili Fotokopi', slug: 'saygili', plan: 'trial', isActive: true }
+        data: { name: 'Yeni Firma', slug: 'firma', plan: 'trial', isActive: true }
       });
       tenantId = t.id;
-      console.log('[OK] Tenant created:', tenantId);
+      console.log('[OK] Tenant oluşturuldu:', tenantId);
     } else {
       tenantId = tenants[0].id;
     }
-    const existing = await p.user.findFirst({ where: { email: 'admin@demo.com' } });
-    const hash = await bcrypt.hash('admin170305', 12);
-    if (!existing) {
-      await p.user.create({
-        data: { tenantId, email: 'admin@demo.com', name: 'Admin', passwordHash: hash, role: 'ADMIN', isActive: true }
-      });
-      console.log('[OK] Admin user CREATED: admin@demo.com / admin170305');
-    } else {
-      await p.user.update({ where: { id: existing.id }, data: { passwordHash: hash, isActive: true } });
-      console.log('[OK] Admin user password ensured: admin@demo.com / admin170305');
+    const email = process.env.ADMIN_BOOTSTRAP_EMAIL || 'admin@degistir.local';
+    const pass = process.env.ADMIN_BOOTSTRAP_PASSWORD || crypto.randomBytes(12).toString('base64url');
+    await p.user.create({
+      data: { tenantId, email: email, name: 'Admin', passwordHash: await bcrypt.hash(pass, 12), role: 'ADMIN', isActive: true }
+    });
+    console.log('[OK] İLK admin oluşturuldu: ' + email);
+    if (!process.env.ADMIN_BOOTSTRAP_PASSWORD) {
+      console.log('[ÖNEMLİ] Üretilen geçici şifre: ' + pass + '  — GİRİP HEMEN DEĞİŞTİRİN.');
     }
   } catch(e) {
-    console.error('[WARN] Admin ensure error (non-fatal):', e.message);
+    console.error('[WARN] Admin bootstrap hatası (non-fatal):', e.message);
   } finally {
     await p.\$disconnect().catch(function(){});
   }
 }
-ensureAdmin();
+bootstrapAdmin();
 " 2>&1
 
 echo "=== [5/5] Starting Next.js server ==="

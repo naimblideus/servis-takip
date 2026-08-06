@@ -205,8 +205,9 @@ function BackupCard() {
                 }}>Fotoğraflarla birlikte</button>
             </div>
             <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.75rem', lineHeight: 1.5 }}>
-                Dosyayı silmeyin — sistemde bir sorun olursa verileriniz bundan geri yüklenir.
-                (Sunucuda ayrıca otomatik yedek de tutulur.)
+                Dosyayı silmeyin. Bu, verinizin okunabilir bir kopyasıdır (JSON) — bir sorun
+                yaşanırsa kayıtlarınız bu dosyadan geri getirilir. Uygulama içinde tek tuşla
+                geri yükleme yoktur; geri yükleme destek tarafından yapılır.
             </p>
         </div>
     );
