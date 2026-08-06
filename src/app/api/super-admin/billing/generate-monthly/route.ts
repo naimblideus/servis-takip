@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateInvoiceNumber } from '@/lib/tenant-manager';
+import { monthlyAmount, amountNote } from '@/lib/plan-pricing';
 
 // POST — tüm aktif abonelikler için aylık fatura üret
 export async function POST(req: NextRequest) {
     const { period, dueDate } = await req.json();
     const targetPeriod = period || new Date().toISOString().slice(0, 7);
-
-    const PLAN_PRICES: Record<string, number> = {
-        starter: 1749,
-        professional: 2099,
-        enterprise: 5249,
-    };
 
     // Aktif ve trial olmayan tenantları al
     const tenants = await (prisma as any).tenant.findMany({
@@ -24,7 +19,16 @@ export async function POST(req: NextRequest) {
         select: { id: true, name: true, plan: true },
     });
 
-    const results: { tenantId: string; invoiceNumber: string; status: string }[] = [];
+    const results: { tenantId: string; invoiceNumber: string; status: string; note?: string }[] = [];
+
+    // Kiralık cihaz sayıları — tek sorguda (bayi başına ayrı sorgu atma)
+    const rentalCounts = new Map<string, number>();
+    const grouped = await (prisma as any).device.groupBy({
+        by: ['tenantId'],
+        where: { isRental: true, tenantId: { in: tenants.map((t: any) => t.id) } },
+        _count: { _all: true },
+    });
+    for (const g of grouped) rentalCounts.set(g.tenantId, g._count._all);
 
     for (const tenant of tenants) {
         // Bu dönem için fatura zaten var mı?
@@ -36,9 +40,10 @@ export async function POST(req: NextRequest) {
             continue;
         }
 
-        const amount = PLAN_PRICES[tenant.plan] || 1749;
-        const vatAmount = amount * 0.20;
-        const totalAmount = amount + vatAmount;
+        // Taban + dahil cihaz + cihaz başına aşım (satılan model buydu; eskiden düz paket
+        // fiyatı kesiliyordu ve aşım hiç faturalanmıyordu).
+        const b = monthlyAmount(tenant.plan, rentalCounts.get(tenant.id) || 0);
+        const { amount, vatAmount, totalAmount } = b;
         const invoiceNumber = await generateInvoiceNumber();
 
         await (prisma as any).tenantInvoice.create({
@@ -54,7 +59,7 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        results.push({ tenantId: tenant.id, invoiceNumber, status: 'created' });
+        results.push({ tenantId: tenant.id, invoiceNumber, status: 'created', note: amountNote(b) });
     }
 
     return NextResponse.json({ period: targetPeriod, total: results.length, results });

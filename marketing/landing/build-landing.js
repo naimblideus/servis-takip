@@ -8,6 +8,20 @@ const path = require('path');
 const root = path.resolve(__dirname, '..', '..');
 const html = fs.readFileSync(path.join(root, 'marketing/landing/index.html'), 'utf8');
 
+// ⛔ VERİ KAYBI KORUMASI (2026-08-07)
+// Cihaz başına fiyatlandırma (data-inc/data-per + renderPrices) doğrudan
+// src/app/_landing/Landing.tsx içine yazıldı; bu index.html o değişiklikleri
+// İÇERMİYOR. Guard olmasaydı bu script canlı fiyatlandırmayı sessizce eski
+// sabit fiyata geri döndürürdü. Önce index.html'i senkronla, sonra çalıştır.
+if (!html.includes('data-inc') || !html.includes('data-per')) {
+  console.error('\n⛔ DURDURULDU — index.html güncel değil.\n');
+  console.error('   Eksik: cihaz başına fiyatlandırma (data-inc / data-per).');
+  console.error('   Bu script çalışsaydı Landing.tsx içindeki CANLI fiyat modelini silecekti.\n');
+  console.error('   Yapılacak: önce marketing/landing/index.html dosyasını');
+  console.error('   src/app/_landing/Landing.tsx ile senkronla, sonra tekrar çalıştır.\n');
+  process.exit(1);
+}
+
 const css  = html.match(/<style>([\s\S]*?)<\/style>/)[1];
 const body = html.match(/<body>([\s\S]*?)<script>/)[1];
 const js   = html.match(/<script>([\s\S]*?)<\/script>/)[1];

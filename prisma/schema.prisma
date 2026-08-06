@@ -115,9 +115,45 @@ model Tenant {
   customerInvoices    CustomerInvoice[]
   invoiceLines        InvoiceLine[]
   invoicePayments     InvoicePayment[]
+  whatsappMessages    WhatsAppMessage[]
+
+  // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
+  // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
+  whatsappPhoneId     String? @unique
 
   @@index([isActive])
   @@index([plan])
+}
+
+// WhatsApp'tan GELEN mesaj.
+//
+// Amaç: gelen numarayı müşteriyle eşleştirip bayiye "kim yazdı, hangi cihazları var,
+// açık fişi var mı" bilgisini vermek. Bayinin WhatsApp Business uygulaması aynen
+// çalışmaya devam eder (Meta Coexistence) — burası bir kopya, ikinci gelen kutusu değil.
+//
+// KVKK: mesaj METNİ müşteri verisidir. Sadece eşleştirme ve fişe bağlama için tutulur;
+// silinebilir olmalıdır. Medya İÇERİĞİ hiç indirilmez, yalnızca Meta'daki kimliği saklanır.
+model WhatsAppMessage {
+  id          String   @id @default(cuid())
+  tenantId    String
+  customerId  String?  // numara eşleşmediyse null — "sisteme ekle" akışı buradan çıkar
+  waMessageId String   @unique // Meta'nın mesaj kimliği — webhook tekrarına karşı idempotenslik
+  fromPhone   String   // E.164, ör. 905321234567
+  contactName String?  // WhatsApp profil adı (yeni müşteri eklerken ön-doldurulur)
+  text        String?  @db.Text
+  mediaId     String?  // fotoğraf/belge varsa Meta medya kimliği (içerik indirilmez)
+  mediaType   String?
+  receivedAt  DateTime
+  handled     Boolean  @default(false) // bayi bu mesajla ilgilendi mi
+  ticketId    String?  // bu mesajdan fiş açıldıysa
+  createdAt   DateTime @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, handled, receivedAt])
+  @@index([tenantId, fromPhone])
+  @@index([customerId])
 }
 
 // ============================================
@@ -184,6 +220,7 @@ model Customer {
   accountEntries   AccountEntry[]
   customerInvoices CustomerInvoice[]
   payments         Payment[]
+  whatsappMessages WhatsAppMessage[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, phone])

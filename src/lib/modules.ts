@@ -21,7 +21,9 @@ export const PLAN_MODULES: Record<string, ModuleKey[]> = {
   trial:        ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE'], // denemede her şey görünsün
   // NOT: Bayi Pazarı BİLEREK her planda açık — pazar yeri ancak HERKES içindeyse likidite/ağ etkisi kazanır.
   starter:      ['MARKETPLACE'],                                          // Başlangıç: çekirdek + Pazar
-  professional: ['INVOICING', 'ROUTE', 'TRACKING', 'MARKETPLACE'],        // Pro
+  // Pro: Kaçan Gelir BİLEREK burada. Satışın ana kancası o panel; denemede görüp
+  // Pro alan bayi onu kaybederse güven kazası olur. Kurumsal'ın farkı Raporlar'da kalır.
+  professional: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'MARKETPLACE'],
   enterprise:   ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE'], // Premium
 };
 
