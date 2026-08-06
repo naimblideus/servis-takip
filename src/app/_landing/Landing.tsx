@@ -481,45 +481,45 @@ const BODY = `
   <div class="plans reveal-stagger">
     <div class="plan">
       <h3>Başlangıç</h3>
-      <div class="who">Yeni başlayan, az cihazlı bayi</div>
+      <div class="who">20 cihaza kadar</div>
       <div class="price" data-m="1749" data-inc="20" data-per="25">₺1.749<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
       <div data-dev style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">ilk 20 cihaz dahil · sonrası ₺25/cihaz</div>
       <ul>
         <li><span class="c">✓</span> Müşteri, cihaz, servis fişi</li>
-        <li><span class="c">✓</span> Stok + barkod (LS2208)</li>
+        <li><span class="c">✓</span> Stok + barkod (LS2208) · Zebra etiket</li>
         <li><span class="c">✓</span> Muhasebe / cari hesap</li>
+        <li><span class="c">✓</span> Bayi Pazarı</li>
         <li><span class="c">✓</span> 3 kullanıcı · 200 fiş/ay</li>
       </ul>
       <a class="btn btn-ghost" href="#basla">Başla</a>
     </div>
     <div class="plan pop">
-      <div class="tag">EN POPÜLER</div>
+      <div class="tag">ÖNERDİĞİMİZ BAŞLANGIÇ</div>
       <h3>Profesyonel</h3>
-      <div class="who">Çoğu bayi için ideal</div>
+      <div class="who">21–100 cihaz</div>
       <div class="price" data-m="2099" data-inc="25" data-per="25">₺2.099<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
       <div data-dev style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">ilk 25 cihaz dahil · sonrası ₺25/cihaz</div>
       <ul>
         <li><span class="c">✓</span> Başlangıç'taki her şey</li>
-        <li><span class="c">✓</span> Otomatik birleşik faturalama</li>
-        <li><span class="c">✓</span> Rota & saha yönetimi</li>
-        <li><span class="c">✓</span> Geç sayaç takibi</li>
+        <li><span class="c">✓</span> Sayaç okuma + otomatik kira faturalaması</li>
+        <li><span class="c">✓</span> Tahsilat takibi · rota · geç sayaç takibi</li>
+        <li><span class="c">✓</span> Kaçan Gelir paneli</li>
         <li><span class="c">✓</span> 10 kullanıcı · sınırsız fiş</li>
       </ul>
       <a class="btn lp-btn-primary" href="#basla">14 Gün Ücretsiz</a>
     </div>
     <div class="plan">
       <h3>Kurumsal</h3>
-      <div class="who">Çok şubeli / büyük filo</div>
+      <div class="who">100+ cihaz · 50 kullanıcıya kadar</div>
       <div class="price" data-m="5249" data-inc="100" data-per="25">₺5.249<small>/ay</small></div>
       <div class="pa" data-pa>aylık faturalandırılır</div>
       <div data-dev style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">ilk 100 cihaz dahil · sonrası ₺25/cihaz</div>
       <ul>
         <li><span class="c">✓</span> Profesyonel'deki her şey</li>
-        <li><span class="c">✓</span> Kaçan Gelir paneli</li>
-        <li><span class="c">✓</span> Gelişmiş raporlar</li>
-        <li><span class="c">✓</span> Bayiler arası parça alışverişi</li>
+        <li><span class="c">✓</span> Marka/model güvenilirlik raporları</li>
+        <li><span class="c">✓</span> Cihaz yenileme raporu</li>
         <li><span class="c">✓</span> 50 kullanıcı · öncelikli destek</li>
       </ul>
       <a class="btn btn-ghost" href="#basla">İletişime geç</a>
@@ -529,7 +529,7 @@ const BODY = `
     <div style="font-weight:700;font-size:.95rem">Kurulum + mevcut Excel'inizin aktarımı + 2 saat yerinde eğitim: <span style="text-decoration:line-through;opacity:.6">₺12.000</span> <span style="color:var(--emerald)">ücretsiz</span></div>
     <div style="color:var(--muted);font-size:.82rem;margin-top:6px">Kuruluş dönemi — ilk 50 bayiye özel. Verinizi biz taşıyoruz, siz ilk gün çalışmaya başlıyorsunuz.</div>
   </div>
-  <p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:20px">💡 Logo'ya aktarım mevcut · e-Fatura yolda · veriniz size ait, istediğiniz an dışa aktarın</p>
+  <p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:20px">💡 Logo'ya aktarım mevcut · e-Fatura / GİB entegrasyonu yok · yedeğinizi (JSON) istediğiniz an indirin</p>
 </section>
 
 <!-- TESTIMONIAL -->

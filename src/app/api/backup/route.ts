@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(JSON.stringify(backup, null, 2), {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Content-Disposition': `attachment; filename="nexus-yedek-${safeName}-${stamp}.json"`,
+        'Content-Disposition': `attachment; filename="nextus-servis-yedek-${safeName}-${stamp}.json"`,
         'Cache-Control': 'no-store',
       },
     });
