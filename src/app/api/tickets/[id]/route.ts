@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { syncTicketToCari } from '@/lib/ticket-cari';
+import { parseFaultCategory } from '@/lib/fault-categories';
 
 export async function GET(
     req: Request,
@@ -63,6 +64,14 @@ export async function PATCH(
         }
         if (body.paymentStatus !== undefined) updateData.paymentStatus = body.paymentStatus;
         if (body.priority !== undefined) updateData.priority = body.priority;
+        // Arıza kategorisi — fiş açılışında atlanmışsa kapanışta (ya da sonradan) eklenebilsin.
+        // Çapraz-bayi güvenilirlik analizinin TEK girdisi bu alan; boş kalırsa o fiş veriye katkı vermez.
+        if (body.faultCategory !== undefined) {
+            const fc = parseFaultCategory(body.faultCategory);
+            if (fc) updateData.faultCategory = fc;                              // geçerli kod → yaz
+            else if (body.faultCategory === null) updateData.faultCategory = null; // bilerek temizleme
+            // geçersiz metin → sessizce yok say; mevcut doğru veriyi bozma
+        }
         // Çöp kutusundan geri alma
         if (body.restore === true) updateData.deletedAt = null;
 

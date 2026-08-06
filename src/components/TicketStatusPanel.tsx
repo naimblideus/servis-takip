@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { openWhatsApp, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
+import { FAULT_CATEGORIES, QUICK_FAULT_CODES } from '@/lib/fault-categories';
+
+// Fişin "kapandığı" durumlar — arıza kategorisi en geç burada sorulur.
+const CLOSING_STATUSES = ['READY', 'DELIVERED'];
 const STATUS_FLOW = [
     { value: 'NEW', label: 'Yeni', color: '#f59e0b' },
     { value: 'IN_SERVICE', label: 'Serviste', color: '#3b82f6' },
@@ -36,6 +40,8 @@ interface Props {
     deviceName?: string;
     ticketNumber?: string;
     tenantName?: string;
+    // Arıza kategorisi — boşsa fiş kapanırken tek dokunuşla sorulur
+    currentFaultCategory?: string | null;
 }
 
 export default function TicketStatusPanel({
@@ -55,6 +61,7 @@ export default function TicketStatusPanel({
     deviceName,
     ticketNumber,
     tenantName,
+    currentFaultCategory,
 }: Props) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -79,19 +86,33 @@ export default function TicketStatusPanel({
     };
     const [createdAt, setCreatedAt] = useState(toLocalInput(currentCreatedAt));
 
-    const updateStatus = async (newStatus: string) => {
+    // Arıza kategorisi: fiş kapanırken tek dokunuşla sorulur (modal yok, ayrı kaydet yok)
+    const [faultCat, setFaultCat] = useState(currentFaultCategory || '');
+    const [askFault, setAskFault] = useState<string | null>(null); // kategori beklenen kapanış durumu
+    const [allFaults, setAllFaults] = useState(false);
+
+    const updateStatus = async (newStatus: string, faultCategory?: string) => {
         setLoading(true);
         const res = await fetch(`/api/tickets/${ticketId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus }),
+            // Durum ve kategori TEK istekte gider — teknisyen için tek dokunuş
+            body: JSON.stringify({ status: newStatus, ...(faultCategory ? { faultCategory } : {}) }),
         });
         const data = await res.json().catch(() => null);
         applyCari(data); // teslim edilince cariye otomatik işlenir → onay göster
+        if (faultCategory) setFaultCat(faultCategory);
+        setAskFault(null);
         // Feature 8: bildirilebilir bir duruma geçtiyse müşteriye WhatsApp önerisi göster
         if (customerPhone && NOTIFY_STATUSES.includes(newStatus)) setNotifyStatus(newStatus);
         router.refresh();
         setLoading(false);
+    };
+
+    // Kapanışa geçiliyor ve kategori hiç girilmemişse önce onu sor; aksi halde eskisi gibi anında uygula.
+    const onStatusClick = (s: string) => {
+        if (CLOSING_STATUSES.includes(s) && !faultCat) { setAskFault(s); return; }
+        updateStatus(s);
     };
 
     const savePanel = async () => {
@@ -155,12 +176,57 @@ export default function TicketStatusPanel({
                     </span>
                 </div>
             )}
+            {/* Kapanışta arıza kategorisi — tek dokunuş: kategori + durum aynı istekte gider */}
+            {askFault && (
+                <div style={{ width: '100%', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.6rem', padding: '0.85rem' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#92400e' }}>Bu işte sorun neydi?</div>
+                    <div style={{ fontSize: '0.75rem', color: '#a16207', marginTop: '0.15rem', marginBottom: '0.7rem' }}>
+                        Dokunduğunuzda fiş <b>{askFault === 'READY' ? 'Hazır' : 'Teslim'}</b> olur — ayrıca kaydetmeniz gerekmez.
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        {(allFaults
+                            ? FAULT_CATEGORIES
+                            : QUICK_FAULT_CODES.map(code => FAULT_CATEGORIES.find(c => c.code === code)!).filter(Boolean)
+                        ).map(c => (
+                            <button key={c.code} onClick={() => updateStatus(askFault, c.code)} disabled={loading}
+                                style={{
+                                    padding: '0.55rem 0.9rem', minHeight: '40px', background: 'white', color: '#78350f',
+                                    border: '1px solid #fcd34d', borderRadius: '0.5rem', fontSize: '0.85rem',
+                                    fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+                                }}>
+                                {c.label}
+                            </button>
+                        ))}
+                        {!allFaults && (
+                            <button onClick={() => setAllFaults(true)}
+                                style={{
+                                    padding: '0.55rem 0.9rem', minHeight: '40px', background: 'transparent', color: '#a16207',
+                                    border: '1px dashed #fcd34d', borderRadius: '0.5rem', fontSize: '0.85rem',
+                                    fontWeight: 600, cursor: 'pointer',
+                                }}>
+                                Tümü…
+                            </button>
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem', alignItems: 'center' }}>
+                        <button onClick={() => updateStatus(askFault)} disabled={loading}
+                            style={{ padding: '0.4rem 0.75rem', background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer' }}>
+                            Bilmiyorum, geç
+                        </button>
+                        <button onClick={() => { setAskFault(null); setAllFaults(false); }}
+                            style={{ padding: '0.4rem 0.75rem', background: 'transparent', border: 'none', fontSize: '0.78rem', color: '#9ca3af', cursor: 'pointer' }}>
+                            Vazgeç
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Status Butonları */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'flex-end' }}>
                 {STATUS_FLOW.map(s => (
                     <button
                         key={s.value}
-                        onClick={() => updateStatus(s.value)}
+                        onClick={() => onStatusClick(s.value)}
                         disabled={loading || s.value === currentStatus}
                         style={{
                             padding: '0.4rem 0.875rem',

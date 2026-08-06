@@ -27,6 +27,15 @@ export const FAULT_CATEGORIES: { code: FaultCategory; label: string; isFailure: 
   { code: 'OTHER',                label: 'Diğer',            isFailure: true },
 ];
 
+/**
+ * Fiş kapanırken tek dokunuşla seçilen sık kategoriler; kalanlar "Tümü" altında.
+ * Sıra sahadaki gerçek sıklığa göre: kağıt sıkışması ve toner her bayide ilk ikilidir.
+ * Amaç, teknisyenin %80 durumda TEK dokunuşla geçmesi — liste uzarsa kimse doldurmaz.
+ */
+export const QUICK_FAULT_CODES: FaultCategory[] = [
+  'PAPER_JAM', 'TONER', 'PRINT_QUALITY', 'FEED_ERROR', 'FUSER', 'DRUM', 'PERIODIC_MAINTENANCE',
+];
+
 const BY_CODE = new Map(FAULT_CATEGORIES.map((c) => [c.code, c]));
 
 /**

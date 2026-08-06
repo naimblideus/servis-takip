@@ -9,6 +9,7 @@ import TicketPrintButton from '@/components/TicketPrintButton';
 import TicketDeleteButton from '@/components/TicketDeleteButton';
 import ContactActions from '@/components/ContactActions';
 import { waUrl, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
+import { faultLabel } from '@/lib/fault-categories';
 
 const statusLabel: Record<string, { label: string; color: string; text: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
@@ -92,6 +93,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               deviceName={`${ticket.device.brand} ${ticket.device.model}`}
               ticketNumber={ticket.ticketNumber}
               tenantName={tenantName}
+              currentFaultCategory={ticket.faultCategory}
             />
           </div>
         </div>
@@ -194,6 +196,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
           {[
             ['Teknisyen', ticket.assignedUser?.name ?? '-'],
+            ['Arıza Kategorisi', faultLabel(ticket.faultCategory)],
             ['Oluşturan', ticket.createdBy?.name ?? '-'],
             ['Toplam Tutar', `₺${Number(ticket.totalCost).toFixed(2)}`],
             ['Ödeme', ticket.paymentStatus === 'UNPAID' ? 'Ödenmedi' : ticket.paymentStatus === 'PAID' ? 'Ödendi' : ticket.paymentStatus === 'PARTIAL' ? 'Kısmi' : '-'],
