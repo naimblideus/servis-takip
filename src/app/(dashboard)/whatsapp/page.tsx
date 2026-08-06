@@ -87,7 +87,9 @@ export default function WhatsAppInboxPage() {
       )}
 
       {items.map(m => (
-        <div key={m.id} style={{ ...card, opacity: m.handled ? 0.6 : 1, borderLeft: `4px solid ${m.customer ? '#16a34a' : '#f59e0b'}` }}>
+        // Durum zaten "sistemde yok" rozetiyle ve buton metniyle anlatılıyor;
+        // ayrıca renkli kenar şeridi koymak aynı bilgiyi ikinci kez söylemek olurdu.
+        <div key={m.id} style={{ ...card, opacity: m.handled ? 0.6 : 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'baseline' }}>
             <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
               {m.customer ? m.customer.name : (m.contactName || 'Bilinmeyen numara')}
