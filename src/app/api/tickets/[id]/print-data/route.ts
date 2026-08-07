@@ -64,6 +64,6 @@ export async function GET(
             quantity: tp.quantity,
             unitPrice: Number(tp.unitPrice),
         })),
-        companyName: tenant?.name || 'Nexus Servis',
+        companyName: tenant?.name || 'Nextus Servis',
     });
 }

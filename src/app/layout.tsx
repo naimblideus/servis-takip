@@ -3,11 +3,11 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Nexus Servis - Yazıcı Servis Yönetimi',
+  title: 'Nextus Servis - Yazıcı Servis Yönetimi',
   description: 'Yazıcı ve fotokopi servis takip sistemi',
-  applicationName: 'Nexus Servis',
+  applicationName: 'Nextus Servis',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Nexus Servis' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Nextus Servis' },
   icons: { icon: '/icon-512.png', apple: '/apple-touch-icon.png' },
 };
 

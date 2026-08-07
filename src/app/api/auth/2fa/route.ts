@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       const uri = otpauthURI({
         secret,
         account: user.email,
-        issuer: `Nexus Servis${tenant?.name ? ` (${tenant.name})` : ''}`,
+        issuer: `Nextus Servis${tenant?.name ? ` (${tenant.name})` : ''}`,
       });
       // Anahtarı sakla ama ETKİNLEŞTİRME — kullanıcı kodu doğrulayınca açılır
       await prisma.user.update({ where: { id: user.id }, data: { totpSecret: secret, totpEnabled: false } });

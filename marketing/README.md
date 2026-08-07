@@ -26,7 +26,16 @@ landing'i görür, girişli kullanıcı doğrudan `/dashboard`'a gider. Landing'
 
 ## 🚨 CANLI ÖNCESİ ZORUNLU (launch-blocker — adversarial review buldu)
 Bunlar olmadan yayınlama:
-- [ ] **WhatsApp numarası:** `landing/index.html` içindeki `var STK_WHATSAPP='905551234567'` → GERÇEK numara (ülke kodu+numara, + ve 0 olmadan). Tüm WA butonları (form/kurucu/mobil) buradan beslenir. Sonra `node marketing/landing/build-landing.js` çalıştır.
+- [x] **WhatsApp numarası:** YAPILDI — 0552 696 17 03 (`wa.me/905526961703`).
+
+> ⚠️ **LANDING KAYNAĞI DEĞİŞTİ (7 Ağustos 2026).** Yayındaki sayfa artık
+> `landing/nextus-servis.html` dosyasından üretiliyor. `landing/index.html`
+> **emekliye ayrıldı** — "Nexus Servis" dönemine ait, cihaz başına fiyatlandırma
+> içermiyor; düzenlersen hiçbir yere yansımaz.
+>
+> Değişiklik akışı: `landing/nextus-servis.html` düzenle →
+> `node marketing/landing/build-landing.js` → `src/app/_landing/Landing.tsx`
+> üretilir → commit + push.
 - [ ] **Kurucu sosyal linkleri:** `.socials` içindeki LinkedIn/Instagram `href="#"` → gerçek profiller (yoksa o linki sil).
 - [ ] **Giriş linki:** nav `Giriş Yap` `/login` — app içinde doğru; ayrı domaine taşırsan tam URL yaz.
 > Not: review v2'de uydurma "31/50 bayi" sayacı, sahte "0xxx" telefon ve doğrulanamayan "WIN EURASIA" duyurusu **zaten kaldırıldı**. Hero'daki ₺12.000 gerçek Kütahya referansına dayanıyor ("bir bayide ilk ay" diye dürüst etiketlendi).

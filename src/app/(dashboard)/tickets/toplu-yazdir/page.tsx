@@ -233,7 +233,7 @@ export default async function TopluYazdirPage({
                         <div className="head-left">
                             {tenant?.logo && <img src={tenant.logo} alt="Logo" className="logo" />}
                             <div>
-                                <div className="company">{tenant?.name || 'Nexus Servis'}</div>
+                                <div className="company">{tenant?.name || 'Nextus Servis'}</div>
                                 <div className="company-sub">
                                     {tenant?.phone && <>📞 {tenant.phone}<br /></>}
                                     {tenant?.address}
@@ -348,7 +348,7 @@ export default async function TopluYazdirPage({
                     )}
 
                     <div className="footer-note">
-                        {tenant?.name || 'Nexus Servis'} · Servis icmal raporu · {new Date().toLocaleDateString('tr-TR')}
+                        {tenant?.name || 'Nextus Servis'} · Servis icmal raporu · {new Date().toLocaleDateString('tr-TR')}
                     </div>
                 </div>
             </div>

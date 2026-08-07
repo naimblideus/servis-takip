@@ -148,7 +148,7 @@ export default async function CihazDokumuPage({
                         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                             {tenant?.logo && <img src={tenant.logo} alt="" className="logo" />}
                             <div>
-                                <div className="company">{tenant?.name || 'Nexus Servis'}</div>
+                                <div className="company">{tenant?.name || 'Nextus Servis'}</div>
                                 <div className="company-sub">
                                     {tenant?.phone && <>📞 {tenant.phone}<br /></>}
                                     {tenant?.address}
@@ -249,7 +249,7 @@ export default async function CihazDokumuPage({
                     )}
 
                     <div className="note">
-                        {tenant?.name || 'Nexus Servis'} · {blank ? 'Sayaç föyü' : 'Cihaz dökümü'} · {new Date().toLocaleDateString('tr-TR')}
+                        {tenant?.name || 'Nextus Servis'} · {blank ? 'Sayaç föyü' : 'Cihaz dökümü'} · {new Date().toLocaleDateString('tr-TR')}
                     </div>
                 </div>
             </div>

@@ -326,7 +326,7 @@ export default function Sidebar({ modules = [] }: { modules?: string[] }) {
           </svg>
         </button>
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-white font-semibold text-sm whitespace-nowrap">Nexus Servis</span>
+          <span className="text-white font-semibold text-sm whitespace-nowrap">Nextus Servis</span>
           {tenantName && <span className="text-gray-400 text-xs truncate">· {tenantName}</span>}
         </div>
       </div>
@@ -348,7 +348,7 @@ export default function Sidebar({ modules = [] }: { modules?: string[] }) {
               </svg>
             </div>
             <div className="min-w-0">
-              <p className="text-white font-semibold text-sm">Nexus Servis</p>
+              <p className="text-white font-semibold text-sm">Nextus Servis</p>
               <p className="text-gray-400 text-xs truncate">{tenantName}</p>
             </div>
             <button onClick={close} aria-label="Menüyü kapat" className="md:hidden ml-auto text-gray-400 hover:text-white p-1">
