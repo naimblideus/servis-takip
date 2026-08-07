@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ŞABLON hariç: gerçek değer içermez, sadece hangi değişkenlerin gerektiğini belgeler.
+# Depo herkese açık — bu dosyaya ASLA gerçek bir sır yazma.
+!.env.example
 
 # vercel
 .vercel
