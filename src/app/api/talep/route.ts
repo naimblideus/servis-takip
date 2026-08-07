@@ -1,14 +1,26 @@
-// Landing formu → Nexus CRM (sunucu tarafı aktarıcı)
+// Landing formu → önce VERİTABANI, sonra (varsa) Nexus CRM.
 //
-// Form doğrudan CRM'e POST atmaz: anahtar tarayıcıya düşmesin ve CORS derdi olmasın.
-// NEXUS_CRM_URL tanımlı değilse istek yine 200 döner (landing akışı bozulmaz),
-// sadece log'a yazılır.
+// ÖNCEDEN: lead doğrudan CRM'e aktarılıyordu ve NEXUS_CRM_URL tanımlı değilse
+// (CRM canlıda değil) yalnızca console.warn ile loga yazılıyordu. Konteyner logu
+// dönünce lead KAYBOLUYORDU; ziyaretçi ise "gönderildi" mesajını görüyordu.
+// Yani landing'den gelen her talep sessizce yok oluyordu.
 //
-// .env:
+// ARTIK: talep her koşulda Lead tablosuna yazılır. CRM aktarımı bunun ÜSTÜNE
+// ek bir adımdır ve başarısız olması lead'i kaybettirmez — süper-admin'deki
+// Talepler ekranından görülür.
+//
+// .env (isteğe bağlı):
 //   NEXUS_CRM_URL="https://crm.alanadin.com/api/lead"
 //   NEXUS_CRM_TOKEN="<CRM'deki WEBHOOK_TOKEN>"
 
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+/** Aşırı uzun alanların veritabanını şişirmesini önle (bot/kötü niyetli gönderim). */
+const kirp = (v: unknown, n = 200): string | null => {
+  const s = typeof v === "string" ? v.trim() : "";
+  return s ? s.slice(0, n) : null;
+};
 
 export async function POST(istek: Request) {
   const veri = await istek.json().catch(() => null);
@@ -16,14 +28,34 @@ export async function POST(istek: Request) {
     return NextResponse.json({ ok: false, hata: "eksik-alan" }, { status: 400 });
   }
 
-  // bal küpü (botlar doldurur)
+  // bal küpü (botlar doldurur) — sessizce başarılı dön, kaydetme
   if (veri.website_hp) return NextResponse.json({ ok: true });
 
-  const url = process.env.NEXUS_CRM_URL;
-  if (!url) {
-    console.warn("[talep] NEXUS_CRM_URL tanımsız — lead yalnızca log'da:", veri);
-    return NextResponse.json({ ok: true, uyari: "crm-tanimsiz" });
+  // 1) HER KOŞULDA kaydet. Bu adım başarısız olursa ziyaretçiye hata göstermeliyiz,
+  //    çünkü talebin gittiği başka bir yer yok.
+  let lead;
+  try {
+    lead = await prisma.lead.create({
+      data: {
+        firma: kirp(veri.firma),
+        yetkili: kirp(veri.ad ?? veri.yetkili),
+        telefon: kirp(veri.telefon, 40),
+        eposta: kirp(veri.eposta, 120),
+        cihazSayisi: kirp(veri.cihazSayisi ?? veri.cihaz, 40),
+        mesaj: kirp(veri.mesaj, 2000),
+        kaynak: kirp(veri.utm_source, 80),
+        kampanya: kirp(veri.utm_campaign, 120),
+      },
+    });
+  } catch (e) {
+    console.error("[talep] KAYDEDİLEMEDİ:", (e as Error).message, veri);
+    return NextResponse.json({ ok: false, hata: "kaydedilemedi" }, { status: 500 });
   }
+
+  // 2) CRM'e aktar — isteğe bağlı. Başarısızlığı ziyaretçiye yansıtmıyoruz,
+  //    talep zaten kalıcı olarak kaydedildi.
+  const url = process.env.NEXUS_CRM_URL;
+  if (!url) return NextResponse.json({ ok: true });
 
   try {
     const cevap = await fetch(url, {
@@ -39,18 +71,17 @@ export async function POST(istek: Request) {
         urun: "nexus-servis",
         kaynak: "landing",
         kanal: veri.utm_source || null,
-        mesaj: [veri.ad ? `Yetkili: ${veri.ad}` : null, veri.mesaj]
-          .filter(Boolean)
-          .join("\n"),
+        mesaj: [veri.ad ? `Yetkili: ${veri.ad}` : null, veri.mesaj].filter(Boolean).join("\n"),
         utm: veri.utm_source ? `utm_source=${veri.utm_source}` : null,
       }),
       signal: AbortSignal.timeout(8000),
     });
     if (!cevap.ok) throw new Error(`CRM ${cevap.status}`);
-    return NextResponse.json({ ok: true });
+    await prisma.lead.update({ where: { id: lead.id }, data: { crmDurum: "aktarildi" } });
   } catch (e) {
-    // Lead'i kaybetme: CRM ulaşılamazsa en azından log'da kalsın
-    console.error("[talep] CRM'e iletilemedi:", (e as Error).message, veri);
-    return NextResponse.json({ ok: true, uyari: "kuyruga-alindi" });
+    console.error("[talep] CRM'e iletilemedi (lead kayıtlı):", (e as Error).message);
+    await prisma.lead.update({ where: { id: lead.id }, data: { crmDurum: "hata" } }).catch(() => {});
   }
+
+  return NextResponse.json({ ok: true });
 }

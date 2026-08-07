@@ -125,6 +125,32 @@ model Tenant {
   @@index([plan])
 }
 
+// Landing sayfasindan gelen DEMO/BILGI TALEBI.
+//
+// NEDEN VAR: Form /api/talep -> Nexus CRM'e aktariliyordu; CRM adresi tanimli
+// degilse (canlida degil) lead yalnizca konteyner loguna yaziliyor ve log donunce
+// KAYBOLUYORDU. Ziyaretci ise "gonderildi" goruyordu. Artik once buraya yazilir,
+// CRM aktarimi bunun ustune ek bir adimdir; CRM olmasa da hicbir talep kaybolmaz.
+//
+// Tenant'a BAGLI DEGILDIR: bunlar henuz musteri olmayan aday bayilerdir.
+model Lead {
+  id         String   @id @default(cuid())
+  firma      String?
+  yetkili    String?
+  telefon    String?
+  eposta     String?
+  cihazSayisi String?
+  mesaj      String?  @db.Text
+  kaynak     String?  // utm_source
+  kampanya   String?  // utm_campaign
+  crmDurum   String   @default("bekliyor") // bekliyor | aktarildi | hata
+  okundu     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([okundu, createdAt])
+  @@index([createdAt])
+}
+
 // WhatsApp'tan GELEN mesaj.
 //
 // Amaç: gelen numarayı müşteriyle eşleştirip bayiye "kim yazdı, hangi cihazları var,
