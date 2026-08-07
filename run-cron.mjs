@@ -16,6 +16,9 @@ const JOBS = {
   // Ayın başında çalıştırılır: sayacı okunmamış kiralık cihazların müşterilerine
   // WhatsApp'tan "sayaç fotoğrafı" hatırlatması gider. Faturalama döngüsünü besler.
   sayac: { path: '/api/cron/sayac-hatirlatma', label: 'Aylık sayaç hatırlatma' },
+  // WhatsApp mesaj saklama süresi. VARSAYILAN KAPALI: yalnızca WHATSAPP_SAKLAMA_GUN
+  // tanımlıysa siler, aksi halde hiçbir şeye dokunmaz. Kurmak zorunda değilsin.
+  'wa-temizlik': { path: '/api/cron/whatsapp-temizlik', label: 'WhatsApp mesaj temizliği (kapalıysa no-op)' },
 };
 // Takma adlar
 JOBS.invoices = JOBS.faturalar;
