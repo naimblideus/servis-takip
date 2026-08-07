@@ -5247,6 +5247,20 @@ document.documentElement.classList.add('js');
     };
     window.addEventListener('scroll', revealFallback, { passive: true });
     setTimeout(revealFallback, 1500);
+
+    /* SON EMNIYET AGI — kosulsuz.
+       Yukaridaki yedek yalnizca GORUS ALANINA YAKIN bloklari acar; sayfa hic
+       kaydirilmazsa ve IntersectionObserver da calismazsa geri kalan her sey
+       KALICI GIZLI kalir (dogrulama sirasinda 40 blogun 40'i boyle gizli kaldi:
+       window.innerHeight o anda 0 raporlanmisti, dolayisiyla hicbir blok
+       "gorus alaninda" sayilmadi).
+       Bos bir sayfa gostermektense animasyonu kaybetmek yeglenir: 3 saniye
+       sonra hala gizli olan ne varsa kosulsuz acilir. IO calisirsa bu noktada
+       zaten hepsi acilmis olur ve bu satirin hicbir etkisi olmaz. */
+    setTimeout(function () {
+      Array.prototype.forEach.call(reveals, function (el) { el.classList.add('in'); });
+      window.removeEventListener('scroll', revealFallback);
+    }, 3000);
   } else {
     Array.prototype.forEach.call(reveals, function (el) { el.classList.add('in'); });
   }
