@@ -175,6 +175,19 @@ model WhatsAppMessage {
   readingId   String?  // bu mesajdaki fotoğraftan sayaç okuması kaydedildiyse
   isFaultReport Boolean @default(false) // metin arıza bildirimine benziyor mu (anahtar kelime)
   autoReplied Boolean  @default(false) // otomatik cevap gönderildi mi (tekrar göndermeyi önler)
+
+  // ── ÖNERİ (mesajdan fiş) ──────────────────────────────────────────────
+  // Sistem mesajı okuyup "hangi cihaz, hangi arıza" ÖNERİR; fişi ASLA kendisi açmaz.
+  // Bayi tek dokunuşla onaylar veya düzeltir.
+  //
+  // Bu alanlar aynı zamanda ETİKET KAYNAĞIDIR: önerilen değer burada, bayinin
+  // seçtiği değer açılan fişte durur. İkisini karşılaştırmak = ücretsiz, doğrulanmış
+  // eval verisi. Ayrı bir "kabul edildi mi" alanına gerek yok — fiş zaten gerçeği taşıyor.
+  suggestedDeviceId    String?        // yalnızca bu müşterinin cihazlarından biri olabilir
+  suggestedCategory    FaultCategory? // 14 kodlu sabit taksonomi
+  suggestionConfidence Float?         // 0-1; eşiğin altındaysa öneri GÖSTERİLMEZ
+  suggestionSource     String?        // 'rule' | 'llm' — hangi yol ürettiyse
+  suggestionVersion    String?        // sürüm damgası: "hangi mantık bu öneriyi verdi"
   createdAt   DateTime @default(now())
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)

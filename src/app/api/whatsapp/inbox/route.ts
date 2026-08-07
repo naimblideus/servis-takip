@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { findCustomerByPhone } from '@/lib/whatsapp-inbound';
 import { createReading, ReadingError } from '@/lib/readings';
+import { MIN_CONFIDENCE } from '@/lib/whatsapp-suggest';
+import { faultLabel, parseFaultCategory } from '@/lib/fault-categories';
+import { syncTicketToCari } from '@/lib/ticket-cari';
 
 /**
  * GET /api/whatsapp/inbox — gelen WhatsApp mesajları + müşteri bağlamı.
@@ -41,6 +44,16 @@ export async function GET(req: NextRequest) {
         })
       : [];
 
+    // Önerilen cihazların etiketi — tek sorguda çözülür, satır satır sorgu yok
+    const suggestedIds = [...new Set(messages.map(m => m.suggestedDeviceId).filter(Boolean) as string[])];
+    const suggestedDevices = suggestedIds.length
+      ? await prisma.device.findMany({
+          where: { tenantId, id: { in: suggestedIds } },
+          select: { id: true, brand: true, model: true, serialNo: true, location: true },
+        })
+      : [];
+    const devById = new Map(suggestedDevices.map(d => [d.id, d]));
+
     const deviceCount = new Map(devices.map(d => [d.customerId, d._count._all]));
     const openCount = new Map<string, number>();
     for (const t of openTickets) {
@@ -61,6 +74,20 @@ export async function GET(req: NextRequest) {
         isFaultReport: m.isFaultReport,
         autoReplied: m.autoReplied,
         readingId: m.readingId,
+        ticketId: m.ticketId,
+        // Öneri — yalnızca güven eşiği geçtiyse gönderilir.
+        // Eşik altındaki öneriyi göstermek, bayiyi yanlış yönlendirmekten başka işe yaramaz.
+        suggestion:
+          m.suggestionConfidence !== null && m.suggestionConfidence >= MIN_CONFIDENCE
+            ? {
+                deviceId: m.suggestedDeviceId,
+                device: m.suggestedDeviceId ? devById.get(m.suggestedDeviceId) ?? null : null,
+                category: m.suggestedCategory,
+                categoryLabel: m.suggestedCategory ? faultLabel(m.suggestedCategory) : null,
+                confidence: m.suggestionConfidence,
+                source: m.suggestionSource,
+              }
+            : null,
         customer: m.customer
           ? {
               ...m.customer,
@@ -145,6 +172,63 @@ export async function POST(req: NextRequest) {
         }
         throw e;
       }
+    }
+
+    /**
+     * Mesajdan FİŞ AÇ — önerinin onaylandığı (veya düzeltildiği) an.
+     *
+     * Bayi ne seçerse fiş onu taşır; öneri mesajda olduğu gibi kalır.
+     * İkisinin farkı = ücretsiz, doğrulanmış eval verisi. Ayrıca "kabul edildi mi"
+     * diye ikinci bir doğruluk kaynağı TUTULMAZ — çelişme riski doğurur.
+     */
+    if (action === 'createTicket') {
+      const { deviceId, faultCategory, issueText } = body;
+      if (!deviceId) return NextResponse.json({ error: 'Cihaz seçilmedi' }, { status: 400 });
+      if (msg.ticketId) return NextResponse.json({ error: 'Bu mesajdan zaten fiş açılmış' }, { status: 409 });
+
+      // IDOR: cihaz bu bayiye ait olmalı
+      const device = await prisma.device.findFirst({
+        where: { id: deviceId, tenantId },
+        select: { id: true, customerId: true, brand: true, model: true },
+      });
+      if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+
+      const cat = parseFaultCategory(faultCategory);
+      if (!cat) return NextResponse.json({ error: 'Arıza kategorisi seçin' }, { status: 400 });
+
+      // Fiş numarası — mevcut mantıkla aynı biçim (SF-N)
+      const all = await prisma.serviceTicket.findMany({ where: { tenantId }, select: { ticketNumber: true } });
+      let maxNum = 0;
+      for (const t of all) {
+        const mm = t.ticketNumber.match(/^(?:TSK|SF)-(\d+)$/);
+        if (mm) maxNum = Math.max(maxNum, parseInt(mm[1]));
+      }
+      const user = await prisma.user.findFirst({ where: { tenantId }, select: { id: true } });
+
+      const ticket = await prisma.serviceTicket.create({
+        data: {
+          tenantId,
+          deviceId: device.id,
+          customerId: device.customerId,
+          ticketNumber: `SF-${maxNum + 1}`,
+          faultCategory: cat,
+          issueTemplate: faultLabel(cat),
+          // Müşterinin kendi cümlesi kayda geçer — teknisyen bağlamı görsün
+          issueText: (issueText || msg.text || faultLabel(cat)).slice(0, 2000),
+          notes: `WhatsApp: ${msg.fromPhone}`,
+          createdByUserId: user!.id,
+        },
+        select: { id: true, ticketNumber: true },
+      });
+
+      await prisma.whatsAppMessage.update({
+        where: { id: msg.id },
+        data: { ticketId: ticket.id, handled: true },
+      });
+
+      try { await syncTicketToCari(ticket.id, tenantId); } catch { /* tutar 0 ise zaten no-op */ }
+
+      return NextResponse.json({ ok: true, ticketId: ticket.id, ticketNumber: ticket.ticketNumber });
     }
 
     return NextResponse.json({ error: 'Bilinmeyen işlem' }, { status: 400 });

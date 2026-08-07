@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { FAULT_CATEGORIES } from '@/lib/fault-categories';
 
 interface Msg {
   id: string;
@@ -15,12 +16,27 @@ interface Msg {
   isFaultReport: boolean;
   autoReplied: boolean;
   readingId: string | null;
+  ticketId: string | null;
+  // Sistemin önerisi — fiş AÇILMAZ, yalnızca önerilir. Bayi onaylar veya düzeltir.
+  suggestion: {
+    deviceId: string | null;
+    device: { id: string; brand: string; model: string; serialNo: string; location: string | null } | null;
+    category: string | null;
+    categoryLabel: string | null;
+    confidence: number;
+    source: string | null;
+  } | null;
   customer: { id: string; name: string; phone: string; deviceCount: number; openTickets: number } | null;
 }
 
 interface Dev {
   id: string; brand: string; model: string; location: string | null;
   hasColor: boolean; counterBlack: number | null; counterColor: number | null;
+}
+
+/** Öneri düzeltme panelindeki cihaz listesi — /api/customers/[id]/devices çıktısı */
+interface FixDev {
+  id: string; brand: string; model: string; serialNo: string; location: string | null;
 }
 
 export default function WhatsAppInboxPage() {
@@ -40,6 +56,13 @@ export default function WhatsAppInboxPage() {
   const [cc, setCc] = useState('');
   const [reset, setReset] = useState(false);
   const [readErr, setReadErr] = useState<string | null>(null);
+
+  // Öneri düzeltme paneli — bayi sistemin önerisini değiştirdiğinde kullanılır
+  const [fixing, setFixing] = useState<string | null>(null);
+  const [fixDevs, setFixDevs] = useState<FixDev[]>([]);
+  const [fixDev, setFixDev] = useState('');
+  const [fixCat, setFixCat] = useState('');
+  const [fixLoading, setFixLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -77,6 +100,23 @@ export default function WhatsAppInboxPage() {
       setDevices(list);
       if (list.length === 1) setSelDev(list[0].id); // tek cihaz varsa seçtirme
     } catch { setDevices([]); } finally { setDevLoading(false); }
+  };
+
+  /**
+   * Düzeltme panelini aç. Öneri ne diyorsa onunla BAŞLAR — bayi yalnızca yanlış olanı
+   * değiştirir. Boş formdan başlatmak, doğru öneriyi de yeniden yazdırmak demektir.
+   */
+  const openFix = async (m: Msg) => {
+    setFixing(m.id);
+    setFixDev(m.suggestion?.deviceId ?? '');
+    setFixCat(m.suggestion?.category ?? '');
+    if (!m.customer) return;
+    setFixLoading(true);
+    try {
+      const r = await fetch(`/api/customers/${m.customer.id}/devices`);
+      const d = await r.json();
+      setFixDevs(Array.isArray(d) ? d : []);
+    } catch { setFixDevs([]); } finally { setFixLoading(false); }
   };
 
   const saveReading = async (m: Msg) => {
@@ -175,6 +215,106 @@ export default function WhatsAppInboxPage() {
           {m.hasMedia && m.mediaType !== 'image' && (
             <div style={{ marginTop: '0.6rem', fontSize: '0.8rem', color: '#64748b' }}>
               📎 Dosya gönderdi — WhatsApp uygulamanızdan açın
+            </div>
+          )}
+
+          {/* ── ÖNERİ KARTI ──
+              Sistem fişi AÇMAZ; "şu cihaz, şu arıza" diye önerir. Bayi tek dokunuşla
+              onaylar ya da düzeltir. O dokunuş aynı zamanda ETİKET üretir:
+              önerilen değer mesajda, seçilen değer fişte kalır. */}
+          {m.suggestion && !m.ticketId && m.customer && (
+            <div style={{ marginTop: '0.7rem', padding: '0.75rem 0.9rem', background: '#f0fdf4',
+              border: '1px solid #86efac', borderRadius: '0.6rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#15803d' }}>Fiş önerisi</span>
+                <span style={{ fontSize: '0.72rem', color: '#16a34a' }}>
+                  %{Math.round(m.suggestion.confidence * 100)} güven
+                  {m.suggestion.source === 'rule' ? ' · kural' : ''}
+                </span>
+              </div>
+
+              <div style={{ fontSize: '0.85rem', color: '#14532d', marginBottom: '0.6rem' }}>
+                {m.suggestion.device
+                  ? <><b>{m.suggestion.device.brand} {m.suggestion.device.model}</b>
+                      {m.suggestion.device.location ? ` — ${m.suggestion.device.location}` : ''}</>
+                  : <i style={{ color: '#65a30d' }}>Cihaz belirlenemedi, siz seçin</i>}
+                {' · '}
+                {m.suggestion.categoryLabel
+                  ? <b>{m.suggestion.categoryLabel}</b>
+                  : <i style={{ color: '#65a30d' }}>Kategori belirlenemedi</i>}
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => act({
+                    action: 'createTicket', messageId: m.id,
+                    deviceId: m.suggestion!.deviceId, faultCategory: m.suggestion!.category,
+                  })}
+                  disabled={busy === m.id || !m.suggestion.deviceId || !m.suggestion.category}
+                  title={!m.suggestion.deviceId || !m.suggestion.category
+                    ? 'Eksik alan var — "Düzelt" ile tamamlayın' : 'Bu öneriyle fiş aç'}
+                  style={{ padding: '0.45rem 0.9rem', background: '#16a34a', color: 'white', border: 'none',
+                    borderRadius: '0.45rem', fontWeight: 700, fontSize: '0.82rem',
+                    cursor: 'pointer', opacity: (m.suggestion.deviceId && m.suggestion.category) ? 1 : 0.45 }}>
+                  ✓ Fiş aç
+                </button>
+                <button onClick={() => openFix(m)}
+                  style={{ padding: '0.45rem 0.9rem', background: 'white', color: '#15803d',
+                    border: '1px solid #86efac', borderRadius: '0.45rem', fontWeight: 600,
+                    fontSize: '0.82rem', cursor: 'pointer' }}>
+                  Düzelt
+                </button>
+              </div>
+
+              {/* Düzeltme SAYFA İÇİNDE yapılır. Bayiyi başka bir forma gönderirsek mesaj
+                  fişe bağlanmaz; öneri ile seçim arasındaki fark — yani ETİKET — kaybolur. */}
+              {fixing === m.id && (
+                <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.6rem',
+                  paddingTop: '0.6rem', borderTop: '1px dashed #86efac' }}>
+                  <select value={fixDev} onChange={e => setFixDev(e.target.value)} style={inp}>
+                    <option value="">{fixLoading ? 'Cihazlar yükleniyor…' : 'Cihaz seçin'}</option>
+                    {fixDevs.map(d => (
+                      <option key={d.id} value={d.id}>
+                        {d.brand} {d.model}{d.location ? ` — ${d.location}` : ''} · {d.serialNo}
+                      </option>
+                    ))}
+                  </select>
+                  <select value={fixCat} onChange={e => setFixCat(e.target.value)} style={inp}>
+                    <option value="">Arıza kategorisi seçin</option>
+                    {FAULT_CATEGORIES.map(c => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={async () => {
+                        const d = await act({
+                          action: 'createTicket', messageId: m.id,
+                          deviceId: fixDev, faultCategory: fixCat,
+                        });
+                        if (d?.ok) setFixing(null);
+                      }}
+                      disabled={busy === m.id || !fixDev || !fixCat}
+                      style={{ padding: '0.45rem 0.9rem', background: '#16a34a', color: 'white', border: 'none',
+                        borderRadius: '0.45rem', fontWeight: 700, fontSize: '0.82rem',
+                        cursor: 'pointer', opacity: (fixDev && fixCat) ? 1 : 0.45 }}>
+                      ✓ Düzeltilmiş haliyle fiş aç
+                    </button>
+                    <button onClick={() => setFixing(null)}
+                      style={{ padding: '0.45rem 0.9rem', background: 'white', color: '#475569',
+                        border: '1px solid #cbd5e1', borderRadius: '0.45rem', fontWeight: 600,
+                        fontSize: '0.82rem', cursor: 'pointer' }}>
+                      Vazgeç
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {m.ticketId && (
+            <div style={{ marginTop: '0.7rem', fontSize: '0.82rem', color: '#15803d', fontWeight: 600 }}>
+              ✓ Bu mesajdan fiş açıldı — <Link href={`/tickets/${m.ticketId}`} style={{ color: '#15803d' }}>fişi aç</Link>
             </div>
           )}
 

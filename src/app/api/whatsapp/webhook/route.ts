@@ -8,6 +8,7 @@ import {
 } from '@/lib/whatsapp-inbound';
 import { looksLikeFaultReport } from '@/lib/whatsapp-out';
 import { handleAutoReply } from '@/lib/whatsapp-autoreply';
+import { buildAndSaveSuggestion } from '@/lib/whatsapp-suggest';
 
 // Bu uç HERKESE AÇIK olmak zorunda (Meta çağırır). Tek koruma imza doğrulaması.
 export const dynamic = 'force-dynamic';
@@ -80,6 +81,21 @@ export async function POST(req: NextRequest) {
         },
       });
       saved++;
+
+      // Fiş önerisi — "hangi cihaz, hangi arıza". Fiş AÇMAZ, yalnızca önerir.
+      // Kayıttan sonra denenir; öneri üretilemezse mesaj yine de kaydedilmiş olur.
+      if (isFaultReport) {
+        try {
+          await buildAndSaveSuggestion({
+            tenantId: tenant.id,
+            messageId: created.id,
+            customerId: customer?.id ?? null,
+            text: m.text,
+          });
+        } catch (e: any) {
+          console.error('[whatsapp-webhook] öneri üretilemedi:', e?.message);
+        }
+      }
 
       // Otomatik cevap — 24 saatlik pencerede ücretsiz. Kayıt BAŞARILI olduktan
       // sonra denenir; cevap gönderilemezse mesaj yine de kaydedilmiş olur.
