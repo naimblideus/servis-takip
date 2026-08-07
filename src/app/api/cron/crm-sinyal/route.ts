@@ -9,8 +9,13 @@
 // durumunu okur ve CRM'e bildirir. Mükerrerliği CRM eler (anahtar alanı), o yüzden
 // burada "gönderdim mi" durumu tutmaya, tabloya kolon eklemeye gerek yok.
 //
+// İKİ İŞ YAPAR:
+//   1) CRM'e ulaşamamış landing taleplerini tekrar dener (Lead.crmDurum != aktarildi)
+//   2) Her kiracının kullanım durumunu CRM'e sinyal olarak bildirir
+//
 // .env (servis-takip):
-//   NEXUS_CRM_OLAY="https://crm.alanadin.com/api/olay"
+//   NEXUS_CRM_URL="https://crm.alanadin.com/api/lead"    (bekleyen talepler için)
+//   NEXUS_CRM_OLAY="https://crm.alanadin.com/api/olay"   (kullanım sinyalleri için)
 //   NEXUS_CRM_TOKEN="<CRM'deki WEBHOOK_TOKEN>"
 //
 // Çalıştırma: Coolify/Vercel cron → GET /api/cron/crm-sinyal?secret=$CRON_SECRET
@@ -54,7 +59,67 @@ async function crmYolla(telefon: string, s: Sinyal) {
   }
 }
 
+/**
+ * Landing'den gelmiş ama CRM'e ULAŞMAMIŞ talepleri tekrar dener.
+ *
+ * /api/talep lead'i her koşulda Lead tablosuna yazar; CRM kapalıysa ya da
+ * NEXUS_CRM_URL o an tanımsızsa crmDurum "bekliyor"/"hata" olarak kalır.
+ * Bu adım olmasaydı o lead'ler orada sonsuza kadar takılı kalırdı.
+ */
+async function bekleyenTalepleriAktar() {
+  const url = process.env.NEXUS_CRM_URL;
+  if (!url) return { denenen: 0, aktarilan: 0 };
+
+  const bekleyenler = await prisma.lead.findMany({
+    where: { crmDurum: { in: ["bekliyor", "hata"] } },
+    orderBy: { createdAt: "asc" },
+    take: 200,
+  });
+
+  let aktarilan = 0;
+  for (const l of bekleyenler) {
+    if (!l.telefon && !l.firma) continue; // eşleşecek bilgi yok
+    try {
+      const cevap = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-nexus-token": process.env.NEXUS_CRM_TOKEN ?? "",
+        },
+        body: JSON.stringify({
+          ad: l.firma || l.yetkili,
+          telefon: l.telefon,
+          eposta: l.eposta,
+          urun: "nexus-servis",
+          kaynak: "landing",
+          kanal: l.kaynak,
+          mesaj: [
+            l.yetkili ? `Yetkili: ${l.yetkili}` : null,
+            l.cihazSayisi ? `Cihaz: ${l.cihazSayisi}` : null,
+            l.mesaj,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          utm: l.kaynak ? `utm_source=${l.kaynak}` : null,
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!cevap.ok) throw new Error(`CRM ${cevap.status}`);
+      await prisma.lead.update({
+        where: { id: l.id },
+        data: { crmDurum: "aktarildi" },
+      });
+      aktarilan++;
+    } catch {
+      // bir dahaki gün tekrar denenir; lead kaybolmaz
+    }
+  }
+  return { denenen: bekleyenler.length, aktarilan };
+}
+
 async function run() {
+  const talepler = await bekleyenTalepleriAktar();
+
   const tenants = await prisma.tenant.findMany({
     where: { deletedAt: null, isActive: true, phone: { not: null } },
     select: { id: true, name: true, phone: true, createdAt: true },
@@ -135,7 +200,7 @@ async function run() {
     }
   }
 
-  return { tenants: tenants.length, gonderilen };
+  return { tenants: tenants.length, gonderilen, talepler };
 }
 
 export async function GET(req: NextRequest) {
