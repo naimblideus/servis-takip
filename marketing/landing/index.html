@@ -670,10 +670,23 @@
   document.getElementById('utm_source').value=q.get('utm_source')||'direct';
   document.getElementById('utm_campaign').value=q.get('utm_campaign')||'';
 
-  // Lead formu -> WhatsApp (sıfır-backend; popup engellenirse tıklanabilir link gösterilir, lead kaybolmaz)
+  // Lead formu -> CRM (ateşle-unut) + WhatsApp (popup engellenirse tıklanabilir link gösterilir)
   document.getElementById('leadForm').addEventListener('submit',function(e){
     e.preventDefault();
     var f=this;
+    // Kullanıcı WhatsApp mesajını göndermese bile lead CRM'e düşsün.
+    // Hata olursa yutulur; WhatsApp akışı hiçbir koşulda etkilenmez.
+    try{
+      fetch('/api/talep',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        keepalive:true,
+        body:JSON.stringify({
+          firma:f.firma.value||'', ad:f.ad.value||'', telefon:f.telefon.value||'',
+          utm_source:f.utm_source.value||'', utm_campaign:f.utm_campaign.value||''
+        })
+      }).catch(function(){});
+    }catch(_e){}
     var text='Merhaba, Nexus Servis denemek istiyorum.\n'
       +'Firma: '+(f.firma.value||'-')+'\n'
       +'Ad: '+(f.ad.value||'-')+'\n'
