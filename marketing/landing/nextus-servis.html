@@ -91,6 +91,16 @@ h1,h2,h3,h4,h5,h6{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;let
   background-clip:text;
   -webkit-text-fill-color:transparent;
   animation:gradFlow 8s ease infinite;
+  /* İNİŞLİ HARF KIRPILMASI (g, ğ, y, p, ş, ç):
+     background-clip:text gradyanı öğenin ARKA PLAN kutusuna boyar. Satır-içi bir
+     öğede bu kutu yaklaşık font boyu kadardır ve taban çizgisinin altına taşan
+     inişleri kapsamaz — "görünsün" kelimesinin g'si boyasız kalıp kesik görünüyordu.
+     (Başlıklarda line-height 1.05 olduğu için pay hiç yok.)
+     Satır-içi öğede DİKEY DOLGU satır yüksekliğini ve sarmayı etkilemez, yalnızca
+     boyama alanını büyütür — bu yüzden inline-block'a çevirmek gerekmiyor
+     (çevirseydik çok kelimeli ifadeler mobilde satır sonunda bölünemezdi). */
+  padding-bottom:.20em;
+  padding-top:.06em;
 }
 @keyframes gradFlow{
   0%,100%{background-position:0% 50%}
@@ -1297,6 +1307,16 @@ h1.hero-title{
 .btn-lg{padding:18px 32px;font-size:17px;border-radius:14px}
 .cta-actions .arr{display:inline-block;transition:transform .3s ease;margin-left:6px}
 .cta-actions a:hover .arr{transform:translateX(4px)}
+/* ---- Marka animasyonu (480x480 kare) ---- */
+.brand-clip-sec{padding:56px 0 0}
+.brand-clip{display:flex;flex-direction:column;align-items:center;gap:14px}
+.brand-clip-v{width:230px;height:230px;border-radius:26px;display:block;object-fit:cover;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
+.brand-clip-cap{font-size:14px;color:var(--muted);margin:0;text-align:center}
+@media(max-width:520px){.brand-clip-v{width:180px;height:180px;border-radius:20px}}
+/* Hareket azaltma tercihi: animasyon oynatılmaz, kutu yine de yerinde durur */
+@media(prefers-reduced-motion:reduce){.brand-clip-v{display:none}}
+
 /* ---- Kurucu bölümü ---- */
 .founder-sec{padding:60px 0 0}
 .founder-card{max-width:860px;margin:0 auto;padding:34px;border-radius:22px;
@@ -5119,6 +5139,25 @@ input:focus-visible,
   </div>
 </section>
 
+<!-- ========== MARKA ANIMASYONU ==========
+     480x480 kare, 5 sn, ~1 MB. Urun demosu degil marka isareti; bu yuzden hero'da
+     DEGIL burada: yukari konsaydi deger onerisini asagi iter ve donusumu dusururdu.
+     Sayfa kasmasin diye: src bastan verilmez, yalnizca goruse yaklasinca yuklenir.  -->
+<section class="brand-clip-sec">
+  <div class="container">
+    <div class="brand-clip reveal">
+      <!-- autoplay ÖZNİTELİĞİ + play() birlikte: öznitelik standart yol (muted olduğu
+           için tarayıcılar izin verir), play() ise src sonradan atandığında tetikler.
+           Biri engellenirse diğeri devreye girer; ikisi de engellenirse video ilk
+           karede donar — siyah kutu kalmaz. -->
+      <video class="brand-clip-v" data-src="/nextus-servis.mp4"
+             autoplay muted loop playsinline preload="none" disablepictureinpicture
+             aria-label="Nextus Servis marka animasyonu"></video>
+      <p class="brand-clip-cap">Sahada doğdu, sahada çalışıyor.</p>
+    </div>
+  </div>
+</section>
+
 <!-- ========== KAPANIS CTA ========== -->
 <section class="cta-final">
   <div class="container">
@@ -5999,6 +6038,35 @@ document.documentElement.classList.add('js');
     window.addEventListener('scroll', function () { mRect = null; }, { passive: true });
   }
 
+})();
+
+/* ---- Marka animasyonu: geç yükleme ---------------------------------------
+   1 MB'lik dosya sayfa acilisinda cekilmesin; yalnizca goruse yaklasinca.
+   IntersectionObserver kisitlanirsa (gizli sekme, eski tarayici) 4 sn sonra
+   kosulsuz yuklenir — aksi halde kutu kalici bos kalirdi.
+   Hareket azaltma tercihi varsa hic yuklenmez: CSS zaten gizliyor.            */
+(function () {
+  var v = document.querySelector('.brand-clip-v');
+  if (!v || !v.dataset.src) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  var yuklendi = false;
+  var yukle = function () {
+    if (yuklendi) return;
+    yuklendi = true;
+    v.src = v.dataset.src;
+    // autoplay ozniteligi yerine play(): tarayici reddederse sessizce gecilir
+    var p = v.play();
+    if (p && p.catch) p.catch(function () { /* otomatik oynatma engellendi — sorun degil */ });
+  };
+
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      if (es.some(function (e) { return e.isIntersecting; })) { yukle(); io.disconnect(); }
+    }, { rootMargin: '300px' });
+    io.observe(v);
+  }
+  setTimeout(yukle, 4000);
 })();
 
 /* ---- Lead formu ----------------------------------------------------------
