@@ -173,27 +173,44 @@ h1,h2,h3,h4,h5,h6{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;let
   font-family:'Plus Jakarta Sans';font-weight:800;font-size:18px;
   letter-spacing:-0.02em;
 }
+/* Marka işareti: gerçek logoyla aynı dil — KOYU zemin üzerinde GÜMÜŞ N.
+   Önceki hâli (renkli gradyan kare + nokta) jenerikti ve marka videosundaki
+   krom N ile hiç ilgisi yoktu. */
 .logo-mark{
   width:32px;height:32px;border-radius:9px;
-  background:var(--tri-grad);
-  background-size:200% 200%;
-  animation:gradFlow 6s ease infinite;
+  background:linear-gradient(160deg,#161c28,#0a0e16);
+  border:1px solid rgba(255,255,255,.10);
   position:relative;
   display:flex;align-items:center;justify-content:center;
-  box-shadow:0 6px 20px rgba(168,85,247,0.3);
+  box-shadow:0 4px 14px rgba(0,0,0,.45);
 }
-.logo-mark::after{
-  content:'';position:absolute;inset:6px;border-radius:5px;
-  background:#050508;
+/* NEXTUS "N" monogramı — marka videosundaki logonun aynısı
+   (kaynak: C:\\Projeler\\nexus-video/src/components/Monogram.tsx, viewBox 0 0 230 200).
+   İki dikey bar + kalın diyagonal, içinden geçen swoosh kesiği.
+   Kesik, arka plan renginde KALIN bir çizgiyle çiziliyor: küçük boyutta SVG mask'ten
+   hem daha iyi okunuyor hem de id çakışması olmadan aynı işaret 3 yerde kullanılabiliyor. */
+.logo-n{width:70%;height:70%;display:block;overflow:visible}
+/* Gümüş: düz beyaz yerine hafif soğuk bir ton — krom hissi verir, koyu zeminde parlar */
+.logo-n .nx-body{fill:#e6ecf5}
+.logo-n .nx-cut{
+  /* Kesik, işaretin ZEMİN rengiyle çiziliyor: harfin içinden geçen swoosh böyle oluşuyor */
+  stroke:#0d121c;stroke-width:13;fill:none;stroke-linecap:round;
+  stroke-dasharray:100;stroke-dashoffset:100;
+  animation:nxSwoosh 7s cubic-bezier(.22,1,.36,1) infinite;
 }
-.logo-mark::before{
-  content:'';position:absolute;width:10px;height:10px;border-radius:2px;
-  background:var(--tri-grad);
-  background-size:200% 200%;
-  animation:gradFlow 6s ease infinite;
-  z-index:1;
-  box-shadow:0 0 12px rgba(255,255,255,0.4);
+@keyframes nxSwoosh{
+  0%   {stroke-dashoffset:100}
+  18%  {stroke-dashoffset:0}    /* çizilir */
+  82%  {stroke-dashoffset:0}    /* durur — asıl hâli bu */
+  100% {stroke-dashoffset:-100} /* diğer uçtan sıyrılıp çıkar */
 }
+/* Hareket azaltma tercihi: kesik animasyonsuz, doğrudan yerinde dursun */
+@media(prefers-reduced-motion:reduce){
+  .logo-n .nx-cut{animation:none;stroke-dashoffset:0}
+  .logo-mark{animation:none}
+}
+a.logo:hover .logo-mark{transform:translateY(-1px) scale(1.04)}
+.logo-mark{transition:transform .25s cubic-bezier(.22,1,.36,1)}
 .nav-links{display:flex;gap:6px;align-items:center}
 .nav-link{
   padding:8px 14px;border-radius:8px;
@@ -1299,14 +1316,12 @@ h1.hero-title{
 .btn-lg{padding:18px 32px;font-size:17px;border-radius:14px}
 .cta-actions .arr{display:inline-block;transition:transform .3s ease;margin-left:6px}
 .cta-actions a:hover .arr{transform:translateX(4px)}
-/* ---- Marka animasyonu (480x480 kare) ---- */
-.brand-clip-sec{padding:56px 0 0}
-.brand-clip{display:flex;flex-direction:column;align-items:center;gap:14px}
-.brand-clip-v{width:230px;height:230px;border-radius:26px;display:block;object-fit:cover;
-  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
-.brand-clip-cap{font-size:14px;color:var(--muted);margin:0;text-align:center}
-@media(max-width:520px){.brand-clip-v{width:180px;height:180px;border-radius:20px}}
-/* Hareket azaltma tercihi: animasyon oynatılmaz, kutu yine de yerinde durur */
+/* ---- Marka animasyonu — altbilgide, marka imzası olarak ----
+   Videonun kendi zemini koyu; altbilgiyle aynı olduğu için çerçeve/arka plan yok,
+   kutu gibi durmuyor. Küçük tutuluyor: satış içeriğiyle yarışmasın. */
+.brand-clip-v{width:132px;height:132px;display:block;margin:0 0 10px;border-radius:18px;object-fit:cover}
+@media(max-width:760px){.brand-clip-v{width:104px;height:104px;border-radius:14px}}
+/* Hareket azaltma tercihi: hiç gösterilme (JS de yüklemiyor) */
 @media(prefers-reduced-motion:reduce){.brand-clip-v{display:none}}
 
 /* ---- Kurucu bölümü ---- */
@@ -3648,7 +3663,7 @@ const BODY = `
 <nav class="nav" id="nav">
   <div class="nav-inner">
     <a href="#" class="logo">
-      <span class="logo-mark"></span>
+      <span class="logo-mark"><svg class="logo-n" viewBox="0 0 230 200" aria-hidden="true"><g class="nx-body"><rect x="30" y="20" width="38" height="160"/><polygon points="68,20 106,20 150,180 112,180"/><rect x="150" y="20" width="38" height="160"/></g><path class="nx-cut" d="M14 154 C84 120 152 78 224 34" pathLength="100"/></svg></span>
       <span>Nextus Servis</span>
     </a>
     <ul class="nav-links">
@@ -4685,7 +4700,7 @@ const BODY = `
           <div class="integ-orbit integ-orbit-2"></div>
           <div class="integ-center">
             <div class="integ-center-inner">
-              <span class="logo-mark"></span>
+              <span class="logo-mark"><svg class="logo-n" viewBox="0 0 230 200" aria-hidden="true"><g class="nx-body"><rect x="30" y="20" width="38" height="160"/><polygon points="68,20 106,20 150,180 112,180"/><rect x="150" y="20" width="38" height="160"/></g><path class="nx-cut" d="M14 154 C84 120 152 78 224 34" pathLength="100"/></svg></span>
             </div>
           </div>
           <div class="integ-node n1" style="--del:0s">Excel</div>
@@ -5102,25 +5117,6 @@ const BODY = `
   </div>
 </section>
 
-<!-- ========== MARKA ANIMASYONU ==========
-     480x480 kare, 5 sn, ~1 MB. Urun demosu degil marka isareti; bu yuzden hero'da
-     DEGIL burada: yukari konsaydi deger onerisini asagi iter ve donusumu dusururdu.
-     Sayfa kasmasin diye: src bastan verilmez, yalnizca goruse yaklasinca yuklenir.  -->
-<section class="brand-clip-sec">
-  <div class="container">
-    <div class="brand-clip reveal">
-      <!-- autoplay ÖZNİTELİĞİ + play() birlikte: öznitelik standart yol (muted olduğu
-           için tarayıcılar izin verir), play() ise src sonradan atandığında tetikler.
-           Biri engellenirse diğeri devreye girer; ikisi de engellenirse video ilk
-           karede donar — siyah kutu kalmaz. -->
-      <video class="brand-clip-v" data-src="/nextus-servis.mp4"
-             autoplay muted loop playsinline preload="none" disablepictureinpicture
-             aria-label="Nextus Servis marka animasyonu"></video>
-      <p class="brand-clip-cap">Sahada doğdu, sahada çalışıyor.</p>
-    </div>
-  </div>
-</section>
-
 <!-- ========== KAPANIS CTA ========== -->
 <section class="cta-final">
   <div class="container">
@@ -5164,8 +5160,15 @@ const BODY = `
   <div class="container">
     <div class="footer-grid">
       <div class="footer-about">
+        <!-- Marka animasyonu (480x480, 5 sn, ~1 MB). Ayrı bir bölüm olarak konunca
+             yamalı duruyordu; asıl yeri burası — markanın imza attığı yer.
+             Videonun kendi zemini koyu, altbilgiyle aynı; çerçeve gerekmiyor.
+             src baştan verilmez, görüşe yaklaşınca yüklenir (sayfa kasmasın). -->
+        <video class="brand-clip-v" data-src="/nextus-servis.mp4"
+               autoplay muted loop playsinline preload="none" disablepictureinpicture
+               aria-label="Nextus Servis marka animasyonu"></video>
         <a href="#" class="logo">
-          <span class="logo-mark"></span>
+          <span class="logo-mark"><svg class="logo-n" viewBox="0 0 230 200" aria-hidden="true"><g class="nx-body"><rect x="30" y="20" width="38" height="160"/><polygon points="68,20 106,20 150,180 112,180"/><rect x="150" y="20" width="38" height="160"/></g><path class="nx-cut" d="M14 154 C84 120 152 78 224 34" pathLength="100"/></svg></span>
           <span class="logo-text">Nextus Servis</span>
         </a>
         <p>Yazıcı, fotokopi ve ofis cihazı kiralayan ve servis veren bayiler için sayaç, kira faturalaması ve servis takip programı. NEXUS GROUP ürünüdür.</p>
