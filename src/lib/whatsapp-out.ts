@@ -91,12 +91,27 @@ export function looksLikeFaultReport(text?: string | null): boolean {
 }
 
 /**
- * Metinden fiş numarası çıkar. "SF-2026-0143", "sf20260143" ya da sadece "2026-0143"
- * gibi yazımları yakalar; müşteri numarayı nasıl yazarsa yazsın bulunsun.
+ * Metinden fiş numarası çıkar.
+ *
+ * ⚠️ Buradaki kalıp, fiş numarasının GERÇEK biçimine uymak zorunda.
+ * Sistem numarayı `SF-{artan sayı}` olarak üretiyor (api/tickets/route.ts,
+ * generateTicketNumber): SF-1, SF-760, SF-2847 — yani sabit uzunluk YOK.
+ * Önceki kalıp "2026-0143" gibi en az 7 haneli bir yapı arıyordu ve hiçbir
+ * gerçek fiş numarasıyla eşleşmiyordu; durum sorgusu bu yüzden hiç çalışmadı.
+ *
+ * İki kademe:
+ *  1. "SF" ön eki varsa kesin sinyaldir — kaç haneli olursa olsun al.
+ *  2. Ön ek yoksa yalnızca 3+ haneli tek başına duran sayıyı al. Tek/çift haneli
+ *     sayılar günlük cümlelerde çok geçiyor ("2 gündür bozuk") ve yanlış
+ *     eşleşme üretirdi.
+ *
+ * Yanlış pozitif ucuz: bulunan numara O MÜŞTERİNİN fişleri içinde aranıyor,
+ * bulunamazsa hiç cevap gitmiyor.
  */
 export function extractTicketNumber(text?: string | null): string | null {
   if (!text) return null;
-  const m = text.match(/\b(?:SF[-\s]?)?(\d{4}[-\s]?\d{3,6})\b/i);
-  if (!m) return null;
-  return m[1].replace(/[-\s]/g, '');
+  const onEkli = text.match(/\bSF[-\s]?(\d{1,7})\b/i);
+  if (onEkli) return onEkli[1];
+  const cıplak = text.match(/\b(\d{3,7})\b/);
+  return cıplak ? cıplak[1] : null;
 }

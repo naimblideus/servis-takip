@@ -48,10 +48,12 @@ export async function handleAutoReply(opts: {
         tenantId: opts.tenantId,
         deletedAt: null,
         device: { customerId: opts.customerId },
-        // Müşteri "SF-2026-0143" ya da "20260143" yazabilir; ikisini de yakala.
+        // TAM eşleşme. `contains` kullanılırsa "SF-284" yazan müşteriye SF-2847'nin
+        // durumu gider — yanlış fişin bilgisini vermek, hiç cevap vermemekten kötüdür.
+        // Eski TSK- ön ekiyle açılmış fişler de aranır (bir kısmı hâlâ o adda olabilir).
         OR: [
-          { ticketNumber: { contains: num } },
-          { ticketNumber: { contains: num.slice(0, 4) + '-' + num.slice(4) } },
+          { ticketNumber: `SF-${num}` },
+          { ticketNumber: `TSK-${num}` },
         ],
       },
       include: { device: { select: { brand: true, model: true } } },
