@@ -1297,6 +1297,29 @@ h1.hero-title{
 .btn-lg{padding:18px 32px;font-size:17px;border-radius:14px}
 .cta-actions .arr{display:inline-block;transition:transform .3s ease;margin-left:6px}
 .cta-actions a:hover .arr{transform:translateX(4px)}
+/* ---- Kurucu bölümü ---- */
+.founder-sec{padding:60px 0 0}
+.founder-card{max-width:860px;margin:0 auto;padding:34px;border-radius:22px;
+  background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08)}
+.founder-head{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.founder-ava{width:60px;height:60px;flex:0 0 60px;border-radius:16px;display:grid;place-items:center;
+  font-weight:800;font-size:20px;letter-spacing:.5px;color:#0b1020;
+  background:linear-gradient(135deg,#7c5cff,#22d3a7)}
+.founder-name{font-size:21px;font-weight:800;margin:0;line-height:1.25}
+.founder-role{font-size:13px;color:var(--muted);margin-top:3px}
+.founder-lead{font-size:16.5px;line-height:1.75;color:rgba(255,255,255,.86);margin:0 0 24px}
+.founder-lead strong{color:#fff}
+.founder-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.founder-item{padding:15px 16px;border-radius:14px;font-size:13.5px;line-height:1.6;color:var(--muted);
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+.founder-item-t{display:block;color:#fff;font-weight:700;font-size:14px;margin-bottom:5px}
+.founder-cta{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.founder-tel{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media(max-width:760px){
+  .founder-card{padding:24px}
+  .founder-grid{grid-template-columns:1fr}
+  .founder-lead{font-size:15.5px}
+}
 /* İkinci iletişim yolu: WhatsApp istemeyen ziyaretçi için form */
 .cta-form-wrap{margin-top:26px;padding-top:22px;border-top:1px solid rgba(255,255,255,.08)}
 .cta-form-or{font-size:13px;color:var(--muted);margin-bottom:12px}
@@ -5047,6 +5070,50 @@ input:focus-visible,
         <div class="faq-a" id="faq-a-10" role="region" aria-labelledby="faq-q-10" aria-hidden="true">
           <p><strong>Hayır.</strong> Toner tükenme tahmini gibi hesaplar yapay zekâ değil, <strong>sayaç hızına dayalı düz aritmetik</strong>. Programın işi tahmin etmek değil, kaydı doğru tutup faturayı doğru kesmek.</p>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== KURUCU ==========
+     Yuzu olmayan yazilim firmalarina karsi tek gercek fark: yazani taniyor olmak.
+     Ovgu degil, DOGRULANABILIR taahhutler: kimin yazdigi, nerede yazildigi,
+     kime ulasilacagi. Uydurma rakam ya da unvan yok.                            -->
+<section class="founder-sec">
+  <div class="container">
+    <div class="founder-card reveal">
+      <div class="founder-head">
+        <div class="founder-ava" aria-hidden="true">MN</div>
+        <div>
+          <h3 class="founder-name">Mehmet Naim Çetin</h3>
+          <div class="founder-role">Kurucu · Yazılımı yazan kişi</div>
+        </div>
+      </div>
+
+      <p class="founder-lead">
+        Bir fotokopi bayisinde, okunmamış sayaçlar yüzünden <strong>faturalanmamış işler</strong> olduğunu
+        gördüm. Sorunu masa başında değil, bayinin yanında oturarak çözdüm — Nextus Servis oradan çıktı.
+      </p>
+
+      <div class="founder-grid">
+        <div class="founder-item">
+          <span class="founder-item-t">Doğrudan bana ulaşırsınız</span>
+          Çağrı merkezi yok. Yazan kişi ile konuşursunuz.
+        </div>
+        <div class="founder-item">
+          <span class="founder-item-t">Kurulumu ben yaparım</span>
+          Excel'inizi ben aktarırım, ekibinize ben anlatırım.
+        </div>
+        <div class="founder-item">
+          <span class="founder-item-t">İstediğiniz an çıkarsınız</span>
+          Veriniz sizin. Tek tuşla indirir, gidersiniz.
+        </div>
+      </div>
+
+      <div class="founder-cta">
+        <a href="https://wa.me/905526961703?text=Merhaba%20Mehmet%20Naim%2C%20Nextus%20Servis%20hakkinda%20konusmak%20istiyorum"
+           target="_blank" rel="noopener" class="btn btn-grad">Doğrudan bana yazın →</a>
+        <span class="founder-tel">0552 696 17 03</span>
       </div>
     </div>
   </div>
