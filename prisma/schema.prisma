@@ -160,6 +160,39 @@ model Lead {
   @@index([createdAt])
 }
 
+// CİHAZIN KENDİ GÖNDERDİĞİ SAYAÇ E-POSTASI.
+//
+// Çoğu çok fonksiyonlu cihaz ayın belirli bir günü sayaç raporunu e-postayla
+// gönderecek şekilde ayarlanabiliyor. Bu tablo gelen her e-postayı OLDUĞU GİBİ
+// saklar; okuma otomatik işlense de işlenmese de kayıt kalır.
+//
+// NEDEN HAM METİN SAKLANIYOR: seri eşleşmezse ya da sayaç okunamazsa e-posta
+// SESSİZCE KAYBOLMAMALI. Bayi inceleme kuyruğunda görüp elle işleyebilmeli;
+// ayrıca yeni bir cihaz biçimi çıktığında geçmiş e-postalardan okuyucu düzeltilebilir.
+model CounterEmail {
+  id          String   @id @default(cuid())
+  tenantId    String?  // seri eşleşene kadar bilinmez
+  fromAddress String?
+  subject     String?
+  rawText     String   @db.Text
+  serial      String?  // metinde bulunan BİLİNEN seri
+  deviceId    String?
+  parsedBlack Int?
+  parsedColor Int?
+  // BEKLIYOR = seri/sayaç okunamadı, elle incelenecek
+  // ISLENDI   = okuma kaydedildi
+  // ATLANDI   = aynı e-posta daha önce işlendi
+  // HATA      = okuma kaydedilirken hata (ör. sayaç düşüşü)
+  status      String   @default("BEKLIYOR")
+  readingId   String?
+  hata        String?
+  receivedAt  DateTime @default(now())
+
+  @@index([status, receivedAt])
+  @@index([tenantId, status])
+  @@index([deviceId])
+}
+
 // WhatsApp'tan GELEN mesaj.
 //
 // Amaç: gelen numarayı müşteriyle eşleştirip bayiye "kim yazdı, hangi cihazları var,
