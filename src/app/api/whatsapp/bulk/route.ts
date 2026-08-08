@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { resolveRecipients, fmtTLm } from '@/lib/reminders';
-import { sendBulkWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
+import { sendOneWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
+import { prisma } from '@/lib/prisma';
 
 // POST /api/whatsapp/bulk — Seçili müşterilere TEK TIKLA toplu WhatsApp (Meta onaylı şablonla).
 // Güvenlik: müşteriler TENANT-scoped; şablon değişkenleri SUNUCUDA üretilir ({{1}}=ad, {{2}}=borç).
@@ -30,11 +31,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Seçili müşterilerde geçerli telefon yok', skipped }, { status: 400 });
     }
 
-    const result = await sendBulkWhatsApp(items);
-    return NextResponse.json({
-      ok: result.ok, sent: result.sent, failed: result.failed,
-      skipped: skipped + result.skippedInvalid, errors: result.errors,
-    });
+    // Tek tek gönderiliyor ki HER ALICI için ayrı kayıt tutulabilsin.
+    // Eskiden toplu gönderiliyordu ve hiçbir kayıt yazılmıyordu: "kime ne gönderdim,
+    // gitti mi" sorusunun cevabı yoktu. Hacim düşük (en fazla 500), maliyeti önemsiz.
+    let sent = 0, failed = 0;
+    const errors: string[] = [];
+    for (const it of items) {
+      const r = await sendOneWhatsApp(it.phone, it.params, process.env.WHATSAPP_TEMPLATE);
+      if (r.ok) sent++;
+      else { failed++; if (r.error && errors.length < 5) errors.push(r.error); }
+      await prisma.notificationLog.create({
+        data: {
+          tenantId,
+          recipient: it.phone,
+          channel: 'WHATSAPP',
+          status: r.ok ? 'SENT' : 'FAILED',
+          error: r.ok ? null : (r.error ?? 'bilinmeyen hata'),
+          message: `Borç hatırlatma — ${it.params[0]} · ${it.params[1]}`,
+        },
+      }).catch(() => {}); // kayıt yazılamazsa gönderim yine de sürsün
+    }
+
+    return NextResponse.json({ ok: sent > 0, sent, failed, skipped, errors });
   } catch (e) {
     return authErrorResponse(e);
   }

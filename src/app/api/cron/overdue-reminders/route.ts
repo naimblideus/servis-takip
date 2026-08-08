@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { markOverdueInvoices } from '@/lib/invoicing';
+import { sendOneWhatsApp, waConfigured } from '@/lib/whatsapp';
 
 export const maxDuration = 120;
 
@@ -22,7 +23,7 @@ async function run() {
     select: { id: true },
   });
 
-  let queued = 0;
+  let queued = 0, sent = 0, failed = 0;
   const since = new Date(Date.now() - 20 * 3600 * 1000); // aynı gün mükerrer önle
 
   for (const t of tenants) {
@@ -43,7 +44,7 @@ async function run() {
       });
       if (recent) continue;
       const open = (Number(inv.totalAmount) - Number(inv.paidAmount)).toFixed(2);
-      await prisma.notificationLog.create({
+      const log = await prisma.notificationLog.create({
         data: {
           tenantId: t.id,
           recipient: inv.customer.phone,
@@ -53,10 +54,26 @@ async function run() {
         },
       });
       queued++;
+
+      // GERÇEKTEN GÖNDER. Bu iş eskiden yalnızca PENDING kaydı yazıyordu ve kuyruğu
+      // okuyan hiçbir kod yoktu — yani hiçbir hatırlatma müşteriye ulaşmıyordu.
+      // WhatsApp ayarlı değilse kayıt PENDING kalır; sonradan gönderilebilir ve
+      // "gitti" gibi görünmez.
+      if (!waConfigured()) continue;
+      const r = await sendOneWhatsApp(
+        inv.customer.phone,
+        [inv.customer.name, open, inv.customer.phone],
+        process.env.WHATSAPP_TEMPLATE, // borç hatırlatma şablonu
+      );
+      await prisma.notificationLog.update({
+        where: { id: log.id },
+        data: { status: r.ok ? 'SENT' : 'FAILED', error: r.ok ? null : (r.error ?? 'bilinmeyen hata') },
+      }).catch(() => {});
+      if (r.ok) sent++; else failed++;
     }
   }
 
-  return { overdueCount, queued };
+  return { overdueCount, queued, sent, failed };
 }
 
 export async function GET(req: NextRequest) {

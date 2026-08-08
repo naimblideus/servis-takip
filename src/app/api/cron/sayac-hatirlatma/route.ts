@@ -71,7 +71,8 @@ async function run() {
       }));
     if (items.length === 0) continue;
 
-    const r = await sendBulkWhatsApp(items);
+    // Şablon adı AÇIKÇA veriliyor. Verilmezse borç hatırlatma şablonu giderdi.
+    const r = await sendBulkWhatsApp(items, process.env.WHATSAPP_TEMPLATE_SAYAC);
     results.push({ tenant: t.name, sent: r.sent, failed: r.failed, customers: items.length });
   }
 
