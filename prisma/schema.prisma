@@ -121,6 +121,15 @@ model Tenant {
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
   whatsappPhoneId     String? @unique
 
+  // ÜRETİCİ VERİ PAYLAŞIMI — bayinin AÇIK RIZASI. Varsayılan KAPALI.
+  // Bu bayrak açık DEĞİLSE bayinin hiçbir verisi /api/oem/reliability kapsamına
+  // girmez. Toplulaştırılmış ve anonim olsa bile, bayinin verisini onun kendi
+  // tedarikçisine açmak sözleşmesel izin gerektirir; izin varsayılan olamaz.
+  // Geriye dönük rıza toplamak pratikte imkânsız olduğu için bu alan ilk bayiden
+  // itibaren doldurulmalıdır.
+  oemDataSharing      Boolean @default(false)
+  oemDataSharingAt    DateTime?
+
   @@index([isActive])
   @@index([plan])
 }

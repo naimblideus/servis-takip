@@ -31,9 +31,25 @@ export async function GET(req: NextRequest) {
     const months = Math.min(36, Math.max(6, Number(sp.get('months')) || 12));
     const brandFilter = (sp.get('brand') || '').trim();
 
-    // Kapsamdaki bayiler
-    const tenants = await prisma.tenant.findMany({ select: { id: true } });
+    // Kapsamdaki bayiler — YALNIZCA açık rıza verenler.
+    // Önceden TÜM kiracılar kapsama giriyordu: silinmiş, pasif ve rızası olmayanlar
+    // dahil. Toplulaştırılmış olsa bile bayinin verisini tedarikçisine açmak
+    // sözleşmesel izin ister; izin varsayılan olamaz.
+    const tenants = await prisma.tenant.findMany({
+      where: { deletedAt: null, isActive: true, oemDataSharing: true },
+      select: { id: true },
+    });
     const tenantIds = tenants.map((t) => t.id);
+
+    // Rıza veren bayi yoksa hiç sorgu çalıştırma — boş ve dürüst bir cevap dön.
+    if (tenantIds.length === 0) {
+      return NextResponse.json({
+        uretilme: 'toplulastirilmis',
+        kapsam: { bayiSayisi: 0, gosterilebilenModel: 0, kAnonimlikEsigi: MIN_TENANTS_FOR_OEM },
+        satirlar: [],
+        not: 'Üretici veri paylaşımına açık rıza vermiş bayi yok. Rıza olmadan hiçbir veri kapsama alınmaz.',
+      });
+    }
 
     // Model bazlı toplu istatistik (kimlik yok)
     const { models } = await modelStats(tenantIds, { months });
@@ -56,15 +72,14 @@ export async function GET(req: NextRequest) {
         const nBayi = bayiSayisi.get(k)?.size ?? 0;
         const kAnonimOk = nBayi >= MIN_TENANTS_FOR_OEM;
 
-        // Bastırma: yeterli bayi yoksa sayılar GİZLENİR (kimliği çözülebilir olurdu)
-        if (!kAnonimOk) {
-          return {
-            brand: m.brand, model: m.model,
-            bayiSayisi: nBayi,
-            gizlendi: true,
-            sebep: `Yalnızca ${nBayi} bayide görülüyor — en az ${MIN_TENANTS_FOR_OEM} bayi gerekir (anonimlik)`,
-          };
-        }
+        // BASTIRMA — hiçbir tanımlayıcı bilgi DÖNMEZ.
+        //
+        // Önceden bastırılan satır bile brand + model + TAM bayi sayısını döndürüyordu.
+        // Bu, bastırmanın kendisini işlevsiz kılıyordu: kendi bayi ağını tanıyan bir
+        // distribütör için "şu model, bayiSayisi: 1" doğrudan teyittir —
+        // "bu modeli o bölgede sadece Bayi X taşıyor" bilgisiyle birleşince
+        // kimlik çözülür. Artık yalnızca kaç satırın bastırıldığı toplamda bildirilir.
+        if (!kAnonimOk) return { gizlendi: true as const };
         return {
           brand: m.brand,
           model: m.model,
@@ -77,7 +92,10 @@ export async function GET(req: NextRequest) {
           toplamAriza: m.totalFailures,
           planliZiyaret: m.totalPlanned,
           enSikArizalar: m.topFaults.map((f) => ({ kod: f.code, etiket: faultLabel(f.code), adet: f.count })),
-          ortalamaParcaMaliyeti: m.avgPartsCost,
+          // ortalamaParcaMaliyeti BİLEREK ÇIKARILDI: bu, bayinin PARÇA ALIŞ FİYATIDIR.
+          // Bayinin tedarikçisine kendi maliyet yapısını göstermek, bu ucun başındaki
+          // "hiçbir bayi bilgisi dışarı çıkmaz" taahhüdünü doğrudan çiğniyordu ve
+          // bayinin pazarlık gücünü zayıflatırdı. Arıza sıklığı yeterli sinyaldir.
           guvenilir: m.reliable,
           not: m.note,
         };
@@ -92,6 +110,7 @@ export async function GET(req: NextRequest) {
         toplamCihaz: devs.length,
         modelSayisi: models.length,
         gosterilebilenModel: gosterilen.length,
+        bastirilanModel: satirlar.length - gosterilen.length, // yalnızca SAYI — hangi modeller olduğu değil
         kAnonimlikEsigi: MIN_TENANTS_FOR_OEM,
         modelIcinMinCihaz: MIN_DEVICES_FOR_MODEL,
       },
@@ -101,8 +120,13 @@ export async function GET(req: NextRequest) {
         `Bir satır en az ${MIN_TENANTS_FOR_OEM} farklı bayiden veri içermiyorsa bastırılır.`,
         'Yaşı bilinmeyen cihazlar yaş hesaplarına dahil edilmez.',
         'Periyodik bakım ve kurulum ziyaretleri arıza sayılmaz.',
+        'Yalnızca veri paylaşımına açık rıza vermiş bayiler kapsamdadır.',
+        'Bastırılan satırların marka/modeli de bildirilmez — yalnızca kaç satır bastırıldığı.',
       ],
-      satirlar,
+      // YALNIZCA gösterilebilen satırlar. Bastırılanlar hiç gönderilmez: boş kabuk
+      // olarak bile göndermek, kaç ve hangi sırada olduklarından çıkarım yapılmasına
+      // kapı aralardı.
+      satirlar: gosterilen,
     });
   } catch (e: any) {
     console.error('OEM RELIABILITY ERROR:', e.message);
