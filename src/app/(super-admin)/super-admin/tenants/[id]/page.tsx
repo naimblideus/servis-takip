@@ -222,6 +222,35 @@ export default function TenantDetailPage() {
                                 Bir numara kimliği yalnızca <b>tek</b> bayiye bağlanabilir.
                             </p>
                         </div>
+                        {/* Üretici veri paylaşımı — sözleşme imzalanınca AÇILIR.
+                            Varsayılan kapalı: deneme hesapları ve ayrılan bayiler
+                            kazara kapsama girmesin. */}
+                        <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
+                            <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                                <div className="text-xs text-gray-400">Üretici Veri Paylaşımı (sözleşmeli)</div>
+                                {form.oemDataSharing
+                                    ? <span className="text-[11px] font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded-full px-2 py-0.5">
+                                        rıza var{form.oemDataSharingAt ? ` · ${new Date(form.oemDataSharingAt).toLocaleDateString('tr-TR')}` : ''}
+                                      </span>
+                                    : <span className="text-[11px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">rıza yok</span>}
+                            </div>
+                            <label className={`flex items-center gap-2 ${editMode ? 'cursor-pointer' : 'opacity-70'}`}>
+                                <input type="checkbox" disabled={!editMode}
+                                    checked={!!form.oemDataSharing}
+                                    onChange={e => setForm((p: any) => ({
+                                        ...p,
+                                        oemDataSharing: e.target.checked,
+                                        // Rıza tarihi ilk açılışta damgalanır; kapatılırsa temizlenir.
+                                        oemDataSharingAt: e.target.checked ? (p.oemDataSharingAt || new Date().toISOString()) : null,
+                                    }))} />
+                                <span className="text-sm">Bu bayi, anonim saha verisinin üretici raporlarında kullanılmasına sözleşmeyle izin verdi</span>
+                            </label>
+                            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                                Kapalıyken bu bayinin <b>hiçbir verisi</b> üretici raporu kapsamına girmez.
+                                Yalnızca ıslak imzalı sözleşmede veri paylaşım maddesi varsa işaretle —
+                                deneme hesaplarında <b>açma</b>.
+                            </p>
+                        </div>
                         <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
                             <div className="text-xs text-gray-500 mb-1">Admin Notu</div>
                             <textarea value={form.adminNotes || ''} onChange={e => setForm((p: any) => ({ ...p, adminNotes: e.target.value }))}
