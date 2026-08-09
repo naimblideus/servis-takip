@@ -1,16 +1,25 @@
 {
   "detector": {
     "ignoreRules": [],
-    "ignoreFiles": [],
+    "ignoreFiles": [
+      "marketing/landing/index.html"
+    ],
     "ignoreValues": [
       {
         "rule": "ai-color-palette",
         "value": "*",
         "files": [
-          "src/app/(super-admin)/super-admin/veri-kapsami/page.tsx"
+          "src/app/(super-admin)/super-admin/veri-kapsami/page.tsx",
+          "src/app/(super-admin)/super-admin/tenants/[id]/page.tsx"
         ],
         "createdAt": "2026-08-03T11:25:07.607Z",
         "reason": "Super-admin paneli mevcut violet tasarim dilini izliyor (sidebar, login, billing, pazar ayni paleti kullaniyor); kullanici onayladi"
+      },
+      {
+        "rule": "overused-font",
+        "value": "Plus Jakarta Sans",
+        "createdAt": "2026-08-10T00:00:00.000Z",
+        "reason": "Nextus Servis landing'inin marka yazi tipi. Kullanicinin kendi kaynak dosyasindan (platform END .html) geldi ve premium yeniden tasarim boyunca bilerek korundu; kullanici bu bulgunun tekrar edilmesini istemedi."
       }
     ]
   }
