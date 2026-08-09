@@ -9,17 +9,40 @@
         "rule": "ai-color-palette",
         "value": "*",
         "files": [
-          "src/app/(super-admin)/super-admin/veri-kapsami/page.tsx",
-          "src/app/(super-admin)/super-admin/tenants/[id]/page.tsx"
+          "src/app/(super-admin)/super-admin/veri-kapsami/page.tsx"
         ],
         "createdAt": "2026-08-03T11:25:07.607Z",
         "reason": "Super-admin paneli mevcut violet tasarim dilini izliyor (sidebar, login, billing, pazar ayni paleti kullaniyor); kullanici onayladi"
       },
       {
         "rule": "overused-font",
-        "value": "Plus Jakarta Sans",
+        "value": "plus jakarta sans",
         "createdAt": "2026-08-10T00:00:00.000Z",
-        "reason": "Nextus Servis landing'inin marka yazi tipi. Kullanicinin kendi kaynak dosyasindan (platform END .html) geldi ve premium yeniden tasarim boyunca bilerek korundu; kullanici bu bulgunun tekrar edilmesini istemedi."
+        "reason": "Landing'in marka yazi tipi; kullanicinin kendi kaynak dosyasindan geldi, premium yeniden tasarimda bilerek korundu"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-08-09T22:41:30.158Z",
+        "reason": "Uygulama genelinde kullanilan govde yazi tipi; kullanici onayladi"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/app/(super-admin)/super-admin/tenants/[id]/page.tsx"
+        ],
+        "createdAt": "2026-08-09T22:42:28.340Z",
+        "reason": "Yanlis alarm: dedektor ternary icindeki iki dalin siniflarini esliyor. text-gray-400 gercekte bg-gray-500/20 ile esli (aktif dalin bg-green-500/20 ile degil); sekmede ise pasif dalin arka plani hic yok."
+      },
+      {
+        "rule": "ai-color-palette",
+        "value": "*",
+        "files": [
+          "src/app/(super-admin)/super-admin/tenants/[id]/page.tsx"
+        ],
+        "createdAt": "2026-08-09T22:43:33.131Z",
+        "reason": "Super-admin panelinin tamami ayni violet tasarim dilini kullaniyor (sidebar, login, billing, pazar); kardes sayfa icin zaten onaylandi"
       }
     ]
   }
