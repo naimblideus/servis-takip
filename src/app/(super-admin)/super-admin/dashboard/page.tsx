@@ -28,15 +28,25 @@ interface DashboardData {
     recentTenants: any[];
 }
 
+interface Nobetci {
+    seviye: 'iyi' | 'uyari' | 'kritik';
+    ozet: string;
+    kontroller: { ad: string; seviye: string; mesaj: string; nedeni?: string }[];
+}
+
 export default function SuperAdminDashboard() {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [nobetci, setNobetci] = useState<Nobetci | null>(null);
 
     useEffect(() => {
         fetch('/api/super-admin/dashboard')
             .then(r => r.json())
             .then(d => { setData(d); setLoading(false); })
             .catch(() => setLoading(false));
+        // Sistem durumu ayrı çekilir: kontroller birkaç saniye sürebilir,
+        // panelin geri kalanını bekletmesin.
+        fetch('/api/super-admin/nobetci').then(r => r.json()).then(setNobetci).catch(() => {});
     }, []);
 
     if (loading) return (
@@ -89,6 +99,43 @@ export default function SuperAdminDashboard() {
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-6">
+                {/* ── SİSTEM DURUMU ──────────────────────────────────────────────
+                    Çöken sistem kolay fark edilir; asıl tehlike SESSİZ arızadır:
+                    cron durur, webhook susar, kuyruk birikir — hata vermez,
+                    sadece olmaz. Her şey yolundayken tek satır kalır, karışıklık
+                    yaratmaz; sorun varsa ilk göze çarpan şey olur. */}
+                {nobetci && (
+                    <div className={`rounded-xl border p-4 mb-6 ${nobetci.seviye === 'kritik'
+                        ? 'bg-red-500/10 border-red-500/30'
+                        : nobetci.seviye === 'uyari' ? 'bg-amber-500/10 border-amber-500/30'
+                            : 'bg-green-500/[0.07] border-green-500/20'}`}>
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-2">
+                                {nobetci.seviye === 'iyi'
+                                    ? <CheckCircle className="w-4 h-4 text-green-400" />
+                                    : <AlertTriangle className={`w-4 h-4 ${nobetci.seviye === 'kritik' ? 'text-red-400' : 'text-amber-400'}`} />}
+                                <span className="text-sm font-semibold">Sistem durumu — {nobetci.ozet}</span>
+                            </div>
+                            <span className="text-[11px] text-gray-400">
+                                {nobetci.kontroller.length} kontrol · günde bir otomatik taranır
+                            </span>
+                        </div>
+                        {nobetci.seviye !== 'iyi' && (
+                            <ul className="mt-3 space-y-2">
+                                {nobetci.kontroller.filter(k => k.seviye !== 'iyi').map(k => (
+                                    <li key={k.ad} className="text-xs">
+                                        <span className={k.seviye === 'kritik' ? 'text-red-300' : 'text-amber-300'}>
+                                            {k.ad}:
+                                        </span>{' '}
+                                        <span className="text-gray-300">{k.mesaj}</span>
+                                        {k.nedeni && <div className="text-gray-500 mt-0.5 ml-1">→ {k.nedeni}</div>}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
+
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     {stats.map(s => (

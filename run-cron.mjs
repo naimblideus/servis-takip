@@ -19,6 +19,9 @@ const JOBS = {
   // WhatsApp mesaj saklama süresi. VARSAYILAN KAPALI: yalnızca WHATSAPP_SAKLAMA_GUN
   // tanımlıysa siler, aksi halde hiçbir şeye dokunmaz. Kurmak zorunda değilsin.
   'wa-temizlik': { path: '/api/cron/whatsapp-temizlik', label: 'WhatsApp mesaj temizliği (kapalıysa no-op)' },
+  // Sessiz arıza taraması: cron durmuş mu, webhook susmuş mu, kuyruk birikmiş mi.
+  // KRİTİK bulguda uç 500 döner -> bu betik exit 1 -> Coolify görevi kırmızı olur.
+  nobetci: { path: '/api/cron/nobetci', label: 'Nöbetçi (sessiz arıza taraması)' },
 };
 // Takma adlar
 JOBS.invoices = JOBS.faturalar;
@@ -30,7 +33,7 @@ const job = JOBS[name];
 const stamp = () => new Date().toISOString();
 
 if (!job) {
-  console.error(`[cron ${stamp()}] Geçersiz görev: "${name}". Kullanılabilir: faturalar | hatirlatma | sayac`);
+  console.error(`[cron ${stamp()}] Geçersiz görev: "${name}". Kullanılabilir: ${Object.keys(JOBS).join(' | ')}`);
   process.exit(1);
 }
 
@@ -57,7 +60,14 @@ try {
   const text = await res.text();
 
   if (!res.ok) {
-    console.error(`[cron ${stamp()}] BAŞARISIZ · HTTP ${res.status} · ${text.slice(0, 400)}`);
+    // Nöbetçi kritik bulguda bilerek 500 döner — sebebi okunur yaz, ham JSON değil.
+    let detay = text.slice(0, 400);
+    try {
+      const d = JSON.parse(text);
+      if (d.ozet) detay = `${d.ozet} · ` + (d.kontroller || [])
+        .filter((k) => k.seviye !== 'iyi').map((k) => `${k.ad}: ${k.mesaj}`).join(' | ');
+    } catch { /* JSON değilse ham metni bırak */ }
+    console.error(`[cron ${stamp()}] BAŞARISIZ · HTTP ${res.status} · ${detay}`);
     process.exit(1);
   }
 
@@ -71,6 +81,10 @@ try {
       summary = d.skipped
         ? `atlandı · ${d.skipped}`
         : `dönem=${d.period} · ${(d.results || []).reduce((a, r) => a + r.sent, 0)} hatırlatma gönderildi`;
+    } else if (name === 'nobetci') {
+      summary = `${d.ozet} · alarm=${d.alarm}`;
+    } else if (name === 'wa-temizlik') {
+      summary = text.slice(0, 200);
     } else {
       summary = `${d.overdueCount} fatura OVERDUE işaretlendi · ${d.queued} hatırlatma kuyruğa alındı`;
     }
