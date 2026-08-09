@@ -3792,10 +3792,14 @@ h2,.section-title,.cta-title{letter-spacing:-0.022em;font-weight:700}
       <li><a href="#sss" class="nav-link">SSS</a></li>
     </ul>
     <div class="nav-cta">
-      <!-- Demoyu Dene: ÖRNEK VERİLİ ayrı hesaba gider (scripts/seed-demo.mjs).
-           Gerçek bayi hesabına ASLA bağlanmamalı — orada o bayinin müşteri
-           adları, cihaz sayıları ve fiyatları var. -->
-      <a href="/login?demo=1" class="btn btn-ghost btn-sm nav-demo">Demoyu Dene</a>
+      <!-- Genel "Demoyu Dene" butonu BİLEREK YOK.
+           Bu ürünün gücü bayinin KENDİ verisinde (kaç sayaç okunmamış, ne kadar
+           faturalanmamış). Uydurma veriyle tek başına gezen biri bunu göremez,
+           sayaç-kira mantığını yanlış anlayıp kapatır ve bir daha dönmez.
+           Demo hesabı DURUYOR (/login?demo=1 bilgileri doldurur) ama sahada,
+           kurucunun yönettiği bir gösterim için. Buradaki yol WhatsApp: bir
+           konuşma başlar, gösterimi kurucu yönetir, talep de kaybolmaz. -->
+      <a href="#hesap" class="btn btn-ghost btn-sm">Hesapla</a>
       <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20demosu%20ve%20fiyat%20bilgisi%20istiyorum" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><span class="nav-cta-long">WhatsApp'tan&nbsp;</span>Demo →</a>
       <button class="menu-btn" id="menuBtn" aria-label="Menü" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
     </div>
