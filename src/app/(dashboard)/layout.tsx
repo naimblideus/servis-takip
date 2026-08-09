@@ -24,7 +24,7 @@ export default async function DashboardLayout({
     tenantId
       ? prisma.tenant.findUnique({
           where: { id: tenantId },
-          select: { plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true },
+          select: { plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true },
         })
       : Promise.resolve(null),
     prisma.platformSettings.findFirst({ select: { maintenanceMode: true, contactEmail: true } }).catch(() => null),
@@ -52,9 +52,32 @@ export default async function DashboardLayout({
 
   const modules = tenant ? Array.from(effectiveModules(tenant)) : [];
 
+  // ── MENÜDE NE GÖRÜNSÜN ───────────────────────────────────────────────
+  // Kural: KULLANILMAYAN ŞEY HİÇ GÖSTERİLMEZ. Kurulmamış bir kanalı
+  // "Gelişmiş" altında saklamak boş odayı kapatmak gibi — hâlâ orada.
+  //
+  // Bu bilgiler SUNUCUDA belirleniyor, istemci yoklamasıyla değil: yoklamayla
+  // yapılsaydı menü öğesi sayfa açıldıktan sonra belirip kaybolurdu.
+  //
+  // Varlık kontrolü (findFirst + select:{id}) sayım yapmaktan ucuz ve
+  // KARARLI: "hiç kullanılmış mı" cevabı bekleyen iş bitince değişmez, yani
+  // menü öğesi grup değiştirip zıplamaz. Bekleyen SAYISI rozetten gelir.
+  const [sayacEpostaVar, portalVar] = tenantId
+    ? await Promise.all([
+        prisma.counterEmail.findFirst({ where: { tenantId }, select: { id: true } }),
+        prisma.customer.findFirst({ where: { tenantId, portalEnabled: true }, select: { id: true } }),
+      ])
+    : [null, null];
+
+  const menuDurum = {
+    whatsappKurulu: Boolean(tenant?.whatsappPhoneId),
+    sayacEpostaKullaniliyor: Boolean(sayacEpostaVar),
+    portalKullaniliyor: Boolean(portalVar),
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar modules={modules} />
+      <Sidebar modules={modules} durum={menuDurum} />
       <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
         <ModuleGuard modules={modules}>{children}</ModuleGuard>
       </main>

@@ -290,12 +290,27 @@ const MENU_ORDER = [
 const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i === -1 ? 999 : i; };
 
 // Az kullanılan / ileri özellikler — tek "Gelişmiş" başlığı altında toplanır (menü kalabalığını azaltır).
-const ADVANCED = new Set(['/rota', '/market', '/invoices', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/cihaz-karlilik']);
+// Az kullanılan / kurulum işleri — tek "Gelişmiş" başlığı altında toplanır.
+// /etiket ve /satis buraya taşındı: etiket cihaz-parça kurulumunda BİR KEZ
+// basılır, Barkodla Satış ise tezgahtan parça satmayan bayide hiç açılmaz.
+// Sayaç Turu BİLEREK yukarıda kaldı — para döngüsünün merkezi; gizlenen iş
+// yapılmaz, yapılmayan sayaç faturalanmaz.
+const ADVANCED_SABIT = ['/rota', '/market', '/invoices', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/cihaz-karlilik', '/etiket', '/satis'];
 
-export default function Sidebar({ modules = [] }: { modules?: string[] }) {
+export interface MenuDurum {
+  whatsappKurulu: boolean;
+  sayacEpostaKullaniliyor: boolean;
+  portalKullaniliyor: boolean;
+}
+
+export default function Sidebar({ modules = [], durum }: { modules?: string[]; durum?: MenuDurum }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = (session?.user as any)?.role || '';
+
+  const whatsappKurulu = durum?.whatsappKurulu ?? true;
+  const sayacEpostaKullaniliyor = durum?.sayacEpostaKullaniliyor ?? true;
+  const portalKullaniliyor = durum?.portalKullaniliyor ?? true;
 
   const visibleMenuItems = menuItems.filter(item => {
     if (SUPER_ADMIN_ONLY.includes(item.href) && role !== 'SUPER_ADMIN') return false;
@@ -303,23 +318,41 @@ export default function Sidebar({ modules = [] }: { modules?: string[] }) {
     // Modül kapısı: eklenti modüle ait link, bayide kapalıysa gizle (CORE → her zaman görünür)
     const mod = moduleForHref(item.href);
     if (mod && !modules.includes(mod)) return false;
+    // WhatsApp: Meta numarası bağlı değilse kanal YOK — menüde de olmasın.
+    // Süper-admin bayiye numarayı tanımlayınca kendiliğinden görünür.
+    if (item.href === '/whatsapp' && !whatsappKurulu) return false;
     return true;
   }).sort((a, b) => orderOf(a.href) - orderOf(b.href));
 
-  const mainItems = visibleMenuItems.filter((i) => !ADVANCED.has(i.href));
-  const advItems = visibleMenuItems.filter((i) => ADVANCED.has(i.href));
+  // Hiç kullanılmamış kuyruk ekranları Gelişmiş'e iner; kullanılmaya
+  // başlandığı an yukarı çıkar ve rozetiyle görünür.
+  const advancedSet = new Set(ADVANCED_SABIT);
+  if (!sayacEpostaKullaniliyor) advancedSet.add('/sayac-eposta');
+  if (!portalKullaniliyor) advancedSet.add('/musteri-bildirimleri');
+
+  const mainItems = visibleMenuItems.filter((i) => !advancedSet.has(i.href));
+  const advItems = visibleMenuItems.filter((i) => advancedSet.has(i.href));
 
   const [open, setOpen] = useState(false);
   const [advOpen, setAdvOpen] = useState(false);
-  // Bayi Pazarı: aksiyon bekleyen sipariş rozeti (60sn'de bir tazele)
-  const [marketBadge, setMarketBadge] = useState(0);
+  // Bekleyen iş rozetleri — üçü de KUYRUK, görünmeyen kuyruk birikir.
+  // Tek uç, tek yoklama (60sn).
+  const [rozet, setRozet] = useState<{ market: number; sayacEposta: number; musteriBildirim: number }>(
+    { market: 0, sayacEposta: 0, musteriBildirim: 0 });
   useEffect(() => {
     let alive = true;
-    const load = () => fetch('/api/market/notifications').then((r) => (r.ok ? r.json() : null)).then((d) => { if (alive && d) setMarketBadge(d.actionable || 0); }).catch(() => {});
+    const load = () => fetch('/api/rozetler').then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d) setRozet({ market: d.market || 0, sayacEposta: d.sayacEposta || 0, musteriBildirim: d.musteriBildirim || 0 }); })
+      .catch(() => {});
     load();
     const t = setInterval(load, 60000);
     return () => { alive = false; clearInterval(t); };
   }, []);
+  const rozetSayisi = (href: string) =>
+    href === '/market' ? rozet.market
+      : href === '/sayac-eposta' ? rozet.sayacEposta
+        : href === '/musteri-bildirimleri' ? rozet.musteriBildirim
+          : 0;
   // Aktif sayfa "Gelişmiş" grubundaysa grubu otomatik aç (kullanıcı kaybolmasın)
   useEffect(() => {
     if (advItems.some((i) => pathname === i.href || pathname.startsWith(i.href + '/'))) setAdvOpen(true);
@@ -395,8 +428,8 @@ export default function Sidebar({ modules = [] }: { modules?: string[] }) {
             >
               {item.icon}
               {item.label}
-              {item.href === '/market' && marketBadge > 0 && (
-                <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{marketBadge}</span>
+              {rozetSayisi(item.href) > 0 && (
+                <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{rozetSayisi(item.href)}</span>
               )}
             </Link>
           ))}
@@ -428,8 +461,8 @@ export default function Sidebar({ modules = [] }: { modules?: string[] }) {
                 >
                   {item.icon}
                   {item.label}
-                  {item.href === '/market' && marketBadge > 0 && (
-                    <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{marketBadge}</span>
+                  {rozetSayisi(item.href) > 0 && (
+                    <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{rozetSayisi(item.href)}</span>
                   )}
                 </Link>
               ))}

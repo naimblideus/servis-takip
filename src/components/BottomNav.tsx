@@ -42,7 +42,8 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
   useEffect(() => {
     if (!hasMarket) return;
     let alive = true;
-    const load = () => fetch('/api/market/notifications').then((r) => (r.ok ? r.json() : null)).then((d) => { if (alive && d) setBadge(d.actionable || 0); }).catch(() => {});
+    // Kenar menüyle AYNI uç — iki ayrı yoklama yapmayalım
+    const load = () => fetch('/api/rozetler').then((r) => (r.ok ? r.json() : null)).then((d) => { if (alive && d) setBadge(d.market || 0); }).catch(() => {});
     load();
     const t = setInterval(load, 60000);
     return () => { alive = false; clearInterval(t); };
