@@ -118,6 +118,15 @@ const menuItems = [
     ),
   },
   {
+    href: '/musteri-bildirimleri',
+    label: 'Müşteri Bildirimleri',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H9l-4 4V5z" />
+      </svg>
+    ),
+  },
+  {
     href: '/takip',
     label: 'Takip',
     icon: (
@@ -259,6 +268,7 @@ const MENU_ORDER = [
   '/devices',
   '/sayac-turu',   // Sayaç Turu — müşteri bazlı toplu sayaç girişi (sahanın can damarı)
   '/sayac-eposta', // Cihazdan gelen sayaç e-postaları — elle işlenmesi gerekenler
+  '/musteri-bildirimleri', // Müşteri panelinden gelen arıza/sayaç bildirimleri
   '/market',       // Bayi Pazarı (B2B ağ)
   '/inventory',    // Stok — üstte
   '/satis',        // Barkodla Satış

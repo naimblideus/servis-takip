@@ -3,7 +3,7 @@
 //   tickets, customers, devices, inventory, satis, etiket, accounting (Muhasebe/Cari).
 // Eklenti modüller plan'a göre varsayılan açılır; süper-admin bayi bazında override edebilir.
 
-export type ModuleKey = 'INVOICING' | 'ROUTE' | 'TRACKING' | 'REVENUE_RISK' | 'REPORTS' | 'MARKETPLACE';
+export type ModuleKey = 'INVOICING' | 'ROUTE' | 'TRACKING' | 'REVENUE_RISK' | 'REPORTS' | 'MARKETPLACE' | 'PORTAL';
 
 export const MODULES: Record<ModuleKey, { label: string; hrefs: string[] }> = {
   INVOICING:    { label: 'Faturalar & Kira/Sayaç', hrefs: ['/invoices', '/collections'] },
@@ -12,19 +12,22 @@ export const MODULES: Record<ModuleKey, { label: string; hrefs: string[] }> = {
   REVENUE_RISK: { label: 'Kaçan Gelir',             hrefs: ['/kacan-gelir'] },
   REPORTS:      { label: 'Raporlar',                hrefs: ['/reports'] },
   MARKETPLACE:  { label: 'Bayi Pazarı',             hrefs: ['/market'] },
+  PORTAL:       { label: 'Müşteri Paneli',          hrefs: ['/musteri-bildirimleri'] },
 };
 
 export const ALL_MODULE_KEYS = Object.keys(MODULES) as ModuleKey[];
 
 // Plan → varsayılan açık modüller (bayiye özel `modules` boşsa bu geçerli)
 export const PLAN_MODULES: Record<string, ModuleKey[]> = {
-  trial:        ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE'], // denemede her şey görünsün
+  trial:        ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL'], // denemede her şey görünsün
   // NOT: Bayi Pazarı BİLEREK her planda açık — pazar yeri ancak HERKES içindeyse likidite/ağ etkisi kazanır.
   starter:      ['MARKETPLACE'],                                          // Başlangıç: çekirdek + Pazar
   // Pro: Kaçan Gelir BİLEREK burada. Satışın ana kancası o panel; denemede görüp
   // Pro alan bayi onu kaybederse güven kazası olur. Kurumsal'ın farkı Raporlar'da kalır.
-  professional: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'MARKETPLACE'],
-  enterprise:   ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE'], // Premium
+  // Müşteri Paneli Pro'dan itibaren: değeri müşteri sayısıyla büyür, Başlangıç
+  // paketindeki küçük bayide karşılığı yok. Satışta net bir yükseltme sebebi.
+  professional: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'MARKETPLACE', 'PORTAL'],
+  enterprise:   ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL'], // Premium
 };
 
 // href → modül (CORE href'ler haritada yok = her zaman erişilebilir)

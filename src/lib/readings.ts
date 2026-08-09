@@ -137,3 +137,36 @@ export async function createReading(
 
   return { reading, breakdown, warning, deltaBlack, deltaColor, calculatedCost };
 }
+
+export interface SonOkuma {
+  deviceId: string;
+  counterBlack: number;
+  counterColor: number;
+  readingDate: Date;
+}
+
+/**
+ * Verilen cihazların SON sayaç okumaları — tek sorguda (N+1 yok).
+ *
+ * NEDEN Device.counterBlack YETMİYOR: fatura farkı her zaman SON OKUMAYA göre
+ * hesaplanır (yukarıdaki createReading böyle çalışıyor). Device üzerindeki
+ * sayaç alanı normalde okumayla birlikte güncellenir ama toplu içe aktarma
+ * gibi yollarla ayrışabilir. Ayrıştığında "mevcut sayaç" diye Device alanını
+ * göstermek, bayiye ve müşteriye faturayı belirleyen sayıdan BAŞKA bir sayı
+ * göstermek olur. Bu fonksiyon her zaman faturayı belirleyen sayıyı verir.
+ */
+export async function sonOkumalar(tenantId: string, deviceIds: string[]): Promise<Map<string, SonOkuma>> {
+  const harita = new Map<string, SonOkuma>();
+  if (deviceIds.length === 0) return harita;
+
+  // DISTINCT ON: her cihaz için en yeni satır (Postgres'e özgü, tek geçiş).
+  const satirlar = await prisma.$queryRaw<SonOkuma[]>`
+    SELECT DISTINCT ON ("deviceId")
+      "deviceId", "counterBlack", "counterColor", "readingDate"
+    FROM "CounterReading"
+    WHERE "tenantId" = ${tenantId} AND "deviceId" = ANY(${deviceIds})
+    ORDER BY "deviceId", "readingDate" DESC
+  `;
+  for (const s of satirlar) harita.set(s.deviceId, s);
+  return harita;
+}

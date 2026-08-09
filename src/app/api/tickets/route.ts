@@ -5,41 +5,8 @@ import { Priority } from '@prisma/client';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 import { parseFaultCategory, faultCategoryFromLegacyText } from '@/lib/fault-categories';
 import { createReading, ReadingError } from '@/lib/readings';
+import { generateTicketNumber } from '@/lib/ticket-number';
 
-async function generateTicketNumber(tenantId: string): Promise<string> {
-  // TSK- ve SF- prefix'li tüm fişlerin en yüksek numarasını bul
-  const allTickets = await prisma.serviceTicket.findMany({
-    where: { tenantId },
-    select: { ticketNumber: true },
-  });
-
-  let maxNum = 0;
-  for (const t of allTickets) {
-    // TSK-XXX veya SF-XXX formatını parse et
-    const match = t.ticketNumber.match(/^(?:TSK|SF)-(\d+)$/);
-    if (match) {
-      const n = parseInt(match[1]);
-      if (n > maxNum) maxNum = n;
-    }
-  }
-
-  let nextNum = maxNum + 1;
-  if (nextNum < 1) nextNum = 1;
-
-  // Collision retry: eğer bu numara zaten alınmışsa bir sonrakini dene
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const candidate = `SF-${nextNum}`;
-    const exists = await prisma.serviceTicket.findFirst({
-      where: { tenantId, ticketNumber: candidate },
-      select: { id: true },
-    });
-    if (!exists) return candidate;
-    nextNum++;
-  }
-
-  // Fallback: timestamp bazlı benzersiz numara
-  return `SF-${Date.now()}`;
-}
 
 export async function GET() {
   const session = await auth();

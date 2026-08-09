@@ -15,62 +15,62 @@ datasource db {
 // ============================================
 
 model Tenant {
-  id             String   @id @default(cuid())
-  name           String
-  slug           String?  @unique
-  logo           String?
-  phone          String?
-  email          String?
-  address        String?
-  city           String?
-  district       String?
-  taxNumber      String?
-  taxOffice      String?
-  ownerName      String?
-  pricePerBlack  Decimal  @default(0.40) @db.Decimal(10, 4)
-  pricePerColor  Decimal  @default(1.50) @db.Decimal(10, 4)
+  id            String  @id @default(cuid())
+  name          String
+  slug          String? @unique
+  logo          String?
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  district      String?
+  taxNumber     String?
+  taxOffice     String?
+  ownerName     String?
+  pricePerBlack Decimal @default(0.40) @db.Decimal(10, 4)
+  pricePerColor Decimal @default(1.50) @db.Decimal(10, 4)
 
   // Müşteri faturalama (sıfır-dokunuş muhasebe) varsayılanları
-  paymentTermDays    Int      @default(15)                  // Vade (gün)
-  vatRate            Decimal  @default(20) @db.Decimal(5, 2) // KDV %
-  autoInvoiceEnabled Boolean  @default(true)                // Otomatik dönem faturalama açık mı
-  invoiceDayOfMonth  Int      @default(1)                   // Cron kesim günü
-  nextInvoiceSeq     Int      @default(1)                   // Fatura sıra sayacı (atomik artar)
-  reminderEnabled    Boolean  @default(true)                // Vade hatırlatma
+  paymentTermDays    Int     @default(15) // Vade (gün)
+  vatRate            Decimal @default(20) @db.Decimal(5, 2) // KDV %
+  autoInvoiceEnabled Boolean @default(true) // Otomatik dönem faturalama açık mı
+  invoiceDayOfMonth  Int     @default(1) // Cron kesim günü
+  nextInvoiceSeq     Int     @default(1) // Fatura sıra sayacı (atomik artar)
+  reminderEnabled    Boolean @default(true) // Vade hatırlatma
 
   // Sektör
-  businessType   String   @default("general")
+  businessType String @default("general")
 
   // Bayi Pazarı (B2B) — bayiler arası parça/makine ticareti (opt-in)
-  marketEnabled       Boolean @default(false)
-  marketDisplayName   String?
-  marketCity          String?
-  marketContactPhone  String?
+  marketEnabled      Boolean @default(false)
+  marketDisplayName  String?
+  marketCity         String?
+  marketContactPhone String?
 
   // Modüler özellik yetkilendirme (boş = plan varsayılanı; dolu = bayiye özel override)
   // Anahtarlar: INVOICING, ROUTE, TRACKING, REVENUE_RISK, REPORTS, MARKETPLACE (bkz. src/lib/modules.ts)
-  modules           String[] @default([])
+  modules String[] @default([])
 
   // Abonelik
-  plan              String   @default("trial")
-  planStartDate     DateTime @default(now())
-  planEndDate       DateTime?
-  trialEndsAt       DateTime?
-  isActive          Boolean  @default(true)
-  isSuspended       Boolean  @default(false)
-  suspendReason     String?
+  plan          String    @default("trial")
+  planStartDate DateTime  @default(now())
+  planEndDate   DateTime?
+  trialEndsAt   DateTime?
+  isActive      Boolean   @default(true)
+  isSuspended   Boolean   @default(false)
+  suspendReason String?
 
   // Limitler
-  maxUsers             Int    @default(2)
-  maxTicketsPerMonth   Int?
-  storageLimitMB       Float  @default(500)
-  storageUsedMB        Float  @default(0)
+  maxUsers           Int   @default(2)
+  maxTicketsPerMonth Int?
+  storageLimitMB     Float @default(500)
+  storageUsedMB      Float @default(0)
 
   // Süper admin notları
-  adminNotes           String?
+  adminNotes String?
 
   // Soft delete
-  deletedAt            DateTime?
+  deletedAt DateTime?
 
   // Logo entegrasyon ayarları
   logoIntegrationEnabled Boolean @default(false)
@@ -89,8 +89,8 @@ model Tenant {
   logoKasaHesap          String?
   logoBankaHesap         String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   users               User[]
@@ -116,10 +116,11 @@ model Tenant {
   invoiceLines        InvoiceLine[]
   invoicePayments     InvoicePayment[]
   whatsappMessages    WhatsAppMessage[]
+  portalRequests      PortalRequest[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
-  whatsappPhoneId     String? @unique
+  whatsappPhoneId String? @unique
 
   // ÜRETİCİ VERİ PAYLAŞIMI — bayinin AÇIK RIZASI. Varsayılan KAPALI.
   // Bu bayrak açık DEĞİLSE bayinin hiçbir verisi /api/oem/reliability kapsamına
@@ -127,8 +128,8 @@ model Tenant {
   // tedarikçisine açmak sözleşmesel izin gerektirir; izin varsayılan olamaz.
   // Geriye dönük rıza toplamak pratikte imkânsız olduğu için bu alan ilk bayiden
   // itibaren doldurulmalıdır.
-  oemDataSharing      Boolean @default(false)
-  oemDataSharingAt    DateTime?
+  oemDataSharing   Boolean   @default(false)
+  oemDataSharingAt DateTime?
 
   @@index([isActive])
   @@index([plan])
@@ -143,18 +144,18 @@ model Tenant {
 //
 // Tenant'a BAGLI DEGILDIR: bunlar henuz musteri olmayan aday bayilerdir.
 model Lead {
-  id         String   @id @default(cuid())
-  firma      String?
-  yetkili    String?
-  telefon    String?
-  eposta     String?
+  id          String   @id @default(cuid())
+  firma       String?
+  yetkili     String?
+  telefon     String?
+  eposta      String?
   cihazSayisi String?
-  mesaj      String?  @db.Text
-  kaynak     String?  // utm_source
-  kampanya   String?  // utm_campaign
-  crmDurum   String   @default("bekliyor") // bekliyor | aktarildi | hata
-  okundu     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  mesaj       String?  @db.Text
+  kaynak      String? // utm_source
+  kampanya    String? // utm_campaign
+  crmDurum    String   @default("bekliyor") // bekliyor | aktarildi | hata
+  okundu      Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   @@index([okundu, createdAt])
   @@index([createdAt])
@@ -171,11 +172,11 @@ model Lead {
 // ayrıca yeni bir cihaz biçimi çıktığında geçmiş e-postalardan okuyucu düzeltilebilir.
 model CounterEmail {
   id          String   @id @default(cuid())
-  tenantId    String?  // seri eşleşene kadar bilinmez
+  tenantId    String? // seri eşleşene kadar bilinmez
   fromAddress String?
   subject     String?
   rawText     String   @db.Text
-  serial      String?  // metinde bulunan BİLİNEN seri
+  serial      String? // metinde bulunan BİLİNEN seri
   deviceId    String?
   parsedBlack Int?
   parsedColor Int?
@@ -201,22 +202,52 @@ model CounterEmail {
 //
 // KVKK: mesaj METNİ müşteri verisidir. Sadece eşleştirme ve fişe bağlama için tutulur;
 // silinebilir olmalıdır. Medya İÇERİĞİ hiç indirilmez, yalnızca Meta'daki kimliği saklanır.
+/// Müşterinin portaldan gönderdiği talep — arıza bildirimi ya da sayaç okuması.
+///
+/// NEDEN DOĞRUDAN FİŞ/OKUMA AÇMIYOR: portaldan gelen veri GÜVENİLMEYEN girdidir.
+/// Müşteri yanlış sayaç yazabilir, aynı arızayı üç kez bildirebilir. WhatsApp
+/// önerisinde olduğu gibi kural aynı: sistem ÖNERİR, bayi onaylar. Onaylanınca
+/// gerçek fiş/okuma açılır ve mevcut faturalama zinciri devralır.
+model PortalRequest {
+  id         String    @id @default(cuid())
+  tenantId   String
+  customerId String
+  deviceId   String?
+  tur        String // ARIZA | SAYAC
+  aciklama   String?   @db.Text // ARIZA: müşterinin anlattığı
+  sayacBlack Int? // SAYAC: müşterinin okuduğu S/B
+  sayacColor Int? // SAYAC: müşterinin okuduğu renkli
+  durum      String    @default("BEKLIYOR") // BEKLIYOR | ISLENDI | REDDEDILDI
+  ticketId   String? // ARIZA onaylanınca açılan fiş
+  readingId  String? // SAYAC onaylanınca kaydedilen okuma
+  notu       String? // bayinin işlem/ret notu
+  createdAt  DateTime  @default(now())
+  islenenAt  DateTime?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  device   Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, durum, createdAt(sort: Desc)])
+  @@index([customerId])
+}
+
 model WhatsAppMessage {
-  id          String   @id @default(cuid())
-  tenantId    String
-  customerId  String?  // numara eşleşmediyse null — "sisteme ekle" akışı buradan çıkar
-  waMessageId String   @unique // Meta'nın mesaj kimliği — webhook tekrarına karşı idempotenslik
-  fromPhone   String   // E.164, ör. 905321234567
-  contactName String?  // WhatsApp profil adı (yeni müşteri eklerken ön-doldurulur)
-  text        String?  @db.Text
-  mediaId     String?  // fotoğraf/belge varsa Meta medya kimliği (içerik indirilmez)
-  mediaType   String?
-  receivedAt  DateTime
-  handled     Boolean  @default(false) // bayi bu mesajla ilgilendi mi
-  ticketId    String?  // bu mesajdan fiş açıldıysa
-  readingId   String?  // bu mesajdaki fotoğraftan sayaç okuması kaydedildiyse
-  isFaultReport Boolean @default(false) // metin arıza bildirimine benziyor mu (anahtar kelime)
-  autoReplied Boolean  @default(false) // otomatik cevap gönderildi mi (tekrar göndermeyi önler)
+  id            String   @id @default(cuid())
+  tenantId      String
+  customerId    String? // numara eşleşmediyse null — "sisteme ekle" akışı buradan çıkar
+  waMessageId   String   @unique // Meta'nın mesaj kimliği — webhook tekrarına karşı idempotenslik
+  fromPhone     String // E.164, ör. 905321234567
+  contactName   String? // WhatsApp profil adı (yeni müşteri eklerken ön-doldurulur)
+  text          String?  @db.Text
+  mediaId       String? // fotoğraf/belge varsa Meta medya kimliği (içerik indirilmez)
+  mediaType     String?
+  receivedAt    DateTime
+  handled       Boolean  @default(false) // bayi bu mesajla ilgilendi mi
+  ticketId      String? // bu mesajdan fiş açıldıysa
+  readingId     String? // bu mesajdaki fotoğraftan sayaç okuması kaydedildiyse
+  isFaultReport Boolean  @default(false) // metin arıza bildirimine benziyor mu (anahtar kelime)
+  autoReplied   Boolean  @default(false) // otomatik cevap gönderildi mi (tekrar göndermeyi önler)
 
   // ── ÖNERİ (mesajdan fiş) ──────────────────────────────────────────────
   // Sistem mesajı okuyup "hangi cihaz, hangi arıza" ÖNERİR; fişi ASLA kendisi açmaz.
@@ -225,12 +256,12 @@ model WhatsAppMessage {
   // Bu alanlar aynı zamanda ETİKET KAYNAĞIDIR: önerilen değer burada, bayinin
   // seçtiği değer açılan fişte durur. İkisini karşılaştırmak = ücretsiz, doğrulanmış
   // eval verisi. Ayrı bir "kabul edildi mi" alanına gerek yok — fiş zaten gerçeği taşıyor.
-  suggestedDeviceId    String?        // yalnızca bu müşterinin cihazlarından biri olabilir
+  suggestedDeviceId    String? // yalnızca bu müşterinin cihazlarından biri olabilir
   suggestedCategory    FaultCategory? // 14 kodlu sabit taksonomi
-  suggestionConfidence Float?         // 0-1; eşiğin altındaysa öneri GÖSTERİLMEZ
-  suggestionSource     String?        // 'rule' | 'llm' — hangi yol ürettiyse
-  suggestionVersion    String?        // sürüm damgası: "hangi mantık bu öneriyi verdi"
-  createdAt   DateTime @default(now())
+  suggestionConfidence Float? // 0-1; eşiğin altındaysa öneri GÖSTERİLMEZ
+  suggestionSource     String? // 'rule' | 'llm' — hangi yol ürettiyse
+  suggestionVersion    String? // sürüm damgası: "hangi mantık bu öneriyi verdi"
+  createdAt            DateTime       @default(now())
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -245,21 +276,21 @@ model WhatsAppMessage {
 // ============================================
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  email        String
-  passwordHash String
-  name         String
-  role         UserRole @default(TECHNICIAN)
-  isActive     Boolean  @default(true)
-  onboardedAt  DateTime? // İlk-giriş eğitim sihirbazı tamamlandı/atlandı mı (null=hiç görmedi)
+  id              String    @id @default(cuid())
+  tenantId        String
+  email           String
+  passwordHash    String
+  name            String
+  role            UserRole  @default(TECHNICIAN)
+  isActive        Boolean   @default(true)
+  onboardedAt     DateTime? // İlk-giriş eğitim sihirbazı tamamlandı/atlandı mı (null=hiç görmedi)
   // İki adımlı doğrulama (TOTP — Google/Microsoft Authenticator)
-  totpSecret      String?   // base32 gizli anahtar (yalnız kurulum sırasında üretilir)
+  totpSecret      String? // base32 gizli anahtar (yalnız kurulum sırasında üretilir)
   totpEnabled     Boolean   @default(false)
-  totpLastCounter Int?      // Son kullanılan zaman adımı — aynı kodun tekrar kullanılmasını engeller
+  totpLastCounter Int? // Son kullanılan zaman adımı — aynı kodun tekrar kullanılmasını engeller
   recoveryCodes   String[]  @default([]) // Kurtarma kodlarının sha256 özetleri (tek kullanımlık)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
   tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -284,27 +315,40 @@ enum UserRole {
 // ============================================
 
 model Customer {
-  id            String   @id @default(cuid())
-  tenantId      String
-  name          String
-  phone         String
-  address       String?
-  taxNo         String?
-  email         String?  // E-posta adresi (import'tan gelebilir)
-  contactPerson String?  // Yetkili kişi adı
+  id              String    @id @default(cuid())
+  tenantId        String
+  name            String
+  phone           String
+  address         String?
+  taxNo           String?
+  email           String? // E-posta adresi (import'tan gelebilir)
+  contactPerson   String? // Yetkili kişi adı
   contractEndDate DateTime? // Kiralama sözleşmesi bitiş tarihi — yaklaşınca/geçince uyarı (sessiz gelir kaybı önlenir)
-  consent       Boolean  @default(false) // GDPR/KVKK consent
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  consent         Boolean   @default(false) // GDPR/KVKK consent
+
+  // ── MÜŞTERİ PORTALI ──────────────────────────────────────────────────
+  // Müşteri kendi cihazlarını, servis fişlerini ve bakiyesini görsün diye
+  // özel bir bağlantı. ŞİFRE YOK: bayinin müşterisi (ofis, muhasebeci,
+  // klinik) bir parola daha yönetmez — kullanmaz, kullanmayınca portal
+  // olmamış olur. Bağlantı 32 baytlık jetondur, tahmin edilemez; sızarsa
+  // bayi tek tıkla yeniler ve eskisi anında geçersiz olur.
+  portalToken    String?   @unique
+  portalEnabled  Boolean   @default(false) // bayi açmadan portal yok
+  portalTokenAt  DateTime? // jeton üretim/yenileme anı
+  portalLastSeen DateTime? // müşteri en son ne zaman baktı (bayi "kullanıyor mu" görsün)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   devices          Device[]
   transactions     FinancialTransaction[]
   accountEntries   AccountEntry[]
   customerInvoices CustomerInvoice[]
   payments         Payment[]
   whatsappMessages WhatsAppMessage[]
+  portalRequests   PortalRequest[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, phone])
@@ -316,54 +360,55 @@ model Customer {
 // ============================================
 
 model Device {
-  id          String    @id @default(cuid())
-  tenantId    String
-  customerId  String
-  brand       String
-  model       String
-  serialNo    String
-  barcode     String?   // Cihazın üstündeki MEVCUT barkod (varsa) — okutunca cihaz açılır (yeni etiket gerekmez)
-  location    String?
+  id                   String         @id @default(cuid())
+  tenantId             String
+  customerId           String
+  brand                String
+  model                String
+  serialNo             String
+  barcode              String? // Cihazın üstündeki MEVCUT barkod (varsa) — okutunca cihaz açılır (yeni etiket gerekmez)
+  location             String?
   // Cihaz yaşam döngüsü — güvenilirlik analizinin temeli.
   // createdAt = sisteme eklenme (yazılımla ilgili), installedAt = cihazın sahada çalışmaya başladığı an (gerçek yaş).
   // Bu ikisi karıştırılmamalı: yaş bilinmeden "kaçıncı ayında arızalanıyor" hesaplanamaz ve geriye dönük telafi edilemez.
-  installedAt    DateTime? // Müşteriye kurulduğu/teslim edildiği tarih
+  installedAt          DateTime? // Müşteriye kurulduğu/teslim edildiği tarih
   // Kurulum tarihi ne kadar kesin? Bayi genelde günü değil YILI hatırlar ("2019'da aldık").
   // Hassasiyeti saklamak, "1 Ocak 2019" değerini kesin tarih sanmayı önler.
   installedAtPrecision DatePrecision? // YEAR | MONTH | DAY
   // Soruldu ve bilinmiyor. Bu işaret olmazsa sistem aynı cihazı sonsuza dek sorar
   // ve kullanıcı rastgele tarih girerek kurtulmaya çalışır — veri bozulur.
-  installDateUnknown Boolean @default(false)
-  manufacturedAt DateTime? // Üretim tarihi (biliniyorsa; bilinmiyorsa boş bırakılır — tahmin YAZILMAZ)
-  isRental       Boolean   @default(false) // Kiralık cihaz mı?
-  monthlyRent    Decimal   @default(0) @db.Decimal(10, 2) // Aylık kira bedeli
-  pricePerBlack  Decimal?  @db.Decimal(10, 4) // Cihaz bazlı siyah birim fiyat (null=tenant varsayılan)
-  pricePerColor  Decimal?  @db.Decimal(10, 4) // Cihaz bazlı renkli birim fiyat (null=tenant varsayılan)
+  installDateUnknown   Boolean        @default(false)
+  manufacturedAt       DateTime? // Üretim tarihi (biliniyorsa; bilinmiyorsa boş bırakılır — tahmin YAZILMAZ)
+  isRental             Boolean        @default(false) // Kiralık cihaz mı?
+  monthlyRent          Decimal        @default(0) @db.Decimal(10, 2) // Aylık kira bedeli
+  pricePerBlack        Decimal?       @db.Decimal(10, 4) // Cihaz bazlı siyah birim fiyat (null=tenant varsayılan)
+  pricePerColor        Decimal?       @db.Decimal(10, 4) // Cihaz bazlı renkli birim fiyat (null=tenant varsayılan)
   // Kademeli fiyatlandırma (dahil paket + aşım) — TR yazıcı kiralamasının baskın modeli
-  includedBlack     Int      @default(0) // Aylık kiraya dahil S/B sayfa (bu kadarı ücretsiz)
-  includedColor     Int      @default(0) // Aylık kiraya dahil renkli sayfa
-  overagePriceBlack Decimal? @db.Decimal(10, 4) // Aşım S/B birim fiyat (null=pricePerBlack kullanılır)
-  overagePriceColor Decimal? @db.Decimal(10, 4) // Aşım renkli birim fiyat (null=pricePerColor kullanılır)
+  includedBlack        Int            @default(0) // Aylık kiraya dahil S/B sayfa (bu kadarı ücretsiz)
+  includedColor        Int            @default(0) // Aylık kiraya dahil renkli sayfa
+  overagePriceBlack    Decimal?       @db.Decimal(10, 4) // Aşım S/B birim fiyat (null=pricePerBlack kullanılır)
+  overagePriceColor    Decimal?       @db.Decimal(10, 4) // Aşım renkli birim fiyat (null=pricePerColor kullanılır)
   // Toner/sarf tükenme tahmini (proaktif sevkiyat)
-  tonerYieldBlack   Int?      // S/B toner verimi (sayfa/toner)
-  tonerYieldColor   Int?      // Renkli toner verimi (sayfa/toner)
-  tonerResetBlack   Int?      // Son S/B toner değişiminde sayaç değeri (referans)
-  tonerResetColor   Int?      // Son renkli toner değişiminde sayaç değeri
-  tonerChangedAt    DateTime? // Son toner değişim tarihi
-  lastInvoicedPeriod String? // Çift kira faturalamayı önlemek için son faturalanan dönem (YYYY-MM)
-  publicCode     String    @unique // e.g., DEV-8F3A12 (for QR URL)
-  qrTokenHash String // Hashed version of QR token
-  qrExpiresAt DateTime? // Optional token expiry
-  counterBlack  Int?     // Son bilinen siyah sayaç
-  counterColor  Int?     // Son bilinen renkli sayaç
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  tonerYieldBlack      Int? // S/B toner verimi (sayfa/toner)
+  tonerYieldColor      Int? // Renkli toner verimi (sayfa/toner)
+  tonerResetBlack      Int? // Son S/B toner değişiminde sayaç değeri (referans)
+  tonerResetColor      Int? // Son renkli toner değişiminde sayaç değeri
+  tonerChangedAt       DateTime? // Son toner değişim tarihi
+  lastInvoicedPeriod   String? // Çift kira faturalamayı önlemek için son faturalanan dönem (YYYY-MM)
+  publicCode           String         @unique // e.g., DEV-8F3A12 (for QR URL)
+  qrTokenHash          String // Hashed version of QR token
+  qrExpiresAt          DateTime? // Optional token expiry
+  counterBlack         Int? // Son bilinen siyah sayaç
+  counterColor         Int? // Son bilinen renkli sayaç
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   // Relations
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   serviceTickets  ServiceTicket[]
   counterReadings CounterReading[]
+  portalRequests  PortalRequest[]
 
   @@unique([tenantId, serialNo])
   @@unique([tenantId, barcode])
@@ -378,13 +423,13 @@ model Device {
 // ============================================
 
 model ServiceTicket {
-  id              String        @id @default(cuid())
+  id              String         @id @default(cuid())
   tenantId        String
   deviceId        String
   customerId      String // Denormalized for quick access
   ticketNumber    String // Human-readable: TSK-2024-00123
-  status          TicketStatus  @default(NEW)
-  priority        Priority      @default(NORMAL)
+  status          TicketStatus   @default(NEW)
+  priority        Priority       @default(NORMAL)
   assignedUserId  String?
   createdByUserId String
   issueTemplate   String? // Serbest/eski şablon adı (geriye dönük uyumluluk — görüntüleme amaçlı)
@@ -396,27 +441,27 @@ model ServiceTicket {
   actionTemplate  String? // Predefined action template
   actionText      String?
   notes           String?
-  totalCost       Decimal       @default(0) @db.Decimal(10, 2)
-  laborCost       Decimal       @default(0) @db.Decimal(10, 2) // İşçilik ücreti (faturaya yansır)
-  paymentStatus   PaymentStatus @default(UNPAID)
-  invoiceId       String?       // Otomatik kesilen müşteri faturasına bağlantı
-  invoicedAt      DateTime?     // Faturalandığı an
-  statusUpdatedAt DateTime      @default(now())
-  deletedAt       DateTime?     // Soft-delete: null = aktif, set = çöp kutusu
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  totalCost       Decimal        @default(0) @db.Decimal(10, 2)
+  laborCost       Decimal        @default(0) @db.Decimal(10, 2) // İşçilik ücreti (faturaya yansır)
+  paymentStatus   PaymentStatus  @default(UNPAID)
+  invoiceId       String? // Otomatik kesilen müşteri faturasına bağlantı
+  invoicedAt      DateTime? // Faturalandığı an
+  statusUpdatedAt DateTime       @default(now())
+  deletedAt       DateTime? // Soft-delete: null = aktif, set = çöp kutusu
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   // Relations
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  device          Device           @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  assignedUser    User?            @relation("AssignedTechnician", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  createdBy       User             @relation("CreatedBy", fields: [createdByUserId], references: [id])
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device          Device                 @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  assignedUser    User?                  @relation("AssignedTechnician", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdBy       User                   @relation("CreatedBy", fields: [createdByUserId], references: [id])
   counterReadings CounterReading[]
   ticketParts     TicketPart[]
   payments        Payment[]
   attachments     Attachment[]
   transactions    FinancialTransaction[]
-  invoice         CustomerInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  invoice         CustomerInvoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, ticketNumber])
   @@index([tenantId, status])
@@ -443,20 +488,20 @@ enum DatePrecision {
 // (ör. "Kağıt Sıkışması" → "Kağıt Sıkışma") geçmiş veri bozulmaz ve yüzlerce bayide
 // aynı kod aynı şeyi ifade eder — çapraz-bayi toplamanın ön şartı budur.
 enum FaultCategory {
-  PAPER_JAM             // Kağıt sıkışması
-  TONER                 // Toner sorunu
-  PRINT_QUALITY         // Baskı kalitesi
-  FEED_ERROR            // Besleme hatası
-  NETWORK               // Ağ bağlantısı
-  FUSER                 // Fırın arızası
-  DRUM                  // Drum sorunu
-  ELECTRONIC            // Elektronik sorun
-  GEAR                  // Dişli arızası
-  ROLLER                // Paten sorunu
-  PRINTHEAD             // Kafa arızası
-  PERIODIC_MAINTENANCE  // Periyodik bakım — ARIZA DEĞİL. Ayrı tutulmazsa arıza oranı şişer.
-  INSTALLATION          // Kurulum/devreye alma — arıza değil
-  OTHER                 // Diğer (bilinçli seçim)
+  PAPER_JAM // Kağıt sıkışması
+  TONER // Toner sorunu
+  PRINT_QUALITY // Baskı kalitesi
+  FEED_ERROR // Besleme hatası
+  NETWORK // Ağ bağlantısı
+  FUSER // Fırın arızası
+  DRUM // Drum sorunu
+  ELECTRONIC // Elektronik sorun
+  GEAR // Dişli arızası
+  ROLLER // Paten sorunu
+  PRINTHEAD // Kafa arızası
+  PERIODIC_MAINTENANCE // Periyodik bakım — ARIZA DEĞİL. Ayrı tutulmazsa arıza oranı şişer.
+  INSTALLATION // Kurulum/devreye alma — arıza değil
+  OTHER // Diğer (bilinçli seçim)
 }
 
 enum TicketStatus {
@@ -499,8 +544,8 @@ model CounterReading {
   calculatedCost Decimal  @default(0) @db.Decimal(10, 2) // Hesaplanan ücret
   monthlyRent    Decimal  @default(0) @db.Decimal(10, 2) // Aylık aidat (dahil edildiyse)
   billed         Boolean  @default(false) // Dönem faturasına dahil edildi mi (idempotency)
-  invoiceLineId  String?  // Hangi fatura satırına girdi
-  photo          String?  // Sayaç fotoğrafı (küçültülmüş JPEG data URL — kanıt)
+  invoiceLineId  String? // Hangi fatura satırına girdi
+  photo          String? // Sayaç fotoğrafı (küçültülmüş JPEG data URL — kanıt)
   createdAt      DateTime @default(now())
 
   // Relations
@@ -520,17 +565,17 @@ model Part {
   id        String   @id @default(cuid())
   tenantId  String
   sku       String
-  barcode   String?  // EAN-13/UPC/Code128 — barkod okuyucu ile hızlı arama (2D imager)
+  barcode   String? // EAN-13/UPC/Code128 — barkod okuyucu ile hızlı arama (2D imager)
   name      String
   buyPrice  Decimal  @default(0) @db.Decimal(10, 2)
   sellPrice Decimal  @default(0) @db.Decimal(10, 2)
   stockQty  Int      @default(0)
   minStock  Int      @default(5) // Low stock threshold
-  group     String?  // Ürün grubu: Fırın Grubu, Paten, İşçilik, Dişli Grubu, Yedek Parça, Toner, Tamirat
+  group     String? // Ürün grubu: Fırın Grubu, Paten, İşçilik, Dişli Grubu, Yedek Parça, Toner, Tamirat
   // sku bayiye özeldir: aynı fırın ünitesine her bayi başka kod verir.
   // oemCode üreticinin resmî kodudur — çapraz-bayi parça analizini mümkün kılan tek alan.
-  oemCode   String?  // Örn. Canon FM1-A606-000
-  oemBrand  String?  // Parçanın ait olduğu marka (Canon, Konica Minolta, ...)
+  oemCode   String? // Örn. Canon FM1-A606-000
+  oemBrand  String? // Parçanın ait olduğu marka (Canon, Konica Minolta, ...)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -571,12 +616,12 @@ model TicketPart {
 model Payment {
   id          String        @id @default(cuid())
   tenantId    String
-  ticketId    String?       // Cari-bazlı toplu tahsilatta null olur
-  customerId  String?       // Cari-bazlı tahsilat (IBAN/havale) — FIFO mahsup için
+  ticketId    String? // Cari-bazlı toplu tahsilatta null olur
+  customerId  String? // Cari-bazlı tahsilat (IBAN/havale) — FIFO mahsup için
   amount      Decimal       @db.Decimal(10, 2)
   method      PaymentMethod @default(CASH)
   paymentDate DateTime      @default(now())
-  referenceNo String?       // Havale dekont / referans no
+  referenceNo String? // Havale dekont / referans no
   reconciled  Boolean       @default(false) // Banka mutabakatı yapıldı mı
   notes       String?
   createdAt   DateTime      @default(now())
@@ -698,11 +743,11 @@ enum NotificationStatus {
 model FinancialTransaction {
   id          String              @id @default(cuid())
   tenantId    String
-  customerId  String?             // Müşteriye bağlıysa
-  ticketId    String?             // Fişe bağlıysa
-  readingId   String?             // Sayaç okumasına bağlıysa
-  invoiceId   String?             // Müşteri faturasına bağlıysa
-  type        TransactionType     // INCOME / EXPENSE
+  customerId  String? // Müşteriye bağlıysa
+  ticketId    String? // Fişe bağlıysa
+  readingId   String? // Sayaç okumasına bağlıysa
+  invoiceId   String? // Müşteri faturasına bağlıysa
+  type        TransactionType // INCOME / EXPENSE
   category    TransactionCategory // SERVİS_ÜCRETİ, SAYAÇ_ÜCRETİ, PARÇA_ALIMI vs.
   amount      Decimal             @db.Decimal(10, 2)
   method      PaymentMethod       @default(CASH) // CASH, CARD, TRANSFER, OTHER
@@ -723,31 +768,30 @@ model FinancialTransaction {
 }
 
 enum TransactionType {
-  INCOME    // Gelir
-  EXPENSE   // Gider
+  INCOME // Gelir
+  EXPENSE // Gider
 }
 
 enum TransactionCategory {
-  SERVICE_FEE      // Servis ücreti
-  COUNTER_FEE      // Sayaç okuma ücreti (kiralık)
-  RENTAL_FEE       // Aylık kira bedeli
-  PART_PURCHASE    // Parça alımı (gider)
-  PART_SALE        // Parça satışı (gelir)
+  SERVICE_FEE // Servis ücreti
+  COUNTER_FEE // Sayaç okuma ücreti (kiralık)
+  RENTAL_FEE // Aylık kira bedeli
+  PART_PURCHASE // Parça alımı (gider)
+  PART_SALE // Parça satışı (gelir)
   MACHINE_PURCHASE // Makina alımı (gider)
-  MACHINE_SALE     // Makina satışı (gelir)
-  GENERAL_EXPENSE  // Genel gider
-  SALARY           // Maaş
-  RENT             // Kira (işyeri)
-  UTILITY          // Fatura (elektrik, su vs.)
-  TAX              // Vergi
-  FOOD             // Yemek
-  INSURANCE        // Sigorta
-  FUEL             // Yakıt / Ulaşım
-  MAINTENANCE      // Bakım / Tadilat
-  OTHER_INCOME     // Diğer gelir
-  OTHER_EXPENSE    // Diğer gider
+  MACHINE_SALE // Makina satışı (gelir)
+  GENERAL_EXPENSE // Genel gider
+  SALARY // Maaş
+  RENT // Kira (işyeri)
+  UTILITY // Fatura (elektrik, su vs.)
+  TAX // Vergi
+  FOOD // Yemek
+  INSURANCE // Sigorta
+  FUEL // Yakıt / Ulaşım
+  MAINTENANCE // Bakım / Tadilat
+  OTHER_INCOME // Diğer gelir
+  OTHER_EXPENSE // Diğer gider
 }
-
 
 // ============================================
 // IMPORT SESSION (Veri İçe Aktarma)
@@ -758,10 +802,10 @@ model ImportSession {
   tenantId     String
   fileName     String
   status       String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
-  totalRows    Json?     // { musteriler: 0, servisler: 0, urunler: 0, kasa: 0 }
-  importedRows Json?     // Başarılı sayılar
-  failedRows   Json?     // Başarısız sayılar
-  errors       Json?     // Hata detayları: [{row, table, error}]
+  totalRows    Json? // { musteriler: 0, servisler: 0, urunler: 0, kasa: 0 }
+  importedRows Json? // Başarılı sayılar
+  failedRows   Json? // Başarısız sayılar
+  errors       Json? // Hata detayları: [{row, table, error}]
   startedAt    DateTime  @default(now())
   completedAt  DateTime?
   createdAt    DateTime  @default(now())
@@ -781,7 +825,7 @@ model ImportSession {
 model SuperAdmin {
   id          String    @id @default(cuid())
   email       String    @unique
-  password    String    // bcrypt hash
+  password    String // bcrypt hash
   name        String
   lastLoginAt DateTime?
   createdAt   DateTime  @default(now())
@@ -793,7 +837,7 @@ model SuperAdmin {
   // giriş kod olmadan tamamlanmaz.
   totpSecret      String?
   totpEnabled     Boolean  @default(false)
-  totpLastCounter Int?     // aynı kodun tekrar kullanılmasını engeller (replay)
+  totpLastCounter Int? // aynı kodun tekrar kullanılmasını engeller (replay)
   recoveryCodes   String[] @default([]) // sha256; her biri BİR kez kullanılır
 }
 
@@ -805,12 +849,12 @@ model SubscriptionHistory {
   id        String   @id @default(cuid())
   tenantId  String
   plan      String
-  action    String   // created, upgraded, downgraded, renewed, suspended, cancelled, activated
+  action    String // created, upgraded, downgraded, renewed, suspended, cancelled, activated
   amount    Float?
   notes     String?
   createdAt DateTime @default(now())
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt(sort: Desc)])
 }
@@ -822,8 +866,8 @@ model SubscriptionHistory {
 model TenantInvoice {
   id            String    @id @default(cuid())
   tenantId      String
-  invoiceNumber String    // FAT-2026-0001
-  period        String    // "2026-03"
+  invoiceNumber String // FAT-2026-0001
+  period        String // "2026-03"
   amount        Float
   vatAmount     Float     @default(0)
   totalAmount   Float
@@ -831,12 +875,12 @@ model TenantInvoice {
   dueDate       DateTime
   paidDate      DateTime?
   paidAmount    Float?
-  paymentMethod String?   // cash, transfer, card
+  paymentMethod String? // cash, transfer, card
   notes         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
   @@index([status, dueDate])
@@ -847,15 +891,15 @@ model TenantInvoice {
 // ============================================
 
 model PlatformSettings {
-  id                  String  @id @default(cuid())
-  platformName        String  @default("Servis Takip")
+  id                  String   @id @default(cuid())
+  platformName        String   @default("Servis Takip")
   platformLogo        String?
   contactEmail        String?
-  defaultTrialDays    Int     @default(14)
-  maintenanceMode     Boolean @default(false)
+  defaultTrialDays    Int      @default(14)
+  maintenanceMode     Boolean  @default(false)
   announcementText    String?
-  announcementActive  Boolean @default(false)
-  marketCommissionPct Decimal @default(0) @db.Decimal(5, 2) // Bayi Pazarı komisyon % (Faz 3)
+  announcementActive  Boolean  @default(false)
+  marketCommissionPct Decimal  @default(0) @db.Decimal(5, 2) // Bayi Pazarı komisyon % (Faz 3)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
@@ -867,17 +911,17 @@ model PlatformSettings {
 model LogoSyncLog {
   id           String   @id @default(cuid())
   tenantId     String
-  operation    String   // customer_create, customer_update, invoice_create, payment_create, balance_import, stock_movement
-  entityType   String   // customer, invoice, payment, stock
+  operation    String // customer_create, customer_update, invoice_create, payment_create, balance_import, stock_movement
+  entityType   String // customer, invoice, payment, stock
   entityId     String?
-  direction    String   // export, import
-  status       String   // success, error, pending
+  direction    String // export, import
+  status       String // success, error, pending
   requestData  Json?
   responseData Json?
   errorMessage String?
   createdAt    DateTime @default(now())
 
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, operation])
   @@index([tenantId, status])
@@ -889,25 +933,25 @@ model LogoSyncLog {
 // ============================================
 
 model PrinterStock {
-  id          String    @id @default(cuid())
-  tenantId    String
-  category    String    // TONER | MUREKEP | YAZICI
-  brand       String    // Marka: HP, Canon, Epson vs.
-  model       String    // Model adı
-  barcode     String?   // Barkod/SKU — okuyucuyla satış + etiket basımı için
-  condition   String    @default("SIFIR") // SIFIR | IKINCI_EL
-  color       String?   // Renk: Siyah, Mavi, Kırmızı, Sarı, Renkli
-  quantity    Int       @default(1)
-  buyPrice    Decimal   @default(0) @db.Decimal(10, 2)
-  sellPrice   Decimal   @default(0) @db.Decimal(10, 2)
-  notes       String?
-  soldAt      DateTime? // Satış tarihi
-  soldTo      String?   // Kime satıldı
-  soldPrice   Decimal?  @db.Decimal(10, 2) // Satış fiyatı
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  tenantId  String
+  category  String // TONER | MUREKEP | YAZICI
+  brand     String // Marka: HP, Canon, Epson vs.
+  model     String // Model adı
+  barcode   String? // Barkod/SKU — okuyucuyla satış + etiket basımı için
+  condition String    @default("SIFIR") // SIFIR | IKINCI_EL
+  color     String? // Renk: Siyah, Mavi, Kırmızı, Sarı, Renkli
+  quantity  Int       @default(1)
+  buyPrice  Decimal   @default(0) @db.Decimal(10, 2)
+  sellPrice Decimal   @default(0) @db.Decimal(10, 2)
+  notes     String?
+  soldAt    DateTime? // Satış tarihi
+  soldTo    String? // Kime satıldı
+  soldPrice Decimal?  @db.Decimal(10, 2) // Satış fiyatı
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, barcode])
   @@index([tenantId, category])
@@ -920,20 +964,20 @@ model PrinterStock {
 // ============================================
 
 model AccountEntry {
-  id          String           @id @default(cuid())
-  tenantId    String
-  customerId  String
-  type        AccountEntryType // SALE veya PAYMENT
-  product     String?          // Aldığı ürün/hizmet adı (SALE için)
-  amount      Decimal          @db.Decimal(10, 2)
-  method      String           @default("CASH") // Nakit, Kredi, IBAN, Açık Hesap
-  notes       String?
-  createdByUserId String?      // Kaydı/satışı yapan kullanıcı (teknisyen) id
-  createdByName   String?      // İsim (denormalize — geçmiş kayıt için anlık kar)
-  ticketId    String?          // Servis fişinden otomatik cari kaydı ise bağlı fiş (idempotency)
-  date        DateTime         @default(now())
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id              String           @id @default(cuid())
+  tenantId        String
+  customerId      String
+  type            AccountEntryType // SALE veya PAYMENT
+  product         String? // Aldığı ürün/hizmet adı (SALE için)
+  amount          Decimal          @db.Decimal(10, 2)
+  method          String           @default("CASH") // Nakit, Kredi, IBAN, Açık Hesap
+  notes           String?
+  createdByUserId String? // Kaydı/satışı yapan kullanıcı (teknisyen) id
+  createdByName   String? // İsim (denormalize — geçmiş kayıt için anlık kar)
+  ticketId        String? // Servis fişinden otomatik cari kaydı ise bağlı fiş (idempotency)
+  date            DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   // Relations
   tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -949,11 +993,11 @@ model AccountEntry {
 model Expense {
   id          String   @id @default(cuid())
   tenantId    String
-  category    String   @default("GENEL")  // KIRA, ELEKTRIK, PERSONEL, MALZEME, BAKIM, GENEL, DIGER
+  category    String   @default("GENEL") // KIRA, ELEKTRIK, PERSONEL, MALZEME, BAKIM, GENEL, DIGER
   description String
   amount      Decimal  @db.Decimal(10, 2)
   date        DateTime @default(now())
-  payee       String?  // Ödenilen kişi/kurum
+  payee       String? // Ödenilen kişi/kurum
   method      String   @default("CASH")
   notes       String?
   createdAt   DateTime @default(now())
@@ -966,7 +1010,7 @@ model Expense {
 }
 
 enum AccountEntryType {
-  SALE    // Satış / Ürün teslimi
+  SALE // Satış / Ürün teslimi
   PAYMENT // Ödeme alındı
 }
 
@@ -978,13 +1022,13 @@ enum AccountEntryType {
 
 model MarketListing {
   id             String    @id @default(cuid())
-  sellerTenantId String    // ilanı veren bayi (tenant)
-  kind           String    // PART | PRINTER | MACHINE | OTHER
+  sellerTenantId String // ilanı veren bayi (tenant)
+  kind           String // PART | PRINTER | MACHINE | OTHER
   title          String
   description    String?
   brand          String?
   model          String?
-  condition      String?   // SIFIR | IKINCI_EL
+  condition      String? // SIFIR | IKINCI_EL
   category       String?
   price          Decimal   @default(0) @db.Decimal(10, 2)
   currency       String    @default("TRY")
@@ -992,7 +1036,7 @@ model MarketListing {
   unit           String?
   city           String?
   photos         String[]  @default([]) // küçültülmüş base64 (mevcut foto deseni)
-  sourceKind     String?   // PART | PRINTER (kendi stoğundan üretildiyse)
+  sourceKind     String? // PART | PRINTER (kendi stoğundan üretildiyse)
   sourceId       String?
   status         String    @default("ACTIVE") // ACTIVE | PAUSED | SOLD | REMOVED | DRAFT
   expiresAt      DateTime?
@@ -1007,9 +1051,9 @@ model MarketListing {
 model MarketMessage {
   id             String   @id @default(cuid())
   listingId      String
-  sellerTenantId String   // ilan sahibi (yetki + gruplama için denormalize)
-  buyerTenantId  String   // karşı taraf (mesajı başlatan alıcı)
-  senderTenantId String   // bu mesajı yazan taraf
+  sellerTenantId String // ilan sahibi (yetki + gruplama için denormalize)
+  buyerTenantId  String // karşı taraf (mesajı başlatan alıcı)
+  senderTenantId String // bu mesajı yazan taraf
   senderName     String?
   body           String
   createdAt      DateTime @default(now())
@@ -1030,12 +1074,12 @@ model MarketOrder {
   totalPrice       Decimal   @db.Decimal(10, 2)
   status           String    @default("REQUESTED") // REQUESTED|ACCEPTED|REJECTED|CANCELLED|SHIPPED|COMPLETED
   note             String?
-  buyerName        String?   // görünüm için denormalize
+  buyerName        String? // görünüm için denormalize
   sellerName       String?
   listingTitle     String?
   listingKind      String?
   settledAt        DateTime? // Faz 2: stok+muhasebe işlendi (idempotency)
-  commissionPct    Decimal?  @db.Decimal(5, 2)  // Faz 3
+  commissionPct    Decimal?  @db.Decimal(5, 2) // Faz 3
   commissionAmount Decimal?  @db.Decimal(10, 2)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -1050,9 +1094,9 @@ model MarketReview {
   id            String   @id @default(cuid())
   orderId       String   @unique
   listingId     String
-  raterTenantId String   // değerlendiren (alıcı)
-  ratedTenantId String   // değerlendirilen (satıcı)
-  score         Int      // 1-5
+  raterTenantId String // değerlendiren (alıcı)
+  ratedTenantId String // değerlendirilen (satıcı)
+  score         Int // 1-5
   comment       String?
   createdAt     DateTime @default(now())
 
@@ -1067,10 +1111,10 @@ model CustomerInvoice {
   id            String        @id @default(cuid())
   tenantId      String
   customerId    String
-  invoiceNumber String        // SF-FAT-2026-00001
-  period        String        // "2026-03" (dönem)
+  invoiceNumber String // SF-FAT-2026-00001
+  period        String // "2026-03" (dönem)
   invoiceDate   DateTime      @default(now())
-  dueDate       DateTime      // invoiceDate + tenant.paymentTermDays
+  dueDate       DateTime // invoiceDate + tenant.paymentTermDays
   status        InvoiceStatus @default(OPEN)
   subtotal      Decimal       @default(0) @db.Decimal(10, 2)
   vatRate       Decimal       @default(20) @db.Decimal(5, 2)
@@ -1103,10 +1147,10 @@ model InvoiceLine {
   tenantId    String
   kind        InvoiceLineKind
   description String
-  deviceId    String?         // Kaynak cihaz (sayaç/kira)
-  readingId   String?         // Kaynak sayaç okuması (idempotency)
-  ticketId    String?         // Kaynak iş emri (parça/işçilik)
-  partId      String?         // Kaynak parça
+  deviceId    String? // Kaynak cihaz (sayaç/kira)
+  readingId   String? // Kaynak sayaç okuması (idempotency)
+  ticketId    String? // Kaynak iş emri (parça/işçilik)
+  partId      String? // Kaynak parça
   quantity    Decimal         @default(1) @db.Decimal(10, 2)
   unitPrice   Decimal         @default(0) @db.Decimal(10, 4)
   lineTotal   Decimal         @default(0) @db.Decimal(10, 2)
@@ -1149,14 +1193,14 @@ enum InvoiceStatus {
 
 enum InvoiceSource {
   AUTO_MONTHLY // Aylık cron
-  TICKET       // İş emri teslim tetiği
-  MANUAL       // Elle
+  TICKET // İş emri teslim tetiği
+  MANUAL // Elle
 }
 
 enum InvoiceLineKind {
   COUNTER // Sayaç ücreti
-  RENTAL  // Sabit kira
-  PART    // Parça
-  LABOR   // İşçilik
+  RENTAL // Sabit kira
+  PART // Parça
+  LABOR // İşçilik
   OTHER
 }

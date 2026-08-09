@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import CustomerEditPanel from '@/components/CustomerEditPanel';
 import CustomerCariPanel from '@/components/CustomerCariPanel';
+import MusteriPortalKarti from '@/components/MusteriPortalKarti';
 import ContactActions from '@/components/ContactActions';
 
 const statusLabel: Record<string, { label: string; color: string }> = {
@@ -140,6 +141,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
       {/* Cari Hesap */}
       <CustomerCariPanel customerId={customer.id} />
+
+      {/* Müşteri paneli — bağlantıyı açıp WhatsApp'tan yollama */}
+      <MusteriPortalKarti customerId={customer.id} />
     </div>
   );
 }
