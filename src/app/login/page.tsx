@@ -21,6 +21,17 @@ const OZELLIKLER = [
   { ust: 'Kurulum', alt: 'Excel aktarımı ve eğitim bizden' },
 ];
 
+/**
+ * SSO reddedilme sebepleri. Kurumsal giriş kurulurken en sık karşılaşılan iki
+ * durum: kullanıcı sistemde tanımlı değil, ya da aynı e-posta iki bayide var.
+ * İkisinin de çözümü farklı — bu yüzden mesaj da farklı.
+ */
+const SSO_HATA: Record<string, string> = {
+  'sso-tanimsiz': 'Bu e-posta sistemde tanımlı değil ya da hesabınız kapatılmış. Kurumsal giriş yeni hesap açmaz; yöneticinizin sizi eklemesi gerekir.',
+  'sso-coklu': 'Bu e-posta birden fazla firmada tanımlı. Kurumsal giriş kullanılamıyor — lütfen e-posta ve şifrenizle girin.',
+  'sso-eposta-yok': 'Kurumsal hesabınız e-posta adresi paylaşmadı. E-posta ve şifrenizle girebilirsiniz.',
+};
+
 /** Marka işareti — landing'deki N monogramının aynısı (nexus-video kaynağından). */
 function Monogram({ size = 34 }: { size?: number }) {
   return (
@@ -50,15 +61,29 @@ export default function LoginPage() {
   const [needsTotp, setNeedsTotp] = useState(false);
   const [demoMod, setDemoMod] = useState(false);
   const [sifreGoster, setSifreGoster] = useState(false);
+  const [sso, setSso] = useState({ google: false, microsoft: false });
 
   // Demo bilgilerini DOLDUR ama KENDİLİĞİNDEN GİRME: ziyaretçi neye tıkladığını
   // görsün ve isterse başka bir hesapla girebilsin.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (new URLSearchParams(window.location.search).get('demo') !== '1') return;
-    setEmail(DEMO_EPOSTA);
-    setPassword(DEMO_SIFRE);
-    setDemoMod(true);
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('demo') === '1') {
+      setEmail(DEMO_EPOSTA);
+      setPassword(DEMO_SIFRE);
+      setDemoMod(true);
+    }
+    // SSO reddi: sebebi söyle. "Bir hata oluştu" diyen bir giriş ekranı,
+    // karşı taraftaki BT ekibinin gününü yakar.
+    const h = sp.get('hata');
+    if (h) setError(SSO_HATA[h] ?? 'Kurumsal giriş tamamlanamadı.');
+  }, []);
+
+  // Hangi kurumsal giriş açık? Anahtar tanımlı değilse düğme de görünmez.
+  useEffect(() => {
+    fetch('/api/auth/sso').then(r => r.json())
+      .then(d => setSso({ google: Boolean(d?.google), microsoft: Boolean(d?.microsoft) }))
+      .catch(() => {});
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -184,6 +209,44 @@ export default function LoginPage() {
               {loading ? 'Giriş yapılıyor…' : needsTotp ? 'Doğrula ve gir' : 'Giriş yap'}
             </button>
           </form>
+
+          {/* ── Kurumsal giriş — yalnız yapılandırılmışsa ve 2FA adımında değilken ── */}
+          {!needsTotp && (sso.google || sso.microsoft) && (
+            <div className="mt-6">
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-white/[0.07]" />
+                <span className="text-[12px] text-white/30">veya kurum hesabınızla</span>
+                <span className="h-px flex-1 bg-white/[0.07]" />
+              </div>
+              <div className="mt-4 grid gap-2.5">
+                {sso.microsoft && (
+                  <button type="button" onClick={() => signIn('microsoft-entra-id', { callbackUrl: '/dashboard' })}
+                    className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/[0.09] bg-white/[0.03] py-3 text-[14px] font-medium text-white/80 transition hover:border-white/20 hover:bg-white/[0.06]">
+                    <svg width="16" height="16" viewBox="0 0 23 23" aria-hidden="true">
+                      <path fill="#f25022" d="M0 0h11v11H0z" /><path fill="#7fba00" d="M12 0h11v11H12z" />
+                      <path fill="#00a4ef" d="M0 12h11v11H0z" /><path fill="#ffb900" d="M12 12h11v11H12z" />
+                    </svg>
+                    Microsoft ile giriş
+                  </button>
+                )}
+                {sso.google && (
+                  <button type="button" onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+                    className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/[0.09] bg-white/[0.03] py-3 text-[14px] font-medium text-white/80 transition hover:border-white/20 hover:bg-white/[0.06]">
+                    <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+                      <path fill="#4285f4" d="M45.1 24.5c0-1.6-.1-2.8-.4-4H24v7.3h12.1c-.2 2-1.6 5-4.5 7l6.9 5.4c4.1-3.8 6.6-9.4 6.6-15.7z" />
+                      <path fill="#34a853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.4c-1.9 1.3-4.4 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-7.1 5.5C8 41.2 15.4 46 24 46z" />
+                      <path fill="#fbbc05" d="M11.5 28.4c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4l-7.1-5.5C2.9 17 2 20.4 2 24s.9 7 2.4 9.9l7.1-5.5z" />
+                      <path fill="#ea4335" d="M24 10.2c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 4 29.9 2 24 2 15.4 2 8 6.8 4.4 14.1l7.1 5.5c1.8-5.3 6.7-9.4 12.5-9.4z" />
+                    </svg>
+                    Google ile giriş
+                  </button>
+                )}
+              </div>
+              <p className="mt-3 text-center text-[12px] leading-relaxed text-white/30">
+                Kurumsal giriş yeni hesap açmaz — sistemde tanımlı kullanıcılar içindir.
+              </p>
+            </div>
+          )}
 
           <a href="/" className="mt-8 block text-center text-[13px] text-white/35 transition hover:text-white/70">
             ← Ana sayfaya dön
