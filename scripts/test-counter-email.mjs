@@ -1,7 +1,29 @@
 // Sayaç e-postası okuyucusunun testi.
-// Çalıştır:  npx tsc src/lib/counter-email.ts --outDir .tmp-test --module esnext --target es2020 --moduleResolution bundler
-//            node scripts/test-counter-email.mjs
-import { parseCounterEmail } from '../.tmp-test/counter-email.js';
+// Çalıştır:  node scripts/test-counter-email.mjs
+//
+// TS'i gerçek derleyiciyle geçici bir klasöre çevirip içe aktarır; ayrı bir
+// derleme adımı gerekmez (eskiden gerekiyordu ve unutulduğunda test "modül
+// bulunamadı" diye patlıyordu — kod bozukmuş gibi görünüyordu).
+import { mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+const kok = join(dirname(fileURLToPath(import.meta.url)), '..');
+const gecici = mkdtempSync(join(tmpdir(), 'st-counter-test-'));
+let parseCounterEmail;
+try {
+  execFileSync(
+    process.execPath,
+    [join(kok, 'node_modules/typescript/bin/tsc'), join(kok, 'src/lib/counter-email.ts'),
+      '--outDir', gecici, '--module', 'esnext', '--target', 'es2022', '--skipLibCheck'],
+    { stdio: 'pipe' },
+  );
+  ({ parseCounterEmail } = await import(pathToFileURL(join(gecici, 'counter-email.js')).href));
+} finally {
+  rmSync(gecici, { recursive: true, force: true });
+}
 
 const SERIALS = ['ABC12345', 'WXY9988', 'KM-4471', 'QRS777'];
 
