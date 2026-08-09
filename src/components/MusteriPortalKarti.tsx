@@ -13,7 +13,8 @@ import { waUrl } from '@/lib/share';
 export default function MusteriPortalKarti({ customerId }: { customerId: string }) {
   const [durum, setDurum] = useState<{
     acik: boolean; yol: string | null; sonGoruntuleme: string | null;
-    telefon: string; musteriAdi: string;
+    telefon: string; musteriAdi: string; maliGorunur: boolean;
+    hazirlik: { anahtar: string; sayi: number; mesaj: string; ornek?: string }[];
   } | null>(null);
   const [calisiyor, setCalisiyor] = useState(false);
   const [kopyalandi, setKopyalandi] = useState(false);
@@ -66,11 +67,42 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
       </div>
 
       <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280', lineHeight: 1.6 }}>
-        Müşteri kendi cihazlarını, servis durumunu ve bakiyesini görür; arıza ve
-        sayaç bildirebilir. Şifre yok — bağlantıya sahip olan görür.
+        Müşteri kendi cihazlarını{durum.maliGorunur ? ', servis durumunu ve bakiyesini' : ' ve servis durumunu'} görür;
+        arıza ve sayaç bildirebilir. Şifre yok — bağlantıya sahip olan görür.
       </p>
 
       {hata && <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: '#b91c1c' }}>{hata}</div>}
+
+      {/* GÖNDERMEDEN ÖNCE GÖR — panel bayinin verisini müşteriye gösteriyor.
+          Engellemiyoruz, karar bayinin; ama sonradan utanmaktansa şimdi görsün. */}
+      {durum.hazirlik?.length > 0 && (
+        <div style={{
+          marginTop: '0.875rem', padding: '0.75rem 0.85rem', borderRadius: '0.6rem',
+          backgroundColor: '#fffbeb', border: '1px solid #fde68a',
+        }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#92400e' }}>
+            Göndermeden önce
+          </div>
+          <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem', fontSize: '0.78rem', color: '#78350f', lineHeight: 1.6 }}>
+            {durum.hazirlik.map((h) => (
+              <li key={h.anahtar}>
+                {h.mesaj}
+                {h.ornek && <span style={{ display: 'block', color: '#a16207', fontFamily: 'monospace', fontSize: '0.72rem' }}>ör: {h.ornek}</span>}
+              </li>
+            ))}
+          </ul>
+          <div style={{ marginTop: '0.5rem', fontSize: '0.72rem', color: '#a16207' }}>
+            Panel bu bilgileri olduğu gibi gösterir. Düzeltmeden gönderebilirsiniz, karar sizin.
+          </div>
+        </div>
+      )}
+
+      {/* Mali bilgi durumu — bayi ne paylaştığını bilerek göndersin */}
+      <div style={{ marginTop: '0.7rem', fontSize: '0.75rem', color: '#6b7280' }}>
+        {durum.maliGorunur
+          ? <>Müşteri <b>bakiyesini ve faturalarını</b> görecek. Gizlemek için Ayarlar → Müşteri Paneli.</>
+          : <>Mali bilgiler <b>gizli</b>: müşteri hiçbir tutar görmüyor.</>}
+      </div>
 
       {!durum.acik ? (
         <button onClick={() => islem('ac')} disabled={calisiyor}

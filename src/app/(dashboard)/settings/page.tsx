@@ -18,7 +18,7 @@ export default function SettingsPage() {
     const router = useRouter();
     const fileRef = useRef<HTMLInputElement>(null);
     const [tenant, setTenant] = useState<TenantInfo | null>(null);
-    const [form, setForm] = useState({ name: '', phone: '', address: '', pricePerBlack: '0.40', pricePerColor: '1.50' });
+    const [form, setForm] = useState({ name: '', phone: '', address: '', pricePerBlack: '0.40', pricePerColor: '1.50', portalShowFinancials: true });
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [msg, setMsg] = useState('');
@@ -32,6 +32,7 @@ export default function SettingsPage() {
                 address: data.address || '',
                 pricePerBlack: String(data.pricePerBlack ?? '0.40'),
                 pricePerColor: String(data.pricePerColor ?? '1.50'),
+                portalShowFinancials: data.portalShowFinancials !== false,
             });
         });
     }, []);
@@ -129,6 +130,28 @@ export default function SettingsPage() {
                     <label style={lbl}>Adres</label>
                     <textarea style={{ ...inp, minHeight: '80px', resize: 'vertical' } as React.CSSProperties} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Firma adresi" />
                 </div>
+            </div>
+
+            {/* Müşteri Paneli — mali bilgi görünürlüğü */}
+            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Müşteri Paneli</h2>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>
+                    Müşterilerinize gönderdiğiniz panelde mali bilgiler görünsün mü? Kapatırsanız
+                    bakiye, fatura listesi ve servis tutarlarının <b>hepsi</b> gizlenir — biri açık
+                    kalırsa diğerini ele verir. Cihazlar, servis durumu ve bildirim gönderme çalışmaya devam eder.
+                </p>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={form.portalShowFinancials} style={{ marginTop: '0.2rem', width: 18, height: 18, cursor: 'pointer' }}
+                        onChange={e => setForm({ ...form, portalShowFinancials: e.target.checked })} />
+                    <span style={{ fontSize: '0.875rem' }}>
+                        <b>Bakiye ve faturaları müşteriye göster</b>
+                        <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem' }}>
+                            {form.portalShowFinancials
+                                ? 'Müşteri kendi bakiyesini ve faturalarını görüyor.'
+                                : 'Müşteri hiçbir tutar görmüyor; yalnız cihazlarını ve servis durumunu görüyor.'}
+                        </span>
+                    </span>
+                </label>
             </div>
 
             {/* Sayaç Birim Fiyatları */}

@@ -122,6 +122,12 @@ model Tenant {
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
   whatsappPhoneId String? @unique
 
+  // ── MÜŞTERİ PANELİ ───────────────────────────────────────────────────
+  // Bazı bayiler müşterisinin bakiyesini görmesini istemez: pazarlıkta eli
+  // zayıflar. Kapatılınca panelde bakiye kartı, fatura listesi ve fiş
+  // tutarlarının HEPSİ gizlenir — biri kalırsa diğerini ele verir.
+  portalShowFinancials Boolean @default(true)
+
   // ÜRETİCİ VERİ PAYLAŞIMI — bayinin AÇIK RIZASI. Varsayılan KAPALI.
   // Bu bayrak açık DEĞİLSE bayinin hiçbir verisi /api/oem/reliability kapsamına
   // girmez. Toplulaştırılmış ve anonim olsa bile, bayinin verisini onun kendi

@@ -64,18 +64,21 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
       </header>
 
       <main className="mx-auto max-w-2xl px-5 py-6 space-y-6">
-        {/* ── Bakiye: "ne kadar borcum var" en sık gelen telefon. En üstte. ── */}
-        <section className={`rounded-2xl border p-5 ${v.bakiye > 0.005 ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
-          <div className="text-xs font-medium text-slate-600">Güncel bakiyeniz</div>
-          <div className={`mt-1 text-3xl font-bold tabular-nums ${v.bakiye > 0.005 ? 'text-amber-900' : 'text-emerald-800'}`}>
-            {tl(v.bakiye)}
-          </div>
-          <div className="mt-1.5 text-xs text-slate-600">
-            {v.bakiye > 0.005
-              ? `${acikFaturalar.length} açık fatura`
-              : 'Ödenmemiş faturanız yok'}
-          </div>
-        </section>
+        {/* ── Bakiye: "ne kadar borcum var" en sık gelen telefon. En üstte.
+            Bayi mali bilgileri kapatmışsa bu bölüm hiç çizilmez. ── */}
+        {v.mali && v.bakiye != null && (
+          <section className={`rounded-2xl border p-5 ${v.bakiye > 0.005 ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
+            <div className="text-xs font-medium text-slate-600">Güncel bakiyeniz</div>
+            <div className={`mt-1 text-3xl font-bold tabular-nums ${v.bakiye > 0.005 ? 'text-amber-900' : 'text-emerald-800'}`}>
+              {tl(v.bakiye)}
+            </div>
+            <div className="mt-1.5 text-xs text-slate-600">
+              {v.bakiye > 0.005
+                ? `${acikFaturalar.length} açık fatura`
+                : 'Ödenmemiş faturanız yok'}
+            </div>
+          </section>
+        )}
 
         {/* ── Açık servis fişleri ── */}
         {acikFisler.length > 0 && (
@@ -179,7 +182,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                       <div className="text-xs text-slate-500">Fiş {f.no} · {gun(f.tarih)}</div>
                     </div>
                     <div className="shrink-0 text-right">
-                      {f.tutar > 0 && <div className="text-sm font-semibold tabular-nums">{tl(f.tutar)}</div>}
+                      {f.tutar != null && f.tutar > 0 && <div className="text-sm font-semibold tabular-nums">{tl(f.tutar)}</div>}
                       {/* Kapanmamış eski fiş burada; durumu gizlenmiyor, yalnız
                           "devam eden servis" başlığı altında değil. */}
                       {f.durum !== 'DELIVERED' && (

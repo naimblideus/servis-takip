@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
-import { yeniPortalJetonu } from '@/lib/portal';
+import { yeniPortalJetonu, portalHazirlik } from '@/lib/portal';
 import { writeAudit, istekIp } from '@/lib/audit';
 
 /**
@@ -27,7 +27,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const m = await musteriBul(id, tenantId);
     if (!m) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+
+    // Bayi linki göndermeden ÖNCE görsün: panel onun verisini gösteriyor.
+    const [hazirlik, firma] = await Promise.all([
+      portalHazirlik(tenantId, id),
+      prisma.tenant.findUnique({ where: { id: tenantId }, select: { portalShowFinancials: true } }),
+    ]);
+
     return NextResponse.json({
+      hazirlik,
+      maliGorunur: firma?.portalShowFinancials !== false,
       acik: m.portalEnabled,
       yol: m.portalEnabled && m.portalToken ? `/m/${m.portalToken}` : null,
       uretim: m.portalTokenAt,

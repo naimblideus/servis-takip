@@ -73,7 +73,7 @@ export async function portalVerisi(m: PortalMusteri) {
   const [firma, cihazlar, fisler, faturalar, odemeler, talepler] = await Promise.all([
     prisma.tenant.findUnique({
       where: { id: m.tenantId },
-      select: { name: true, phone: true, address: true },
+      select: { name: true, phone: true, address: true, portalShowFinancials: true },
     }),
     prisma.device.findMany({
       where: { tenantId: m.tenantId, customerId: m.id },
@@ -120,6 +120,11 @@ export async function portalVerisi(m: PortalMusteri) {
   // okumaya göre hesaplanıyor, müşteri de faturasını belirleyen sayıyı görsün.
   const okuma = await sonOkumalar(m.tenantId, cihazlar.map((c) => c.id));
 
+  // Bayi mali bilgileri kapattıysa TEK BİR yerde kesiyoruz: bakiye, fatura
+  // listesi ve fiş tutarları birden gider. Birini açık bırakmak diğerini ele
+  // verir — fatura listesi zaten bakiyeyi topla-çıkar ettirir.
+  const mali = firma?.portalShowFinancials !== false;
+
   const faturaToplam = faturalar.reduce((a, f) => a + TL(f.totalAmount), 0);
   const odenen = faturalar.reduce((a, f) => a + TL(f.paidAmount), 0);
 
@@ -154,9 +159,10 @@ export async function portalVerisi(m: PortalMusteri) {
       cihaz: f.device ? `${f.device.brand} ${f.device.model}${f.device.location ? ` · ${f.device.location}` : ''}` : null,
       ariza: f.issueText,
       yapilan: f.actionText,
-      tutar: TL(f.totalCost),
+      tutar: mali ? TL(f.totalCost) : null,
     })),
-    faturalar: faturalar.map((f) => ({
+    mali, // gösterim tarafı bunu okur; kapalıysa mali bölümler hiç çizilmez
+    faturalar: mali ? faturalar.map((f) => ({
       no: f.invoiceNumber,
       tarih: f.invoiceDate.toISOString(),
       vade: f.dueDate?.toISOString() ?? null,
@@ -164,10 +170,10 @@ export async function portalVerisi(m: PortalMusteri) {
       odenen: TL(f.paidAmount),
       kalan: TL(f.totalAmount) - TL(f.paidAmount),
       durum: f.status,
-    })),
+    })) : [],
     // Bakiye faturalar üzerinden: "ne kadar borcum var" en sık gelen telefon.
-    bakiye: Math.max(0, faturaToplam - odenen),
-    tahsilatToplam: TL(odemeler._sum.amount),
+    bakiye: mali ? Math.max(0, faturaToplam - odenen) : null,
+    tahsilatToplam: mali ? TL(odemeler._sum.amount) : null,
     talepler: talepler.map((t) => ({
       id: t.id, tur: t.tur, durum: t.durum,
       tarih: t.createdAt.toISOString(),
@@ -188,4 +194,88 @@ export async function talepSiniriAsildi(customerId: string): Promise<boolean> {
     where: { customerId, createdAt: { gte: new Date(Date.now() - 3_600_000) } },
   });
   return sayi >= 10;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PANEL GÖNDERMEYE HAZIR MI?
+
+   Portal bir AYNADIR: bayinin verisini müşterisine gösterir. Oda dağınıksa
+   ayna güzel göstermez. Gerçek veride görülen manzara: "Bilinmiyor MONİTÖR /
+   Seri: IMPORT-373" ve aylar önce açılıp kapatılmamış fişler. Devlet
+   hastanesinin satın alma müdürü bunu görürse bayi hakkında iyi düşünmez.
+
+   Bu yüzden bayi linki göndermeden ÖNCE uyarılıyor. Engellemiyoruz — karar
+   bayinin; ama "göndermeden gör" demek, sonradan utanmaktan iyidir. Yan
+   faydası: bayiye verisini temizlemesi için somut bir sebep veriyor.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Marka/model yerine konmuş dolgu değerler — içe aktarımdan kalır. */
+const DOLGU = new Set(['', '-', '?', 'bilinmiyor', 'bilinmeyen', 'yok', 'belirsiz', 'n/a', 'na']);
+const dolguMu = (v: string | null | undefined) =>
+  DOLGU.has((v ?? '').trim().toLocaleLowerCase('tr'));
+
+/** Fiş bu kadar gündür hareketsizse müşteri panelinde kötü görünür. */
+const BAYAT_FIS_GUN = 45;
+
+export interface HazirlikBulgu {
+  anahtar: 'cihaz-yok' | 'eksik-cihaz-adi' | 'bayat-fis' | 'okunmamis-sayac';
+  sayi: number;
+  mesaj: string;
+  ornek?: string;
+}
+
+export async function portalHazirlik(tenantId: string, customerId: string): Promise<HazirlikBulgu[]> {
+  const cihazlar = await prisma.device.findMany({
+    where: { tenantId, customerId },
+    select: { id: true, brand: true, model: true, serialNo: true, isRental: true },
+  });
+
+  const bulgular: HazirlikBulgu[] = [];
+
+  if (cihazlar.length === 0) {
+    return [{
+      anahtar: 'cihaz-yok', sayi: 0,
+      mesaj: 'Bu müşteride kayıtlı cihaz yok — panel boş görünür.',
+    }];
+  }
+
+  const eksik = cihazlar.filter(
+    (c) => dolguMu(c.brand) || dolguMu(c.model) || /^IMPORT-/i.test(c.serialNo ?? ''),
+  );
+  if (eksik.length) {
+    bulgular.push({
+      anahtar: 'eksik-cihaz-adi', sayi: eksik.length,
+      mesaj: `${eksik.length} cihazın marka/model veya seri bilgisi eksik. Müşteri bunları böyle görecek.`,
+      ornek: `${eksik[0].brand} ${eksik[0].model} · ${eksik[0].serialNo}`.trim(),
+    });
+  }
+
+  const bayat = await prisma.serviceTicket.count({
+    where: {
+      tenantId, customerId, deletedAt: null,
+      status: { notIn: ['DELIVERED', 'CANCELLED'] },
+      statusUpdatedAt: { lt: new Date(Date.now() - BAYAT_FIS_GUN * 86_400_000) },
+    },
+  });
+  if (bayat) {
+    bulgular.push({
+      anahtar: 'bayat-fis', sayi: bayat,
+      mesaj: `${bayat} servis fişi ${BAYAT_FIS_GUN} günden uzun süredir kapatılmamış. Panelde "kapanmamış" olarak görünür.`,
+    });
+  }
+
+  // Kiralık cihazın sayacı hiç okunmamışsa panelde o cihazda sayaç satırı boş kalır.
+  const kiralik = cihazlar.filter((c) => c.isRental);
+  if (kiralik.length) {
+    const okuma = await sonOkumalar(tenantId, kiralik.map((c) => c.id));
+    const okunmamis = kiralik.filter((c) => !okuma.has(c.id)).length;
+    if (okunmamis) {
+      bulgular.push({
+        anahtar: 'okunmamis-sayac', sayi: okunmamis,
+        mesaj: `${okunmamis} kiralık cihazın sayacı hiç okunmamış — panelde sayaç bilgisi görünmez.`,
+      });
+    }
+  }
+
+  return bulgular;
 }

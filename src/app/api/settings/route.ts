@@ -11,7 +11,7 @@ export async function GET() {
 
     const tenant = await prisma.tenant.findUnique({
         where: { id: user.tenantId },
-        select: { id: true, name: true, logo: true, phone: true, address: true, pricePerBlack: true, pricePerColor: true },
+        select: { id: true, name: true, logo: true, phone: true, address: true, pricePerBlack: true, pricePerColor: true, portalShowFinancials: true },
     });
 
     return NextResponse.json(tenant);
@@ -27,7 +27,7 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { name, phone, address, pricePerBlack, pricePerColor } = body;
+    const { name, phone, address, pricePerBlack, pricePerColor, portalShowFinancials } = body;
 
     const tenant = await prisma.tenant.update({
         where: { id: user.tenantId },
@@ -37,6 +37,8 @@ export async function PATCH(req: Request) {
             ...(address !== undefined && { address }),
             ...(pricePerBlack !== undefined && { pricePerBlack: parseFloat(pricePerBlack) }),
             ...(pricePerColor !== undefined && { pricePerColor: parseFloat(pricePerColor) }),
+            // Müşteri panelinde bakiye/fatura/tutar gösterilsin mi
+            ...(portalShowFinancials !== undefined && { portalShowFinancials: Boolean(portalShowFinancials) }),
         },
     });
 
