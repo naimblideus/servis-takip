@@ -3465,18 +3465,6 @@ html:not(.js) .reveal-stagger > *{
   .nav-inner{padding-left:14px;padding-right:14px}
 }
 
-/* --- Durus / seffaflik seridi --- */
-.honest{
-  display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:34px;
-}
-.honest span{
-  font-size:12.5px;color:var(--text-dim);
-  padding:8px 14px;border-radius:999px;
-  background:rgba(255,255,255,0.03);border:1px solid var(--border);
-  font-family:'JetBrains Mono',monospace;letter-spacing:-0.01em;
-}
-.honest span b{color:#fca5a5;font-weight:700}
-
 /* --- Fiyat karti: cihaz sayisina gore canli hesap --- */
 .price-calc{
   margin:-10px 0 20px;padding:11px 14px;border-radius:12px;
@@ -4581,14 +4569,6 @@ const BODY = `
       </div>
     </div>
 
-    <div class="honest reveal">
-      <span><b>Yok:</b> e-Fatura / GİB entegrasyonu (Logo'ya aktarım var)</span>
-      <span><b>Yok:</b> canlı teknisyen konumu / GPS takibi</span>
-      <span><b>Yok:</b> müşterinin giriş yaptığı müşteri portalı</span>
-      <span><b>Yok:</b> yapay zekâ özellikleri</span>
-      <span><b>Yok:</b> App Store / Play'de ayrı mobil uygulama</span>
-    </div>
-    <p class="cap-note"><strong>Neden bunları da yazıyoruz?</strong> Çünkü demoda görmediğiniz bir şeyi satmak istemiyoruz.</p>
   </div>
 </section>
 
