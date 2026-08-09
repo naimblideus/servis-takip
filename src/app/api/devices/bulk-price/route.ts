@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
+import { writeAudit, istekIp } from '@/lib/audit';
 
 // TOPLU ZAM — kiralık cihazların kira ve/veya sayfa fiyatlarını tek işlemde günceller.
 // dryRun=true → sadece ÖNİZLEME (eski → yeni), hiçbir şey yazılmaz.
@@ -21,7 +22,7 @@ const roundTo = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
 
 export async function POST(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { tenantId, user } = await requireTenantUser();
     const body = await req.json();
     const { customerId, mode, value, fields, dryRun } = body as {
       customerId?: string; mode: 'percent' | 'amount'; value: number; fields: Field[]; dryRun?: boolean;
@@ -121,6 +122,27 @@ export async function POST(req: NextRequest) {
         prisma.device.updateMany({ where: { id: u.id, tenantId }, data: u.data as any }),
       ),
     );
+
+    // DENETİM: toplu zam, sistemdeki en yüksek finansal etkili tek işlem.
+    // "Fiyatları kim, ne zaman, ne kadar artırdı" sorusunun cevabı burada.
+    await writeAudit({
+      tenantId,
+      userId: user.id,
+      action: 'FIYAT_TOPLU_GUNCELLENDI',
+      entityType: 'Device',
+      entityId: `toplu:${updates.length}`,
+      // Satır satır liste BİLEREK yok: denetim kaydı özet tutar, 4000 karakterde
+      // kırpılıp anlamsızlaşmasın. Hangi cihazların değiştiği Device tablosunda.
+      newValue: {
+        cihazSayisi: updates.length, mode, value: val, alanlar: selected,
+        eskiAylikToplam: preview.oldMonthlyTotal,
+        yeniAylikToplam: preview.newMonthlyTotal,
+        fark: preview.monthlyDiff,
+      },
+      ipAddress: istekIp(req),
+      actorType: 'USER',
+      actorName: user.name ?? user.email,
+    });
 
     return NextResponse.json({ ...preview, applied: true, updated: updates.length });
   } catch (e) {

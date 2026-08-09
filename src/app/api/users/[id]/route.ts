@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { writeAudit, istekIp } from '@/lib/audit';
 
 export async function PATCH(
     req: Request,
@@ -31,6 +32,25 @@ export async function PATCH(
         }
 
         const user = await prisma.user.update({ where: { id }, data: updateData });
+
+        // DENETİM: yetki değişikliği. "Bu kişiye yönetici yetkisini kim verdi" sorusu
+        // kurumsal denetimin ilk sorularından. Şifre ASLA kayda girmez — yalnız değişti bilgisi.
+        await writeAudit({
+            tenantId: me.tenantId,
+            userId: me.id,
+            action: 'KULLANICI_GUNCELLENDI',
+            entityType: 'User',
+            entityId: id,
+            oldValue: { name: target.name, email: target.email, role: target.role, isActive: target.isActive },
+            newValue: {
+                name: user.name, email: user.email, role: user.role, isActive: user.isActive,
+                sifreDegisti: Boolean(body.password),
+            },
+            ipAddress: istekIp(req),
+            actorType: 'USER',
+            actorName: me.name ?? me.email,
+        });
+
         return NextResponse.json({ id: user.id, name: user.name, email: user.email, role: user.role, isActive: user.isActive });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });
@@ -56,6 +76,21 @@ export async function DELETE(
     try {
         // Önce kullanıcıyı pasife çek (ilişkili fişler bozulmasın)
         await prisma.user.update({ where: { id }, data: { isActive: false } });
+
+        // DENETİM: erişim iptali — "bu teknisyenin erişimi ne zaman kapatıldı"
+        await writeAudit({
+            tenantId: me.tenantId,
+            userId: me.id,
+            action: 'KULLANICI_ERISIMI_KAPATILDI',
+            entityType: 'User',
+            entityId: id,
+            oldValue: { name: target.name, email: target.email, role: target.role, isActive: target.isActive },
+            newValue: { isActive: false },
+            ipAddress: istekIp(req),
+            actorType: 'USER',
+            actorName: me.name ?? me.email,
+        });
+
         return NextResponse.json({ ok: true });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });

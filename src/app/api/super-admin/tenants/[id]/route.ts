@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { writeAudit, istekIp } from '@/lib/audit';
+import { getSuperAdminSession } from '@/lib/super-admin-auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -28,10 +30,37 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             const digits = String(body.whatsappPhoneId ?? '').replace(/\D/g, '');
             body.whatsappPhoneId = digits || null;
         }
+        // Değişiklik ÖNCESİ hâli — denetimde "neyi neye çevirdi" için
+        const oncesi = await prisma.tenant.findUnique({
+            where: { id },
+            select: { plan: true, isActive: true, maxUsers: true, modules: true, oemDataSharing: true, whatsappPhoneId: true },
+        });
+
         const tenant = await prisma.tenant.update({
             where: { id },
             data: body as any,
         });
+
+        // DENETİM: süper-admin bir bayinin planını, modüllerini ya da veri
+        // paylaşım rızasını değiştirdiğinde iz kalmalı. Özellikle oemDataSharing:
+        // "bu rızayı kim ne zaman açtı" sorusunun tek cevabı bu kayıt.
+        const sa = await getSuperAdminSession();
+        await writeAudit({
+            tenantId: id,
+            action: 'BAYI_AYARI_DEGISTI',
+            entityType: 'Tenant',
+            entityId: id,
+            oldValue: oncesi,
+            newValue: {
+                plan: tenant.plan, isActive: tenant.isActive, maxUsers: tenant.maxUsers,
+                modules: tenant.modules, oemDataSharing: (tenant as any).oemDataSharing,
+                whatsappPhoneId: (tenant as any).whatsappPhoneId,
+            },
+            ipAddress: istekIp(req),
+            actorType: 'SUPER_ADMIN',
+            actorName: sa?.email ?? 'super-admin',
+        });
+
         return NextResponse.json(tenant);
     } catch (error: any) {
         // Benzersizlik ihlali: aynı Meta numarası başka bir bayide tanımlı

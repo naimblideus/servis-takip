@@ -72,6 +72,10 @@ export default function SuperAdminDashboard() {
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-sm font-medium transition-all">
                             📥 Talepler
                         </Link>
+                        <Link href="/super-admin/audit"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-sm font-medium transition-all">
+                            🛡 Denetim
+                        </Link>
                         <Link href="/super-admin/tenants/new"
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium transition-all">
                             + Yeni İşletme

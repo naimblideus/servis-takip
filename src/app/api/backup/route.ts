@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
+import { writeAudit, istekIp } from '@/lib/audit';
 
 // GET /api/backup — Bayinin KENDİ verisinin tam yedeği (JSON dosya indirir).
 // Yalnız ADMIN. Sadece kendi tenant'ının verisi (cross-tenant sızıntı yok).
@@ -62,6 +63,24 @@ export async function GET(req: NextRequest) {
 
     const stamp = new Date().toISOString().slice(0, 10);
     const safeName = (tenant?.name || 'yedek').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
+
+    // DENETİM: veri dışa aktarımı izlenmesi gereken bir olaydır — tüm müşteri,
+    // cihaz ve muhasebe kaydı tek dosyada dışarı çıkıyor. Kurumsal denetimde
+    // "verinizi kim indirdi" sorulur.
+    await writeAudit({
+      tenantId,
+      userId: user.id,
+      action: 'YEDEK_INDIRILDI',
+      entityType: 'Tenant',
+      entityId: tenantId,
+      newValue: {
+        musteri: customers.length, cihaz: devices.length, fis: tickets.length,
+        fotografDahil: new URL(req.url).searchParams.get('photos') === '1',
+      },
+      ipAddress: istekIp(req),
+      actorType: 'USER',
+      actorName: user.name ?? user.email,
+    });
 
     return new NextResponse(JSON.stringify(backup, null, 2), {
       headers: {
