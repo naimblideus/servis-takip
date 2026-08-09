@@ -1,8 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+
+// Landing'deki "Demoyu Dene" buraya /login?demo=1 ile gelir. Bilgiler ÖRNEK VERİLİ
+// demo hesabına aittir (scripts/seed-demo.mjs) — gerçek bir bayinin hesabı DEĞİLDİR.
+const DEMO_EPOSTA = 'demo@nextusservis.com';
+const DEMO_SIFRE = 'demo1234';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +17,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [totp, setTotp] = useState('');
   const [needsTotp, setNeedsTotp] = useState(false);
+  const [demoMod, setDemoMod] = useState(false);
+
+  // Demo bilgilerini DOLDUR ama KENDİLİĞİNDEN GİRME: ziyaretçi neye tıkladığını
+  // görsün ve isterse başka bir hesapla girebilsin.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('demo') !== '1') return;
+    setEmail(DEMO_EPOSTA);
+    setPassword(DEMO_SIFRE);
+    setDemoMod(true);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,8 +75,22 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Nextus Servis</h1>
-          <p className="text-gray-500 text-sm mt-1">Hesabınıza giriş yapın</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {demoMod ? 'Örnek verilerle hazırlanmış demo hesabı' : 'Hesabınıza giriş yapın'}
+          </p>
         </div>
+
+        {/* Demo uyarısı — ziyaretçi gördüğü rakamları gerçek sanmasın */}
+        {demoMod && (
+          <div className="mb-5 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3">
+            <div className="text-sm font-semibold text-teal-900">Demo hesabı hazır</div>
+            <p className="text-xs text-teal-800 mt-1 leading-relaxed">
+              Bilgiler dolduruldu, <b>Giriş Yap</b>&apos;a basmanız yeterli. Bu hesaptaki
+              tüm firma isimleri ve rakamlar <b>örnektir</b>; dilediğiniz gibi
+              gezebilir, kayıt ekleyip silebilirsiniz.
+            </p>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">

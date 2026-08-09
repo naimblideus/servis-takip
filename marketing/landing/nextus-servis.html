@@ -3658,6 +3658,86 @@ input:focus-visible,
 /* Mockup icindeki "baslik"lar artik gercek baslik degil (dekoratif) */
 .dash-topbar .mock-h{font-size:18px;font-weight:700;color:#fff;font-family:'Plus Jakarta Sans',sans-serif}
 .mock-srv-head .mock-h{font-size:15px;font-weight:700;color:#fff;font-family:'Plus Jakarta Sans',sans-serif}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SADE / PREMIUM KATMANI
+   ═══════════════════════════════════════════════════════════════════════
+   Renk kiti AYNEN duruyor (--p1/--p2/--p3 değişkenleri silinmedi); değişen
+   şey onların DEKORATİF kullanımı. Pahalı görünen arayüzlerin ortak yanı
+   süs değil ölçü: tek vurgu rengi, çok boşluk, az hareket.
+
+   Bu katman en sonda ve override olarak duruyor — geri almak istersen tek
+   blok silinir, altındaki tasarım olduğu gibi geri gelir.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* 1 ── TEK VURGU RENGİ.
+   Üç ayrı gradyan (amber + teal + mor) aynı sayfada yarışıyordu. Teal zaten
+   "ana renk" olarak işaretliydi; diğer ikisi vurgu olmaktan çıkıp nötrleşiyor. */
+:root{
+  --accent:#14b8a6;
+  --accent-soft:rgba(20,184,166,0.14);
+}
+
+/* 2 ── GRADYAN YAZI YOK.
+   Başlıkta gradyan, anlam taşımayan bir süs. Düz renk hem daha okunaklı
+   hem daha pahalı duruyor. (İnişli harf dolgusuna da gerek kalmıyor —
+   background-clip kalkınca kırpılma sorunu ortadan kalkar.) */
+.gradient-text{
+  background:none !important;
+  -webkit-background-clip:initial !important;
+  background-clip:initial !important;
+  -webkit-text-fill-color:currentColor !important;
+  color:var(--accent) !important;
+  animation:none !important;
+  padding-top:0 !important;
+  padding-bottom:0 !important;
+}
+
+/* 3 ── RENKLİ PARILTI YOK.
+   Sıfır ofsetli renkli gölge, "AI yapımı arayüz" izlenimi veren en belirgin
+   işaret. Yerine düz, nötr yükseklik. */
+.hero-glow,.blob,.cta-mesh{display:none !important}
+.btn-grad,.btn-primary,.lp-btn-primary,.price-card,.feature-card,.bento-card,
+.founder-card,.cta-card,.logo-mark{box-shadow:none !important}
+.btn-grad:hover,.btn-primary:hover{box-shadow:0 4px 16px rgba(0,0,0,0.4) !important}
+
+/* 4 ── SÜREKLİ HAREKET YOK.
+   Döngüsel gradyan akışı ve nabız dikkat çalıyor. Girişteki .reveal
+   animasyonları ve logodaki tek seferlik swoosh KORUNUYOR — onlar
+   bir kez olup biten, anlam taşıyan hareketler. */
+.btn-pulse{animation:none !important}
+[class*="grad"]:not(.btn-grad):not(.logo-mark){animation:none !important}
+
+/* 5 ── VURGU BUTONU: gradyan yerine düz renk.
+   Gradyan buton ucuz durur; düz renk + net kenar pahalı durur. */
+.btn-grad,.lp-btn-primary{
+  background:var(--accent) !important;
+  color:#04121a !important;
+  font-weight:700;
+}
+.btn-grad:hover,.lp-btn-primary:hover{background:#0d9488 !important}
+
+/* 6 ── DAHA ÇOK BOŞLUK.
+   Premium algısının en ucuz ve en etkili kaynağı. */
+.section,.pad,section[class*="sec"]{padding-top:104px;padding-bottom:104px}
+@media(max-width:760px){.section,.pad,section[class*="sec"]{padding-top:68px;padding-bottom:68px}}
+
+/* 7 ── SAKİN KARTLAR: ince kenar, düz zemin, gradyan çerçeve yok. */
+.price-card,.feature-card,.bento-card,.founder-card,.cta-card,.faq-item{
+  background:rgba(255,255,255,0.022) !important;
+  border:1px solid rgba(255,255,255,0.07) !important;
+}
+.price-card.featured,.price-card[data-plan="profesyonel"]{
+  border-color:rgba(20,184,166,0.32) !important;
+  background:rgba(20,184,166,0.04) !important;
+}
+
+/* 8 ── TİPOGRAFİ: daha az kalın, daha sıkı.
+   Her yerde 800 kullanmak bağırmak gibi; ölçülü ağırlık daha güvenli durur. */
+h1,.hero-title{letter-spacing:-0.03em;font-weight:700}
+h2,.section-title,.cta-title{letter-spacing:-0.022em;font-weight:700}
+.section-eyebrow{letter-spacing:0.14em;font-weight:600;color:var(--text-dim)}
+.section-eyebrow .dot{background:var(--accent) !important}
 </style>
 <!-- Gomulu fontlar EN SONDA: 301 KB base64, ilk boyamayi geciktirmesin diye
      yerlesim CSS'inin ALTINA alindi. @font-face nerede tanimlanirsa tanimlansin gecerlidir. -->
@@ -3712,7 +3792,10 @@ input:focus-visible,
       <li><a href="#sss" class="nav-link">SSS</a></li>
     </ul>
     <div class="nav-cta">
-      <a href="#hesap" class="btn btn-ghost btn-sm">Hesapla</a>
+      <!-- Demoyu Dene: ÖRNEK VERİLİ ayrı hesaba gider (scripts/seed-demo.mjs).
+           Gerçek bayi hesabına ASLA bağlanmamalı — orada o bayinin müşteri
+           adları, cihaz sayıları ve fiyatları var. -->
+      <a href="/login?demo=1" class="btn btn-ghost btn-sm nav-demo">Demoyu Dene</a>
       <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20demosu%20ve%20fiyat%20bilgisi%20istiyorum" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><span class="nav-cta-long">WhatsApp'tan&nbsp;</span>Demo →</a>
       <button class="menu-btn" id="menuBtn" aria-label="Menü" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
     </div>
