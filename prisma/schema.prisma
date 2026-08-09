@@ -786,6 +786,15 @@ model SuperAdmin {
   lastLoginAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  // İKİ ADIMLI DOĞRULAMA — bu hesap TÜM bayilerin verisini görür.
+  // Normal kullanıcıda 2FA isteğe bağlı; burada şart olmalı, çünkü tek bir
+  // şifre sızıntısı bütün kiracıları açar. totpEnabled açıldıktan sonra
+  // giriş kod olmadan tamamlanmaz.
+  totpSecret      String?
+  totpEnabled     Boolean  @default(false)
+  totpLastCounter Int?     // aynı kodun tekrar kullanılmasını engeller (replay)
+  recoveryCodes   String[] @default([]) // sha256; her biri BİR kez kullanılır
 }
 
 // ============================================

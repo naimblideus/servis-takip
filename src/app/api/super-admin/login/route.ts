@@ -9,16 +9,28 @@ export async function POST(req: NextRequest) {
         const rl = rateLimit(`sa-login:${clientIp(req)}`, 8, 60_000);
         if (!rl.ok) return NextResponse.json(tooMany(rl.retryAfter), { status: 429 });
 
-        const { email, password } = await req.json();
+        const { email, password, totp } = await req.json();
         if (!email || !password) {
             return NextResponse.json({ error: 'E-posta ve şifre gerekli' }, { status: 400 });
         }
 
-        const session = await loginSuperAdmin(email, password);
-        if (!session) {
+        const r = await loginSuperAdmin(email, password, totp);
+        if (!r.ok) {
+            // needsTotp YALNIZCA şifre doğruyken döner — giriş ekranı kod alanını
+            // bu sinyalle açar. Şifre yanlışsa bu bilgi verilmez (hesap varlığı sızmasın).
+            if (r.reason === 'TOTP_REQUIRED') {
+                return NextResponse.json({ needsTotp: true }, { status: 401 });
+            }
+            if (r.reason === 'BAD_TOTP') {
+                return NextResponse.json(
+                    { needsTotp: true, error: 'Doğrulama kodu hatalı veya süresi geçti' },
+                    { status: 401 },
+                );
+            }
             return NextResponse.json({ error: 'E-posta veya şifre hatalı' }, { status: 401 });
         }
 
+        const session = r.session;
         const token = await createSuperAdminSession(session);
         const res = NextResponse.json({ success: true, name: session.name });
         res.cookies.set(SA_COOKIE, token, {
