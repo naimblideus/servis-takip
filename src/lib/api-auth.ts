@@ -14,14 +14,45 @@ export class AuthError extends Error {
   }
 }
 
-/** Oturumdaki kullanıcıyı ve tenantId'sini döndürür; yoksa AuthError fırlatır (fail-closed). */
+/**
+ * Oturumdaki kullanıcıyı ve tenantId'sini döndürür; yoksa AuthError fırlatır
+ * (fail-closed).
+ *
+ * ── NEDEN OTURUMDAKİ tenantId İLE ARANIYOR ───────────────────────────────
+ * E-posta bayi bazında benzersiz (@@unique([tenantId, email])), GLOBAL DEĞİL.
+ * Yani aynı e-posta iki bayide olabilir ve olur da — canlı veride görüldü.
+ * Yalnız e-postayla findFirst yapmak, kullanıcıyı YANLIŞ BAYİYE bağlayabilir;
+ * o noktadan sonra bütün tenant-kapsamlı sorgular başka bir bayinin verisinde
+ * çalışır. Oturum jetonu tenantId taşıyor (auth.ts jwt/session callback'leri),
+ * doğru kaynak odur.
+ *
+ * Oturumda tenantId varsa ve o bayide böyle bir kullanıcı YOKSA fail-closed
+ * davranıyoruz: e-postayla ikinci bir arama YAPILMIYOR, çünkü o arama tam da
+ * kaçınmaya çalıştığımız yanlış eşleşmeyi geri getirir.
+ */
 export async function requireTenantUser() {
   const session = await auth();
   const email = session?.user?.email;
   if (!email) throw new AuthError(401, 'Unauthorized');
-  const user = await prisma.user.findFirst({ where: { email } });
+
+  const tenantId = (session?.user as any)?.tenantId as string | undefined;
+  const user = await prisma.user.findFirst({
+    where: tenantId ? { email, tenantId } : { email },
+  });
   if (!user) throw new AuthError(404, 'User not found');
   return { user, tenantId: user.tenantId, session };
+}
+
+/**
+ * Sayfa/rota içinde elle `prisma.user.findFirst({ where: { email } })` yazmak
+ * yerine bunu kullan — aynı yanlış-bayi tuzağına düşmez.
+ * (Depoda hâlâ ~99 yerde eski desen var; yenileri bunu kullanmalı.)
+ */
+export async function oturumKullanicisi(session: { user?: { email?: string | null } | null } | null) {
+  const email = session?.user?.email;
+  if (!email) return null;
+  const tenantId = (session?.user as any)?.tenantId as string | undefined;
+  return prisma.user.findFirst({ where: tenantId ? { email, tenantId } : { email } });
 }
 
 /** AuthError'ı standart JSON yanıta çevirir; değilse 500. Rota catch'inde kullan. */

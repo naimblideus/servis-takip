@@ -13,7 +13,7 @@ import { waUrl } from '@/lib/share';
 export default function MusteriPortalKarti({ customerId }: { customerId: string }) {
   const [durum, setDurum] = useState<{
     acik: boolean; yol: string | null; sonGoruntuleme: string | null;
-    telefon: string; musteriAdi: string; maliGorunur: boolean;
+    telefon: string; musteriAdi: string; maliGorunur: boolean; modulAcik: boolean;
     hazirlik: { anahtar: string; sayi: number; mesaj: string; ornek?: string }[];
   } | null>(null);
   const [calisiyor, setCalisiyor] = useState(false);
@@ -43,7 +43,8 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
     } finally { setCalisiyor(false); }
   }
 
-  if (!durum) return null;
+  // Paket dışıysa kart hiç görünmesin — çalışmayacak bir düğme göstermeyiz.
+  if (!durum || !durum.modulAcik) return null;
 
   const tamLink = durum.yol && typeof window !== 'undefined' ? `${window.location.origin}${durum.yol}` : '';
   const mesaj = tamLink

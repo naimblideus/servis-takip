@@ -43,10 +43,13 @@ export default function AsamaCizelgesi({ cizelge }: { cizelge: Cizelge }) {
           const sonuncu = i === cizelge.adimlar.length - 1;
           return (
             <li key={a.status} className="relative flex gap-3 pb-4 last:pb-0">
-              {/* Dikey çizgi — son adımda çizilmez */}
+              {/* Dikey çizgi — son adımda çizilmez.
+                  Rengi BİR SONRAKİ adımın durumunu gösterir: çizgi bu adımdan
+                  sonrakine gidiyor, o adıma ulaşılmadıysa yeşil olmamalı. */}
               {!sonuncu && (
                 <span aria-hidden="true"
-                  className={`absolute left-[7px] top-4 h-full w-px ${a.tamam ? 'bg-emerald-300' : 'bg-slate-200'}`} />
+                  className={`absolute left-[7px] top-4 h-full w-px ${
+                    cizelge.adimlar[i + 1]?.tamam ? 'bg-emerald-300' : 'bg-slate-200'}`} />
               )}
 
               {/* Nokta */}

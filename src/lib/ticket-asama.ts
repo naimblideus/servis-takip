@@ -141,11 +141,15 @@ export function zamanCizelgesi(
     };
   }
 
-  // Her ana-hat adımına İLK geçiş anı (aynı adıma geri dönülürse ilki kalır:
-  // "ne zaman ulaştı" sorusunun cevabı ilk varıştır)
+  // GEÇMİŞ adımlar için İLK varış ("bu aşamaya ne zaman ulaştı"),
+  // ŞU ANKİ adım için SON varış ("ne zamandır bu aşamada").
+  // Fiş bir aşamaya ikinci kez girmişse ilk varışı göstermek yanıltıcı olur:
+  // müşteri "üç gündür serviste" sanır, hâlbuki bu sabah geri alınmıştır.
   const ilkGecis = new Map<TicketStatus, Date>();
+  const sonGecis = new Map<TicketStatus, Date>();
   for (const s of satirlar) {
     if (!ilkGecis.has(s.status)) ilkGecis.set(s.status, s.changedAt);
+    sonGecis.set(s.status, s.changedAt);
   }
 
   // Şu anki adım: yan durumdaysa ana hattaki karşılığı IN_SERVICE
@@ -153,7 +157,19 @@ export function zamanCizelgesi(
   const suankiIndex = ANA_HAT.indexOf(suankiAdim);
 
   const adimlar: AsamaSatiri[] = ANA_HAT.map((st, i) => {
-    const zaman = ilkGecis.get(st) ?? null;
+    const suan = i === suankiIndex;
+    let zaman = (suan ? sonGecis.get(st) : ilkGecis.get(st)) ?? null;
+
+    // Fiş doğrudan "Parça bekleniyor"a alındıysa IN_SERVICE satırı hiç yoktur
+    // ama fiş fiilen serviste. Yan durumun kendi geçiş anını kullan — tarih
+    // KAYITLI, sadece başka bir satırda duruyor.
+    if (!zaman && st === 'IN_SERVICE' && YAN_DURUM.includes(fis.status)) {
+      zaman = (suan ? sonGecis.get(fis.status) : ilkGecis.get(fis.status)) ?? null;
+    }
+    // "Talebiniz alındı" için geçmiş satırı yoksa fişin açılış anı zaten
+    // biliniyor — kartın üstünde de yazıyor. "tarih kayıtlı değil" demek
+    // bilinen bir şeyi bilmiyormuş gibi göstermek olurdu.
+    if (!zaman && st === 'NEW') zaman = fis.createdAt;
     // Sonraki adıma geçilmişse aradaki adım da tamamlanmış sayılır — geçmişte
     // o satır olmasa bile (atlanan/kaydedilmemiş geçiş). Aksi halde çizelge
     // "Hazır" görünürken "Serviste" boş kalır ve müşteri karışır.
@@ -162,7 +178,7 @@ export function zamanCizelgesi(
       status: st,
       etiket: ASAMA_ETIKET[st],
       tamam,
-      suan: i === suankiIndex,
+      suan,
       // Zaman YALNIZCA ulaşılmış adımda gösterilir. Fiş geri alınmışsa
       // (ör. "Hazır"dan tekrar "Parça bekleniyor"a) o adımın eski tarihi
       // hâlâ kayıtta durur ama müşteriye gösterilirse "hazır" sanır.

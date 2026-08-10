@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { yeniPortalJetonu, portalHazirlik } from '@/lib/portal';
+import { hasModule } from '@/lib/modules';
 import { writeAudit, istekIp } from '@/lib/audit';
 
 /**
@@ -31,10 +32,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Bayi linki göndermeden ÖNCE görsün: panel onun verisini gösteriyor.
     const [hazirlik, firma] = await Promise.all([
       portalHazirlik(tenantId, id),
-      prisma.tenant.findUnique({ where: { id: tenantId }, select: { portalShowFinancials: true } }),
+      prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { portalShowFinancials: true, plan: true, modules: true, marketEnabled: true },
+      }),
     ]);
 
+    // Paket dışıysa kart hiç çizilmesin — açılamayacak bir düğme göstermek,
+    // bayiye olmayan bir özelliği vaat etmektir.
+    const modulAcik = firma ? hasModule(firma, 'PORTAL') : false;
+
     return NextResponse.json({
+      modulAcik,
       hazirlik,
       maliGorunur: firma?.portalShowFinancials !== false,
       acik: m.portalEnabled,
@@ -57,6 +66,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!m) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
 
     const { islem } = (await req.json().catch(() => ({}))) as { islem?: string };
+
+    // Kapatma her zaman serbest: paket düşürüldüyse bayi açık kalmış bir
+    // paneli kapatabilmeli. Açma/yenileme paket gerektirir.
+    if (islem !== 'kapat') {
+      const firma = await prisma.tenant.findUnique({
+        where: { id: tenantId }, select: { plan: true, modules: true, marketEnabled: true },
+      });
+      if (!firma || !hasModule(firma, 'PORTAL')) {
+        return NextResponse.json({ error: 'Müşteri Paneli paketinizde yok.' }, { status: 403 });
+      }
+    }
 
     let data: Record<string, unknown>;
     let eylem: string;

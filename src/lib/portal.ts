@@ -17,6 +17,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { sonOkumalar } from '@/lib/readings';
 import { zamanCizelgesi } from '@/lib/ticket-asama';
+import { hasModule } from '@/lib/modules';
 
 /** 32 bayt = 64 karakter hex. Kaba kuvvetle bulunması pratikte imkânsız. */
 export function yeniPortalJetonu(): string {
@@ -44,10 +45,24 @@ export async function jetondanMusteri(token: string): Promise<PortalMusteri | nu
     where: { portalToken: token, portalEnabled: true },
     select: {
       id: true, tenantId: true, name: true,
-      tenant: { select: { isActive: true, isSuspended: true, deletedAt: true } },
+      tenant: {
+        select: {
+          isActive: true, isSuspended: true, deletedAt: true,
+          plan: true, modules: true, marketEnabled: true,
+        },
+      },
     },
   });
   if (!m || !m.tenant.isActive || m.tenant.isSuspended || m.tenant.deletedAt) return null;
+
+  // MODÜL KAPISI BURADA DA OLMALI. Panel (dashboard) düzeninin DIŞINDA, yani
+  // ModuleGuard buraya hiç uğramıyor. Kapı yalnız menüde olsaydı: paketinde
+  // portal olmayan bayi müşteri kartından paneli açabilir, müşteri arıza
+  // bildirir, bildirim kuyruğa düşer — ama o kuyruğu gösteren tek ekran
+  // ModuleGuard tarafından kapalı olduğu için bildirim SONSUZA KADAR görülmez.
+  // Sessizce yutulan müşteri talebi, hiç panel olmamasından kötüdür.
+  if (!hasModule(m.tenant, 'PORTAL')) return null;
+
   return { id: m.id, tenantId: m.tenantId, name: m.name };
 }
 
@@ -71,7 +86,7 @@ export const DURUM_ETIKET: Record<string, string> = {
  * müşteri "yükleniyor" ekranına bakmasın.
  */
 export async function portalVerisi(m: PortalMusteri) {
-  const [firma, cihazlar, fisler, faturalar, odemeler, talepler] = await Promise.all([
+  const [firma, cihazlar, fisler, faturalar, odemeler, faturaToplami, talepler] = await Promise.all([
     prisma.tenant.findUnique({
       where: { id: m.tenantId },
       select: { name: true, phone: true, address: true, portalShowFinancials: true },
@@ -89,7 +104,7 @@ export async function portalVerisi(m: PortalMusteri) {
       select: {
         id: true, ticketNumber: true, status: true, createdAt: true, statusUpdatedAt: true,
         issueText: true, actionText: true, totalCost: true,
-        device: { select: { brand: true, model: true, location: true } },
+        device: { select: { brand: true, model: true, location: true, customerId: true } },
         // Aşama çizelgesi — müşterinin asıl merak ettiği "işim nerede".
         // changedByUserId BİLEREK seçilmiyor: müşteri teknisyen adını görmez.
         statusHistory: {
@@ -98,8 +113,11 @@ export async function portalVerisi(m: PortalMusteri) {
         },
         // notes, parça maliyeti, teknisyen adı BİLEREK yok
       },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
+      // AÇIK fişler her zaman gelsin. Sadece take:30 olsaydı, 30'dan fazla
+      // geçmişi olan müşteride devam eden servis listeden düşer ve müşteri
+      // "fişim kaybolmuş" diye arar. Kapalı olanları sınırlıyoruz, açıkları hayır.
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      take: 200,
     }),
     prisma.customerInvoice.findMany({
       // Silinen fatura müşteriye görünmemeli, bakiyeye de girmemeli
@@ -114,6 +132,14 @@ export async function portalVerisi(m: PortalMusteri) {
     prisma.payment.aggregate({
       where: { tenantId: m.tenantId, customerId: m.id },
       _sum: { amount: true },
+    }),
+    // BAKİYE TÜM FATURALARDAN. Liste ekranda 24 ile sınırlı ama bakiyeyi o
+    // listeden toplamak, 24'ten eski ödenmemiş faturayı borçtan DÜŞÜRÜR —
+    // müşteriye olduğundan az borç göstermek en kötü hata türü.
+    prisma.customerInvoice.aggregate({
+      where: { tenantId: m.tenantId, customerId: m.id, deletedAt: null },
+      _sum: { totalAmount: true, paidAmount: true },
+      _count: true,
     }),
     prisma.portalRequest.findMany({
       where: { customerId: m.id },
@@ -132,8 +158,8 @@ export async function portalVerisi(m: PortalMusteri) {
   // verir — fatura listesi zaten bakiyeyi topla-çıkar ettirir.
   const mali = firma?.portalShowFinancials !== false;
 
-  const faturaToplam = faturalar.reduce((a, f) => a + TL(f.totalAmount), 0);
-  const odenen = faturalar.reduce((a, f) => a + TL(f.paidAmount), 0);
+  const faturaToplam = TL(faturaToplami._sum.totalAmount);
+  const odenen = TL(faturaToplami._sum.paidAmount);
 
   return {
     firma: { ad: firma?.name ?? '', telefon: firma?.phone ?? '', adres: firma?.address ?? '' },
@@ -163,7 +189,12 @@ export async function portalVerisi(m: PortalMusteri) {
         && f.statusUpdatedAt.getTime() >= Date.now() - ACIK_FIS_GUN * 86_400_000,
       tarih: f.createdAt.toISOString(),
       sonHareket: f.statusUpdatedAt.toISOString(),
-      cihaz: f.device ? `${f.device.brand} ${f.device.model}${f.device.location ? ` · ${f.device.location}` : ''}` : null,
+      // Cihaz başka müşteriye devredilmişse KONUMU gösterme: o konum artık
+      // yeni sahibinin adresindeki bir oda/kat bilgisi. Marka/model kalabilir,
+      // müşterinin kendi geçmiş fişi sonuçta.
+      cihaz: f.device
+        ? `${f.device.brand} ${f.device.model}${f.device.customerId === m.id && f.device.location ? ` · ${f.device.location}` : ''}`
+        : null,
       ariza: f.issueText,
       yapilan: f.actionText,
       tutar: mali ? TL(f.totalCost) : null,
