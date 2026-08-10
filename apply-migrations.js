@@ -56,8 +56,12 @@ function splitStatements(sql) {
         applied++;
       } catch (e) {
         const m = (e && e.message) || '';
-        if (/already exists|does not exist|duplicate|relation .* already|column .* already/i.test(m)) {
-          skipped++; // idempotent — obje zaten var/yok, normal
+        // 'does not exist' BİLEREK ÇIKARILDI. Onu idempotent saymak, yanlış
+        // tablo/kolon adı yazılmış bir migration'ı SESSİZCE geçiriyordu:
+        // deploy yeşil görünüyor, şema aslında uygulanmamış oluyordu.
+        // Gerçekten silinebilir nesneler için migration'da IF EXISTS kullan.
+        if (/already exists|duplicate|relation .* already|column .* already/i.test(m)) {
+          skipped++; // idempotent — obje zaten var, normal
         } else {
           errors++;
           console.error('[migrate] HATA (' + f + '): ' + m.slice(0, 120));

@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useRozetler } from '@/lib/use-rozetler';
 import { useEffect, useState } from 'react';
 
 // Mobil alt sekme çubuğu (yalnız telefon; md+ gizli). Günlük hızlı erişim.
@@ -35,19 +37,15 @@ const ACTIONS = [
 
 export default function BottomNav({ modules = [] }: { modules?: string[] }) {
   const pathname = usePathname();
-  const [badge, setBadge] = useState(0);
   const [sheet, setSheet] = useState(false);
   const hasMarket = modules.includes('MARKETPLACE');
+  const { data: session } = useSession();
+  const rol = (session?.user as any)?.role || '';
 
-  useEffect(() => {
-    if (!hasMarket) return;
-    let alive = true;
-    // Kenar menüyle AYNI uç — iki ayrı yoklama yapmayalım
-    const load = () => fetch('/api/rozetler').then((r) => (r.ok ? r.json() : null)).then((d) => { if (alive && d) setBadge(d.market || 0); }).catch(() => {});
-    load();
-    const t = setInterval(load, 60000);
-    return () => { alive = false; clearInterval(t); };
-  }, [hasMarket]);
+  // Kenar menüyle AYNI paylaşılan hook — ikisi de mount olduğu için ayrı ayrı
+  // yoklasalardı aynı uca dakikada iki istek giderdi.
+  const rozet = useRozetler();
+  const badge = hasMarket ? rozet.market : 0;
 
   // Sayfa değişince sheet'i kapat
   useEffect(() => { setSheet(false); }, [pathname]);
@@ -58,9 +56,14 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
     { href: '/dashboard', label: 'Ana', icon: 'home' },
     { href: '/tickets', label: 'Fişler', icon: 'file' },
   ];
+  // ROL FİLTRESİ: /accounting kenar menüde ADMIN'e kilitli ama mobilde
+  // herkese açıktı — kilit anlamsız kalıyordu. Teknisyene Cihazlar gösteriliyor.
+  const yonetici = rol === 'ADMIN' || rol === 'SUPER_ADMIN';
   const right = [
     hasMarket ? { href: '/market', label: 'Pazar', icon: 'store', badge: true } : { href: '/customers', label: 'Müşteri', icon: 'users', badge: false },
-    { href: '/accounting', label: 'Muhasebe', icon: 'calc', badge: false },
+    yonetici
+      ? { href: '/accounting', label: 'Muhasebe', icon: 'calc', badge: false }
+      : { href: '/devices', label: 'Cihazlar', icon: 'box', badge: false },
   ];
 
   const Item = ({ it }: { it: { href: string; label: string; icon: string; badge?: boolean } }) => (

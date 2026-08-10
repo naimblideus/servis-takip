@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import GlobalSearch from '@/components/GlobalSearch';
 import { moduleForHref } from '@/lib/modules';
+import { useRozetler } from '@/lib/use-rozetler';
 
 const menuItems = [
   {
@@ -336,23 +337,16 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
   const [open, setOpen] = useState(false);
   const [advOpen, setAdvOpen] = useState(false);
   // Bekleyen iş rozetleri — üçü de KUYRUK, görünmeyen kuyruk birikir.
-  // Tek uç, tek yoklama (60sn).
-  const [rozet, setRozet] = useState<{ market: number; sayacEposta: number; musteriBildirim: number }>(
-    { market: 0, sayacEposta: 0, musteriBildirim: 0 });
-  useEffect(() => {
-    let alive = true;
-    const load = () => fetch('/api/rozetler').then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive && d) setRozet({ market: d.market || 0, sayacEposta: d.sayacEposta || 0, musteriBildirim: d.musteriBildirim || 0 }); })
-      .catch(() => {});
-    load();
-    const t = setInterval(load, 60000);
-    return () => { alive = false; clearInterval(t); };
-  }, []);
+  // Paylaşılan hook: kaç bileşen kullanırsa kullansın TEK yoklama.
+  const rozet = useRozetler();
   const rozetSayisi = (href: string) =>
     href === '/market' ? rozet.market
       : href === '/sayac-eposta' ? rozet.sayacEposta
         : href === '/musteri-bildirimleri' ? rozet.musteriBildirim
           : 0;
+  // Gelişmiş grubu VARSAYILAN KAPALI; içindeki bekleyen işin rozeti hiç
+  // görünmezse rozetin anlamı kalmaz — toplamı başlıkta gösteriyoruz.
+  const gizliRozet = advItems.reduce((a, i) => a + rozetSayisi(i.href), 0);
   // Aktif sayfa "Gelişmiş" grubundaysa grubu otomatik aç (kullanıcı kaybolmasın)
   useEffect(() => {
     if (advItems.some((i) => pathname === i.href || pathname.startsWith(i.href + '/'))) setAdvOpen(true);
@@ -449,7 +443,12 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
                   </svg>
                   Gelişmiş
                 </span>
-                <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>{advOpen ? '▾' : '▸'}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  {!advOpen && gizliRozet > 0 && (
+                    <span style={{ background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{gizliRozet}</span>
+                  )}
+                  <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>{advOpen ? '▾' : '▸'}</span>
+                </span>
               </button>
               {advOpen && advItems.map((item) => (
                 <Link

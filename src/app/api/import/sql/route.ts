@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { kaydetAsama } from '@/lib/ticket-asama';
 import {
     parseSQLDump,
     cleanPhone,
@@ -417,6 +418,9 @@ export async function POST(req: NextRequest) {
                     });
 
                     let ticket;
+                    // İçe aktarım fişin durumunu değiştirebilir; aşama geçmişi
+                    // buradan da yazılmalı yoksa çizelge sessizce eksik kalır.
+                    const oncekiDurum = existingTicket?.status;
                     if (existingTicket) {
                         // Mevcut fişi güncelle
                         ticket = await prisma.serviceTicket.update({
@@ -434,6 +438,13 @@ export async function POST(req: NextRequest) {
                                 statusUpdatedAt,
                             },
                         });
+                        if (oncekiDurum && oncekiDurum !== ticket.status) {
+                            await kaydetAsama({
+                                tenantId, ticketId: ticket.id, status: ticket.status,
+                                oncekiStatus: oncekiDurum, kaynak: 'SISTEM',
+                                notu: 'SQL içe aktarımıyla güncellendi',
+                            });
+                        }
                     } else {
                         ticket = await prisma.serviceTicket.create({
                             data: {
