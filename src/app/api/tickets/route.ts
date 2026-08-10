@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { kaydetAsama } from '@/lib/ticket-asama';
 import { Priority } from '@prisma/client';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 import { parseFaultCategory, faultCategoryFromLegacyText } from '@/lib/fault-categories';
@@ -59,6 +60,13 @@ export async function POST(req: Request) {
         totalCost: body.totalCost ? parseFloat(body.totalCost) : 0,
         priority: (body.priority || 'NORMAL') as Priority,
       },
+    });
+
+    // AŞAMA GEÇMİŞİ: fişin ilk adımı. Bu satır yazılmazsa çizelge "ne zaman
+    // açıldı" bilgisini fişin createdAt'inden türetmek zorunda kalır.
+    await kaydetAsama({
+        tenantId: user.tenantId, ticketId: ticket.id, status: ticket.status,
+        changedByUserId: user.id, kaynak: 'PANEL',
     });
 
     // ── SAYAÇ OKUMASI ──

@@ -117,6 +117,7 @@ model Tenant {
   invoicePayments     InvoicePayment[]
   whatsappMessages    WhatsAppMessage[]
   portalRequests      PortalRequest[]
+  statusHistory       TicketStatusHistory[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -236,6 +237,37 @@ model PortalRequest {
 
   @@index([tenantId, durum, createdAt(sort: Desc)])
   @@index([customerId])
+}
+
+/// Servis fişinin AŞAMA GEÇMİŞİ — "hangi aşamaya ne zaman geçti".
+///
+/// NEDEN AYRI TABLO: ServiceTicket.status tek bir alan ve PATCH onun üzerine
+/// yazıyor; statusUpdatedAt de yalnız SON değişimi tutuyor. Yani "fiş 3 gün
+/// parça bekledi mi" sorusunun cevabı hiçbir yerde yoktu. Müşteri panelinde
+/// aşama çizelgesi göstermek ve bayide "kim ne zaman hangi aşamaya aldı"
+/// sorusuna cevap vermek için geçmiş şart.
+///
+/// SİLİNMEZ, ÜZERİNE YAZILMAZ: her geçiş yeni bir satır. Yanlış aşamaya
+/// alındıysa doğru aşamaya geçilir; ikisi de kayıtta kalır.
+model TicketStatusHistory {
+  id              String        @id @default(cuid())
+  tenantId        String
+  ticketId        String
+  status          TicketStatus
+  oncekiStatus    TicketStatus? // ilk kayıtta null
+  changedAt       DateTime      @default(now())
+  changedByUserId String? // portal/sistem kaynaklı geçişte null
+  /// PANEL | PORTAL | SISTEM | GECMIS
+  /// GECMIS = eski fişler için createdAt/statusUpdatedAt'ten türetilmiş satır.
+  /// Ara aşamalar bilinmiyor; uydurulmuyor, öyle işaretleniyor.
+  kaynak          String        @default("PANEL")
+  notu            String?
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, changedAt])
+  @@index([tenantId, changedAt])
 }
 
 model WhatsAppMessage {
@@ -459,6 +491,7 @@ model ServiceTicket {
 
   // Relations
   tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  statusHistory   TicketStatusHistory[]
   device          Device                 @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   assignedUser    User?                  @relation("AssignedTechnician", fields: [assignedUserId], references: [id], onDelete: SetNull)
   createdBy       User                   @relation("CreatedBy", fields: [createdByUserId], references: [id])

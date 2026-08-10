@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { kaydetAsama } from '@/lib/ticket-asama';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 import { parseFaultCategory } from '@/lib/fault-categories';
 
@@ -22,6 +23,15 @@ export async function GET(
             device: { include: { customer: true } },
             assignedUser: true,
             createdBy: true,
+            // Aşama geçmişi — "kim ne zaman hangi aşamaya aldı".
+            // Müşteri "siz bunu bir hafta beklettiniz" derse cevabı burada.
+            statusHistory: {
+                orderBy: { changedAt: 'asc' },
+                select: {
+                    status: true, oncekiStatus: true, changedAt: true, kaynak: true, notu: true,
+                    changedByUserId: true,
+                },
+            },
         },
     });
 
@@ -79,6 +89,21 @@ export async function PATCH(
             where: { id },
             data: updateData,
         });
+
+        // AŞAMA GEÇMİŞİ: durum GERÇEKTEN değiştiyse yaz. Aynı duruma tekrar
+        // basılması (ör. iki kez "Hazır") çizelgeyi kirletmesin diye eşitlik
+        // kontrolü var. kaydetAsama hata fırlatmaz; geçmiş yazılamadı diye fiş
+        // güncellenememesi kabul edilemez.
+        if (body.status !== undefined && body.status !== existing.status) {
+            await kaydetAsama({
+                tenantId: user.tenantId,
+                ticketId: id,
+                status: ticket.status,
+                oncekiStatus: existing.status,
+                changedByUserId: user.id,
+                kaynak: 'PANEL',
+            });
+        }
 
         // Servis fişini Muhasebe/Cari'ye otomatik yansıt (teslim edilince SATIŞ + ödendiyse TAHSİLAT)
         let cari = { synced: false, amount: 0 };

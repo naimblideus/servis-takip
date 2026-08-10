@@ -10,6 +10,7 @@ import TicketDeleteButton from '@/components/TicketDeleteButton';
 import ContactActions from '@/components/ContactActions';
 import { waUrl, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 import { faultLabel } from '@/lib/fault-categories';
+import { ASAMA_KISA } from '@/lib/ticket-asama';
 
 const statusLabel: Record<string, { label: string; color: string; text: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
@@ -36,6 +37,11 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
       device: { include: { customer: true } },
       assignedUser: true,
       createdBy: true,
+      // Aşama geçmişi — müşteri "siz bunu bir hafta beklettiniz" derse cevap burada
+      statusHistory: {
+        orderBy: { changedAt: 'asc' },
+        select: { id: true, status: true, oncekiStatus: true, changedAt: true, kaynak: true, notu: true, changedByUserId: true },
+      },
     },
   });
 
@@ -46,6 +52,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
+
+  // Aşama geçmişindeki kullanıcı adları — id yerine isim göstermek için
+  const kisiAdi = new Map(users.map((u) => [u.id, u.name]));
 
   const latestReading = await prisma.counterReading.findFirst({
     where: { deviceId: ticket.deviceId },
@@ -209,6 +218,37 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           ))}
         </div>
       </div>
+
+      {/* Aşama geçmişi — fişin nereden nereye gittiği. Silinmez, üzerine
+          yazılmaz: yanlış aşamaya alındıysa doğrusuna geçilir, ikisi de kalır. */}
+      {ticket.statusHistory.length > 0 && (
+        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
+          <h2 style={{ fontWeight: '600', marginBottom: '0.35rem' }}>Aşama Geçmişi</h2>
+          <p style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '1rem' }}>
+            Müşteri bu adımları kendi panelinde de görüyor.
+          </p>
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            {ticket.statusHistory.map((h) => {
+              const kisi = kisiAdi.get(h.changedByUserId ?? '') ?? null;
+              return (
+                <div key={h.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', fontSize: '0.85rem', paddingBottom: '0.4rem', borderBottom: '1px solid #f3f4f6' }}>
+                  <span style={{ color: '#6b7280', fontSize: '0.78rem', minWidth: 128, fontVariantNumeric: 'tabular-nums' }}>
+                    {new Date(h.changedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span style={{ fontWeight: 500 }}>
+                    {h.oncekiStatus ? `${ASAMA_KISA[h.oncekiStatus]} → ` : ''}{ASAMA_KISA[h.status]}
+                  </span>
+                  <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: '0.75rem', textAlign: 'right' }}>
+                    {h.kaynak === 'GECMIS' ? 'devir kaydı'
+                      : h.kaynak === 'PORTAL' ? (h.notu || 'müşteri kanalı')
+                        : kisi ?? '—'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Arıza Bilgileri */}
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>

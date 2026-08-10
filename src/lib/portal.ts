@@ -16,6 +16,7 @@
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { sonOkumalar } from '@/lib/readings';
+import { zamanCizelgesi } from '@/lib/ticket-asama';
 
 /** 32 bayt = 64 karakter hex. Kaba kuvvetle bulunması pratikte imkânsız. */
 export function yeniPortalJetonu(): string {
@@ -89,6 +90,12 @@ export async function portalVerisi(m: PortalMusteri) {
         id: true, ticketNumber: true, status: true, createdAt: true, statusUpdatedAt: true,
         issueText: true, actionText: true, totalCost: true,
         device: { select: { brand: true, model: true, location: true } },
+        // Aşama çizelgesi — müşterinin asıl merak ettiği "işim nerede".
+        // changedByUserId BİLEREK seçilmiyor: müşteri teknisyen adını görmez.
+        statusHistory: {
+          select: { status: true, changedAt: true, kaynak: true },
+          orderBy: { changedAt: 'asc' },
+        },
         // notes, parça maliyeti, teknisyen adı BİLEREK yok
       },
       orderBy: { createdAt: 'desc' },
@@ -160,6 +167,12 @@ export async function portalVerisi(m: PortalMusteri) {
       ariza: f.issueText,
       yapilan: f.actionText,
       tutar: mali ? TL(f.totalCost) : null,
+      // Geçmiş boşsa zamanCizelgesi fişin kendi tarihlerinden türetir —
+      // müşteri boş bir çizelgeye bakmaz.
+      cizelge: zamanCizelgesi(
+        { status: f.status, createdAt: f.createdAt, statusUpdatedAt: f.statusUpdatedAt },
+        f.statusHistory,
+      ),
     })),
     mali, // gösterim tarafı bunu okur; kapalıysa mali bölümler hiç çizilmez
     faturalar: mali ? faturalar.map((f) => ({

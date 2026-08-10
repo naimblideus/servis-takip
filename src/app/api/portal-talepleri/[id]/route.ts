@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { kaydetAsama } from '@/lib/ticket-asama';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { generateTicketNumber } from '@/lib/ticket-number';
 import { createReading, ReadingError } from '@/lib/readings';
@@ -53,6 +54,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         },
         select: { id: true, ticketNumber: true },
       });
+      // AŞAMA GEÇMİŞİ: müşteri panelinden gelen bildirimle açıldığını kaynak
+      // alanı söylüyor — bayi sonradan "bunu kim açtı" diye sormasın.
+      await kaydetAsama({
+        tenantId, ticketId: fis.id, status: 'NEW',
+        changedByUserId: user.id, kaynak: 'PORTAL',
+        notu: 'Müşteri panelinden gelen arıza bildirimi',
+      });
+
       await prisma.portalRequest.update({
         where: { id },
         data: { durum: 'ISLENDI', ticketId: fis.id, islenenAt: new Date(), notu: `Servis fişi açıldı: ${fis.ticketNumber}` },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { kaydetAsama } from '@/lib/ticket-asama';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { findCustomerByPhone } from '@/lib/whatsapp-inbound';
 import { createReading, ReadingError } from '@/lib/readings';
@@ -219,6 +220,11 @@ export async function POST(req: NextRequest) {
           createdByUserId: user!.id,
         },
         select: { id: true, ticketNumber: true },
+      });
+
+      await kaydetAsama({
+        tenantId, ticketId: ticket.id, status: 'NEW',
+        kaynak: 'PORTAL', notu: 'WhatsApp mesajından açıldı',
       });
 
       await prisma.whatsAppMessage.update({

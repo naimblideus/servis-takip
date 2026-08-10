@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { kaydetAsama } from '@/lib/ticket-asama';
 
 // ── Basit in-memory rate limit (tek container; spam/DoS + publicCode brute-force'a karşı) ──
 const hits = new Map<string, number[]>();
@@ -83,7 +84,13 @@ export async function POST(req: Request) {
         notes: `📱 Müşteri bildirimi (QR) — Bildiren: ${reporter}`,
         createdByUserId: creator.id,
       },
-      select: { ticketNumber: true },
+      select: { id: true, ticketNumber: true },
+    });
+
+    // Oturumsuz QR bildirimi — kullanıcı yok, kaynak PORTAL
+    await kaydetAsama({
+        tenantId: device.tenantId, ticketId: ticket.id, status: 'NEW',
+        kaynak: 'PORTAL', notu: 'QR ile müşteri arıza bildirimi',
     });
 
     return NextResponse.json({ ok: true, ticketNumber: ticket.ticketNumber, device: `${device.brand} ${device.model}` });

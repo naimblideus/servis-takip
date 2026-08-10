@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { jetondanMusteri, portalVerisi } from '@/lib/portal';
 import CihazListesi from './CihazListesi';
+import AsamaCizelgesi from './AsamaCizelgesi';
 
 /**
  * MÜŞTERİ PORTALI — /m/<jeton>
@@ -97,6 +98,8 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                     </span>
                   </div>
                   {f.ariza && <p className="mt-2.5 text-sm leading-relaxed text-slate-600">{f.ariza}</p>}
+                  {/* Tek etiket "nerede olduğunu" söylemez; çizelge söyler. */}
+                  <AsamaCizelgesi cizelge={f.cizelge} />
                 </div>
               ))}
             </div>
