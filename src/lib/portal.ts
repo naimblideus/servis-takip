@@ -86,7 +86,7 @@ export const DURUM_ETIKET: Record<string, string> = {
  * müşteri "yükleniyor" ekranına bakmasın.
  */
 export async function portalVerisi(m: PortalMusteri) {
-  const [firma, cihazlar, fisler, faturalar, odemeler, faturaToplami, talepler] = await Promise.all([
+  const [firma, cihazlar, acikFis, kapaliFis, faturalar, odemeler, faturaToplami, talepler] = await Promise.all([
     prisma.tenant.findUnique({
       where: { id: m.tenantId },
       select: { name: true, phone: true, address: true, portalShowFinancials: true },
@@ -98,14 +98,18 @@ export async function portalVerisi(m: PortalMusteri) {
       },
       orderBy: [{ location: 'asc' }, { brand: 'asc' }],
     }),
+    // AÇIK fişler: sınırsız (bunlar müşterinin asıl baktığı şey) + aşama
+    // çizelgesi. Tek sorguda take:30 yapılsaydı, 30'dan fazla geçmişi olan
+    // müşteride devam eden servis listeden düşer ve "fişim kaybolmuş" derdi.
     prisma.serviceTicket.findMany({
-      // deletedAt: çöp kutusundaki fiş müşteriye görünmemeli
-      where: { tenantId: m.tenantId, customerId: m.id, deletedAt: null },
+      where: {
+        tenantId: m.tenantId, customerId: m.id, deletedAt: null,
+        status: { notIn: ['DELIVERED', 'CANCELLED'] },
+      },
       select: {
         id: true, ticketNumber: true, status: true, createdAt: true, statusUpdatedAt: true,
         issueText: true, actionText: true, totalCost: true,
         device: { select: { brand: true, model: true, location: true, customerId: true } },
-        // Aşama çizelgesi — müşterinin asıl merak ettiği "işim nerede".
         // changedByUserId BİLEREK seçilmiyor: müşteri teknisyen adını görmez.
         statusHistory: {
           select: { status: true, changedAt: true, kaynak: true },
@@ -113,11 +117,22 @@ export async function portalVerisi(m: PortalMusteri) {
         },
         // notes, parça maliyeti, teknisyen adı BİLEREK yok
       },
-      // AÇIK fişler her zaman gelsin. Sadece take:30 olsaydı, 30'dan fazla
-      // geçmişi olan müşteride devam eden servis listeden düşer ve müşteri
-      // "fişim kaybolmuş" diye arar. Kapalı olanları sınırlıyoruz, açıkları hayır.
-      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-      take: 200,
+      orderBy: { createdAt: 'desc' },
+    }),
+    // KAPALI fişler: son 30 tanesi, çizelgeSİZ. Çizelge yalnız açık fişlerde
+    // çiziliyor; kapalıların geçmişini de çekmek boşa yük olurdu.
+    prisma.serviceTicket.findMany({
+      where: {
+        tenantId: m.tenantId, customerId: m.id, deletedAt: null,
+        status: { in: ['DELIVERED', 'CANCELLED'] },
+      },
+      select: {
+        id: true, ticketNumber: true, status: true, createdAt: true, statusUpdatedAt: true,
+        issueText: true, actionText: true, totalCost: true,
+        device: { select: { brand: true, model: true, location: true, customerId: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
     }),
     prisma.customerInvoice.findMany({
       // Silinen fatura müşteriye görünmemeli, bakiyeye de girmemeli
@@ -157,6 +172,14 @@ export async function portalVerisi(m: PortalMusteri) {
   // listesi ve fiş tutarları birden gider. Birini açık bırakmak diğerini ele
   // verir — fatura listesi zaten bakiyeyi topla-çıkar ettirir.
   const mali = firma?.portalShowFinancials !== false;
+
+  // Açık fişlerde çizelge var, kapalılarda yok — tek listede birleştirirken
+  // "acik" bayrağı 45 gün kuralını da uyguluyor (aylardır kapatılmamış fiş
+  // "devam eden servis" başlığı altında görünmesin).
+  const fisler = [
+    ...acikFis.map((f) => ({ ...f, gecmis: f.statusHistory })),
+    ...kapaliFis.map((f) => ({ ...f, gecmis: [] as { status: any; changedAt: Date; kaynak: string }[] })),
+  ];
 
   const faturaToplam = TL(faturaToplami._sum.totalAmount);
   const odenen = TL(faturaToplami._sum.paidAmount);
@@ -202,7 +225,7 @@ export async function portalVerisi(m: PortalMusteri) {
       // müşteri boş bir çizelgeye bakmaz.
       cizelge: zamanCizelgesi(
         { status: f.status, createdAt: f.createdAt, statusUpdatedAt: f.statusUpdatedAt },
-        f.statusHistory,
+        f.gecmis,
       ),
     })),
     mali, // gösterim tarafı bunu okur; kapalıysa mali bölümler hiç çizilmez
