@@ -56,13 +56,34 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   // Aşama geçmişindeki kullanıcı adları — id yerine isim göstermek için
   const kisiAdi = new Map(users.map((u) => [u.id, u.name]));
 
-  const latestReading = await prisma.counterReading.findFirst({
-    where: { deviceId: ticket.deviceId },
+  // ── SAYAÇ: BU FİŞİN okuması + BİR ÖNCEKİ ────────────────────────────────
+  // ÖNCEDEN cihazın EN SON okuması gösteriliyordu: eski bir fişi açınca
+  // BUGÜNKÜ sayaç görünüyordu, yani fişte olmayan bir değer. Yazdırma sayfası
+  // da düzeltildi; ikisi AYNI sayıyı göstermeli, yoksa ekranla kâğıt çelişir.
+  // Ayrıca tenantId filtresi yoktu — diğer sorgularla aynı korumaya alındı.
+  const fisOkumasi = await prisma.counterReading.findFirst({
+    where: { ticketId: ticket.id, tenantId: me.tenantId },
     orderBy: { readingDate: 'desc' },
   });
+  const guncelOkuma = fisOkumasi ?? await prisma.counterReading.findFirst({
+    where: {
+      deviceId: ticket.deviceId, tenantId: me.tenantId,
+      readingDate: { lte: ticket.createdAt },
+    },
+    orderBy: { readingDate: 'desc' },
+  });
+  const oncekiOkuma = guncelOkuma
+    ? await prisma.counterReading.findFirst({
+      where: {
+        deviceId: ticket.deviceId, tenantId: me.tenantId,
+        readingDate: { lt: guncelOkuma.readingDate },
+      },
+      orderBy: { readingDate: 'desc' },
+    })
+    : null;
 
-  const counterBlackVal = latestReading?.counterBlack ?? ticket.device.counterBlack ?? null;
-  const counterColorVal = latestReading?.counterColor ?? ticket.device.counterColor ?? null;
+  const counterBlackVal = guncelOkuma?.counterBlack ?? ticket.device.counterBlack ?? null;
+  const counterColorVal = guncelOkuma?.counterColor ?? ticket.device.counterColor ?? null;
 
   const st = statusLabel[ticket.status] ?? { label: ticket.status, color: '#f3f4f6', text: '#374151' };
 
@@ -183,8 +204,18 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                     ⚫ Siyah Sayaç
                   </div>
                   <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', fontFamily: 'monospace' }}>
+                    {oncekiOkuma && (
+                      <span style={{ color: '#9ca3af', fontWeight: 500, fontSize: '0.85rem' }}>
+                        {oncekiOkuma.counterBlack.toLocaleString('tr-TR')} →{' '}
+                      </span>
+                    )}
                     {counterBlackVal.toLocaleString('tr-TR')}
                   </div>
+                  {oncekiOkuma && guncelOkuma && (
+                    <div style={{ fontSize: '0.7rem', color: '#6ee7b7', fontWeight: 700, marginTop: '0.15rem' }}>
+                      +{Math.max(0, guncelOkuma.counterBlack - oncekiOkuma.counterBlack).toLocaleString('tr-TR')} sayfa
+                    </div>
+                  )}
                 </div>
               )}
               {counterColorVal !== null && (
@@ -196,8 +227,18 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                     🟣 Renkli Sayaç
                   </div>
                   <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', fontFamily: 'monospace' }}>
+                    {oncekiOkuma && (
+                      <span style={{ color: '#c4b5fd', fontWeight: 500, fontSize: '0.85rem' }}>
+                        {oncekiOkuma.counterColor.toLocaleString('tr-TR')} →{' '}
+                      </span>
+                    )}
                     {counterColorVal.toLocaleString('tr-TR')}
                   </div>
+                  {oncekiOkuma && guncelOkuma && (
+                    <div style={{ fontSize: '0.7rem', color: '#ddd6fe', fontWeight: 700, marginTop: '0.15rem' }}>
+                      +{Math.max(0, guncelOkuma.counterColor - oncekiOkuma.counterColor).toLocaleString('tr-TR')} sayfa
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -101,7 +101,9 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
       </div>
 
       {/* Alt sekme çubuğu */}
-      <nav className="md:hidden print:hidden" aria-label="Alt menü"
+      {/* NOT: display:flex SATIR İÇİ stille veriliyor; hiçbir sınıf kuralı onu
+          yenemez. Yazdırmada gizlenmesi globals.css'teki !important'a bağlı. */}
+      <nav id="app-bottomnav" className="md:hidden print:hidden" aria-label="Alt menü"
         style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 45, background: '#fff', borderTop: '1px solid rgba(15,34,83,.08)', display: 'flex', alignItems: 'flex-end', padding: '0 6px', paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: '0 -6px 20px -14px rgba(15,34,83,.3)' }}>
         {left.map((it) => <Item key={it.href} it={it} />)}
         {/* Hızlı İşlem FAB (+/×) */}

@@ -29,11 +29,35 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
 
     if (!ticket) redirect('/tickets');
 
-    // Son sayaç okumasını al (tenant-scoped)
-    const latestReading = await prisma.counterReading.findFirst({
-        where: { deviceId: ticket.deviceId, tenantId: user.tenantId },
+    // ── SAYAÇ: BU FİŞİN okuması + BİR ÖNCEKİ okuma ──────────────────────
+    // ÖNCEDEN: cihazın EN SON okuması yazdırılıyordu. İki ayrı sorun vardı:
+    //  1. Eski bir fişi yazdırınca BUGÜNKÜ sayaç basılıyordu — o fişte
+    //     okunan değer değil. Yani kâğıt yanlış bilgi taşıyordu.
+    //  2. Tek bir değer basılıyordu; müşteri "kaç sayfa çekilmiş" göremiyordu.
+    // Artık bu fişte alınan okuma ile bir öncekini yan yana basıyoruz.
+    // Fişin kendi okuması yoksa, FİŞ TARİHİNE kadarki son okumayı alıyoruz —
+    // sonraki bir okumayı bu fişe yazmak, olmayan bir şeyi belgelemek olurdu.
+    const fisOkumasi = await prisma.counterReading.findFirst({
+        where: { ticketId: ticket.id, tenantId: user.tenantId },
         orderBy: { readingDate: 'desc' },
     });
+    const guncelOkuma = fisOkumasi ?? await prisma.counterReading.findFirst({
+        where: {
+            deviceId: ticket.deviceId, tenantId: user.tenantId,
+            readingDate: { lte: ticket.createdAt },
+        },
+        orderBy: { readingDate: 'desc' },
+    });
+    const oncekiOkuma = guncelOkuma
+        ? await prisma.counterReading.findFirst({
+            where: {
+                deviceId: ticket.deviceId, tenantId: user.tenantId,
+                readingDate: { lt: guncelOkuma.readingDate },
+            },
+            orderBy: { readingDate: 'desc' },
+        })
+        : null;
+    const latestReading = guncelOkuma;
 
     const partTotal = ticket.ticketParts.reduce((s, tp) => s + Number(tp.unitPrice) * tp.quantity, 0);
     const paidTotal = ticket.payments.reduce((s, p) => s + Number(p.amount), 0);
@@ -298,6 +322,11 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                             <div className="status-bar-item">
                                 <span className="status-bar-label">⚫ Siyah Sayaç:</span>
                                 <span className="status-val" style={{ fontFamily: 'monospace', fontSize: '14px', color: '#111827' }}>
+                                    {oncekiOkuma && (
+                                        <span style={{ color: '#9ca3af', fontWeight: 500 }}>
+                                            {oncekiOkuma.counterBlack.toLocaleString('tr-TR')} →{' '}
+                                        </span>
+                                    )}
                                     {counterBlackVal.toLocaleString('tr-TR')}
                                 </span>
                             </div>
@@ -306,7 +335,20 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                             <div className="status-bar-item">
                                 <span className="status-bar-label">🟣 Renkli Sayaç:</span>
                                 <span className="status-val" style={{ fontFamily: 'monospace', fontSize: '14px', color: '#7c3aed' }}>
+                                    {oncekiOkuma && (
+                                        <span style={{ color: '#9ca3af', fontWeight: 500 }}>
+                                            {oncekiOkuma.counterColor.toLocaleString('tr-TR')} →{' '}
+                                        </span>
+                                    )}
                                     {counterColorVal.toLocaleString('tr-TR')}
+                                </span>
+                            </div>
+                        )}
+                        {guncelOkuma && (
+                            <div className="status-bar-item">
+                                <span className="status-bar-label">Okuma:</span>
+                                <span className="status-val" style={{ fontSize: '12px' }}>
+                                    {new Date(guncelOkuma.readingDate).toLocaleDateString('tr-TR')}
                                 </span>
                             </div>
                         )}
@@ -366,14 +408,39 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                                             <span className="info-val">{ticket.device.location}</span>
                                         </div>
                                     )}
+                                    {/* Sayaç: ÖNCEKİ → GÜNCEL. Tek değer basmak "kaç sayfa
+                                        çekilmiş" sorusunu cevapsız bırakıyordu; fark faturanın
+                                        dayanağı, kâğıtta görünmeli. Önceki okuma yoksa (ilk
+                                        okuma) yalnız güncel basılır — sıfır YAZILMAZ. */}
                                     <div className="info-row">
                                         <span className="info-key">Sayaç</span>
                                         <span className="info-val" style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: '700' }}>
+                                            {oncekiOkuma && (
+                                                <span style={{ color: '#9ca3af', fontWeight: 500 }}>
+                                                    {oncekiOkuma.counterBlack.toLocaleString('tr-TR')} →{' '}
+                                                </span>
+                                            )}
                                             ⚫ {counterBlackVal != null ? counterBlackVal.toLocaleString('tr-TR') : '—'}
                                             <span style={{ color: '#d1d5db', margin: '0 6px' }}>|</span>
+                                            {oncekiOkuma && (
+                                                <span style={{ color: '#9ca3af', fontWeight: 500 }}>
+                                                    {oncekiOkuma.counterColor.toLocaleString('tr-TR')} →{' '}
+                                                </span>
+                                            )}
                                             🟣 {counterColorVal != null ? counterColorVal.toLocaleString('tr-TR') : '—'}
                                         </span>
                                     </div>
+                                    {oncekiOkuma && guncelOkuma && (
+                                        <div className="info-row">
+                                            <span className="info-key">Çekilen</span>
+                                            <span className="info-val" style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: '700', color: '#059669' }}>
+                                                ⚫ {Math.max(0, guncelOkuma.counterBlack - oncekiOkuma.counterBlack).toLocaleString('tr-TR')}
+                                                <span style={{ color: '#d1d5db', margin: '0 6px' }}>|</span>
+                                                🟣 {Math.max(0, guncelOkuma.counterColor - oncekiOkuma.counterColor).toLocaleString('tr-TR')}
+                                                <span style={{ color: '#9ca3af', fontWeight: 500, marginLeft: 6 }}>sayfa</span>
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

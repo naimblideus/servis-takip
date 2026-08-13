@@ -366,7 +366,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
   return (
     <>
       {/* ── Mobil üst bar (yalnız telefon/tablet) ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-gray-900 z-40 flex items-center gap-3 px-4 print:hidden">
+      <div id="app-topbar" className="md:hidden fixed top-0 left-0 right-0 h-14 bg-gray-900 z-40 flex items-center gap-3 px-4 print:hidden">
         <button onClick={() => setOpen(true)} aria-label="Menüyü aç" className="text-white p-1 -ml-1">
           <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

@@ -185,7 +185,20 @@
 /* ── Yazdırma ── */
 @media print {
 
+  /* Tailwind'in print:hidden'ı AYNI ÖZGÜLLÜKTE bir display utility'siyle
+     (flex/fixed) çarpışıyor ve kaynak sırasına göre kaybedebiliyor. Gerçekte
+     olan buydu: mobil üst bar ve alt menü servis fişinin üstüne basılıyordu.
+     Burada !important ile bağlıyoruz — hem bu iki eleman düzeliyor hem de
+     kodun her yerindeki mevcut print:hidden kullanımı garanti altına alınıyor. */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Uygulama kabuğu: hiçbiri kâğıda basılmaz. Kimlikle de bağlıyoruz ki
+     bir gün sınıf adı değişse bile kural ayakta kalsın. */
   #app-sidebar,
+  #app-topbar,
+  #app-bottomnav,
   .no-print {
     display: none !important;
   }
