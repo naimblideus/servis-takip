@@ -1550,6 +1550,93 @@ h1.hero-title{
 .reveal-stagger.in > *:nth-child(5){transition-delay:.45s}
 .reveal-stagger.in > *:nth-child(6){transition-delay:.55s}
 
+/* ══════════════════════════════════════════════════════════════════════════
+   HAREKET KATMANI — "premium" hissi buradan gelir
+   ══════════════════════════════════════════════════════════════════════════
+   İLKELER (hepsi bilinçli, hepsi ölçülebilir):
+   · YALNIZ transform ve opacity animasyonlanır. width/top/left/filter
+     animasyonu her karede yeniden yerleşim (layout) tetikler ve orta seviye
+     Android'de kare düşürür — bizim ziyaretçimiz tam olarak o telefonda.
+   · TEK bir requestAnimationFrame döngüsü var. Her efekt kendi scroll
+     dinleyicisini kursaydı 8 dinleyici aynı karede çalışırdı.
+   · KAYDIRMA ELE GEÇİRİLMEZ. Smooth-scroll kütüphanesi (Lenis vb.) siteyi
+     "pahalı" hissettirir ama fiyat arayan bir bayinin tekerleğini elinden
+     alır. Kaydırmaya BAĞLI efekt yapıyoruz, kaydırmayı DEVRALMIYORUZ.
+   · İşaretçi efektleri yalnız gerçek fare olan cihazda (pointer:fine).
+   · prefers-reduced-motion hepsini kapatır — süsleme değil, erişilebilirlik.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ----- 1. KAYDIRMA İLERLEME ÇUBUĞU ----- */
+/* Uzun bir sayfada "ne kadar kaldı" sorusunu sessizce cevaplar. */
+.scroll-progress{
+  position:fixed;top:0;left:0;right:0;height:2px;z-index:1000;
+  transform-origin:0 50%;transform:scaleX(0);
+  background:linear-gradient(90deg,var(--p3-1,#14b8a6),var(--p3-2,#a855f7));
+  will-change:transform;pointer-events:none;
+}
+
+/* ----- 2. NAV: AŞAĞI İNERKEN GİZLEN, YUKARI ÇIKARKEN GÖRÜN ----- */
+/* Okurken ekranı geri verir; geri dönmek isteyince anında elinin altında. */
+.nav{transition:transform .42s cubic-bezier(.16,1,.3,1),background-color .3s ease,backdrop-filter .3s ease}
+.nav.nav-hidden{transform:translateY(-102%)}
+
+/* ----- 3. BAŞLIKTA KELİME KELİME YÜKSELİŞ ----- */
+/* Maske içinden çıkar, harflerin tepesi kesilmez. Yalnız BÖLÜM başlıklarında:
+   kahramanın kendi fadeUp animasyonu var, oraya karışmıyoruz. */
+.word-wrap{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.06em;margin-bottom:-.06em}
+html.js .word-wrap > .word{display:inline-block;transform:translateY(105%);opacity:0}
+html.js .word-wrap.words-in > .word{
+  transform:translateY(0);opacity:1;
+  transition:transform .9s cubic-bezier(.16,1,.3,1) var(--wd,0s),
+             opacity .6s ease var(--wd,0s);
+}
+
+/* ----- 4. KAYDIRMAYA BAĞLI DERİNLİK (PARALAKS) ----- */
+/* Katmanlar farklı hızda kayar → sayfa düz bir yüzey olmaktan çıkar.
+   Değer JS'ten --py olarak yazılır, CSS yalnız uygular. */
+.par{transform:translate3d(0,var(--py,0px),0);will-change:transform}
+
+/* ----- 5. MIKNATIS DÜĞME ----- */
+/* İmleç yaklaşınca düğme hafifçe ona doğru kayar. Tıklanabilirliği artırır,
+   çünkü hedef imlece gelir. Yalnız gerçek farede. */
+@media (pointer:fine){
+  .magnetic{transition:transform .35s cubic-bezier(.16,1,.3,1)}
+  .magnetic.mag-active{transition:transform .12s linear}
+}
+
+/* ----- 6. KART IŞIK NOKTASI ----- */
+/* İmlecin altında yumuşak bir aydınlanma. Kartın "cam" hissini güçlendirir. */
+@media (pointer:fine){
+  .spot{position:relative;isolation:isolate}
+  .spot::before{
+    content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    opacity:0;transition:opacity .35s ease;z-index:0;
+    background:radial-gradient(320px circle at var(--mx,50%) var(--my,50%),
+      rgba(255,255,255,.07),transparent 65%);
+  }
+  .spot:hover::before{opacity:1}
+}
+
+/* ----- 7. ADIM İLERLEMESİ (Nasıl çalışır) ----- */
+/* Kaydırdıkça o an okunan adım öne çıkar — okuyucu sırayı kaybetmez. */
+.step-active{position:relative}
+html.js .stepy{transition:opacity .5s ease,transform .5s cubic-bezier(.16,1,.3,1)}
+html.js .stepy:not(.step-on){opacity:.42}
+html.js .stepy.step-on{opacity:1;transform:translateY(-2px)}
+
+/* ── HAREKET HASSASİYETİ: hepsini kapat ──────────────────────────────────
+   Bu blok sadece "iyi niyet" değil — vestibüler rahatsızlığı olan biri için
+   paralaks ve kayan başlık fiziksel rahatsızlık üretir. */
+@media (prefers-reduced-motion:reduce){
+  html.js .word-wrap > .word{opacity:1 !important;transform:none !important;transition:none !important}
+  .par{transform:none !important}
+  .scroll-progress{display:none}
+  .nav.nav-hidden{transform:none}
+  html.js .stepy:not(.step-on){opacity:1}
+  html.js .stepy.step-on{transform:none}
+  .magnetic{transform:none !important}
+}
+
 /* ----- "EN POPÜLER" BADGE PULSE ----- */
 .price-badge{
   animation:badgePulse 2.8s ease-in-out infinite;
@@ -6187,6 +6274,200 @@ document.documentElement.classList.add('js');
       .then(function () { btn.disabled = false; });
   });
 })();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HAREKET MOTORU
+   ══════════════════════════════════════════════════════════════════════════
+   Sekiz efektin TEK bir rAF döngüsünde toplanmasının sebebi: her efekt kendi
+   scroll dinleyicisini kursaydı aynı karede sekiz kez layout okunurdu
+   (layout thrashing). Burada bir kez okuyup hepsine dağıtıyoruz.
+
+   Kaydırma DEVRALINMAZ. Lenis tarzı smooth-scroll siteyi pahalı hissettirir
+   ama fiyat arayan bayinin tekerleğini elinden alır; kazancı bedeline değmez.
+   ═══════════════════════════════════════════════════════════════════════ */
+(function () {
+  var azHareket = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var gercekFare = window.matchMedia('(pointer:fine)').matches;
+
+  /* ── KAHRAMANA DOKUNULMUYOR ──────────────────────────────────────────
+     Kahramanın ZATEN çalışan bir giriş animasyonu var (fadeUp,
+     animation-fill-mode:both). CSS animasyonu geçişleri EZER; buraya ikinci
+     bir giriş katmanı koymak onunla dövüşüp metni görünmez bırakıyordu.
+     Çalışan bir şeyin üstüne ikincisini kurmak, iyileştirme değil hata
+     kaynağıdır — bu yüzden kahraman girişi olduğu gibi bırakıldı. */
+
+  /* ── 2. BÖLÜM BAŞLIKLARI: kelime kelime ──────────────────────────────
+     Düz solma yerine kelimelerin sırayla yükselmesi, başlığı "yazılıyormuş"
+     gibi gösterir. Yalnız bölüm başlıklarında — her yerde yapılsaydı
+     sayfa huzursuz olurdu. */
+  function baslikParcala() {
+    if (azHareket) return;
+    document.querySelectorAll('.section-title').forEach(function (h) {
+      if (h.dataset.split) return;
+      h.dataset.split = '1';
+      var g = 0;
+      Array.prototype.slice.call(h.childNodes).forEach(function (dugum) {
+        if (dugum.nodeType !== 3) return;
+        var metin = dugum.nodeValue;
+        if (!metin || !metin.trim()) return;
+        var parca = document.createDocumentFragment();
+        metin.split(/(\s+)/).forEach(function (p) {
+          if (!p.trim()) { parca.appendChild(document.createTextNode(p)); return; }
+          var kutu = document.createElement('span');
+          kutu.className = 'word-wrap';
+          var kelime = document.createElement('span');
+          kelime.className = 'word';
+          kelime.style.setProperty('--wd', (g += 0.05).toFixed(3) + 's');
+          kelime.textContent = p;
+          kutu.appendChild(kelime);
+          parca.appendChild(kutu);
+        });
+        dugum.parentNode.replaceChild(parca, dugum);
+      });
+    });
+
+    if (!('IntersectionObserver' in window)) {
+      document.querySelectorAll('.section-title .word-wrap').forEach(function (w) { w.classList.add('words-in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (girdiler) {
+      girdiler.forEach(function (g) {
+        if (!g.isIntersecting) return;
+        g.target.querySelectorAll('.word-wrap').forEach(function (w) { w.classList.add('words-in'); });
+        io.unobserve(g.target);
+      });
+    }, { threshold: 0.25, rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.section-title').forEach(function (h) { io.observe(h); });
+
+    // EMNİYET AĞI. Bu landing'de daha önce tam olarak şu yaşandı: gözlemci
+    // beklenmedik bir sebeple tetiklenmedi ve bloklar kalıcı olarak görünmez
+    // kaldı. Görünmeyen başlık, animasyonsuz başlıktan kat kat kötüdür.
+    setTimeout(function () {
+      document.querySelectorAll('.section-title .word-wrap:not(.words-in)')
+        .forEach(function (w) { w.classList.add('words-in'); });
+    }, 3000);
+  }
+
+  /* ── 3. ADIM İLERLEMESİ ──────────────────────────────────────────────
+     "Nasıl çalışır" adımlarında o an okunan adım öne çıkar, diğerleri
+     geri çekilir. Okuyucu sırayı kaybetmez. */
+  function adimlar() {
+    var kartlar = document.querySelectorAll('.how-grid .how-card');
+    if (!kartlar.length || !('IntersectionObserver' in window)) return;
+    kartlar.forEach(function (k) { k.classList.add('stepy'); });
+    var io = new IntersectionObserver(function (girdiler) {
+      girdiler.forEach(function (g) { g.target.classList.toggle('step-on', g.isIntersecting); });
+    }, { threshold: 0.55 });
+    kartlar.forEach(function (k) { io.observe(k); });
+  }
+
+  /* ── 4. MIKNATIS DÜĞMELER ────────────────────────────────────────────
+     İmleç yaklaşınca düğme ona doğru kayar: hedef imlece gelir, tıklamak
+     kolaylaşır. Dokunmatikte anlamsız, o yüzden yalnız gerçek farede. */
+  function miknatis() {
+    if (!gercekFare || azHareket) return;
+    document.querySelectorAll('.btn-grad, .hero-demo-pill, .price-card .btn').forEach(function (b) {
+      b.classList.add('magnetic');
+      var r = null;
+      b.addEventListener('mouseenter', function () { r = b.getBoundingClientRect(); b.classList.add('mag-active'); });
+      b.addEventListener('mousemove', function (e) {
+        if (!r) return;
+        var x = (e.clientX - r.left - r.width / 2) * 0.22;
+        var y = (e.clientY - r.top - r.height / 2) * 0.3;
+        b.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
+      });
+      b.addEventListener('mouseleave', function () {
+        r = null; b.classList.remove('mag-active'); b.style.transform = '';
+      });
+    });
+  }
+
+  /* ── 5. KART IŞIK NOKTASI ────────────────────────────────────────────
+     İmlecin konumu CSS değişkenine yazılır, aydınlanmayı CSS çizer.
+     JS hiçbir stil hesaplamaz — sadece iki sayı bildirir. */
+  function isikNoktasi() {
+    if (!gercekFare) return;
+    var kartlar = document.querySelectorAll('.price-card, .cap-group, .bento-card, .feature-card, .pd-card');
+    kartlar.forEach(function (k) {
+      k.classList.add('spot');
+      k.addEventListener('mousemove', function (e) {
+        var r = k.getBoundingClientRect();
+        k.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+        k.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+      });
+    });
+  }
+
+  /* ── 6. TEK KAYDIRMA DÖNGÜSÜ ─────────────────────────────────────────
+     İlerleme çubuğu + nav gizleme + paralaks: üçü de aynı karede, tek
+     layout okumasıyla. Ayrı ayrı dinleseler aynı işi üç kez yaparlardı. */
+  function kaydirmaDongusu() {
+    var bar = document.createElement('div');
+    bar.className = 'scroll-progress';
+    bar.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bar);
+
+    var nav = document.getElementById('nav');
+    var parElemanlari = [];
+    if (!azHareket) {
+      // Kahraman arkaplan katmanları farklı hızda kayar → derinlik.
+      [['.blob-1', 0.16], ['.blob-2', -0.1], ['.blob-3', 0.22], ['.hero-grid-bg', 0.06]].forEach(function (ç) {
+        var el = document.querySelector(ç[0]);
+        if (el) { el.classList.add('par'); parElemanlari.push([el, ç[1]]); }
+      });
+    }
+
+    var sonY = window.scrollY, bekliyor = false;
+
+    function kare() {
+      bekliyor = false;
+      var y = window.scrollY;
+      var tam = document.documentElement.scrollHeight - window.innerHeight;
+
+      bar.style.transform = 'scaleX(' + (tam > 0 ? Math.min(1, y / tam) : 0).toFixed(4) + ')';
+
+      // Nav: aşağı inerken gizle (ama sayfanın en üstünde asla gizleme)
+      if (nav) {
+        var asagi = y > sonY;
+        if (y > 220 && asagi) nav.classList.add('nav-hidden');
+        else if (!asagi || y <= 220) nav.classList.remove('nav-hidden');
+      }
+
+      // Paralaks yalnız kahraman ekrandayken hesaplanır — aşağıda boşa iş yok
+      if (y < window.innerHeight * 1.2) {
+        for (var i = 0; i < parElemanlari.length; i++) {
+          parElemanlari[i][0].style.setProperty('--py', (y * parElemanlari[i][1]).toFixed(1) + 'px');
+        }
+      }
+      sonY = y;
+    }
+
+    window.addEventListener('scroll', function () {
+      if (bekliyor) return;
+      bekliyor = true;
+      requestAnimationFrame(kare);
+    }, { passive: true });
+    kare();
+  }
+
+  /* ── Başlat ──────────────────────────────────────────────────────────
+     Kahraman girişi HEMEN; gerisi sayfa yerleşince. */
+  // Betik iki kez çalışırsa (HMR, next/script yeniden yürütme) efektler
+  // üst üste binmesin.
+  function basla() {
+    if (document.documentElement.dataset.hareket) return;
+    document.documentElement.dataset.hareket = '1';
+    kaydirmaDongusu();
+    baslikParcala();
+    adimlar();
+    miknatis();
+    isikNoktasi();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', basla);
+  else basla();
+})();
+
 </script>
 
 </body>
