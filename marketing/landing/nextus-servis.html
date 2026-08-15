@@ -3813,6 +3813,46 @@ h1,.hero-title{letter-spacing:-0.03em;font-weight:700}
 h2,.section-title,.cta-title{letter-spacing:-0.022em;font-weight:700}
 .section-eyebrow{letter-spacing:0.14em;font-weight:600;color:var(--text-dim)}
 .section-eyebrow .dot{background:var(--accent) !important}
+
+/* ========== PATLATILMIS MAKINE — kaydirmaya bagli kare dizisi ========== */
+/* Kaynak kareler ACIK GRI studyo zemininde, sayfa ise koyu. Ham goruntuyu
+   koyultmak makinenin detayini da oldururdu; bunun yerine sahne bir ISIKLI
+   PLATFORM gibi cerceveleniyor: hafif koyultma + kenarlardan sayfanin zeminine
+   eriyen vinyet. Boylece acik dikdortgen yapistirilmis gibi durmaz. */
+.patlatma{position:relative;background:var(--bg);border-top:1px solid var(--border)}
+.patlatma-yol{position:relative;height:300vh}
+.patlatma-sahne{position:sticky;top:0;height:100vh;overflow:hidden}
+.patlatma-poster,.patlatma-tuval{position:absolute;inset:0;width:100%;height:100%;display:block}
+.patlatma-poster{object-fit:cover;filter:saturate(1.05) contrast(1.04) brightness(.86)}
+.patlatma-tuval{opacity:0;transition:opacity .26s cubic-bezier(.32,.72,0,1);
+  filter:saturate(1.05) contrast(1.04) brightness(.86)}
+.patlatma-tuval[data-hazir="1"]{opacity:1}
+/* Vinyet — ayri katman, filtreden etkilenmez. Sol ustteki elips yalnizca
+   basligin oturdugu koseyi karartir; bolumun tamamini karartmak parcalari
+   soldururdu. */
+.patlatma-sahne::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(68% 46% at 2% 0%, rgba(5,5,8,.97) 0%, rgba(5,5,8,.82) 34%, rgba(5,5,8,.4) 58%, rgba(5,5,8,0) 80%),
+    radial-gradient(120% 88% at 50% 46%, rgba(5,5,8,0) 34%, rgba(5,5,8,.5) 74%, rgba(5,5,8,.94) 100%),
+    linear-gradient(180deg, var(--bg) 0%, rgba(5,5,8,0) 16%, rgba(5,5,8,0) 78%, var(--bg) 100%)}
+.patlatma-yazi{position:absolute;top:0;left:0;right:0;z-index:2;padding:104px 24px 0}
+.patlatma-yazi .inner{max-width:1200px;margin:0 auto}
+.patlatma-goz{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--p2-2)}
+.patlatma-h{margin-top:12px;max-width:22ch;font-family:'Plus Jakarta Sans',Inter,sans-serif;
+  font-weight:800;line-height:1.12;letter-spacing:-.02em;color:#fff;
+  font-size:clamp(1.5rem,3.1vw,2.6rem)}
+.patlatma-no{position:absolute;right:24px;bottom:24px;z-index:3;font-family:'JetBrains Mono',monospace;
+  font-size:12px;letter-spacing:.22em;color:var(--text-faint);pointer-events:none}
+@media (max-width:767px){
+  .patlatma-yazi{padding-top:88px}
+  .patlatma-yol{height:260vh}
+}
+/* Azaltilmis hareket: sticky yol kisalir, tek duragan kare gosterilir. */
+@media (prefers-reduced-motion:reduce){
+  .patlatma-yol{height:auto}
+  .patlatma-sahne{position:relative;height:72svh}
+}
 </style>
 <!-- Gomulu fontlar EN SONDA: 301 KB base64, ilk boyamayi geciktirmesin diye
      yerlesim CSS'inin ALTINA alindi. @font-face nerede tanimlanirsa tanimlansin gecerlidir. -->
@@ -4143,6 +4183,30 @@ h2,.section-title,.cta-title{letter-spacing:-0.022em;font-weight:700}
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PATLATILMIS MAKINE ========== -->
+<section class="patlatma" id="patlatma"
+  data-adet="192" data-genislik="1440" data-yukseklik="810"
+  data-madet="96" data-mgenislik="800" data-myukseklik="450">
+  <div class="patlatma-yol">
+    <div class="patlatma-sahne">
+      <!-- JS calismasa da, kareler yuklenirken de burasi dolu kalir. -->
+      <picture>
+        <source media="(max-width:767px)" srcset="/servis-m/f-001.webp" width="800" height="450">
+        <img class="patlatma-poster" src="/servis/f-001.webp" width="1440" height="810" decoding="async"
+             alt="Kiralık fotokopi makinesi, kapalı gövde">
+      </picture>
+      <canvas class="patlatma-tuval" aria-hidden="true"></canvas>
+      <div class="patlatma-yazi">
+        <div class="inner">
+          <span class="patlatma-goz">02 — Cihaz</span>
+          <h2 class="patlatma-h">Faturayı cihaz değil, parçaları yazdırır.</h2>
+        </div>
+      </div>
+      <span class="patlatma-no">02</span>
     </div>
   </div>
 </section>
@@ -6468,6 +6532,166 @@ document.documentElement.classList.add('js');
   else basla();
 })();
 
+
+/* ========== PATLATILMIS MAKINE — kaydirmaya bagli kare dizisi ==========
+   Nextus Car'daki uygulamanin vanilla karsiligi. Kararlarin gerekcesi:
+
+   TEK CANVAS, <img> dizisi degil: 192 dugumu tarayici katmanlamaya calisir,
+   bellek ve kompozisyon maliyeti patlar.
+
+   OLCEK KURALI: saf "cover" yanlis. Patlatilmis gorunum kadraja kenardan
+   kenara yayiliyor, bolum ise 16:9'dan kare; cover yuksekligi doldurup
+   GENISLIGI kirpiyor ve en distaki parcalar kesiliyor. Kare siginiyorsa
+   contain, dar/uzun ekranda cover (esik: kaplanan yukseklik %78 alti).
+
+   KABADAN INCEYE YUKLEME: sirali yuklersek dizi ancak son kare ininca
+   kullanilabilir olur. Once 16'sar atlayarak diziyi kaba kapliyoruz, sonra
+   8/4/2/1. Kaydirma dizinin 1/8'i ininca acilir, kalan kareler geldikce
+   goruntu keskinlesir. Istenen kare yoksa EN YAKIN yuklu kareye dusulur.
+
+   SAYILAR ELLE YAZILMAZ: bolumun data-* ozniteliklerinden okunur; onlari
+   scripts/servis-kareler.mjs kaynak HTML'e yaziyor. */
+(function(){
+  var bolum = document.getElementById('patlatma');
+  if (!bolum) return;
+  var tuval = bolum.querySelector('.patlatma-tuval');
+  var sahne = bolum.querySelector('.patlatma-sahne');
+  var yol   = bolum.querySelector('.patlatma-yol');
+  if (!tuval || !sahne || !yol) return;
+
+  var MOBIL = window.matchMedia('(max-width:767px)').matches;
+  var SET = MOBIL
+    ? { adet:+bolum.dataset.madet, yol:'/servis-m' }
+    : { adet:+bolum.dataset.adet,  yol:'/servis'  };
+  if (!SET.adet) return;
+
+  var kareler = new Array(SET.adet);
+  var sonCizilen = -1, sonIstenen = 0, hazir = false, ilkCizildi = false;
+
+  function kareYolu(i){
+    var s = String(i);
+    while (s.length < 3) s = '0' + s;
+    return SET.yol + '/f-' + s + '.webp';
+  }
+  function yukluMu(k){
+    var g = kareler[k];
+    return !!g && g.complete && g.naturalWidth > 0;
+  }
+  function olcekle(){
+    var dpr = Math.min(window.devicePixelRatio || 1, 2); /* 2 ile SINIRLI: dpr 3'te arka bellek 9x buyur */
+    var cw = tuval.clientWidth, ch = tuval.clientHeight;
+    if (!cw || !ch) return;
+    var w = Math.round(cw * dpr), hh = Math.round(ch * dpr);
+    if (tuval.width !== w || tuval.height !== hh){
+      tuval.width = w; tuval.height = hh;
+      var c = tuval.getContext('2d');
+      if (c) c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      sonCizilen = -1;
+    }
+  }
+  function ciz(indeks){
+    if (!kareler.length) return;
+    var i = Math.max(0, Math.min(kareler.length - 1, indeks));
+    sonIstenen = i;
+    var g = -1;
+    if (yukluMu(i)) g = i;
+    else {
+      for (var d = 1; d < kareler.length; d++){
+        if (yukluMu(i - d)) { g = i - d; break; }
+        if (yukluMu(i + d)) { g = i + d; break; }
+      }
+    }
+    if (g < 0 || g === sonCizilen) return;
+    var img = kareler[g];
+    var ctx = tuval.getContext('2d');
+    if (!ctx) return;
+    var cw = tuval.clientWidth, ch = tuval.clientHeight;
+    if (!cw || !ch) return;
+    var sigdir = Math.min(cw / img.naturalWidth, ch / img.naturalHeight);
+    var kapla  = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+    var oran = (img.naturalHeight * sigdir) / ch >= 0.78 ? sigdir : kapla;
+    var w = img.naturalWidth * oran, hh = img.naturalHeight * oran;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.drawImage(img, (cw - w) / 2, (ch - hh) / 2, w, hh);
+    sonCizilen = g;
+    tuval.dataset.kare = String(i + 1);   /* gorunmeyen durumu olculebilir kilar */
+    tuval.dataset.cizilen = String(g + 1);
+  }
+  function yuklemeSirasi(n){
+    var gorulen = {}, sira = [];
+    function ekle(i){ if (!gorulen[i]) { gorulen[i] = 1; sira.push(i); } }
+    ekle(0); ekle(n - 1);
+    var adimlar = [16, 8, 4, 2, 1];
+    for (var a = 0; a < adimlar.length; a++)
+      for (var i = 0; i < n; i += adimlar[a]) ekle(i);
+    return sira;
+  }
+  function agKisitli(){
+    var c = navigator.connection;
+    if (!c) return false;
+    return !!c.saveData || c.effectiveType === '2g' || c.effectiveType === 'slow-2g';
+  }
+
+  /* Azaltilmis hareket / kisitli ag: dizi indirilmez, poster son kareye doner. */
+  if (window.matchMedia('(prefers-reduced-motion:reduce)').matches || agKisitli()){
+    var poster = bolum.querySelector('.patlatma-poster');
+    if (poster) poster.src = kareYolu(SET.adet);
+    return;
+  }
+
+  function yukle(){
+    var sira = yuklemeSirasi(SET.adet);
+    var kabaEsik = Math.min(SET.adet, Math.ceil(SET.adet / 8) + 2);
+    var yuklu = 0, acildi = false;
+    function geldi(i){
+      yuklu++;
+      if (i === 0 && !ilkCizildi){ olcekle(); ciz(0); ilkCizildi = true; tuval.dataset.hazir = '1'; }
+      if (acildi) ciz(sonIstenen);
+      if (!acildi && yuklu >= kabaEsik){ acildi = true; hazir = true; }
+      if (yuklu >= SET.adet){
+        for (var k = 0; k < SET.adet; k++)
+          if (!yukluMu(k)) kareler[k] = kareler[Math.max(0, k - 1)];
+        ciz(sonIstenen);
+      }
+    }
+    for (var s = 0; s < sira.length; s++){
+      (function(i){
+        var img = new Image();
+        img.decoding = 'async';
+        img.onload = function(){ geldi(i); };
+        img.onerror = function(){ geldi(i); };
+        img.src = kareYolu(i + 1);
+        kareler[i] = img;
+      })(sira[s]);
+    }
+  }
+
+  /* Bolum gorus alanina yaklasinca indir — ilk boyamayi engellemesin. */
+  var gozcu = new IntersectionObserver(function(g){
+    if (!g.some(function(x){ return x.isIntersecting; })) return;
+    gozcu.disconnect();
+    yukle();
+  }, { rootMargin: '150% 0px' });
+  gozcu.observe(bolum);
+
+  var bekliyor = false;
+  function guncelle(){
+    bekliyor = false;
+    if (!hazir) return;
+    /* getBoundingClientRect + scrollY: offsetTop offsetParent'a GORE olcer ve
+       .patlatma position:relative oldugu icin 0 donuyordu — ilerleme sayfanin
+       en ustunden hesaplanip dizi ortadan basliyordu (olculdu: kare 45). */
+    var ust = yol.getBoundingClientRect().top + window.scrollY;
+    var mesafe = yol.offsetHeight - sahne.offsetHeight;
+    if (mesafe <= 0) return;
+    var p = (window.scrollY - ust) / mesafe;
+    p = Math.max(0, Math.min(1, p));
+    ciz(Math.round(p * (SET.adet - 1)));
+  }
+  function istek(){ if (!bekliyor){ bekliyor = true; requestAnimationFrame(guncelle); } }
+  window.addEventListener('scroll', istek, { passive: true });
+  window.addEventListener('resize', function(){ olcekle(); sonCizilen = -1; istek(); }, { passive: true });
+})();
 </script>
 
 </body>
