@@ -7,10 +7,22 @@ tek raporda yollar; her satır kendi cihazına işlenir.
 Kurulum **bir kezliktir**. Bittiğinde her yeni bayi kendi adresini Ayarlar
 ekranında hazır bulur — bayi başına iş yoktur.
 
-**Paylaşılan sır (bu kurulum için üretildi — gizli tut, herkese açık yere yazma):**
+## Önce: paylaşılan sırrı üret
 
+Uç dışarıdan çağrılacağı için paylaşılan sır zorunlu. Kendi sırrını üret:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
-5c8ec642ce2bc95837f500dd30e1dfb1a8c51676cb233a0a
+
+**Bu değeri BU DEPOYA YAZMA.** Depo herkese açık; buraya yazılan sır
+yayımlanmış olur ve yakılır. Şifre yöneticinde ya da yerel bir not
+dosyasında tut.
+
+Commit etmeden once kontrol et:
+
+```bash
+node scripts/sir-tarama.mjs
 ```
 
 Bu değer **iki yere** girilecek: Apps Script (ya da ileride Cloudflare Worker)
