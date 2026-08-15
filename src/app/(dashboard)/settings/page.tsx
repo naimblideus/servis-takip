@@ -252,7 +252,9 @@ function BackupCard() {
         <div style={{
             marginTop: '1.5rem', backgroundColor: 'white', borderRadius: '0.75rem',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem',
-            borderLeft: `4px solid ${overdue ? '#f59e0b' : '#10b981'}`,
+            // Gecikmede kart kenarı uyarı rengine döner; normalde nötr kalır.
+            // Her şey yolundayken yeşil bağırmak, gerçek uyarıyı zayıflatır.
+            border: `1px solid ${overdue ? '#fcd34d' : '#e5e7eb'}`,
         }}>
             <h2 style={{ fontWeight: '600', marginBottom: '0.35rem' }}>💾 Verinin Yedeği</h2>
             <p style={{ fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.6, marginBottom: '0.9rem' }}>
