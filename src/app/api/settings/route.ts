@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { sayacAdresi } from '@/lib/sayac-eposta';
 
 export async function GET() {
     const session = await auth();
@@ -15,7 +16,9 @@ export async function GET() {
         select: { id: true, name: true, logo: true, phone: true, address: true, pricePerBlack: true, pricePerColor: true, portalShowFinancials: true, sayacEpostaKodu: true },
     });
 
-    return NextResponse.json(tenant);
+    // Adres sunucuda kurulur: alan adı ortam değişkeninden gelir ve kanal
+    // kapalıysa null döner — ekran hiç göstermesin (bkz. lib/sayac-eposta.ts).
+    return NextResponse.json({ ...tenant, sayacEpostaAdresi: sayacAdresi(tenant?.sayacEpostaKodu) });
 }
 
 export async function PATCH(req: Request) {

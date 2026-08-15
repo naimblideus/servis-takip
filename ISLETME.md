@@ -139,6 +139,15 @@ sırsız bir uç, herkesin sayaç yazabildiği bir uçtur.
 
 Adres kalıbı: **`sayac+<bayikodu>@nextusservis.com`**
 
+Alan adı `SAYAC_EPOSTA_ALANADI` ile değişir (varsayılan `nextusservis.com`).
+Farklı bir alan adı kullanacaksan Coolify'a bunu da ekle — bayi ekranda hangi
+adresi görüyorsa posta oraya gitmeli.
+
+**Kanal kapalıyken bayi bu kartı görmez.** `SAYAC_EPOSTA_SECRET` tanımlı
+değilken uç 503 döner, yani o adrese giden e-posta kaybolur; tutulamayacak bir
+söz vermektense adres hiç gösterilmez. Sırrı tanımlayınca kart kendiliğinden
+çıkar, ayrıca bir iş yapman gerekmez.
+
 Kod bayi açılırken otomatik üretilir; bayi kendi adresini **Ayarlar → Cihazdan
 Otomatik Sayaç** kartında görür ve Kopyala'ya basar. Senin her yeni bayi için
 yapman gereken **hiçbir şey yok** — aşağıdaki kurulum bir kezlik.

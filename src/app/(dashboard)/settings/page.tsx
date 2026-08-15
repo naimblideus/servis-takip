@@ -13,6 +13,8 @@ interface TenantInfo {
     pricePerBlack: number;
     pricePerColor: number;
     sayacEpostaKodu: string | null;
+    /** Tam adres sunucuda kurulur; kanal kapalıysa null gelir */
+    sayacEpostaAdresi: string | null;
 }
 
 export default function SettingsPage() {
@@ -136,7 +138,7 @@ export default function SettingsPage() {
             {/* ── Cihazdan Sayaç: bayinin KENDİ e-posta adresi ──
                 Bayi tarafındaki tek kurulum adımı bu adresi cihazlara girmek.
                 Kod bayi açılırken üretiliyor; burada yalnız gösteriliyor. */}
-            {tenant?.sayacEpostaKodu && (
+            {tenant?.sayacEpostaAdresi && (
                 <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
                     <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Cihazdan Otomatik Sayaç</h2>
                     <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem', lineHeight: 1.6 }}>
@@ -151,11 +153,11 @@ export default function SettingsPage() {
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap',
                     }}>
                         <code style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f766e', wordBreak: 'break-all' }}>
-                            sayac+{tenant.sayacEpostaKodu}@nextusservis.com
+                            {tenant.sayacEpostaAdresi}
                         </code>
                         <button
                             onClick={() => {
-                                navigator.clipboard?.writeText(`sayac+${tenant.sayacEpostaKodu}@nextusservis.com`);
+                                navigator.clipboard?.writeText(tenant.sayacEpostaAdresi!);
                                 setMsg('✅ Adres kopyalandı');
                             }}
                             style={{ padding: '0.4rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #14b8a6', background: 'white', color: '#0f766e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
