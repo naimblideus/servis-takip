@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import TopluPrintButton from '@/components/TopluPrintButton';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 const STATUS_TR: Record<string, string> = {
     NEW: 'Yeni', IN_SERVICE: 'Serviste', WAITING_FOR_PART: 'Parça Bkl.',
@@ -19,7 +20,7 @@ export default async function TopluYazdirPage({
     const sp = await searchParams;
     const session = await auth();
     if (!session) redirect('/login');
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) redirect('/login');
 
     // Filtreler — /tickets liste sayfasıyla BİREBİR aynı mantık (tenant + soft-delete güvenli)

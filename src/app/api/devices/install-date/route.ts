@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 /**
  * Cihaz yaşı — toplu giriş, kanıt sınırı ve KEŞİF.
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
@@ -98,7 +99,7 @@ export async function PATCH(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const body = await req.json();

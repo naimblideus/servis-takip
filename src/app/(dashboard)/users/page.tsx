@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import UsersClient from '@/components/UsersClient';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 const ROLE_LABELS: Record<string, string> = {
     ADMIN: 'Yönetici', TECHNICIAN: 'Teknisyen', FRONT_DESK: 'Resepsiyon',
@@ -15,7 +16,7 @@ export default async function UsersPage() {
     const session = await auth();
     if (!session) redirect('/login');
 
-    const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const me = await oturumKullanicisi(session);
     if (!me || me.role !== 'ADMIN') redirect('/dashboard');
 
     const users = await prisma.user.findMany({

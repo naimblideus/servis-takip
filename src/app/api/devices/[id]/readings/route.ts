@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { counterOverage } from '@/lib/invoicing';
 import { createReading, ReadingError } from '@/lib/readings';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export async function POST(
     req: Request,
@@ -13,7 +14,7 @@ export async function POST(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();
@@ -50,7 +51,7 @@ export async function GET(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Cihaz bilgisi + tenant fiyatlarını da dön (IDOR: yalnız bu tenant'ın cihazı)
@@ -100,7 +101,7 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const url = new URL(req.url);
@@ -147,7 +148,7 @@ export async function PATCH(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const url = new URL(req.url);

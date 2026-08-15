@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
+import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { periodOf } from '@/lib/invoicing';
 
 // GET /api/invoices/preflight?period=YYYY-MM
 // FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ: bu dönem sayacı HİÇ okunmamış kiralık cihazlar.
 // Amaç: eksik giden aşım faturasını (yanan para) faturalamadan ÖNCE yakalamak.
 export async function GET(req: NextRequest) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
   try {
     const { tenantId } = await requireTenantUser();
     const period = new URL(req.url).searchParams.get('period') || periodOf();

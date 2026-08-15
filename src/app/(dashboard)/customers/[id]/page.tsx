@@ -6,6 +6,7 @@ import CustomerEditPanel from '@/components/CustomerEditPanel';
 import CustomerCariPanel from '@/components/CustomerCariPanel';
 import MusteriPortalKarti from '@/components/MusteriPortalKarti';
 import ContactActions from '@/components/ContactActions';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 const statusLabel: Record<string, { label: string; color: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7' },
@@ -22,7 +23,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   if (!session) redirect('/login');
 
   // IDOR koruması: yalnızca bu tenant'ın müşterisi görüntülenebilir
-  const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const me = await oturumKullanicisi(session);
   if (!me) redirect('/login');
 
   const customer = await prisma.customer.findFirst({

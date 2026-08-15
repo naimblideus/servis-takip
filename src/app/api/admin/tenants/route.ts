@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 // Süper Admin kontrolü
 async function getSuperAdmin() {
     const session = await auth();
     if (!session) return null;
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user || (user.role as string) !== 'SUPER_ADMIN') return null;
     return user;
 }

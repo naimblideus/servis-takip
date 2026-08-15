@@ -3,12 +3,13 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { detectBrandInText } from '@/lib/device-brands';
 import { normalizePartGroup, guessPartGroup } from '@/lib/part-groups';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export async function GET() {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const parts = await prisma.part.findMany({
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();

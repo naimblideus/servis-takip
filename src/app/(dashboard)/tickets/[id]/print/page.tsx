@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PrintButton from '@/components/PrintButton';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 const PAYMENT_LABELS: Record<string, string> = {
     UNPAID: 'Ödenmedi', PARTIAL: 'Kısmi Ödeme', PAID: 'Ödendi', REFUNDED: 'İade',
@@ -13,7 +14,7 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
     if (!session) redirect('/login');
 
     // IDOR koruması: önce kullanıcı, sonra fişi TENANT-SCOPED çek (başka bayinin fişi yazdırılamasın)
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) redirect('/login');
 
     const ticket = await prisma.serviceTicket.findFirst({

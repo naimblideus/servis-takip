@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import TicketFilters from '@/components/TicketFilters';
 import TicketsClient from '@/components/TicketsClient';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export default async function TicketsPage({
   searchParams,
@@ -14,7 +15,7 @@ export default async function TicketsPage({
   const session = await auth();
   if (!session) redirect('/login');
 
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) redirect('/login');
 
   // Filtre koşulları

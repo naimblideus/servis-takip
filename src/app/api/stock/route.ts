@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 async function getUser(session: any) {
-  return prisma.user.findFirst({ where: { email: session.user?.email! } });
+  return oturumKullanicisi(session);
 }
 
 // Barkod aynı tenant'ta hem Part hem PrinterStock arasında tekil olmalı (yanlış kalem satışını önler).

@@ -1,17 +1,21 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 
 // Müşteri cari hesap detayı
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
     const { id: customerId } = await params;
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // TENANT-scoped (cross-tenant müşteri PII sızıntısı kapalı): yabancı id null → 404

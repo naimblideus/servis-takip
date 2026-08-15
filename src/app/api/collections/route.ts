@@ -3,12 +3,16 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { allocatePayment } from '@/lib/invoicing';
 import { docToken } from '@/lib/doc-token';
+import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 
 // POST — cari-bazlı tahsilat (IBAN/havale/nakit) → FIFO otomatik mahsup, onaysız
 export async function POST(req: Request) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   try {
@@ -42,9 +46,12 @@ export async function POST(req: Request) {
 
 // GET ?customerId= — açık faturalar (tahsilat öncesi FIFO mahsup önizlemesi)
 export async function GET(req: Request) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   const { searchParams } = new URL(req.url);

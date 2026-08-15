@@ -7,13 +7,14 @@ import { syncTicketToCari } from '@/lib/ticket-cari';
 import { parseFaultCategory, faultCategoryFromLegacyText } from '@/lib/fault-categories';
 import { createReading, ReadingError } from '@/lib/readings';
 import { generateTicketNumber } from '@/lib/ticket-number';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   const tickets = await prisma.serviceTicket.findMany({
     where: { tenantId: user!.tenantId },
     include: { device: { include: { customer: true } }, assignedUser: true },
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const body = await req.json();

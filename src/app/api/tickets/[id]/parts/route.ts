@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 // GET: Bu fişin parçalarını listele
 export async function GET(
@@ -11,7 +12,7 @@ export async function GET(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // IDOR koruması: yalnızca bu tenant'ın bu fişine ait parçalar
@@ -34,7 +35,7 @@ export async function POST(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();
@@ -115,7 +116,7 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const url = new URL(req.url);

@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { dailyRate, forecastChannel, soonestDaysLeft, type TonerReadingPoint } from '@/lib/toner';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 // GET /api/toner — toner takibi açık cihazların tükenme tahmini (proaktif sevkiyat listesi).
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   // Toner takibi tanımlı cihazlar (S/B veya renkli verim girilmiş)

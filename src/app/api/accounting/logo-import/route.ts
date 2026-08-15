@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { TransactionType, TransactionCategory, PaymentMethod } from '@prisma/client';
+import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 
 // Logo Tiger/Go → Hesap Kodu → Servis Takip Kategori eşlemesi
 // string tipi kullanarak TypeScript literal inference sorununu aşıyoruz
@@ -83,10 +84,13 @@ function parseLogoCSV(content: string): Array<{
 
 // POST /api/accounting/logo-import — Logo'dan Servis Takip'e CSV aktarımı
 export async function POST(req: NextRequest) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     try {

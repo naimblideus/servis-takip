@@ -6,6 +6,7 @@ import DeviceEditPanel from '@/components/DeviceEditPanel';
 import CounterReadingPanel from '@/components/CounterReadingPanel';
 import DeviceQRCode from '@/components/DeviceQRCode';
 import TonerPanel from '@/components/TonerPanel';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 // statusLabel and priorityLabel removed — replaced with counter columns
 
@@ -15,7 +16,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
   if (!session) redirect('/login');
 
   // IDOR koruması: önce kullanıcı, sonra cihazı tenant-scoped çek
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) redirect('/login');
 
   const device = await prisma.device.findFirst({

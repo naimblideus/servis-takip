@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 // POST /api/fix-tsk-to-sf — DB'deki tüm TSK- fişlerini SF- olarak yeniden adlandır
 export async function POST() {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user || user.role !== 'ADMIN') {
         return NextResponse.json({ error: 'Yetkiniz yok' }, { status: 403 });
     }

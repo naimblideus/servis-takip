@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, PaymentStatus, PaymentMethod, TransactionType, TransactionCategory } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
+import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 
 type PayResult =
@@ -12,6 +12,9 @@ type PayResult =
 // Güvenlik: ticket TENANT-scoped yüklenir (cross-tenant IDOR kapalı); tüm okuma+yazma
 // Serializable transaction'da (eşzamanlı overpay race kapalı).
 export async function POST(req: NextRequest) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
   try {
     const { tenantId } = await requireTenantUser();
     const body = await req.json();

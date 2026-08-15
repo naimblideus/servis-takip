@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 // GET: Çöp kutusundaki fişleri listele
 export async function GET() {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const me = await oturumKullanicisi(session);
     if (!me) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const tickets = await prisma.serviceTicket.findMany({
@@ -24,7 +25,7 @@ export async function DELETE() {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const me = await oturumKullanicisi(session);
     if (!me || me.role !== 'ADMIN') return NextResponse.json({ error: 'Yetkisiz' }, { status: 403 });
 
     const { count } = await prisma.serviceTicket.deleteMany({

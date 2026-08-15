@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import DokumPrintButton from '@/components/DokumPrintButton';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 const nf = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('tr-TR'));
 
@@ -18,7 +19,7 @@ export default async function CihazDokumuPage({
 
     const session = await auth();
     if (!session) redirect('/login');
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) redirect('/login');
 
     // TENANT-scoped (başka bayinin müşterisi yazdırılamaz)

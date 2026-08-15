@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import { normalizeBrandModel } from '@/lib/device-brands';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 function generatePublicCode() {
   return 'DEV-' + randomBytes(3).toString('hex').toUpperCase();
@@ -11,7 +12,7 @@ function generatePublicCode() {
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   const devices = await prisma.device.findMany({
     where: { tenantId: user!.tenantId },
     include: { customer: true },
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const body = await req.json();
     // Marka/model ters girilmişse düzelt, yazımı kanonikleştir ("canon" -> "Canon").

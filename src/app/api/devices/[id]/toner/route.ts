@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 // POST /api/devices/[id]/toner — toner verimini ayarla ve/veya "toner değişti" referansını kaydet.
 // body: { tonerYieldBlack?, tonerYieldColor?, markChangedBlack?, markChangedColor?, markChanged? }
@@ -10,7 +11,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // IDOR: cihaz bu tenant'a mı ait?

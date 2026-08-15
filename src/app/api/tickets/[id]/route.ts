@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 import { parseFaultCategory } from '@/lib/fault-categories';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export async function GET(
     req: Request,
@@ -13,7 +14,7 @@ export async function GET(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // IDOR koruması: yalnızca bu tenant'ın fişi
@@ -48,7 +49,7 @@ export async function PATCH(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         // IDOR koruması: fiş bu tenant'a mı ait?
@@ -126,7 +127,7 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const url = new URL(req.url);

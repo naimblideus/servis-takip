@@ -4,13 +4,14 @@ import { prisma } from '@/lib/prisma';
 import PrintNowButton from '@/components/PrintNowButton';
 import InvoiceDocument, { type InvoiceDocData } from '@/components/docs/InvoiceDocument';
 import { buildCounterAppendix } from '@/lib/invoice-appendix';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
   if (!session) redirect('/login');
 
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) redirect('/login');
 
   const invoice = await prisma.customerInvoice.findFirst({

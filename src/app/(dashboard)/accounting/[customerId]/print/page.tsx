@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PrintNowButton from '@/components/PrintNowButton';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d: Date) => new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -11,7 +12,7 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
   const session = await auth();
   if (!session) redirect('/login');
 
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) redirect('/login');
 
   const customer = await prisma.customer.findFirst({

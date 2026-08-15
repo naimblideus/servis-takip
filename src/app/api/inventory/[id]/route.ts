@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { normalizePartGroup } from '@/lib/part-groups';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export async function PATCH(
     req: Request,
@@ -13,7 +14,7 @@ export async function PATCH(
 
     try {
         // IDOR koruması: parça bu tenant'a ait mi?
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         const existing = await prisma.part.findFirst({ where: { id, tenantId: user.tenantId } });
         if (!existing) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
@@ -53,7 +54,7 @@ export async function DELETE(
 
     try {
         // IDOR koruması: yalnızca bu tenant'ın parçası silinebilir
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         const res = await prisma.part.deleteMany({ where: { id, tenantId: user.tenantId } });
         if (res.count === 0) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });

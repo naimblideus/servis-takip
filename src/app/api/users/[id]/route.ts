@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { writeAudit, istekIp } from '@/lib/audit';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export async function PATCH(
     req: Request,
@@ -12,7 +13,7 @@ export async function PATCH(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const me = await oturumKullanicisi(session);
     if (!me || me.role !== 'ADMIN') return NextResponse.json({ error: 'Yetkisiz' }, { status: 403 });
 
     // IDOR koruması: hedef kullanıcı aynı tenant'ta olmalı
@@ -65,7 +66,7 @@ export async function DELETE(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const me = await oturumKullanicisi(session);
     if (!me || me.role !== 'ADMIN') return NextResponse.json({ error: 'Yetkisiz' }, { status: 403 });
     if (me.id === id) return NextResponse.json({ error: 'Kendinizi silemezsiniz' }, { status: 400 });
 

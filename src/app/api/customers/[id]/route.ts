@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export async function PATCH(
     req: Request,
@@ -11,7 +12,7 @@ export async function PATCH(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         // IDOR koruması: müşteri bu tenant'a mı ait?
         const existing = await prisma.customer.findFirst({ where: { id, tenantId: user.tenantId } });
@@ -55,7 +56,7 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+        const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         // IDOR koruması: yalnızca bu tenant'ın müşterisi silinebilir
         const res = await prisma.customer.deleteMany({ where: { id, tenantId: user.tenantId } });

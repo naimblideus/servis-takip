@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 
 // ═══ Logo Tiger/Go Türkiye Hesap Planı (Tek Düzen Muhasebe) ═══
 const LOGO_HESAP: Record<string, { kod: string; ad: string; karsit: string }> = {
@@ -43,10 +44,13 @@ function escXml(s: string): string {
 }
 
 export async function GET(req: NextRequest) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+    const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { searchParams } = new URL(req.url);

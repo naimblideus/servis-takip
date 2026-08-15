@@ -11,6 +11,7 @@ import ContactActions from '@/components/ContactActions';
 import { waUrl, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 import { faultLabel } from '@/lib/fault-categories';
 import { ASAMA_KISA } from '@/lib/ticket-asama';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 const statusLabel: Record<string, { label: string; color: string; text: string }> = {
   NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
@@ -27,7 +28,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   if (!session) redirect('/login');
 
   // IDOR koruması: yalnızca bu tenant'ın fişi görüntülenebilir
-  const me = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const me = await oturumKullanicisi(session);
   if (!me) redirect('/login');
   const tenantName = (session.user as any)?.tenantName as string | undefined;
 

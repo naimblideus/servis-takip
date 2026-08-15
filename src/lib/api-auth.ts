@@ -61,3 +61,26 @@ export function authErrorResponse(e: unknown) {
   console.error('API ERROR:', (e as any)?.message);
   return NextResponse.json({ error: (e as any)?.message || 'Sunucu hatası' }, { status: 500 });
 }
+
+/**
+ * Yalnız YÖNETİCİ erişebilir. Mali ekranların uçlarında kullanılır.
+ *
+ * ── NEDEN GEREKLİ ────────────────────────────────────────────────────────
+ * Kenar menüde bu sayfalar ADMIN'e kilitliydi ama besleyen API'ler rolü
+ * ZORLAMIYORDU: teknisyen adresi elle yazıp bayinin tüm mali verisini
+ * (cari, fatura, tahsilat, kaçan gelir) okuyabiliyordu. Menüde gizlemek
+ * yetkilendirme değildir, yalnız görsel bir perdedir.
+ *
+ * ── SAHA AKIŞI BOZULMUYOR ────────────────────────────────────────────────
+ * Teknisyenin sahadaki gerçek ihtiyacı "işini bitirdiği fişten tahsilat
+ * almak"tır ve o AYRI bir uçtan geçer: /api/tickets/[id]/payments — hem
+ * bayiye hem fişe kapsamlı. Burada kilitlenen şey, bütün müşterilerin borç
+ * listesini gezmek; o saha işi değil, ofis işidir.
+ */
+export async function requireAdminUser() {
+  const { user, tenantId, session } = await requireTenantUser();
+  if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+    throw new AuthError(403, 'Bu ekran için yönetici yetkisi gerekir.');
+  }
+  return { user, tenantId, session };
+}

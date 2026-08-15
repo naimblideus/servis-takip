@@ -3,13 +3,14 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PrintNowButton from '@/components/PrintNowButton';
 import ReceiptDocument, { type ReceiptDocData } from '@/components/docs/ReceiptDocument';
+import { oturumKullanicisi } from '@/lib/api-auth';
 
 export default async function ReceiptPrintPage({ params }: { params: Promise<{ paymentId: string }> }) {
   const { paymentId } = await params;
   const session = await auth();
   if (!session) redirect('/login');
 
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) redirect('/login');
 
   const payment = await prisma.payment.findFirst({

@@ -3,14 +3,18 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { buildInvoiceForCustomerPeriod, periodOf } from '@/lib/invoicing';
 import { docToken } from '@/lib/doc-token';
+import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // GET /api/invoices — Müşteri faturaları listesi + özet
 export async function GET(req: Request) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
@@ -82,9 +86,12 @@ export async function GET(req: Request) {
 
 // POST /api/invoices — Bu tenant için dönem faturalarını manuel üret (idempotent)
 export async function POST(req: Request) {
+  // MALI VERI: yalniz yonetici. Menude gizlemek yetkilendirme degildir;
+  // teknisyen adresi elle yazip butun musterilerin borcunu okuyabiliyordu.
+  try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! } });
+  const user = await oturumKullanicisi(session);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   let body: any = {};
