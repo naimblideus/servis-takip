@@ -1,9 +1,7 @@
 {
   "detector": {
     "ignoreRules": [],
-    "ignoreFiles": [
-      "marketing/landing/index.html"
-    ],
+    "ignoreFiles": [],
     "ignoreValues": [
       {
         "rule": "ai-color-palette",
