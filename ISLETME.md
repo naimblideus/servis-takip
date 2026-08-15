@@ -124,6 +124,83 @@ bulguda Coolify görevi kırmızı olur.
 
 ---
 
+## 6. Cihazdan gelen sayaç e-postası — **şu an KAPALI, açman gerekiyor**
+
+Bu, sayaç toplamanın en ucuz kanalı: cihaz ayın belirli günü sayaç raporunu
+kendi e-postayla gönderiyor, sistem okuyup işliyor. Kimse gezmiyor, kimse
+fotoğraf beklemiyor.
+
+**Kod hazır ve testli (8/8) ama uç kapalı:** `SAYAC_EPOSTA_SECRET` tanımlı
+değilken uç 503 döner. Bu bilinçli — sırsız bir uç, herkesin sayaç yazabildiği
+bir uçtur.
+
+### Kurulum (bir kez, ~20 dakika)
+
+**1) Sır üret ve Coolify'a ekle**
+
+```bash
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+```
+
+Coolify → Environment Variables → `SAYAC_EPOSTA_SECRET` = üretilen değer.
+
+**2) Bir e-posta adresi belirle**
+
+Örn. `sayac@nextusservis.com`. Cihazlar rapora bu adresi yazacak.
+
+**3) Gelen e-postayı uca ilet**
+
+Alan adı Cloudflare'deyse en kolayı **Email Routing → Email Workers**:
+
+```js
+export default {
+  async email(message, env) {
+    const metin = await new Response(message.raw).text();
+    await fetch('https://<alan-adin>/api/sayac/eposta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-sayac-secret': env.SAYAC_SECRET },
+      body: JSON.stringify({
+        subject: message.headers.get('subject') ?? '',
+        from: message.from,
+        text: metin,
+      }),
+    });
+  },
+};
+```
+
+Cloudflare değilse aynı işi Mailgun/Postmark **inbound webhook**'u ya da
+Zapier/Make ile de yapabilirsin — uç sade bir JSON bekliyor, kaynağı umursamıyor.
+
+**4) Cihazlara adresi tanımla**
+
+Cihazın web arayüzü → e-posta bildirim/sayaç raporu → alıcı olarak o adresi
+gir, gönderim gününü ayın 1'i yap.
+
+### Nasıl çalıştığını bil
+
+- E-posta **her zaman** kaydedilir; işlensin işlenmesin kaybolmaz.
+- Metinde **sistemdeki bilinen seri numaraları** aranır (cihaz biçimi tahmin
+  edilmez, ters eşleştirme yapılır).
+- Seri ve siyah sayaç **güvenle** okunduysa okuma kaydedilir ve aylık
+  faturalama zinciri onu kendiliğinden alır.
+- Okunamadıysa **BEKLIYOR** olarak kuyrukta bekler — asla tahmin edilmez.
+  Kuyruk: menüde **Cihazdan Sayaç** (bekleyen varsa rozetli).
+- Aynı seri iki bayide varsa **hangisi olduğu tahmin edilmez**, elle seçilir.
+- Aynı e-posta iki kez gelirse çift fatura oluşmaz: ikinci okumanın farkı
+  sıfır çıkar.
+
+### Test et (kurulumdan sonra)
+
+```bash
+curl -X POST https://<alan-adin>/api/sayac/eposta -H "Content-Type: application/json" -H "x-sayac-secret: <SIR>" -d "{\"subject\":\"Test\",\"from\":\"test@x.com\",\"text\":\"Serial Number: <GERCEK-SERI>\nTotal: 12345\"}"
+```
+
+`islendi: true` dönerse hat çalışıyor. `503` dönerse sır tanımlanmamış,
+`401` dönerse sır yanlış.
+
+---
+
 ## Deploy sonrası kontrol listesi
 
 - [ ] Redeploy (bekleyen migration'lar startup'ta otomatik uygulanır)
@@ -131,6 +208,8 @@ bulguda Coolify görevi kırmızı olur.
 - [ ] UptimeRobot monitor'ü kur
 - [ ] Coolify Scheduled Task: `node run-cron.mjs nobetci` (günde bir)
 - [ ] Droplet cron: `backup-db.sh` (günlük) + `restore-drill.sh` (aylık)
+- [ ] **`SAYAC_EPOSTA_SECRET` tanımla + e-posta yönlendirmesini kur (§ 6)** — bu
+      kanal şu an tümden kapalı, en yüksek değerli eksik
 - [ ] Süper admin 2FA'yı aç, kurtarma kodlarını kâğıda yaz
 - [ ] Süper admin panelinde sistem durumu kartını oku — uyarı varsa çöz
 

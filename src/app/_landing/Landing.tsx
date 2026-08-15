@@ -3760,6 +3760,25 @@ input:focus-visible,
   padding-bottom:0 !important;
 }
 
+/* 2b ── DÖNEN KELİME DE DÜZ RENK.
+   .gradient-text düz renge çevrilirken .hero-rotator-word ATLANMIŞTI; o hâlâ
+   background-clip:text kullanıyordu ve aynı hatayı üretiyordu: gradyan öğenin
+   arka plan kutusuna boyanır, taban çizgisinin ALTINA taşan inişleri (g, ğ, ü)
+   kapsamaz — "görünsün" kelimesinin altı boyasız kalıp KESİK görünüyordu.
+   Metin kırpılmıyordu; boyanmıyordu. Çözüm aynı: gradyanı kaldır. */
+.hero-rotator-word{
+  background:none !important;
+  -webkit-background-clip:initial !important;
+  background-clip:initial !important;
+  -webkit-text-fill-color:currentColor !important;
+  color:var(--accent) !important;
+  animation:none !important;
+}
+/* Dönen kelime mutlak konumlu; kutusu inişleri kapsasın diye satır yüksekliği
+   biraz açılıyor, aksi halde altındaki öğeye değer. */
+.hero-rotator{line-height:1.25}
+.hero-rotator-word{padding-bottom:.08em}
+
 /* 3 ── RENKLİ PARILTI YOK.
    Sıfır ofsetli renkli gölge, "AI yapımı arayüz" izlenimi veren en belirgin
    işaret. Yerine düz, nötr yükseklik. */

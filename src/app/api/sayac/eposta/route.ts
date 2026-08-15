@@ -43,9 +43,12 @@ export async function POST(req: NextRequest) {
 
   const duzMetin = htmlToText(ham);
 
-  // Bilinen seri numaraları. Kiracı bilinmediği için TÜM cihazlar taranır —
-  // e-postanın hangi bayiye ait olduğunu ancak seri söyler.
+  // Bilinen seri numaraları. E-postanın hangi bayiye ait olduğunu ancak seri
+  // söylediği için kiracı bazlı daraltamıyoruz — ama AKTİF bayilerle
+  // sınırlayabiliyoruz: askıya alınmış ya da silinmiş bir bayinin cihazına
+  // okuma yazmanın anlamı yok, üstelik taranan satır sayısını da düşürür.
   const cihazlar = await prisma.device.findMany({
+    where: { tenant: { isActive: true, isSuspended: false, deletedAt: null } },
     select: { id: true, serialNo: true, tenantId: true },
   });
   const sonuc = parseCounterEmail(duzMetin, cihazlar.map((c) => c.serialNo), subject);
