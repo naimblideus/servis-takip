@@ -31,6 +31,33 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
 
   if (!device) redirect('/devices');
 
+  // ── FİŞ LİSTESİNDEKİ SAYAÇ SÜTUNU ────────────────────────────────────────
+  // ÖNCEDEN her satıra device.counterBlack yazılıyordu — yani cihazın GÜNCEL
+  // sayacı. Sonuç: yeni bir okuma girilince GEÇMİŞ fişlerin sayacı da değişmiş
+  // görünüyordu. Fişin üstündeki sayı, o fiş açıldığında okunan değer olmalı.
+  //
+  // Tek sorguyla tüm okumaları alıp bellekte eşleştiriyoruz (fiş başına sorgu
+  // atmak N+1 olurdu; bir cihazda yüzlerce fiş olabiliyor).
+  const okumalar = await prisma.counterReading.findMany({
+    where: { tenantId: user.tenantId, deviceId: device.id },
+    orderBy: { readingDate: 'asc' },
+    select: { id: true, ticketId: true, readingDate: true, counterBlack: true, counterColor: true },
+  });
+  const fisOkumasi = new Map(okumalar.filter((o) => o.ticketId).map((o) => [o.ticketId!, o]));
+
+  /** Fişin sayacı: kendi okuması varsa o; yoksa fiş tarihine kadarki SON okuma. */
+  function fisinSayaci(t: { id: string; createdAt: Date }) {
+    const kendi = fisOkumasi.get(t.id);
+    if (kendi) return { ...kendi, kendiOkumasi: true };
+    // Fiş tarihinden SONRAKİ bir okumayı o fişe yazmak, olmayan bir şeyi
+    // belgelemek olur — bu yüzden yalnız tarihe kadar olanlara bakılıyor.
+    let bulunan = null as (typeof okumalar)[number] | null;
+    for (const o of okumalar) {
+      if (o.readingDate <= t.createdAt) bulunan = o; else break;
+    }
+    return bulunan ? { ...bulunan, kendiOkumasi: false } : null;
+  }
+
   // Tenant varsayılan fiyatlarını al
   const tenant = await prisma.tenant.findUnique({
     where: { id: user.tenantId },
@@ -172,15 +199,20 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             </thead>
             <tbody>
               {device.serviceTickets.map((t, i) => {
+                const sayac = fisinSayaci(t);
                 return (
                   <tr key={t.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: i % 2 === 0 ? 'white' : '#f9fafb' }}>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', fontFamily: 'monospace' }}>{t.ticketNumber}</td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.issueText}</td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.85rem', fontWeight: '600' }}>
-                      {device.counterBlack != null ? device.counterBlack.toLocaleString('tr-TR') : '—'}
+                      {sayac ? sayac.counterBlack.toLocaleString('tr-TR') : '—'}
+                      {sayac && !sayac.kendiOkumasi && (
+                        <span title="Bu fişte sayaç girilmemiş; fiş tarihindeki son okuma gösteriliyor"
+                          style={{ color: '#9ca3af', fontWeight: 400, marginLeft: 3 }}>*</span>
+                      )}
                     </td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.85rem', fontWeight: '600', color: '#7c3aed' }}>
-                      {device.counterColor != null ? device.counterColor.toLocaleString('tr-TR') : '—'}
+                      {sayac ? sayac.counterColor.toLocaleString('tr-TR') : '—'}
                     </td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>{t.assignedUser?.name ?? '-'}</td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>{new Date(t.createdAt).toLocaleDateString('tr-TR')}</td>
@@ -192,6 +224,12 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
               })}
             </tbody>
           </table>
+        )}
+        {device.serviceTickets.length > 0 && (
+          <p style={{ marginTop: '0.6rem', fontSize: '0.72rem', color: '#9ca3af' }}>
+            Sayaç sütunu, fişin kendi okumasını gösterir. <b>*</b> işaretli satırlarda o fişte sayaç
+            girilmemiştir; fiş tarihindeki son okuma gösterilir.
+          </p>
         )}
       </div>
 

@@ -123,6 +123,13 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               deviceName={`${ticket.device.brand} ${ticket.device.model}`}
               ticketNumber={ticket.ticketNumber}
               tenantName={tenantName}
+              deviceId={ticket.deviceId}
+              reading={fisOkumasi ? {
+                id: fisOkumasi.id,
+                counterBlack: fisOkumasi.counterBlack,
+                counterColor: fisOkumasi.counterColor,
+                billed: fisOkumasi.billed,
+              } : null}
               currentFaultCategory={ticket.faultCategory}
             />
           </div>

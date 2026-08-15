@@ -42,6 +42,12 @@ interface Props {
     tenantName?: string;
     // Arıza kategorisi — boşsa fiş kapanırken tek dokunuşla sorulur
     currentFaultCategory?: string | null;
+    // ── SAYAÇ DÜZENLEME ──────────────────────────────────────────────────
+    // Fişin KENDİ okuması (varsa). Yoksa panelden yeni okuma eklenebilir.
+    // billed=true ise düzenlenemez: o değer faturaya girmiştir, sessizce
+    // değiştirmek fatura ile defteri ayrıştırır.
+    deviceId?: string;
+    reading?: { id: string; counterBlack: number; counterColor: number; billed: boolean } | null;
 }
 
 export default function TicketStatusPanel({
@@ -62,6 +68,8 @@ export default function TicketStatusPanel({
     ticketNumber,
     tenantName,
     currentFaultCategory,
+    deviceId,
+    reading,
 }: Props) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -87,6 +95,10 @@ export default function TicketStatusPanel({
     const [createdAt, setCreatedAt] = useState(toLocalInput(currentCreatedAt));
 
     // Arıza kategorisi: fiş kapanırken tek dokunuşla sorulur (modal yok, ayrı kaydet yok)
+    const [sayacB, setSayacB] = useState(reading ? String(reading.counterBlack) : '');
+    const [sayacR, setSayacR] = useState(reading ? String(reading.counterColor) : '');
+    const [sayacHata, setSayacHata] = useState<string | null>(null);
+    const [sayacNot, setSayacNot] = useState<string | null>(null);
     const [faultCat, setFaultCat] = useState(currentFaultCategory || '');
     const [askFault, setAskFault] = useState<string | null>(null); // kategori beklenen kapanış durumu
     const [allFaults, setAllFaults] = useState(false);
@@ -115,8 +127,42 @@ export default function TicketStatusPanel({
         updateStatus(s);
     };
 
+    /** Sayaç değişmişse kaydet. Fiş kaydından AYRI uç: okuma zinciri
+     *  (fark + sonraki okumanın farkı) orada yeniden hesaplanıyor. */
+    const sayacKaydet = async (): Promise<boolean> => {
+        setSayacHata(null); setSayacNot(null);
+        if (!deviceId) return true;
+        const b = sayacB.trim(), r = sayacR.trim();
+        if (!b && !r) return true;                                  // dokunulmadı
+        if (reading?.billed) return true;                           // kilitli
+        const yeniB = b === '' ? null : parseInt(b.replace(/\D/g, ''), 10);
+        const yeniR = r === '' ? 0 : parseInt(r.replace(/\D/g, ''), 10);
+        if (yeniB == null || Number.isNaN(yeniB)) { setSayacHata('Siyah sayaç geçersiz.'); return false; }
+        // Değişmemişse boşuna istek atma
+        if (reading && yeniB === reading.counterBlack && yeniR === reading.counterColor) return true;
+
+        const yol = reading
+            ? `/api/devices/${deviceId}/readings?readingId=${reading.id}`
+            : `/api/devices/${deviceId}/readings`;
+        const res = await fetch(yol, {
+            method: reading ? 'PATCH' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ counterBlack: yeniB, counterColor: yeniR, ...(reading ? {} : { ticketId }) }),
+        });
+        const d = await res.json().catch(() => null);
+        if (!res.ok) { setSayacHata(d?.error ?? 'Sayaç kaydedilemedi.'); return false; }
+        if (d?.sonrakiGuncellendi) {
+            setSayacNot(`Sonraki okumanın farkı da güncellendi: ${Number(d.sonrakiGuncellendi.black).toLocaleString('tr-TR')} sayfa.`);
+        }
+        return true;
+    };
+
     const savePanel = async () => {
         setLoading(true);
+        // Sayaç önce: reddedilirse fiş alanlarını da kaydetmeyip kullanıcıyı
+        // panelde tutuyoruz, yoksa "kaydettim ama sayaç gitmemiş" olurdu.
+        const sayacOk = await sayacKaydet();
+        if (!sayacOk) { setLoading(false); return; }
         const res = await fetch(`/api/tickets/${ticketId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -304,6 +350,57 @@ export default function TicketStatusPanel({
                             />
                         </div>
                     </div>
+
+                    {/* ── Sayaç ──
+                        Fişin kendi okuması burada düzenlenir. Faturalanmış okuma
+                        KİLİTLİDİR: o değer faturaya girmiştir, sessizce değiştirmek
+                        fatura ile defteri ayrıştırır. */}
+                    {deviceId && (
+                        <div style={{ marginBottom: '0.5rem', padding: '0.625rem 0.75rem', background: '#f5f3ff', borderRadius: '0.5rem', border: '1px solid #ddd6fe' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6d28d9', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                🔢 Sayaç {reading ? '' : '— bu fişte girilmemiş'}
+                            </div>
+
+                            {reading?.billed ? (
+                                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                                    ⚫ {reading.counterBlack.toLocaleString('tr-TR')}
+                                    <span style={{ margin: '0 6px', color: '#d1d5db' }}>|</span>
+                                    🟣 {reading.counterColor.toLocaleString('tr-TR')}
+                                    <div style={{ marginTop: '0.35rem', fontSize: '0.72rem', color: '#b45309' }}>
+                                        Bu okuma faturalandı, düzenlenemez. Düzeltme gerekiyorsa faturayı
+                                        düzeltmek gerekir — sessizce değiştirmek fatura ile defteri ayrıştırır.
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                        <div>
+                                            <label style={fieldLabel}>⚫ Siyah Sayaç</label>
+                                            <input style={inp} value={sayacB} inputMode="numeric"
+                                                onChange={e => setSayacB(e.target.value)} placeholder="örn. 36010" />
+                                        </div>
+                                        <div>
+                                            <label style={fieldLabel}>🟣 Renkli Sayaç</label>
+                                            <input style={inp} value={sayacR} inputMode="numeric"
+                                                onChange={e => setSayacR(e.target.value)} placeholder="örn. 0" />
+                                        </div>
+                                    </div>
+                                    <div style={{ marginTop: '0.4rem', fontSize: '0.72rem', color: '#6b7280' }}>
+                                        {reading
+                                            ? 'Değiştirirseniz farkı ve varsa sonraki okumanın farkı yeniden hesaplanır.'
+                                            : 'Girerseniz bu fişe bağlı yeni bir sayaç okuması oluşturulur.'}
+                                    </div>
+                                </>
+                            )}
+
+                            {sayacHata && (
+                                <div style={{ marginTop: '0.45rem', fontSize: '0.75rem', color: '#b91c1c' }}>{sayacHata}</div>
+                            )}
+                            {sayacNot && (
+                                <div style={{ marginTop: '0.45rem', fontSize: '0.75rem', color: '#047857' }}>{sayacNot}</div>
+                            )}
+                        </div>
+                    )}
 
                     {/* ── Fiş Bilgileri ── */}
                     <div style={{ marginBottom: '0.5rem', padding: '0.625rem 0.75rem', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>

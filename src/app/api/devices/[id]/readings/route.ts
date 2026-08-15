@@ -189,6 +189,33 @@ export async function PATCH(
         const deltaBlack = prevB === null ? 0 : (reset && counterBlack < prevB ? Math.max(0, counterBlack) : Math.max(0, counterBlack - prevB));
         const deltaColor = prevC === null ? 0 : (reset && counterColor < prevC ? Math.max(0, counterColor) : Math.max(0, counterColor - prevC));
 
+        // ── SONRAKİ OKUMA ZİNCİRİ ────────────────────────────────────────────
+        // Bir okumayı değiştirmek YALNIZ onu ilgilendirmez: bir SONRAKİ okumanın
+        // farkı da bu değere göre hesaplanmıştı. Sonraki yeniden hesaplanmazsa
+        // fark sessizce yanlış kalır ve o fark faturaya girer.
+        const sonraki = await prisma.counterReading.findFirst({
+            where: { tenantId: user.tenantId, deviceId, readingDate: { gt: reading.readingDate } },
+            orderBy: { readingDate: 'asc' },
+        });
+
+        // Yeni değer sonraki okumadan büyükse zincir bozulur (sonraki düşüş olur).
+        // Sonraki FATURALANMIŞSA hiç dokunamayız — düzenlemeyi tümden reddediyoruz,
+        // yarım tutarlı bir zincir bırakmaktansa hayır demek doğru.
+        if (sonraki) {
+            if (counterBlack > sonraki.counterBlack || counterColor > sonraki.counterColor) {
+                return NextResponse.json({
+                    error: `Bu değer bir sonraki okumadan (S/B ${sonraki.counterBlack.toLocaleString('tr-TR')}) büyük. Sayaç geriye gidemez.`,
+                    code: 'SONRAKI_DUSUK',
+                }, { status: 400 });
+            }
+            if (sonraki.billed) {
+                return NextResponse.json({
+                    error: 'Bir sonraki okuma faturalandığı için bu okuma düzenlenemez — düzenleme onun farkını da değiştirirdi.',
+                    code: 'SONRAKI_FATURALI',
+                }, { status: 409 });
+            }
+        }
+
         let calculatedCost = 0;
         if (device.isRental && tenant) {
             // Kademeli ücret — bu dönemde bu okumadan ÖNCEKİ sayfalar dahil paketi kümülatif yer
@@ -202,25 +229,57 @@ export async function PATCH(
             calculatedCost = ch.total + Number(reading.monthlyRent);
         }
 
-        // Okuyu güncelle
-        const updated = await prisma.counterReading.update({
-            where: { id: readingId },
-            data: { counterBlack, counterColor, deltaBlack, deltaColor, calculatedCost },
-        });
-
-        // Eğer bu en son okumaysa cihaz sayacını da güncelle
-        const lastReading = await prisma.counterReading.findFirst({
-            where: { tenantId: user.tenantId, deviceId },
-            orderBy: { readingDate: 'desc' },
-        });
-        if (lastReading?.id === readingId) {
-            await prisma.device.update({
-                where: { id: deviceId },
-                data: { counterBlack, counterColor },
+        // Okuma + zincir TEK transaction'da: yarım güncellenmiş zincir kalmasın.
+        const { updated, sonrakiYeniFark } = await prisma.$transaction(async (tx) => {
+            const updated = await tx.counterReading.update({
+                where: { id: readingId },
+                data: { counterBlack, counterColor, deltaBlack, deltaColor, calculatedCost },
             });
-        }
 
-        return NextResponse.json({ success: true, reading: updated });
+            // SONRAKİ okumanın farkını yeni değere göre yeniden hesapla.
+            let sonrakiYeniFark: { black: number; color: number } | null = null;
+            if (sonraki) {
+                const sdB = Math.max(0, sonraki.counterBlack - counterBlack);
+                const sdC = Math.max(0, sonraki.counterColor - counterColor);
+                let sMaliyet = 0;
+                if (device.isRental && tenant) {
+                    const srd = sonraki.readingDate;
+                    const sStart = new Date(srd.getFullYear(), srd.getMonth(), 1);
+                    const sAgg = await tx.counterReading.aggregate({
+                        where: {
+                            tenantId: user.tenantId, deviceId, id: { not: sonraki.id },
+                            readingDate: { gte: sStart, lt: srd },
+                        },
+                        _sum: { deltaBlack: true, deltaColor: true },
+                    });
+                    const sch = counterOverage(device, sdB, sdC, tenant, sAgg._sum.deltaBlack ?? 0, sAgg._sum.deltaColor ?? 0);
+                    sMaliyet = sch.total + Number(sonraki.monthlyRent);
+                }
+                await tx.counterReading.update({
+                    where: { id: sonraki.id },
+                    data: { deltaBlack: sdB, deltaColor: sdC, calculatedCost: sMaliyet },
+                });
+                sonrakiYeniFark = { black: sdB, color: sdC };
+            }
+
+            // Bu EN SON okumaysa cihazın "güncel sayaç" önbelleği de güncellenir.
+            const lastReading = await tx.counterReading.findFirst({
+                where: { tenantId: user.tenantId, deviceId },
+                orderBy: { readingDate: 'desc' },
+                select: { id: true },
+            });
+            if (lastReading?.id === readingId) {
+                await tx.device.update({ where: { id: deviceId }, data: { counterBlack, counterColor } });
+            }
+            return { updated, sonrakiYeniFark };
+        });
+
+        return NextResponse.json({
+            success: true,
+            reading: updated,
+            // Arayüz "sonraki okumanın farkı da güncellendi" diyebilsin
+            sonrakiGuncellendi: sonrakiYeniFark,
+        });
     } catch (e: any) {
         console.error('COUNTER READING PATCH ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
