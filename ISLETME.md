@@ -157,6 +157,11 @@ Kod niçin gerekli: aynı seri numarası iki bayide olabilir (aynı model, aynı
 sınırlanır — hem doğru cihaza yazılır hem de her e-postada tüm bayilerin tüm
 cihazları taranmaz.
 
+**Adim adim kurulum: [docs/SAYAC-EPOSTA-KURULUM.md](docs/SAYAC-EPOSTA-KURULUM.md)**
+Orada iki yol var: kendi alan adin yokken Gmail koprusu (ucretsiz, bugun
+calisir) ve alan adi alindiginda yapilacaklar listesi. Asagisi alan adi
+yolunun ozetidir.
+
 ### Kurulum (bir kez, ~20 dakika)
 
 **1) Sır üret ve Coolify'a ekle**

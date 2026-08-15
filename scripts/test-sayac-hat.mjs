@@ -153,6 +153,17 @@ for (const c of B) {
 }
 t('siyah+renkli rapor: iki sutun da dogru cihaza yazildi', ikiSutun, JSON.stringify(r.__json.sonuclar));
 
+// 3b) Gmail köprüsünün gönderdiği biçim: Apps Script getTo() adresi
+//     "İsim" <adres> olarak döndürebiliyor. Kod yine okunmalı.
+const C = B.map((c) => ({ ...c, siyah2: c.siyah + 300 }));
+r = await POST(istek({
+  to: `"Nextus Servis" <nextusservis+${bayi.sayacEpostaKodu}@gmail.com>`,
+  subject: 'Sayac',
+  text: ['Seri No        Siyah', ...C.map((c) => `${c.serialNo}       ${c.siyah2}`)].join('\n'),
+}));
+t('Gmail bicimi "Isim" <adres> okunur', r.__json.bayi === 'kodla belirlendi' && r.__json.islenen === cihazlar.length,
+  `bayi=${r.__json.bayi} islenen=${r.__json.islenen}`);
+
 // 4) Sayaç düşüşü → kuyruğa
 r = await POST(istek({ to: adres, subject: 'Sayac', text: `Seri No   Siyah\n${cihazlar[0].serialNo}   100` }));
 t('dusuk sayac islenmez, kuyruga duser', r.__json.islenen === 0 && r.__json.bekleyen === 1,
@@ -162,9 +173,9 @@ t('dusuk sayac islenmez, kuyruga duser', r.__json.islenen === 0 && r.__json.bekl
 r = await POST(istek({
   to: adres, subject: 'Sayac',
   text: ['Seri No        Siyah',
-    `${B[0].serialNo}       100`,
-    `${B[1].serialNo}       ${B[1].siyah + 700}`,
-    `${B[2].serialNo}       ${B[2].siyah + 700}`].join('\n'),
+    `${C[0].serialNo}       100`,
+    `${C[1].serialNo}       ${C[1].siyah2 + 700}`,
+    `${C[2].serialNo}       ${C[2].siyah2 + 700}`].join('\n'),
 }));
 t('bir satirin hatasi diger cihazlari DURDURMAZ', r.__json.islenen === 2 && r.__json.bekleyen === 1,
   JSON.stringify(r.__json.sonuclar));
