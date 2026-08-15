@@ -63,6 +63,9 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
                 city: input.city,
                 district: input.district,
                 businessType: input.businessType || 'general',
+                // Sayaç e-postası adresi bayi açılırken üretilir — bayi başına
+                // ek kurulum olmasın. Bayi kendi adresini Ayarlar'da görür.
+                sayacEpostaKodu: sayacKoduUret(),
                 plan,
                 trialEndsAt: plan === 'trial' ? trialEndsAt : null,
                 isActive: true,
@@ -112,6 +115,18 @@ export function generateSlug(name: string): string {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
         .slice(0, 50);
+}
+
+/**
+ * Sayaç e-postası adresindeki bayi kodu.
+ *
+ * Karışabilen harfler (0/O, 1/l/I) BİLEREK yok: bu kod telefonda okunacak ve
+ * cihazın küçük ekranına elle girilecek. Yanlış girilen bir karakter, sayaç
+ * e-postasının sessizce hiçbir bayiye ulaşmaması demektir.
+ */
+export function sayacKoduUret(): string {
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
 /**

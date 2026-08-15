@@ -12,6 +12,7 @@ interface TenantInfo {
     address: string | null;
     pricePerBlack: number;
     pricePerColor: number;
+    sayacEpostaKodu: string | null;
 }
 
 export default function SettingsPage() {
@@ -131,6 +132,47 @@ export default function SettingsPage() {
                     <textarea style={{ ...inp, minHeight: '80px', resize: 'vertical' } as React.CSSProperties} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Firma adresi" />
                 </div>
             </div>
+
+            {/* ── Cihazdan Sayaç: bayinin KENDİ e-posta adresi ──
+                Bayi tarafındaki tek kurulum adımı bu adresi cihazlara girmek.
+                Kod bayi açılırken üretiliyor; burada yalnız gösteriliyor. */}
+            {tenant?.sayacEpostaKodu && (
+                <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+                    <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Cihazdan Otomatik Sayaç</h2>
+                    <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem', lineHeight: 1.6 }}>
+                        Çoğu fotokopi/yazıcı, sayaç raporunu ayın belirli günü e-postayla gönderebiliyor.
+                        Cihazlarınıza <b>aşağıdaki adresi</b> tanımlarsanız sayaçlar kendiliğinden düşer —
+                        kimse gezmez, kimse fotoğraf beklemez.
+                    </p>
+
+                    <div style={{
+                        padding: '0.75rem 0.9rem', borderRadius: '0.6rem',
+                        backgroundColor: '#f0fdfa', border: '1px solid #99f6e4',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap',
+                    }}>
+                        <code style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f766e', wordBreak: 'break-all' }}>
+                            sayac+{tenant.sayacEpostaKodu}@nextusservis.com
+                        </code>
+                        <button
+                            onClick={() => {
+                                navigator.clipboard?.writeText(`sayac+${tenant.sayacEpostaKodu}@nextusservis.com`);
+                                setMsg('✅ Adres kopyalandı');
+                            }}
+                            style={{ padding: '0.4rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #14b8a6', background: 'white', color: '#0f766e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                        >Kopyala</button>
+                    </div>
+
+                    <div style={{ marginTop: '0.9rem', fontSize: '0.8rem', color: '#374151', lineHeight: 1.7 }}>
+                        <b>Cihaza nasıl tanımlanır:</b> cihazın web arayüzü → e-posta/bildirim ayarları →
+                        sayaç raporu alıcısı olarak bu adresi girin, gönderim gününü ayın 1&apos;i yapın.
+                    </div>
+                    <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.6 }}>
+                        Adresteki kod <b>size özeldir</b> — sayacın hangi firmaya ait olduğunu o söyler.
+                        Tek e-postada onlarca cihaz gönderen filo raporları da desteklenir; okunamayan
+                        cihazlar <b>Cihazdan Sayaç</b> ekranında incelemenizi bekler, hiçbir değer tahmin edilmez.
+                    </div>
+                </div>
+            )}
 
             {/* Müşteri Paneli — mali bilgi görünürlüğü */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>

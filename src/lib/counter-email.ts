@@ -30,7 +30,10 @@ export function htmlToText(s: string): string {
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
-    .replace(/[ \t]+/g, ' ');
+    // SEKME KORUNUR: yukarıda </td> yerine bilerek sekme konuyor, hücre sınırı
+    // odur. Eskiden sekmeler de tek boşluğa indiriliyordu ve TABLO YAPISI
+    // KAYBOLUYORDU — çok cihazlı raporda sütun okunamıyordu.
+    .replace(/ +/g, ' ');
 }
 
 /** Türkçe-duyarlı küçültme (I/ı sorunu) + aksan sadeleştirme. */
@@ -84,7 +87,9 @@ export interface CounterParse {
  * "bu ay" hem "toplam" yazar, faturalama için gereken kümülatif TOPLAM olandır.
  */
 export function parseCounters(text: string): CounterParse {
-  const t = fold(text);
+  // Sekme hücre sınırıdır; sayı taramasında iki hücrenin sayısı birleşmesin
+  // diye ayırıcıya çevriliyor — "145.230⇥22.410" tek sayı sanılırdı.
+  const t = fold(text).replace(/\t/g, ' | ');
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   /**
@@ -150,4 +155,176 @@ export function parseCounterEmail(
   if (!serial) return { serial: null, black, color, guvenli: false, sebep: 'Seri numarası eşleşmedi' };
   if (black === null) return { serial, black, color, guvenli: false, sebep: 'Siyah sayaç okunamadı' };
   return { serial, black, color, guvenli: true };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ÇOK CİHAZLI E-POSTA — filo raporu
+   ══════════════════════════════════════════════════════════════════════════
+   Onlarca makinesi olan bir firmada cihazlar tek tek e-posta atmaz; filo
+   yönetim yazılımı TEK bir e-postada hepsinin sayacını tablo hâlinde gönderir.
+
+   Tek-cihaz okuyucusunu böyle bir e-postaya uygulamak SESSİZ BİR PARA
+   HATASIDIR: findSerial ilk eşleşen seriyi döndürür, parseCounters ise TÜM
+   belgedeki en büyük sayıyı alır. 200 cihazlık raporun en büyük sayacı
+   rastgele bir cihaza faturalanır.
+
+   ── İKİ FARKLI YERLEŞİM, İKİ FARKLI STRATEJİ ─────────────────────────────
+   A) BLOK: her cihaz için ayrı bir paragraf, etiketler cihazın yanında
+        Serial: ABC123   Total: 145230   Color: 22410
+      → Etiket tabanlı okuma (parseCounters) cihazın KENDİ bölgesinde çalışır.
+
+   B) TABLO: etiketler BAŞLIK satırında, cihaz satırında yalnız sayılar
+        Seri No     Model          Siyah     Renkli
+        ABC12345    Canon iR2530   145.230   22.410
+      → Etiket cihaz satırında YOK. Başlık satırındaki sütun sırası bulunur,
+        cihaz satırındaki değer o SÜTUNDAN alınır.
+
+   ── SÜTUN TAHMİNİ YAPILMAZ ───────────────────────────────────────────────
+   Tablo yerleşiminde "satırdaki ilk sayıyı al" demek cazip ama YANLIŞ: model
+   adları rakam içerir (iR2530, M2540). Başlık bulunamazsa okuma yapılmaz,
+   kayıt kuyruğa düşer. Tahmin etmektense elle incelensin.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+export interface CihazOkumasi {
+  serial: string;
+  black: number | null;
+  color: number | null;
+  guvenli: boolean;
+  sebep?: string;
+}
+
+export interface CokluSonuc {
+  okumalar: CihazOkumasi[];
+  /** Metinde hiç bilinen seri bulunamadı */
+  seriYok: boolean;
+  cihazSayisi: number;
+  /** Hangi strateji işe yaradı — incelemede "doğru yeri mi okumuş" için */
+  yerlesim: 'blok' | 'tablo' | 'yok';
+}
+
+/** Seriyi ayırıcılara toleranslı arayan regex: "KM-4471" ⇔ "KM 4471" ⇔ "KM4471". */
+function seriRegex(serial: string): RegExp {
+  const harfler = serial.replace(/[\s\-_.]/g, '').split('');
+  const govde = harfler.map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\-_.]*');
+  return new RegExp(govde, 'gi');
+}
+
+/** Satırı sütunlara ayır: 2+ boşluk ya da sekme sütun sınırıdır. */
+function sutunlar(satir: string): string[] {
+  return satir.split(/\t|\s{2,}/).map((h) => h.trim()).filter((h) => h !== '');
+}
+
+/** Metinde sayaç etiketlerini taşıyan BAŞLIK satırını ve sütun sırasını bul. */
+function basligiBul(satirlar: string[]): { siyah: number; renkli: number; satirNo: number } | null {
+  for (let i = 0; i < satirlar.length; i++) {
+    const h = sutunlar(satirlar[i]).map((x) => fold(x));
+    if (h.length < 2) continue;
+    const siyah = h.findIndex((x) => SIYAH.some((k) => x.includes(k)) && !RENKLI.some((k) => x.includes(k)));
+    const renkli = h.findIndex((x) => RENKLI.some((k) => x.includes(k)));
+    // Siyah sütunu şart; renkli olmayabilir (s/b filolar)
+    if (siyah >= 0) return { siyah, renkli, satirNo: i };
+  }
+  return null;
+}
+
+/** Sütun değerini sayıya çevir; sayaç değilse null. */
+function sutunSayisi(hucreler: string[], index: number): number | null {
+  if (index < 0 || index >= hucreler.length) return null;
+  const h = hucreler[index];
+  // Hücre SADECE sayı (ve ayırıcı) olmalı — "Canon iR2530" sayaç değildir.
+  if (!/^[\d.,\s]+$/.test(h)) return null;
+  const d = h.replace(/[^\d]/g, '');
+  if (!d || d.length > 9) return null;
+  const n = Number(d);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Tek e-postadan BİRDEN FAZLA cihaz okuması çıkar.
+ *
+ * @param bilinenSeriler O BAYİYE ait seriler. Çağıran taraf listeyi kiracıya
+ *   göre daraltmalıdır; aksi hâlde başka bayinin cihazı eşleşebilir.
+ */
+export function parseCounterEmailCoklu(
+  rawBody: string,
+  bilinenSeriler: string[],
+  subject = '',
+): CokluSonuc {
+  // HTML ise etiketleri sök; DÜZ METİNSE DOKUNMA. htmlToText boşluk yığınlarını
+  // sadeleştiriyor ve düz metin tablolarındaki SÜTUN HİZASINI bozuyor —
+  // hizalama, tablo yerleşiminin tek ipucu.
+  const htmlMi = /<[a-z!/][\s\S]*?>/i.test(rawBody);
+  const govde = htmlMi ? htmlToText(rawBody) : rawBody;
+  const metin = (subject ? subject + '\n' : '') + govde;
+  const satirlar = metin.split('\n');
+  const seriler = [...new Set(bilinenSeriler.filter((s) => s && s.replace(/[\s\-_.]/g, '').length >= 4))]
+    .sort((a, b) => b.length - a.length); // uzun seri önce: kısa olan uzunun içinde geçebilir
+
+  // ── Hangi seri hangi satırda geçiyor ──────────────────────────────────
+  const satirdaSeri = new Map<number, string>();   // satırNo → serial
+  const bulunanSeriler = new Set<string>();
+  for (let i = 0; i < satirlar.length; i++) {
+    for (const s of seriler) {
+      if (satirdaSeri.has(i)) break;               // bir satırda ilk (en uzun) seri kazanır
+      if (seriRegex(s).test(satirlar[i])) {
+        satirdaSeri.set(i, s);
+        bulunanSeriler.add(s);
+      }
+    }
+  }
+
+  if (bulunanSeriler.size === 0) {
+    return { okumalar: [], seriYok: true, cihazSayisi: 0, yerlesim: 'yok' };
+  }
+
+  const baslik = basligiBul(satirlar);
+  const enIyi = new Map<string, CihazOkumasi>();
+  let kullanilan: 'blok' | 'tablo' = 'blok';
+
+  for (const [satirNo, serial] of satirdaSeri) {
+    // Bu seri için zaten güvenli bir okuma bulunduysa (başlıkta + tabloda
+    // geçmiş olabilir) tekrar arama.
+    if (enIyi.get(serial)?.guvenli) continue;
+
+    let black: number | null = null;
+    let color: number | null = null;
+
+    // ── A) TABLO: başlık varsa ve cihaz satırı başlıktan SONRAYSA ───────
+    if (baslik && satirNo > baslik.satirNo) {
+      const h = sutunlar(satirlar[satirNo]);
+      black = sutunSayisi(h, baslik.siyah);
+      color = sutunSayisi(h, baslik.renkli);
+      if (black !== null) kullanilan = 'tablo';
+    }
+
+    // ── B) BLOK: etiketler cihazın yanında ──────────────────────────────
+    if (black === null) {
+      // Bölge: bu satırdan bir SONRAKİ seri satırına kadar. Etiket ve değer
+      // farklı satırlarda olabiliyor (dikey liste), o yüzden satır değil bölge.
+      let bitis = satirlar.length;
+      for (const [n] of satirdaSeri) if (n > satirNo && n < bitis) bitis = n;
+      const bolge = satirlar.slice(satirNo, bitis).join('\n');
+      const p = parseCounters(bolge);
+      // Serinin KENDİ rakamları sayaç sanılmasın: seri metnini bölgeden çıkar
+      if (p.black !== null) {
+        const temiz = parseCounters(bolge.replace(seriRegex(serial), ' '));
+        black = temiz.black;
+        color = temiz.color;
+      }
+    }
+
+    enIyi.set(serial, {
+      serial, black, color,
+      guvenli: black !== null,
+      sebep: black === null ? 'Bu cihazın satırında sayaç okunamadı' : undefined,
+    });
+  }
+
+  const okumalar = [...enIyi.values()];
+  return {
+    okumalar,
+    seriYok: false,
+    cihazSayisi: okumalar.length,
+    yerlesim: okumalar.some((o) => o.guvenli) ? kullanilan : 'yok',
+  };
 }

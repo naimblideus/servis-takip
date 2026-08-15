@@ -129,6 +129,18 @@ model Tenant {
   // tutarlarının HEPSİ gizlenir — biri kalırsa diğerini ele verir.
   portalShowFinancials Boolean @default(true)
 
+  // ── SAYAÇ E-POSTASI: BAYİYE ÖZEL ADRES ──────────────────────────────
+  // Cihazlar sayaç raporunu sayac+<kod>@alanadi adresine gönderir. Kod
+  // bayiyi SÖYLER; böylece seri araması o bayinin cihazlarıyla sınırlanır.
+  //
+  // Kodsuz tek bir adres kullanılsaydı iki sorun doğardı: (1) aynı seri iki
+  // bayide varsa hangisi olduğu bilinemez, (2) her e-postada tüm bayilerin
+  // tüm cihazları taranır. Kod ikisini de ortadan kaldırıyor.
+  //
+  // Bayi başına kurulum GEREKTİRMEZ: kod bayi açılırken üretilir, bayi
+  // Ayarlar ekranında kendi adresini görür.
+  sayacEpostaKodu String? @unique
+
   // ÜRETİCİ VERİ PAYLAŞIMI — bayinin AÇIK RIZASI. Varsayılan KAPALI.
   // Bu bayrak açık DEĞİLSE bayinin hiçbir verisi /api/oem/reliability kapsamına
   // girmez. Toplulaştırılmış ve anonim olsa bile, bayinin verisini onun kendi

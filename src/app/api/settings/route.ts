@@ -12,7 +12,7 @@ export async function GET() {
 
     const tenant = await prisma.tenant.findUnique({
         where: { id: user.tenantId },
-        select: { id: true, name: true, logo: true, phone: true, address: true, pricePerBlack: true, pricePerColor: true, portalShowFinancials: true },
+        select: { id: true, name: true, logo: true, phone: true, address: true, pricePerBlack: true, pricePerColor: true, portalShowFinancials: true, sayacEpostaKodu: true },
     });
 
     return NextResponse.json(tenant);

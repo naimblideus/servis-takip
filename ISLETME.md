@@ -128,11 +128,25 @@ bulguda Coolify görevi kırmızı olur.
 
 Bu, sayaç toplamanın en ucuz kanalı: cihaz ayın belirli günü sayaç raporunu
 kendi e-postayla gönderiyor, sistem okuyup işliyor. Kimse gezmiyor, kimse
-fotoğraf beklemiyor.
+fotoğraf beklemiyor. **Yüzlerce makinesi olan firmada asıl kaldıraç budur:**
+filo yazılımı hepsini tek raporda yollar, sistem her satırı ayrı cihaza yazar.
 
-**Kod hazır ve testli (8/8) ama uç kapalı:** `SAYAC_EPOSTA_SECRET` tanımlı
-değilken uç 503 döner. Bu bilinçli — sırsız bir uç, herkesin sayaç yazabildiği
-bir uçtur.
+**Kod hazır ve testli** (ayrıştırma 11/11, uçtan uca hat 10/10) **ama uç
+kapalı:** `SAYAC_EPOSTA_SECRET` tanımlı değilken uç 503 döner. Bu bilinçli —
+sırsız bir uç, herkesin sayaç yazabildiği bir uçtur.
+
+### Her bayinin KENDİ adresi var — bayi başına kurulum yok
+
+Adres kalıbı: **`sayac+<bayikodu>@nextusservis.com`**
+
+Kod bayi açılırken otomatik üretilir; bayi kendi adresini **Ayarlar → Cihazdan
+Otomatik Sayaç** kartında görür ve Kopyala'ya basar. Senin her yeni bayi için
+yapman gereken **hiçbir şey yok** — aşağıdaki kurulum bir kezlik.
+
+Kod niçin gerekli: aynı seri numarası iki bayide olabilir (aynı model, aynı
+üretici serisi). Koddan bayi belli olunca arama o bayinin cihazlarıyla
+sınırlanır — hem doğru cihaza yazılır hem de her e-postada tüm bayilerin tüm
+cihazları taranmaz.
 
 ### Kurulum (bir kez, ~20 dakika)
 
@@ -143,14 +157,19 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
 
 Coolify → Environment Variables → `SAYAC_EPOSTA_SECRET` = üretilen değer.
+Sonra Redeploy.
 
-**2) Bir e-posta adresi belirle**
+**2) Cloudflare Email Routing — CATCH-ALL kur**
 
-Örn. `sayac@nextusservis.com`. Cihazlar rapora bu adresi yazacak.
+Cloudflare → alan adı → **Email → Email Routing**.
 
-**3) Gelen e-postayı uca ilet**
+Tek tek adres tanımlama; **catch-all** kur. `sayac+abcd1234@...`,
+`sayac+xyz99999@...` — hepsi tek kurala düşer. Yeni bayi geldiğinde
+Cloudflare'de hiçbir şey yapmazsın; kritik nokta budur.
 
-Alan adı Cloudflare'deyse en kolayı **Email Routing → Email Workers**:
+- Routing rules → **Catch-all address** → Action: **Send to a Worker**
+- Worker: aşağıdaki kod (`sayac-worker` adıyla oluştur)
+- Worker → Settings → Variables: `SAYAC_SECRET` = 1. adımdaki değer
 
 ```js
 export default {
@@ -160,8 +179,9 @@ export default {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-sayac-secret': env.SAYAC_SECRET },
       body: JSON.stringify({
-        subject: message.headers.get('subject') ?? '',
+        to: message.to,            // ← BAYİYİ BU BELİRLER, atlanırsa hat çalışmaz
         from: message.from,
+        subject: message.headers.get('subject') ?? '',
         text: metin,
       }),
     });
@@ -169,35 +189,64 @@ export default {
 };
 ```
 
+`to` alanını göndermeyi unutma. Yoksa bayi kodu okunamaz ve e-postalar
+"kod yok" diye tüm bayilerde aranır — çalışır ama zayıf çalışır.
+
 Cloudflare değilse aynı işi Mailgun/Postmark **inbound webhook**'u ya da
-Zapier/Make ile de yapabilirsin — uç sade bir JSON bekliyor, kaynağı umursamıyor.
+Zapier/Make ile de yapabilirsin — uç sade bir JSON bekliyor, kaynağı
+umursamıyor. Tek şart: `to` alanını iletmesi.
 
-**4) Cihazlara adresi tanımla**
+**3) Bayiye söylenecek tek cümle**
 
-Cihazın web arayüzü → e-posta bildirim/sayaç raporu → alıcı olarak o adresi
-gir, gönderim gününü ayın 1'i yap.
+> Ayarlar → Cihazdan Otomatik Sayaç'taki adresi kopyala, cihazın web arayüzünde
+> **e-posta bildirim / sayaç raporu** bölümüne alıcı olarak yapıştır, gönderim
+> gününü ayın 1'i yap.
+
+Yüzlerce makinesi olan firmada tek tek cihaza girmeye gerek yok: filo yönetim
+yazılımının (Canon eMaintenance / Konica vCare / PaperCut vb.) **toplu sayaç
+raporu** alıcısına aynı adres yazılır, ayda bir tek e-posta gelir.
 
 ### Nasıl çalıştığını bil
 
 - E-posta **her zaman** kaydedilir; işlensin işlenmesin kaybolmaz.
 - Metinde **sistemdeki bilinen seri numaraları** aranır (cihaz biçimi tahmin
   edilmez, ters eşleştirme yapılır).
+- **Tek e-posta, çok cihaz:** rapor tablo biçimindeyse başlık satırından
+  SİYAH/RENKLİ sütunları bulunur ve her satır kendi cihazına yazılır. Tablo
+  değilse her serinin çevresindeki bölge ayrı okunur.
+- **Bir cihazın hatası diğerlerini durdurmaz.** 200 makinelik raporda 3'ü
+  okunamazsa 197'si işlenir, 3'ü kuyrukta bekler.
+- **Raporda renkli sayaç yoksa öncekisi taşınır** (artış 0). Çoğu filo raporu
+  yalnız siyah verir; 0 yazmak "sayaç geriledi" demek olurdu ve raporun yarısı
+  reddedilirdi. Okunmayan renkli sayfa hiç ücretlendirilmez; farkı bir sonraki
+  rapor zaten toplar.
 - Seri ve siyah sayaç **güvenle** okunduysa okuma kaydedilir ve aylık
   faturalama zinciri onu kendiliğinden alır.
 - Okunamadıysa **BEKLIYOR** olarak kuyrukta bekler — asla tahmin edilmez.
   Kuyruk: menüde **Cihazdan Sayaç** (bekleyen varsa rozetli).
-- Aynı seri iki bayide varsa **hangisi olduğu tahmin edilmez**, elle seçilir.
+- **Sayaç geriliyorsa otomatik kabul edilmez.** Cihaz değişmiş/sıfırlanmış
+  olabilir; bu karar bayinin, sistemin değil.
+- Aynı seri iki bayide varsa ve adreste kod yoksa **tahmin edilmez**, elle
+  seçilir. Kodlu adreste bu sorun zaten oluşmaz.
 - Aynı e-posta iki kez gelirse çift fatura oluşmaz: ikinci okumanın farkı
   sıfır çıkar.
 
 ### Test et (kurulumdan sonra)
 
+Bayinin gerçek kodunu Ayarlar ekranından al, gerçek bir seri numarası yaz:
+
 ```bash
-curl -X POST https://<alan-adin>/api/sayac/eposta -H "Content-Type: application/json" -H "x-sayac-secret: <SIR>" -d "{\"subject\":\"Test\",\"from\":\"test@x.com\",\"text\":\"Serial Number: <GERCEK-SERI>\nTotal: 12345\"}"
+curl -X POST https://<alan-adin>/api/sayac/eposta -H "Content-Type: application/json" -H "x-sayac-secret: <SIR>" -d "{\"to\":\"sayac+<BAYIKODU>@nextusservis.com\",\"subject\":\"Test\",\"from\":\"test@x.com\",\"text\":\"Seri No  Siyah\n<GERCEK-SERI>  12345\"}"
 ```
 
-`islendi: true` dönerse hat çalışıyor. `503` dönerse sır tanımlanmamış,
-`401` dönerse sır yanlış.
+- `"bayi":"kodla belirlendi"` + `"islenen":1` → hat tam çalışıyor.
+- `"bayi":"kod tanınmadı"` → koddaki harf yanlış (0/O, 1/l karışıklığı kodda
+  bilerek yok, ama yine de kopyala-yapıştır kullan).
+- `503` → sır tanımlanmamış. `401` → sır yanlış.
+
+Gerçek e-posta akışını denemek için kendi Gmail'inden
+`sayac+<BAYIKODU>@nextusservis.com` adresine bir seri + sayaç yaz, gönder.
+Menüdeki **Cihazdan Sayaç** ekranında görünmeli.
 
 ---
 
@@ -208,8 +257,9 @@ curl -X POST https://<alan-adin>/api/sayac/eposta -H "Content-Type: application/
 - [ ] UptimeRobot monitor'ü kur
 - [ ] Coolify Scheduled Task: `node run-cron.mjs nobetci` (günde bir)
 - [ ] Droplet cron: `backup-db.sh` (günlük) + `restore-drill.sh` (aylık)
-- [ ] **`SAYAC_EPOSTA_SECRET` tanımla + e-posta yönlendirmesini kur (§ 6)** — bu
-      kanal şu an tümden kapalı, en yüksek değerli eksik
+- [ ] **`SAYAC_EPOSTA_SECRET` tanımla + Cloudflare catch-all Worker kur (§ 6)** —
+      bu kanal şu an tümden kapalı, en yüksek değerli eksik. Bir kezlik iş;
+      sonrasında her yeni bayi kendi adresini Ayarlar ekranında hazır bulur.
 - [ ] Süper admin 2FA'yı aç, kurtarma kodlarını kâğıda yaz
 - [ ] Süper admin panelinde sistem durumu kartını oku — uyarı varsa çöz
 
