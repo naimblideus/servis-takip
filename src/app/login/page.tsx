@@ -57,6 +57,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  /**
+   * Döngü videosu YALNIZ masaüstünde ve azaltılmış hareket kapalıyken render edilir.
+   *
+   * Neden CSS ile gizlemek yetmiyor: `autoPlay`, `preload="none"` bildirimini
+   * geçersiz kılıyor — tarayıcı oynatmak için dosyayı yine indiriyor. Ölçüldü:
+   * panel `hidden` olduğu mobilde de, `motion-reduce:hidden` durumunda da
+   * 1,33 MB iniyordu. Elemanı hiç basmamak tek kesin çözüm.
+   */
+  const [videoGoster, setVideoGoster] = useState(false);
+
+  useEffect(() => {
+    const genis = window.matchMedia('(min-width: 1024px)');
+    const sakin = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const guncelle = () => setVideoGoster(genis.matches && !sakin.matches);
+    guncelle();
+    genis.addEventListener('change', guncelle);
+    sakin.addEventListener('change', guncelle);
+    return () => {
+      genis.removeEventListener('change', guncelle);
+      sakin.removeEventListener('change', guncelle);
+    };
+  }, []);
   const [totp, setTotp] = useState('');
   const [needsTotp, setNeedsTotp] = useState(false);
   const [demoMod, setDemoMod] = useState(false);
@@ -256,6 +278,41 @@ export default function LoginPage() {
 
       {/* ── SAĞ: marka paneli (mobilde gizli — girişin önüne geçmesin) ── */}
       <div className="relative hidden overflow-hidden bg-[#071a1c] lg:flex lg:flex-col lg:justify-center lg:px-16">
+        {/*
+          CİHAZ DÖNGÜSÜ — kaydırmaya bağlı değil, kendiliğinden döner.
+          Kaynak: scripts/servis-giris-video.mjs (ping-pong: makine açılır, toplanır).
+          Landing'deki 192 karelik WebP dizisi BURADA KULLANILMAZ; o dizi scrub'ın
+          rastgele erişimi için var ve 10,4 MB. Otomatik döngüde sıradan bir <video>
+          hem 1,33 MB hem donanımla çözülüyor hem de JS istemiyor.
+
+          Panel zaten `hidden lg:flex` — mobilde hiç indirilmez.
+          `preload="none"` + poster: ilk boyamayı geciktirmez.
+          motion-reduce:hidden — azaltılmış harekette video gizlenir, poster kalır.
+        */}
+        <img
+          src="/giris/cihaz-poster.webp"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.26]"
+        />
+        {videoGoster && (
+          <video
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.26]"
+            src="/giris/cihaz.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+        )}
+        {/* Perde: video ne kadar sönük olursa olsun metin kontrastı ona bırakılmaz. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(80% 60% at 30% 50%, rgba(7,26,28,.92) 0%, rgba(7,26,28,.62) 55%, rgba(7,26,28,.35) 100%)',
+          }} />
         {/* İnce ızgara dokusu: düz zemin yerine derinlik, ama parıltı yok */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.055]"
           style={{
