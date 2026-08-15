@@ -100,19 +100,49 @@ async function main() {
         },
       });
 
-      // Son üç ayın okumaları — grafiklerin ve raporların dolu görünmesi için
+      // ── SON ÜÇ AYIN OKUMALARI ──────────────────────────────────────────
+      // ÖNCEDEN her ay BAĞIMSIZ rastgele bir çıkarma yapıyordu; sonuç iki
+      // yönden bozuktu: (a) sayaç bazen GERİYE gidiyordu, (b) deltaBlack hiç
+      // yazılmadığı için 51/52 okumada "fark 0" görünüyordu. Bayiye demo
+      // yaparken "fark 0" ürünün çalışmadığı izlenimi veriyor — demoda
+      // görülen ilk şey bu.
+      //
+      // Artık seri GERİYE DOĞRU ama TUTARLI kuruluyor: bugünkü sayaçtan
+      // başlayıp her ay için gerçek bir aylık hacim çıkarılıyor, sonra
+      // ileri doğru yazılırken fark ve tutar GERÇEK formülle hesaplanıyor.
+      const aylikHacim = [];
+      for (let k = 0; k < 3; k++) aylikHacim.push({ s: rnd(1800, 7500), r: md.renkli ? rnd(250, 1600) : 0 });
+
+      // En eski okumanın değeri = bugünkü sayaç − üç ayın toplamı
+      let oncekiS = Math.max(0, siyah - aylikHacim.reduce((a, x) => a + x.s, 0));
+      let oncekiR = Math.max(0, renkli - aylikHacim.reduce((a, x) => a + x.r, 0));
+
       for (let ay = 3; ay >= 1; ay--) {
         const tarih = new Date();
         tarih.setMonth(tarih.getMonth() - ay);
+        const h = aylikHacim[3 - ay];
+        const yeniS = oncekiS + h.s;
+        const yeniR = oncekiR + h.r;
+        const farkS = yeniS - oncekiS;
+        const farkR = yeniR - oncekiR;
+
+        // Kademeli ücret: dahil sayfa kiraya dahil, yalnız AŞIM faturalanır.
+        // Uygulamadaki counterOverage ile aynı mantık (tek okuma = tek dönem).
+        const asimS = Math.max(0, farkS - 2000);
+        const asimR = Math.max(0, farkR - (md.renkli ? 300 : 0));
+        const tutar = Math.round((asimS * 0.42 + asimR * 1.60) * 100) / 100;
+
         await p.counterReading.create({
           data: {
             tenantId: tenant.id, deviceId: cihaz.id,
-            counterBlack: Math.max(0, siyah - ay * rnd(1500, 6000)),
-            counterColor: md.renkli ? Math.max(0, renkli - ay * rnd(200, 1400)) : 0,
+            counterBlack: yeniS, counterColor: yeniR,
+            deltaBlack: farkS, deltaColor: farkR,
+            calculatedCost: tutar,
             readingDate: tarih,
             billed: true,
           },
         });
+        oncekiS = yeniS; oncekiR = yeniR;
         okumaSayisi++;
       }
     }

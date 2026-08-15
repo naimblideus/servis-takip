@@ -4,10 +4,9 @@
 // Kaynak:    marketing/landing/nextus-servis.html   ← TEK KAYNAK
 // Çıktı:     src/app/_landing/Landing.tsx           ← / rotasında yayınlanan
 //
-// ESKİ KAYNAK (marketing/landing/index.html) ARTIK KULLANILMIYOR. O dosya
-// Servora dönemine ait, cihaz başına fiyat mantığı yok. Bu script bir kez ondan
-// üretim yapıp canlı fiyatlandırmayı sildiği için kaynak nextus-servis.html'e
-// taşındı; index.html referans olarak duruyor, üretime girmiyor.
+// TEK KAYNAK nextus-servis.html'dir. Servora dönemine ait eski index.html
+// SİLİNDİ (2026-08): üretime hiç girmiyordu, cihaz başına fiyat mantığı yoktu
+// ve hangi dosyanın canlı olduğu konusunda kafa karıştırıyordu.
 //
 // FONTLAR: Kaynak HTML tek dosya olarak (file://) da açılabilsin diye fontları
 // base64 @font-face ile gömüyor (~500 KB). Next sürümünde bu gereksiz ağırlık:
