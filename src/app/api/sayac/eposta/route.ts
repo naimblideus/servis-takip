@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { parseCounterEmail, parseCounterEmailCoklu, htmlToText } from '@/lib/counter-email';
+import { parseCounterEmail, parseCounterEmailCoklu, htmlToText, bildirilenSeri } from '@/lib/counter-email';
 import { createReading, ReadingError, sonOkumalar } from '@/lib/readings';
 
 export const dynamic = 'force-dynamic';
@@ -59,29 +59,44 @@ export async function POST(req: NextRequest) {
     where: bayi
       ? { tenantId: bayi.id }
       : { tenant: { isActive: true, isSuspended: false, deletedAt: null } },
-    select: { id: true, serialNo: true, tenantId: true },
+    select: { id: true, serialNo: true, reportedSerial: true, tenantId: true },
   });
 
   const duzMetin = htmlToText(ham);
-  const coklu = parseCounterEmailCoklu(ham, cihazlar.map((c) => c.serialNo), subject);
+  // Arama İKİ seriyle de yapılır: etiketteki (serialNo) ve cihazın kendi
+  // maile yazdığı (reportedSerial). İkincisi bayi kuyrukta bir kez elle
+  // eşleştirdiğinde öğreniliyor — o cihaz bir daha elle işlenmesin diye.
+  const aranacak = [...new Set(cihazlar.flatMap((c) => [c.serialNo, c.reportedSerial]).filter(Boolean) as string[])];
+  const coklu = parseCounterEmailCoklu(ham, aranacak, subject);
 
   // Hiç seri eşleşmedi: tek kayıt aç, elle incelensin.
   if (coklu.seriYok) {
     const tek = parseCounterEmail(duzMetin, [], subject);
+    // Sistemde bulamasak bile cihazın YAZDIĞI seriyi kaydet. Eskiden null
+    // yazılıyordu; bayi kuyrukta "bu hangi cihaz?" sorusunu ham metinden
+    // çözmek zorunda kalıyor, sistem de hiçbir şey öğrenemiyordu. Seri
+    // kayıtlıysa ekran eşleşme önerebiliyor ve tek tıkla kalıcı bağlanıyor.
+    const yazilanSeriler = bildirilenSeri(ham);
+    const yazilanSeri = yazilanSeriler[0] ?? null;
     const kayit = await prisma.counterEmail.create({
       data: {
         tenantId: bayi?.id ?? null,
         fromAddress: from || null, subject: subject || null,
         rawText: duzMetin.slice(0, 100_000),
-        serial: null, deviceId: null,
+        serial: yazilanSeri, deviceId: null,
         parsedBlack: tek.black, parsedColor: tek.color,
         status: 'BEKLIYOR',
         hata: kod && !bayi
           ? 'Adresteki bayi kodu tanınmadı — kod yanlış ya da bayi pasif'
-          : 'Seri numarası eşleşmedi',
+          : yazilanSeri
+            ? `Cihaz "${yazilanSeri}" serisini bildirdi${yazilanSeriler.length > 1 ? ` (+${yazilanSeriler.length - 1} cihaz daha)` : ''} ama bu seri sistemde yok — cihazı seçip bağlayın`
+            : 'Seri numarası eşleşmedi',
       },
     });
-    return NextResponse.json({ ok: true, islenen: 0, bekleyen: 1, id: kayit.id, sebep: kayit.hata });
+    return NextResponse.json({
+      ok: true, islenen: 0, bekleyen: 1, id: kayit.id,
+      bildirilenSeri: yazilanSeri, bildirilenSeriler: yazilanSeriler, sebep: kayit.hata,
+    });
   }
 
   // ── Raporda RENKLİ sayaç yoksa öncekini taşı ────────────────────────────
@@ -106,7 +121,7 @@ export async function POST(req: NextRequest) {
   let islenen = 0, bekleyen = 0;
 
   for (const okuma of coklu.okumalar) {
-    const eslesen = cihazlar.filter((c) => c.serialNo === okuma.serial);
+    const eslesen = cihazlar.filter((c) => c.serialNo === okuma.serial || c.reportedSerial === okuma.serial);
     // Aynı seri iki bayide olabilir; bayi kodu yoksa hangisi olduğu belirsizdir.
     const belirsiz = eslesen.length > 1;
     const cihaz = eslesen.length === 1 ? eslesen[0] : null;

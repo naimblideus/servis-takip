@@ -46,6 +46,59 @@ function fold(s: string): string {
 }
 
 /**
+ * Cihazın KENDİ yazdığı seri — sistemde kayıtlı olmasa bile.
+ *
+ * NİYE GEREKLİ: seri sistemdekiyle eşleşmediğinde eskiden hiçbir şey
+ * kaydedilmiyordu (serial: null). Bayi kuyrukta "bu hangi cihaz?" sorusunu
+ * ham metni okuyarak çözmek zorundaydı ve sistem hiçbir şey öğrenemiyordu.
+ * Kiralık filoda bu, her ay her cihaz için elle iş demek.
+ *
+ * ETİKETE BAKILIYOR, tahmin edilmiyor: yalnız "Serial Number/Seri No" gibi
+ * bir başlığın hemen ardındaki değer alınır. Metindeki rastgele alfanümerik
+ * dizileri seri sanmak (MAC adresi, sipariş no, tarih) yanlış eşleştirmeye
+ * yol açardı; bulunamazsa null döner ve kayıt eskisi gibi elle incelenir.
+ */
+export function bildirilenSeri(raw: string): string[] {
+  // HAM metin üzerinde çalışılır. htmlToText ardışık boşlukları teke indiriyor
+  // ve "LSA4404071       616381" satırı "LSA4404071 616381" oluyor — sütun
+  // sınırı kayboluyor, tablo okunamaz hâle geliyor. HTML değilse dokunma.
+  const htmlMi = /<[a-z!/][\s\S]*?>/i.test(raw);
+  const text = htmlMi ? htmlToText(raw) : raw;
+  const satirlar = text.split('\n');
+  const gecerli = (s: string) =>
+    s.length >= 5 && s.length <= 32 && /\d/.test(s) && /^[A-Za-z0-9\-_]+$/.test(s);
+  const bulunan: string[] = [];
+  const ekle = (s: string) => { if (gecerli(s) && !bulunan.includes(s)) bulunan.push(s); };
+
+  // 1) Etiketli biçim: "Serial Number:  LSA4404071" — tek cihazlı raporların
+  //    baskın hâli, gerçek Kyocera örnekleri böyle geliyor.
+  const etiket = /(serial\s*(number|no|nr)?|seri\s*(no|numaras[ıi])?|s\/n|makine\s*no)\s*[:\-]\s*(.+)$/i;
+  for (const satir of satirlar) {
+    const m = satir.match(etiket);
+    if (!m) continue;
+    ekle((m[4] ?? '').trim().split(/[\s|,;]+/)[0]?.replace(/[.:;,]+$/, '') ?? '');
+  }
+
+  // 2) Tablo biçimi: başlıkta seri sütunu, altındaki satırlarda değerler.
+  //    Filo raporları böyle gelir; onlarca cihaz tek e-postada olur ve
+  //    HEPSİNİ bilmek gerekir, yoksa yalnız ilki eşleştirilebilir.
+  const hucre = (s: string) => s.split(/\t|\s{2,}|\|/).map((x) => x.trim()).filter(Boolean);
+  for (let i = 0; i < satirlar.length; i++) {
+    const h = hucre(satirlar[i]).map((x) => x.toLowerCase());
+    const sutun = h.findIndex((x) => /^(seri|serial)/.test(x) || /seri\s*(no|numara)/.test(x));
+    if (sutun < 0 || h.length < 2) continue;
+    for (let j = i + 1; j < satirlar.length; j++) {
+      const c = hucre(satirlar[j]);
+      if (c.length < 2) break; // tablo bitti
+      ekle(c[sutun] ?? '');
+    }
+    break;
+  }
+
+  return bulunan;
+}
+
+/**
  * Metinde geçen BİLİNEN seri numarasını bul.
  * Uzun seriler önce denenir: kısa bir seri, uzun bir serinin içinde geçebilir
  * ("AB12" ile "XAB123" karışmasın diye en uzun eşleşme kazanır).

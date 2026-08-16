@@ -416,6 +416,13 @@ model Device {
   brand                String
   model                String
   serialNo             String
+  // Cihazın KENDİ e-postasında yazdığı seri. Etiketteki seriden farklı olabilir:
+  // ya elle eklerken bir harf yanlış girilmiştir (O/0, I/1), ya da cihaz iç seri
+  // numarasını yazar. Fark varsa sayaç e-postası hiç eşleşmez ve rapor her ay
+  // sessizce kuyrukta birikir — kiralık filoda en pahalı sessiz arıza budur.
+  // Bayi kuyrukta bir kez elle eşleştirince buraya yazılır, sonraki aylar
+  // otomatik akar. serialNo'ya DOKUNULMAZ: sahada okunacak olan etiketteki değer.
+  reportedSerial       String?
   barcode              String? // Cihazın üstündeki MEVCUT barkod (varsa) — okutunca cihaz açılır (yeni etiket gerekmez)
   location             String?
   // Cihaz yaşam döngüsü — güvenilirlik analizinin temeli.
