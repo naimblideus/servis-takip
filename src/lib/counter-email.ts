@@ -60,8 +60,24 @@ export function findSerial(text: string, knownSerials: string[]): string | null 
   return null;
 }
 
-const SIYAH = ['siyah', 'black', 'mono', 'monochrome', 'b&w', 'bw', 'blackwhite', 'toplam', 'total'];
+// SİYAH etiketleri İKİ KADEMELİ, ve bu sıra faturayı belirliyor.
+//
+// ÖZEL kademe, cihazın "bu sayaç siyahtır" dediği yerdir. GENEL kademe yalnız
+// "toplam" der — renkli cihazda o toplam siyah + renklinin TAMAMIDIR. Tek
+// listede toplayıp en büyüğü alan eski mantık şu raporda:
+//     Total 100000 · Black 70000 · Full Color 30000
+// siyahı 100.000 okuyordu; 30.000 renkli sayfa siyah tarifesinden DE
+// faturalanırdı. Artık önce ÖZEL aranır, ancak o boş çıkarsa GENEL'e düşülür
+// (mono cihazda yalnız "Total" bulunur; orada doğru davranış budur).
+const SIYAH_OZEL = ['siyah', 'black', 'mono', 'monochrome', 'b&w', 'bw', 'blackwhite'];
+const SIYAH_GENEL = ['toplam', 'total'];
 const RENKLI = ['renkli', 'color', 'colour', 'fullcolor', 'fullcolour'];
+
+// Bölüm başlıkları. Kyocera raporunda "Scanned Pages" altında da "Total" var
+// ve tarama sayısı yazdırmayı geçebiliyor — en büyüğü alan mantık TARAMAYI
+// faturalıyordu. Artık eşleşmenin hangi bölümde olduğuna bakılıyor.
+const BOLUM_TARAMA = ['scanned page', 'taranan sayfa', 'tarama sayac'];
+const BOLUM_DIGER = ['printed page', 'yazdirilan', 'basilan sayfa', 'counters by', 'total counter'];
 
 /** "1.234.567" / "1,234,567" / "1 234 567" → 1234567. Ondalık AYIRICI BEKLENMİYOR: sayaçlar tam sayıdır. */
 function toInt(raw: string): number | null {
@@ -103,6 +119,17 @@ export function parseCounters(text: string): CounterParse {
    * disallowPrefix: siyah aranırken "Color Total" gibi ifadelerin siyah sanılmaması
    * için, eşleşmenin hemen ÖNCESİNDEKİ 15 karakterde renk kelimesi varsa atlanır.
    */
+
+  /** Eşleşme TARAMA bölümünde mi — en yakın önceki bölüm başlığına bakılır. */
+  const taramaBolumunde = (idx: number): boolean => {
+    const onceki = t.slice(0, idx);
+    const enYakin = (kelimeler: string[]) =>
+      kelimeler.reduce((en, k) => Math.max(en, onceki.lastIndexOf(k)), -1);
+    // Yalnız EN YAKIN başlık belirleyici: "Scanned Pages"tan sonra gelen
+    // "Counters by Duplex" bölümü artık tarama değildir, oradaki toplam sayılır.
+    return enYakin(BOLUM_TARAMA) > enYakin(BOLUM_DIGER);
+  };
+
   const pick = (keys: string[], disallowPrefix: string[] = []): { value: number | null; label?: string } => {
     let best: number | null = null;
     let bestLabel: string | undefined;
@@ -112,11 +139,21 @@ export function parseCounters(text: string): CounterParse {
       while ((m = re.exec(t)) !== null) {
         const onek = t.slice(Math.max(0, m.index - 15), m.index);
         if (disallowPrefix.some((p) => onek.includes(p))) continue;
+        if (taramaBolumunde(m.index)) continue;
 
         // Aynı satırda, anahtardan sonraki en fazla 40 karakter
         const kuyruk = t.slice(m.index + k.length, m.index + k.length + 40).split('\n')[0];
-        for (const sayi of kuyruk.match(/\d[\d.,\s]*/g) ?? []) {
-          const n = toInt(sayi);
+        const sayiRe = /\d[\d.,\s]*/g;
+        let s: RegExpExecArray | null;
+        while ((s = sayiRe.exec(kuyruk)) !== null) {
+          // YÜZDE SAYAÇ DEĞİLDİR. Kyocera raporunun sonunda "black: 53%" var —
+          // bu toner seviyesi. Sayaç sanılırsa cihazın sayacı 53'e düşmüş
+          // görünür; bir sonraki gerçek okumada "sayaç geriledi" alarmı çalar
+          // ve bayi sebebini bulamaz.
+          const sonrasi = kuyruk.slice(s.index + s[0].length).trimStart();
+          if (sonrasi.startsWith('%')) continue;
+
+          const n = toInt(s[0]);
           if (n !== null && (best === null || n > best)) { best = n; bestLabel = k; }
         }
       }
@@ -125,7 +162,10 @@ export function parseCounters(text: string): CounterParse {
   };
 
   const c = pick(RENKLI);
-  const b = pick(SIYAH, RENKLI); // "color total" siyah sayılmasın
+  // Önce cihazın "siyah" dediği sayaç; yoksa genel toplam. Sırayı bozma —
+  // gerekçesi SIYAH_OZEL/SIYAH_GENEL tanımlarının başında.
+  const ozel = pick(SIYAH_OZEL, RENKLI);
+  const b = ozel.value !== null ? ozel : pick(SIYAH_GENEL, RENKLI);
   return { black: b.value, color: c.value, blackLabel: b.label, colorLabel: c.label };
 }
 
@@ -219,7 +259,11 @@ function basligiBul(satirlar: string[]): { siyah: number; renkli: number; satirN
   for (let i = 0; i < satirlar.length; i++) {
     const h = sutunlar(satirlar[i]).map((x) => fold(x));
     if (h.length < 2) continue;
-    const siyah = h.findIndex((x) => SIYAH.some((k) => x.includes(k)) && !RENKLI.some((k) => x.includes(k)));
+    // Başlıkta ÖZEL sütun (Siyah/Black) varsa o kullanılır; yoksa genel
+    // toplam sütununa düşülür — mono cihazın tablosunda yalnız "Total" olur.
+    const ozel = h.findIndex((x) => SIYAH_OZEL.some((k) => x.includes(k)) && !RENKLI.some((k) => x.includes(k)));
+    const genel = h.findIndex((x) => SIYAH_GENEL.some((k) => x.includes(k)) && !RENKLI.some((k) => x.includes(k)));
+    const siyah = ozel >= 0 ? ozel : genel;
     const renkli = h.findIndex((x) => RENKLI.some((k) => x.includes(k)));
     // Siyah sütunu şart; renkli olmayabilir (s/b filolar)
     if (siyah >= 0) return { siyah, renkli, satirNo: i };
