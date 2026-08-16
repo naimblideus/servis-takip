@@ -69,7 +69,10 @@ export function findSerial(text: string, knownSerials: string[]): string | null 
 // siyahı 100.000 okuyordu; 30.000 renkli sayfa siyah tarifesinden DE
 // faturalanırdı. Artık önce ÖZEL aranır, ancak o boş çıkarsa GENEL'e düşülür
 // (mono cihazda yalnız "Total" bulunur; orada doğru davranış budur).
-const SIYAH_OZEL = ['siyah', 'black', 'mono', 'monochrome', 'b&w', 'bw', 'blackwhite'];
+// Yazım varyantları ayrı ayrı yazılmak zorunda: fold() noktalama silmiyor,
+// yani 'bw' girdisi 'b/w' metnini yakalamaz. Brother 'B/W', Türkçe arayüzler
+// 'S/B' yazıyor — biri eksik kalırsa o marka sessizce kuyruğa düşer.
+const SIYAH_OZEL = ['siyah', 'black', 'mono', 'monochrome', 'monokrom', 'b&w', 'b/w', 'bw', 's/b', 'blackwhite'];
 const SIYAH_GENEL = ['toplam', 'total'];
 const RENKLI = ['renkli', 'color', 'colour', 'fullcolor', 'fullcolour'];
 

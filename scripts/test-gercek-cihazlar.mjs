@@ -142,6 +142,58 @@ FAX\t135
 Total\t616381
 `, 616381);
 
+
+// ── MARKA SÖZLÜĞÜ: sahada karşılaşılacak diğer etiketler ────────────────
+// Bunlar kurgusal ama etiketler markaların gerçek yazımı. Amaç: bir Ricoh
+// ya da Brother ilk kez bağlandığında kelime tanınmadığı için sessizce
+// kuyruğa düşmesin.
+t('Ricoh — Total Counter', `
+Serial No: R12345
+Total Counter:  40012
+`, 40012);
+
+t('HP — Mono/Color Page Count', `
+Serial Number: HP9911
+Total Page Count: 52000
+Mono Page Count: 41000
+Color Page Count: 11000
+`, 41000, 11000);
+
+t('Brother — B/W ve Colour', `
+Serial: BR7788
+Page Counter: 30000
+B/W: 25000
+Colour: 5000
+`, 25000, 5000);
+
+t('Sharp — Black & White / Full Color', `
+Serial Number: SH4400
+Total Output: 61000
+Black & White: 48000
+Full Color: 13000
+`, 48000, 13000);
+
+t('Türkçe — Siyah Beyaz yazımı', `
+Seri No: TR0001
+Toplam: 90000
+Siyah Beyaz: 72000
+Renkli: 18000
+`, 72000, 18000);
+
+t('Türkçe — S/B kısaltması', `
+Seri No: TR0002
+Toplam: 50000
+S/B: 40000
+Renkli: 10000
+`, 40000, 10000);
+
+t('Lexmark — Mono/Color', `
+Serial Number: LX2200
+Total Pages Printed: 77000
+Mono: 60000
+Color: 17000
+`, 60000, 17000);
+
 rmSync(g, { recursive: true, force: true });
 console.log(`\n${gecti} geçti, ${kaldi} kaldı\n`);
 process.exit(kaldi ? 1 : 0);
