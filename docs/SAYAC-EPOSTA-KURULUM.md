@@ -30,6 +30,25 @@ ve Coolify. İkisi aynı olmazsa uç 401 döner.
 
 ---
 
+# A. KURULU VE CANLI — Gmail köprüsü (2026-08-16)
+
+**Durum: ÇALIŞIYOR.** Uçtan uca doğrulandı — Gmail'e düşen posta script tarafından
+alınıp uca taşındı, uç bayiyi kodundan tanıdı.
+
+| Parça | Değer |
+|---|---|
+| Gmail hesabı | `nextussayac@gmail.com` |
+| Apps Script projesi | `script.google.com` → nextus-sayac (aynı hesapta) |
+| Tetikleyici | 15 dakikada bir `sayaclariAktar` |
+| Adres kalıbı | `nextussayac+<bayikodu>@gmail.com` |
+| Coolify değişkenleri | `SAYAC_EPOSTA_SECRET`, `SAYAC_EPOSTA_KULLANICI=nextussayac`, `SAYAC_EPOSTA_ALANADI=gmail.com` |
+
+Doğrulanan zincir: sır → bayi kodu → doğru bayi → cihaz araması → kayıt.
+Script kutudaki diğer postalara DOKUNMUYOR (`+kod@` kalıbı tutmayan mail
+okunmaz, işaretlenmez, gönderilmez).
+
+Aşağısı ilk kurulumun adımlarıdır; tekrar kurmak gerekirse diye duruyor.
+
 # A. ŞİMDİ — Gmail üzerinden (alan adı gerekmez, ücretsiz)
 
 Gmail artı-adreslemeyi destekler: `hesabin+abcd1234@gmail.com` adresine gelen
@@ -42,7 +61,7 @@ adı alınca B bölümüne geçilir, uygulama tarafında hiçbir şey değişmez
 
 ## A1 — Hangi Gmail hesabı
 
-**Öneri: bu iş için yeni bir Gmail aç** (örn. `nextusservis@gmail.com`).
+**Öneri: bu iş için yeni bir Gmail aç** (kurulan: `nextussayac@gmail.com`).
 Sebep: adres bayiye görünüyor, ayrıca kişisel kutunda script çalıştırmamış
 olursun. Kişisel hesabını kullanırsan da güvenli — script yalnız `+kod@`
 kalıbına uyan adresleri dışarı gönderir, diğer postalara hiç dokunmaz — ama
