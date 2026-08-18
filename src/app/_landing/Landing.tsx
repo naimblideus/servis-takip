@@ -1281,8 +1281,12 @@ h1.hero-title{
     radial-gradient(ellipse 80% 60% at 50% 0%,rgba(168,85,247,0.18),transparent 60%),
     radial-gradient(ellipse 60% 40% at 0% 100%,rgba(245,158,11,0.12),transparent 60%),
     radial-gradient(ellipse 60% 40% at 100% 100%,rgba(16,185,129,0.12),transparent 60%),
-    linear-gradient(180deg,rgba(20,20,32,0.8),rgba(10,10,18,0.6));
+    linear-gradient(180deg,rgba(20,20,32,0.62),rgba(10,10,18,0.46));
   padding:80px 40px;
+  /* Arkadaki fotokopi makinesi kartın içinden yumuşakça okunsun diye. Kart
+     tamamen opakken bölüm fonu tamamen boşa gidiyordu (ekranda görüldü). */
+  backdrop-filter:blur(10px) saturate(1.15);
+  -webkit-backdrop-filter:blur(10px) saturate(1.15);
 }
 .cta-mesh{
   position:absolute;inset:0;
@@ -3864,6 +3868,55 @@ h2,.section-title,.cta-title{letter-spacing:-0.022em;font-weight:700}
   .patlatma-yol{height:auto}
   .patlatma-sahne{position:relative;height:72svh}
 }
+
+/* ══════════ BÖLÜM FONLARI ══════════════════════════════════════════════════
+   Dört bölüm artık fotoğraf (ikisi ayrıca video) zemin taşıyor. Sayfada ürün
+   vardı ama müşterinin DÜNYASI yoktu: yazılımı görüyordun, servis aracını,
+   teknisyeni, atölyeyi hiç görmüyordun.
+
+   TEK SİSTEM: .fon katmanı bölümün en altına oturur, içerik üstünde kalır,
+   kontrastı .fon::after perdesi taşır. Perde gücü bölüm bölüm ayarlanır —
+   tek bir değer hepsine olmaz, çünkü "once" görselinde kağıtlar açık gri,
+   diğerlerinde zemin neredeyse siyah.
+
+   ÜST/ALT KENAR SAYFA ZEMİNİNE ERİR: perde 0% ve 100%'de tam opak --bg. Aksi
+   halde görselin dikdörtgen kenarı ortaya çıkar ve bölüm "yapıştırılmış kutu"
+   gibi durur. Frigora'da aynı sorun yaşandı, çözümü bu.
+
+   AĞIRLIK: görseller loading="lazy" ile tarayıcının görüş-alanı kapısından
+   geçiyor (hero hariç — o ekranın üstünde, eager). Videolar hiç indirilmiyor
+   ta ki bölüme yaklaşılana kadar; mobilde ve hareket-azaltmada HİÇ inmiyor. */
+.fon{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.fon picture{position:absolute;inset:0;display:block}
+.fon img{width:100%;height:100%;object-fit:cover;display:block}
+/* Video fotoğrafın ÜSTÜNE biner ve yumuşak açılır: indiği an sert geçiş olursa
+   göz takılır. Açılmadan önce (ve hiç inmezse) altındaki fotoğraf görünür. */
+.fon video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  display:block;opacity:0;transition:opacity 1.4s ease}
+.fon video[data-acik="1"]{opacity:1}
+.fon::after{content:"";position:absolute;inset:0;background:var(--perde);pointer-events:none}
+
+/* İçerik fonun üstünde. overflow:hidden fonun bölüm dışına taşmasını keser. */
+.common,.beforeafter,.cta-final{overflow:hidden}
+.common>.container,.beforeafter>.container,.cta-final>.container{position:relative;z-index:1}
+
+/* Perde güçleri — ÖLÇÜLEREK ayarlandı, göz kararı değil (aşağıdaki değerler
+   metin/zemin kontrast ölçümünün sonucu). */
+/* HERO FONU KALDIRILDI — ölçüldü, görünmüyordu.
+   Hero 1529px yüksekliğinde ve object-fit:cover 1920x1072'lik görselin orta
+   %53'ünü gösteriyor; servis aracı ise dikeyde %78'de, yani tarayıcı maketinin
+   arkasına düşüyor. Perde .58'den .30'a indirildi, blob/ızgara/parıltı kısıldı,
+   yine görünmedi. object-position da çözmez: sorun yatayda değil dikeyde.
+   Ekranın ÜSTÜNDE olduğu için bedeli herkese biniyordu (106 KB AVIF, kritik
+   yolda). Görünmeyen bir varlığı orada tutmanın savunması yok.
+   Üretilen hero dosyaları da SİLİNDİ — kullanılmayan varlık depoda ve Docker
+   imajında ölü ağırlık. Hero yeniden kurgulanırsa (ör. tarayıcı maketi aşağı
+   alınırsa) fon-varliklari.mjs kaynaktan saniyeler içinde geri üretir; iş
+   tanımı script'in ISLER listesinde duruyor. */
+.fon-saha{--perde:linear-gradient(180deg,#050508 0%,rgba(5,5,8,.74) 20%,rgba(5,5,8,.74) 80%,#050508 100%)}
+.fon-once{--perde:linear-gradient(180deg,#050508 0%,rgba(5,5,8,.90) 16%,rgba(5,5,8,.90) 84%,#050508 100%)}
+.fon-kapanis{--perde:linear-gradient(180deg,#050508 0%,rgba(5,5,8,.42) 22%,rgba(5,5,8,.42) 78%,#050508 100%)}
+
 `;
 const BODY = `
 
@@ -4744,6 +4797,17 @@ const BODY = `
 
 <!-- ========== ORTAK GUC / BENTO ========== -->
 <section class="common" id="ozellikler">
+  <div class="fon fon-saha" aria-hidden="true">
+    <picture>
+      <source type="image/avif" media="(max-width:767px)" srcset="/fon/saha-m.avif">
+      <source type="image/webp" media="(max-width:767px)" srcset="/fon/saha-m.webp">
+      <source type="image/avif" srcset="/fon/saha.avif">
+      <source type="image/webp" srcset="/fon/saha.webp">
+      <img src="/fon/saha.webp" alt="" loading="lazy" decoding="async" width="1920" height="1072">
+    </picture>
+    <video class="fon-v" data-src="/fon/saha.mp4" muted loop playsinline preload="none" tabindex="-1" aria-hidden="true"></video>
+  </div>
+
   <div class="container">
     <div class="section-head reveal">
       <span class="section-eyebrow"><span class="dot" style="background:var(--p3-1)"></span>Günlük Kullanım</span>
@@ -4956,6 +5020,16 @@ const BODY = `
 
 <!-- ========== ONCE / SONRA ========== -->
 <section class="beforeafter" id="donusum">
+  <div class="fon fon-once" aria-hidden="true">
+    <picture>
+      <source type="image/avif" media="(max-width:767px)" srcset="/fon/once-m.avif">
+      <source type="image/webp" media="(max-width:767px)" srcset="/fon/once-m.webp">
+      <source type="image/avif" srcset="/fon/once.avif">
+      <source type="image/webp" srcset="/fon/once.webp">
+      <img src="/fon/once.webp" alt="" loading="lazy" decoding="async" width="1920" height="1072">
+    </picture>
+  </div>
+
   <div class="container">
     <div class="section-head reveal">
       <span class="section-eyebrow"><span class="dot" style="background:#10b981"></span>Ay Sonu</span>
@@ -5356,6 +5430,17 @@ const BODY = `
 
 <!-- ========== KAPANIS CTA ========== -->
 <section class="cta-final">
+  <div class="fon fon-kapanis" aria-hidden="true">
+    <picture>
+      <source type="image/avif" media="(max-width:767px)" srcset="/fon/kapanis-m.avif">
+      <source type="image/webp" media="(max-width:767px)" srcset="/fon/kapanis-m.webp">
+      <source type="image/avif" srcset="/fon/kapanis.avif">
+      <source type="image/webp" srcset="/fon/kapanis.webp">
+      <img src="/fon/kapanis.webp" alt="" loading="lazy" decoding="async" width="1920" height="1072">
+    </picture>
+    <video class="fon-v" data-src="/fon/kapanis.mp4" muted loop playsinline preload="none" tabindex="-1" aria-hidden="true"></video>
+  </div>
+
   <div class="container">
     <div class="cta-card reveal reveal-scale">
       <div class="cta-mesh"></div>
@@ -6242,6 +6327,52 @@ document.documentElement.classList.add('js');
     window.addEventListener('scroll', function () { mRect = null; }, { passive: true });
   }
 
+})();
+
+/* ---- Bölüm fon videoları: geç yükleme -------------------------------------
+   İki bölüm (saha, kapanış) fotoğrafın üstünde dönen bir video taşıyor.
+
+   MOBİLDE HİÇ İNMEZ: iki video ~1,3 MB ve telefonda fotoğraf zaten aynı işi
+   görüyor. Hareket azaltma tercihinde de inmez.
+
+   preload="none" TEK BAŞINA YETMEZ — autoplay özniteliği onu geçersiz kılar
+   (OTOPrime giriş ekranında ölçüldü). Bu yüzden src HTML'de YOK, data-src'de
+   duruyor ve ancak bölüme yaklaşınca atanıyor.
+
+   rootMargin küçük (20%) BİLEREK: patlatma dizisinde 150% kullanılmıştı ve
+   sayfa açılır açılmaz 10,6 MB indiriyordu (bkz. d2f541e). Aynı hataya
+   düşmemek için öngörü dar tutuldu.
+
+   ZAMAN AŞIMI YEDEĞİ YOK — gerek de yok: video inmezse altındaki fotoğraf
+   görünür, kutu asla boş kalmaz.                                            */
+(function () {
+  var vs = [].slice.call(document.querySelectorAll('.fon-v[data-src]'));
+  if (!vs.length) return;
+  var mm = window.matchMedia;
+  if (mm && mm('(prefers-reduced-motion: reduce)').matches) return;
+  if (mm && mm('(max-width: 900px)').matches) return;
+
+  vs.forEach(function (v) {
+    var yuklendi = false;
+    function yukle() {
+      if (yuklendi) return;
+      yuklendi = true;
+      v.addEventListener('playing', function () { v.dataset.acik = '1'; }, { once: true });
+      v.src = v.dataset.src;
+      var p = v.play();
+      if (p && p.catch) p.catch(function () { /* otomatik oynatma engellendi — fotoğraf kalır */ });
+    }
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (g) {
+        if (!g.some(function (x) { return x.isIntersecting; })) return;
+        io.disconnect();
+        yukle();
+      }, { rootMargin: '20% 0px' });
+      io.observe(v);
+    } else {
+      yukle();
+    }
+  });
 })();
 
 /* ---- Marka animasyonu: geç yükleme ---------------------------------------
