@@ -6649,12 +6649,22 @@ document.documentElement.classList.add('js');
     }
   }
 
-  /* Bolum gorus alanina yaklasinca indir — ilk boyamayi engellemesin. */
+  /* Bolum gorus alanina yaklasinca indir — ilk boyamayi engellemesin.
+
+     OLCULDU (2026-08-18): eski deger '150%' idi ve HIC iSE YARAMIYORDU. 900px
+     ekranda %150 = 1350px ongoru demek; hero 1529px oldugu icin gozcunun
+     genisletilmis alani SAYFA ACILIR ACILMAZ patlatma bolumune degiyordu ve
+     192 kare (10,6 MB) kullanici tek piksel kaydirmadan iniyordu. Ilk yukleme
+     1440px'te 10.860 KB olarak olculdu.
+     '25%' = 225px ongoru → indirme kullanici ~400px kaydirinca basliyor, bolum
+     ise 629px'te geliyor. Aradaki 229px + kaba-once yukleme sirasi (ilk 26
+     kare esigi) bolume varildiginda dizinin hazir olmasina yetiyor.
+     Bolum bu sirada bos kalmiyor: poster (f-001.webp) zaten <img> olarak basili. */
   var gozcu = new IntersectionObserver(function(g){
     if (!g.some(function(x){ return x.isIntersecting; })) return;
     gozcu.disconnect();
     yukle();
-  }, { rootMargin: '150% 0px' });
+  }, { rootMargin: '25% 0px' });
   gozcu.observe(bolum);
 
   var bekliyor = false;
