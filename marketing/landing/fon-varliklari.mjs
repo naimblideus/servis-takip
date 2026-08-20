@@ -141,39 +141,45 @@ async function gorselYaz(girdi, cikti, genislik, perde, bicim, tavanKB) {
   const refBuf = await uret(enIyi);
   const refPerdeli = perdeUygula(await hamOku(refBuf), perde);
 
-  /* Adaylar küçükten büyüğe. Eşiği geçen İLKİ, yani en küçüğü kazanıyor. */
-  let sonAday = null;
+  /* Adaylar küçükten büyüğe; eşiği geçen İLKİ, yani en küçüğü kazanıyor. */
+  const adaylar = [];
   for (const q of kaliteler) {
     const buf = await uret(q);
     const fark = rms(perdeUygula(await hamOku(buf), perde), refPerdeli);
-    sonAday = { q, buf, fark };
+    adaylar.push({ q, buf, fark });
     if (fark <= FARK_ESIGI) {
       writeFileSync(cikti, buf);
       return { q, bayt: buf.length, fark };
     }
   }
 
-  /* HİÇBİRİ EŞİĞİ GEÇEMEDİ — görsel gerçekten görünüyor demektir (zayıf perde
-     ya da yüksek frekanslı doku). Burada referansı yazmak GERİLEME olurdu:
-     ölçüldü, rent-a-car hero'sunda eski bütçe sistemi 132 KB veriyordu, algısal
-     seçim aynı kareyi 252 KB'a çıkarıyordu. Eski bütçe bu yüzden TAVAN olarak
-     duruyor: eşik yakalanamadığında karar yine bütçenin. */
+  /* EŞİK YAKALANAMADI — görsel gerçekten görünüyor (zayıf perde ya da yüksek
+     frekanslı doku). Burada tavana sığan EN YÜKSEK kalite seçilir.
+     İlk sürüm bunu yanlış yapıyordu: yalnız en üst basamağa bakıp tavanı
+     aşınca doğrudan q32'ye düşüyor, aradaki q40-q72 hiç denenmiyordu.
+     Ölçüldü — cihazlarim bandı 8 KB'a inip fark 1,20 vermişti (eşik 0,65). */
   const tavan = tavanKB ?? Infinity;
-  if (Math.round(sonAday.buf.length / 1024) <= tavan) {
-    writeFileSync(cikti, sonAday.buf);
-    return { q: sonAday.q, bayt: sonAday.buf.length, fark: sonAday.fark, tavanda: true };
+  for (let i = adaylar.length - 1; i >= 0; i--) {
+    if (kb(adaylar[i].buf.length) <= tavan) {
+      writeFileSync(cikti, adaylar[i].buf);
+      return { q: adaylar[i].q, bayt: adaylar[i].buf.length, fark: adaylar[i].fark, tavanda: true };
+    }
   }
-  /* Merdivenin en üstü bile tavanı aşıyorsa daha da kısarak sığdır. */
+
+  /* Merdivenin en altı bile tavana sığmıyorsa daha da kısılıyor. Buraya
+     düşmek tavanın gerçekten dar olduğunu gösterir; rapordaki fark değeri
+     bunu görünür kılar. */
   for (const q of [32, 26, 20]) {
     const buf = await uret(q);
-    if (Math.round(buf.length / 1024) <= tavan) {
+    if (kb(buf.length) <= tavan) {
       const fark = rms(perdeUygula(await hamOku(buf), perde), refPerdeli);
       writeFileSync(cikti, buf);
       return { q, bayt: buf.length, fark, tavanda: true };
     }
   }
-  writeFileSync(cikti, sonAday.buf);
-  return { q: sonAday.q, bayt: sonAday.buf.length, fark: sonAday.fark, tavanda: true };
+  const son = adaylar[0];
+  writeFileSync(cikti, son.buf);
+  return { q: son.q, bayt: son.buf.length, fark: son.fark, tavanda: true };
 }
 
 /** Ping-pong + ölçekle + bütçeye oturt. */
