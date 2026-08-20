@@ -33,7 +33,7 @@
  * raporda AŞTI yazar.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, statSync, rmSync, existsSync } from 'node:fs';
+import { mkdirSync, readdirSync, statSync, rmSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import ffmpegYol from 'ffmpeg-static';
@@ -55,10 +55,14 @@ const ISLER = [
   // ve tarayıcı maketi altında görünmüyordu (ekranda iki kez denendi, perde
   // .58→.30 indirildi, yine görünmedi). Tanım burada duruyor ki hero yeniden
   // kurgulanırsa tek adımda geri gelsin. Üretilen dosyalar elle silindi.
-  { ad: 'hero',   dosya: 'Service_van_parked_on_street',        butceKB: 180, not: 'ŞU AN KULLANILMIYOR' },
-  { ad: 'saha',   dosya: 'Technician_repairing_office',         butceKB: 260, video: 'Light_pulse_travels_across_room', videoButceKB: 700 },
-  { ad: 'once',   dosya: 'Cluttered_service_desk_in_office',    butceKB: 300, not: 'kağıt dokusu — yüksek entropi' },
-  { ad: 'kapanis', dosya: 'Photocopier_standing_in_dark_space', butceKB: 260, video: 'Toner_dust_dissolves_in_machine', videoButceKB: 800 },
+  /* hero YORUMDA: sayfada kullanılmıyor ve script her çalıştığında dosyaları
+     yeniden üretip public/fon'u kirletiyordu (yukarıdaki not "elle silindi"
+     diyor — yani bu bir kez yaşanmış). Tanım duruyor ki hero yeniden
+     kurgulanırsa tek satır açmak yetsin. */
+  // { ad: 'hero', dosya: 'Service_van_parked_on_street', perde: 0.50, tavanKB: 180 },
+  { ad: 'saha',   dosya: 'Technician_repairing_office',         perde: 0.52, tavanKB: 260, video: 'Light_pulse_travels_across_room', videoButceKB: 700 },
+  { ad: 'once',   dosya: 'Cluttered_service_desk_in_office',    perde: 0.9, tavanKB: 300, not: 'kağıt dokusu — yüksek entropi' },
+  { ad: 'kapanis', dosya: 'Photocopier_standing_in_dark_space', perde: 0.42, tavanKB: 260, video: 'Toner_dust_dissolves_in_machine', videoButceKB: 800 },
 ];
 
 const kb = (b) => Math.round(b / 1024);
@@ -72,22 +76,104 @@ if (existsSync(HEDEF)) rmSync(HEDEF, { recursive: true, force: true });
 mkdirSync(HEDEF, { recursive: true });
 
 /** Bütçeye oturana kadar kaliteyi düşürerek yaz. */
-async function gorselYaz(girdi, cikti, genislik, butceKB, bicim) {
-  // Merdiven YÜKSEKTEN başlar. İlk turda q58 ile denendi ve dördü de bütçenin
-  // ~6 katı altında kaldı (hero 27 KB / bütçe 180) — yani kaliteyi bedavaya
-  // bırakıyorduk. Artık en iyisinden başlayıp bütçeye oturana kadar iniyor.
-  const kaliteler = bicim === 'avif' ? [86, 80, 72, 64, 56, 48, 40] : [92, 86, 78, 70, 62, 54];
-  let son = null;
-  for (const q of kaliteler) {
-    const p = sharp(girdi).resize(genislik, null, { withoutEnlargement: true });
-    await (bicim === 'avif'
-      ? p.avif({ quality: q, effort: 6 })
-      : p.webp({ quality: q, effort: 6 })
-    ).toFile(cikti);
-    son = { q, bayt: statSync(cikti).size };
-    if (kb(son.bayt) <= butceKB) break;
+/* ══════════════════════════════════════════════════════════════════════════
+   KALİTEYİ BÜTÇE DEĞİL, PERDE BELİRLİYOR.
+
+   Her bandın fotoğrafının üstünde bir perde var ve gücü bant bant farklı.
+   Perde ne kadar opaksa sıkıştırma hatası da o kadar bastırılıyor — yani
+   perdenin altında kalan bayt kimsenin görmediği detaya gidiyor.
+
+   ÖLÇÜLDÜ (recetemaliyet, perde %81 olan bant): q86 → 231 KB, q60 → 50 KB.
+   Kareler gerçek perde değeriyle karıştırılıp karşılaştırıldığında q60'ın
+   q86'dan farkı RMS 0,58 — 8 bitlik bir kanalda ~1 zaten ayırt edilemez.
+
+   Bu yüzden kalite seçimi keyfi bir KB hedefine değil, PERDE ALTINDAKİ
+   ÖLÇÜLEN FARKA bakıyor: referans (en yüksek kalite) ile aday, gerçek perde
+   değeriyle karıştırılıp karşılaştırılıyor; eşiği aşmayan EN KÜÇÜK dosya
+   kazanıyor.
+
+   ESKİ BÜTÇE TAVAN OLARAK DURUYOR. Eşiği hiçbir kalitenin geçemediği görseller
+   var (zayıf perde ya da yüksek frekanslı doku) ve orada referansı yazmak
+   GERİLEME olurdu: ölçüldü, rent-a-car hero'sunda eski sistem 132 KB veriyordu,
+   yalnız algısal seçim aynı kareyi 252 KB'a çıkarıyordu. Eşik yakalanamazsa
+   karar yine bütçenin.
+
+   EŞİK GÖZLE AYARLANDI: 1,0'da bir reçete-kartı görselinde kâğıdın dokusu
+   yumuşamıştı (RMS ortalaması o yerel kaybı gizliyor). 0,65 onu bir basamak
+   yukarı çıkarıyor, fark vermeyenleri yerinde bırakıyor.
+
+   `perde` değerleri sayfadaki gradyanların orta noktası. İkisi ayrışırsa
+   buradaki sayı yalnız kalite seçimini etkiler, ekrandaki perdeyi değil.
+   ══════════════════════════════════════════════════════════════════════════ */
+/** Perde altında kabul edilen en büyük fark (RMS, 8 bit kanal). */
+const FARK_ESIGI = 0.65;
+/** Sayfa zemini — perde bu renge doğru karartıyor. */
+const ZEMIN = [5, 5, 8];
+
+/** Kareyi verilen opaklıkta perdeyle karıştır; ekranda gerçekte görünen piksel. */
+function perdeUygula(ham, opaklik) {
+  const o = Buffer.alloc(ham.length);
+  for (let i = 0; i < ham.length; i += 3)
+    for (let c = 0; c < 3; c++) o[i + c] = Math.round(ham[i + c] * (1 - opaklik) + ZEMIN[c] * opaklik);
+  return o;
+}
+
+/** İki ham tampon arasındaki ortalama sapma (RMS, 8 bit kanal). */
+function rms(a, b) {
+  let t = 0;
+  for (let i = 0; i < a.length; i++) {
+    const d = a[i] - b[i];
+    t += d * d;
   }
-  return son;
+  return Math.sqrt(t / a.length);
+}
+
+async function gorselYaz(girdi, cikti, genislik, perde, bicim, tavanKB) {
+  const kaliteler = bicim === 'avif' ? [40, 48, 56, 64, 72, 80] : [54, 62, 70, 78, 86];
+  const enIyi = bicim === 'avif' ? 86 : 92;
+
+  const uret = async (q) => {
+    const p = sharp(girdi).resize(genislik, null, { withoutEnlargement: true });
+    return (bicim === 'avif' ? p.avif({ quality: q, effort: 6 }) : p.webp({ quality: q, effort: 6 })).toBuffer();
+  };
+  const hamOku = (buf) => sharp(buf).removeAlpha().raw().toBuffer();
+
+  const refBuf = await uret(enIyi);
+  const refPerdeli = perdeUygula(await hamOku(refBuf), perde);
+
+  /* Adaylar küçükten büyüğe. Eşiği geçen İLKİ, yani en küçüğü kazanıyor. */
+  let sonAday = null;
+  for (const q of kaliteler) {
+    const buf = await uret(q);
+    const fark = rms(perdeUygula(await hamOku(buf), perde), refPerdeli);
+    sonAday = { q, buf, fark };
+    if (fark <= FARK_ESIGI) {
+      writeFileSync(cikti, buf);
+      return { q, bayt: buf.length, fark };
+    }
+  }
+
+  /* HİÇBİRİ EŞİĞİ GEÇEMEDİ — görsel gerçekten görünüyor demektir (zayıf perde
+     ya da yüksek frekanslı doku). Burada referansı yazmak GERİLEME olurdu:
+     ölçüldü, rent-a-car hero'sunda eski bütçe sistemi 132 KB veriyordu, algısal
+     seçim aynı kareyi 252 KB'a çıkarıyordu. Eski bütçe bu yüzden TAVAN olarak
+     duruyor: eşik yakalanamadığında karar yine bütçenin. */
+  const tavan = tavanKB ?? Infinity;
+  if (Math.round(sonAday.buf.length / 1024) <= tavan) {
+    writeFileSync(cikti, sonAday.buf);
+    return { q: sonAday.q, bayt: sonAday.buf.length, fark: sonAday.fark, tavanda: true };
+  }
+  /* Merdivenin en üstü bile tavanı aşıyorsa daha da kısarak sığdır. */
+  for (const q of [32, 26, 20]) {
+    const buf = await uret(q);
+    if (Math.round(buf.length / 1024) <= tavan) {
+      const fark = rms(perdeUygula(await hamOku(buf), perde), refPerdeli);
+      writeFileSync(cikti, buf);
+      return { q, bayt: buf.length, fark, tavanda: true };
+    }
+  }
+  writeFileSync(cikti, sonAday.buf);
+  return { q: sonAday.q, bayt: sonAday.buf.length, fark: sonAday.fark, tavanda: true };
 }
 
 /** Ping-pong + ölçekle + bütçeye oturt. */
@@ -125,14 +211,14 @@ const satirlar = [];
 
 for (const is of ISLER) {
   const girdi = bul(is.dosya);
-  const masaA = await gorselYaz(girdi, path.join(HEDEF, `${is.ad}.avif`), 1920, is.butceKB, 'avif');
-  const masaW = await gorselYaz(girdi, path.join(HEDEF, `${is.ad}.webp`), 1920, Math.round(is.butceKB * 1.9), 'webp');
-  const mobA = await gorselYaz(girdi, path.join(HEDEF, `${is.ad}-m.avif`), 900, Math.round(is.butceKB * 0.42), 'avif');
-  const mobW = await gorselYaz(girdi, path.join(HEDEF, `${is.ad}-m.webp`), 900, Math.round(is.butceKB * 0.8), 'webp');
+  const masaA = await gorselYaz(girdi, path.join(HEDEF, `${is.ad}.avif`), 1920, is.perde, 'avif', is.tavanKB);
+  const masaW = await gorselYaz(girdi, path.join(HEDEF, `${is.ad}.webp`), 1920, is.perde, 'webp', Math.round(is.tavanKB * 1.9));
+  const mobA = await gorselYaz(girdi, path.join(HEDEF, `${is.ad}-m.avif`), 900, is.perde, 'avif', Math.round(is.tavanKB * 0.42));
+  const mobW = await gorselYaz(girdi, path.join(HEDEF, `${is.ad}-m.webp`), 900, is.perde, 'webp', Math.round(is.tavanKB * 0.8));
 
   satirlar.push([
     is.ad, 'AVIF 1920', `q${masaA.q}`, kb(masaA.bayt),
-    kb(masaA.bayt) <= is.butceKB ? 'tamam' : `AŞTI (bütçe ${is.butceKB})`,
+    `perde %${Math.round(is.perde * 100)} · fark ${masaA.fark.toFixed(2)}`,
   ]);
   satirlar.push([is.ad, 'WebP 1920', `q${masaW.q}`, kb(masaW.bayt), '']);
   satirlar.push([is.ad, 'AVIF  900', `q${mobA.q}`, kb(mobA.bayt), '']);
@@ -156,5 +242,5 @@ for (const s of satirlar) {
     String(s[3]).padStart(5) + '  ' + s[4]
   );
 }
-console.log(`\nAVIF masaüstü toplamı (dördü birden): ${kb(toplam)} KB`);
-console.log('NOT: bu toplam TEK ziyarette inmez — hero dışındakiler bölüme varılınca iner.');
+console.log(`\nAVIF masaüstü toplamı (üçü birden): ${kb(toplam)} KB`);
+console.log('NOT: bu toplam TEK ziyarette inmez — hepsi bölüme varılınca iner.');
