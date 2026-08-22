@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { jetondanMusteri, portalVerisi } from '@/lib/portal';
+import { bayiMagazasi, musteriMagazaLinki } from '@/lib/magaza-baglanti';
 import CihazListesi from './CihazListesi';
 import AsamaCizelgesi from './AsamaCizelgesi';
 
@@ -53,6 +54,11 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   const acikFaturalar = v.faturalar.filter((f) => f.kalan > 0.005);
   const telHref = v.firma.telefon ? `tel:${v.firma.telefon.replace(/[^\d+]/g, '')}` : null;
 
+  // Bayinin Nextus Mağaza'sı varsa müşteriyi oraya AYNI jetonla geçir.
+  // Mağaza yoksa/yayında değilse bağlantı null döner ve bölüm çizilmez.
+  const magaza = await bayiMagazasi(musteri.tenantId);
+  const magazaLink = musteriMagazaLinki(magaza, token, true);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* ── Başlık: bayinin adı öne çıkar. Müşteri bizi değil, bayisini tanır. ── */}
@@ -79,6 +85,29 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                 : 'Ödenmemiş faturanız yok'}
             </div>
           </section>
+        )}
+
+        {/* ── MAĞAZA GEÇİŞİ ────────────────────────────────────────────
+            Aynı jeton mağazada da geçerli: müşteri ikinci bir parola
+            yönetmez, tek bağlantıyla hem panelini hem mağazasını açar.
+            Mağaza kurulu/yayında değilse bu bölüm hiç çizilmez — kırık bir
+            bağlantı göstermek, hiç göstermemekten kötüdür. ── */}
+        {magazaLink && (
+          <a
+            href={magazaLink}
+            className="flex items-center gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 transition-colors hover:bg-blue-100"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-blue-900">Toner ve sarf siparişi</div>
+              <p className="mt-0.5 text-xs leading-relaxed text-blue-800/80">
+                Cihazlarınıza uyan ürünleri görün, tonerin ne zaman biteceğini takip edin
+                ve doğrudan sipariş verin.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white">
+              Mağazaya git →
+            </span>
+          </a>
         )}
 
         {/* ── Açık servis fişleri ── */}

@@ -14,6 +14,8 @@ interface Item {
   tonerChangedAt: string | null;
   black: Forecast | null; color: Forecast | null;
   soonestDaysLeft: number | null; needsSetup: boolean;
+  /** Nextus Mağaza sipariş bağlantısı — mağaza kurulu ve müşteri paneli açıksa dolu. */
+  magazaLink?: string | null;
 }
 
 function sev(days: number | null): { border: string; bar: string; text: string } {
@@ -35,6 +37,25 @@ function ChannelLine({ f, name }: { f: Forecast | null; name: string }) {
       {name}: {txt}
     </div>
   );
+}
+
+/**
+ * Müşteriye gidecek WhatsApp metni.
+ *
+ * Tahmin YOKSA gün sayısı yazılmaz. "Yakında bitiyor" demek için elde bir
+ * hesap olmalı; olmadığında yalnız hatırlatma yapılır. Uydurulmuş bir gün
+ * sayısı, gereksiz toner satmaktır.
+ */
+function siparisMesaji(i: Item): string {
+  const cihaz = i.brand + ' ' + i.model + (i.location ? ' (' + i.location + ')' : '');
+  const gun =
+    i.soonestDaysLeft != null && !i.needsSetup
+      ? cihaz + ' cihazınızın toneri yaklaşık ' + i.soonestDaysLeft + ' gün sonra bitiyor.'
+      : cihaz + ' cihazınızın toneri yakında yenilenmeli.';
+  const link = i.magazaLink
+    ? '\n\nCihazınıza uyan tonerleri görüp sipariş verebilirsiniz:\n' + i.magazaLink
+    : '';
+  return gun + link;
 }
 
 export default function SarfPage() {
@@ -99,7 +120,17 @@ export default function SarfPage() {
                   </div>
                   <Link href={`/devices/${i.id}`} style={{ flexShrink: 0, padding: '0.5rem 0.9rem', background: '#0ea5e9', color: 'white', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>Cihaz →</Link>
                 </div>
-                {i.customer && <ContactActions phone={i.customer.phone} address={i.customer.address} />}
+                {i.customer && (
+                  <ContactActions
+                    phone={i.customer.phone}
+                    address={i.customer.address}
+                    /* Mağaza kuruluysa WhatsApp mesajına sipariş bağlantısı gömülür:
+                       teknisyen "toner bitiyor" derken müşteri tek tıkla sipariş
+                       verebilsin. Bağlantı yoksa mesaj sade kalır — kırık bir
+                       bağlantı göndermek hiç göndermemekten kötüdür. */
+                    whatsappText={siparisMesaji(i)}
+                  />
+                )}
               </div>
             );
           })}

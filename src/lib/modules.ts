@@ -3,7 +3,7 @@
 //   tickets, customers, devices, inventory, satis, etiket, accounting (Muhasebe/Cari).
 // Eklenti modüller plan'a göre varsayılan açılır; süper-admin bayi bazında override edebilir.
 
-export type ModuleKey = 'INVOICING' | 'ROUTE' | 'TRACKING' | 'REVENUE_RISK' | 'REPORTS' | 'MARKETPLACE' | 'PORTAL';
+export type ModuleKey = 'INVOICING' | 'ROUTE' | 'TRACKING' | 'REVENUE_RISK' | 'REPORTS' | 'MARKETPLACE' | 'PORTAL' | 'SHOP';
 
 export const MODULES: Record<ModuleKey, { label: string; hrefs: string[] }> = {
   INVOICING:    { label: 'Faturalar & Kira/Sayaç', hrefs: ['/invoices', '/collections'] },
@@ -13,13 +13,17 @@ export const MODULES: Record<ModuleKey, { label: string; hrefs: string[] }> = {
   REPORTS:      { label: 'Raporlar',                hrefs: ['/reports'] },
   MARKETPLACE:  { label: 'Bayi Pazarı',             hrefs: ['/market'] },
   PORTAL:       { label: 'Müşteri Paneli',          hrefs: ['/musteri-bildirimleri'] },
+  // Nextus Mağaza — bayinin kendi stoğundan beslenen e-ticaret vitrini.
+  // Ayrı uygulamada çalışır (nextus-magaza); burada YALNIZ yetki anahtarı
+  // tutulur: mağaza açılırken bayinin bu modülü var mı diye bakılır.
+  SHOP:         { label: 'Nextus Mağaza',           hrefs: ['/magaza'] },
 };
 
 export const ALL_MODULE_KEYS = Object.keys(MODULES) as ModuleKey[];
 
 // Plan → varsayılan açık modüller (bayiye özel `modules` boşsa bu geçerli)
 export const PLAN_MODULES: Record<string, ModuleKey[]> = {
-  trial:        ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL'], // denemede her şey görünsün
+  trial:        ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP'], // denemede her şey görünsün
   // NOT: Bayi Pazarı BİLEREK her planda açık — pazar yeri ancak HERKES içindeyse likidite/ağ etkisi kazanır.
   starter:      ['MARKETPLACE'],                                          // Başlangıç: çekirdek + Pazar
   // Pro: Kaçan Gelir BİLEREK burada. Satışın ana kancası o panel; denemede görüp
@@ -27,7 +31,9 @@ export const PLAN_MODULES: Record<string, ModuleKey[]> = {
   // Müşteri Paneli Pro'dan itibaren: değeri müşteri sayısıyla büyür, Başlangıç
   // paketindeki küçük bayide karşılığı yok. Satışta net bir yükseltme sebebi.
   professional: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'MARKETPLACE', 'PORTAL'],
-  enterprise:   ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL'], // Premium
+  // Mağaza Kurumsal'dan itibaren: vitrin, alan adı ve yasal sorumluluk taşır;
+  // Başlangıç paketindeki bayide karşılığı yok. Satışta net bir yükseltme sebebi.
+  enterprise:   ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP'], // Premium
 };
 
 // href → modül (CORE href'ler haritada yok = her zaman erişilebilir)

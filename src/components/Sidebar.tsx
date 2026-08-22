@@ -37,6 +37,15 @@ const menuItems = [
     ),
   },
   {
+    href: '/magaza',
+    label: 'Nextus Mağaza',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 6l1 12a2 2 0 002 2h10a2 2 0 002-2l1-12M9 10a3 3 0 006 0" />
+      </svg>
+    ),
+  },
+  {
     href: '/tickets',
     label: 'Servis Fişleri',
     icon: (
@@ -271,6 +280,7 @@ const MENU_ORDER = [
   '/sayac-eposta', // Cihazdan gelen sayaç e-postaları — elle işlenmesi gerekenler
   '/musteri-bildirimleri', // Müşteri panelinden gelen arıza/sayaç bildirimleri
   '/market',       // Bayi Pazarı (B2B ağ)
+  '/magaza',       // Nextus Mağaza — bayinin kendi e-ticaret vitrini
   '/inventory',    // Stok — üstte
   '/satis',        // Barkodla Satış
   '/etiket',       // Zebra Etiket — üstte
@@ -296,7 +306,7 @@ const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i
 // basılır, Barkodla Satış ise tezgahtan parça satmayan bayide hiç açılmaz.
 // Sayaç Turu BİLEREK yukarıda kaldı — para döngüsünün merkezi; gizlenen iş
 // yapılmaz, yapılmayan sayaç faturalanmaz.
-const ADVANCED_SABIT = ['/rota', '/market', '/invoices', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/cihaz-karlilik', '/etiket', '/satis'];
+const ADVANCED_SABIT = ['/rota', '/market', '/magaza', '/invoices', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/cihaz-karlilik', '/etiket', '/satis'];
 
 export interface MenuDurum {
   whatsappKurulu: boolean;

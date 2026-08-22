@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { dailyRate, forecastChannel, soonestDaysLeft, type TonerReadingPoint } from '@/lib/toner';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { bayiMagazasi, musteriMagazaLinki } from '@/lib/magaza-baglanti';
 
 // GET /api/toner — toner takibi açık cihazların tükenme tahmini (proaktif sevkiyat listesi).
 export async function GET() {
@@ -17,8 +18,19 @@ export async function GET() {
       tenantId: user.tenantId,
       OR: [{ tonerYieldBlack: { not: null } }, { tonerYieldColor: { not: null } }],
     },
-    include: { customer: { select: { id: true, name: true, phone: true, address: true } } },
+    include: {
+      customer: {
+        select: {
+          id: true, name: true, phone: true, address: true,
+          // Mağaza bağlantısı için: müşteri panelinin jetonu mağazada da geçerli.
+          portalToken: true, portalEnabled: true,
+        },
+      },
+    },
   });
+
+  // Bayinin mağazası var mı? Yoksa 'sipariş bağlantısı' düğmesi hiç gösterilmez.
+  const magaza = await bayiMagazasi(user.tenantId);
 
   const ids = devices.map((d) => d.id);
   // Son 120 günün okumaları — hız hesabı için (tek sorgu, JS'te grupla)
@@ -55,9 +67,22 @@ export async function GET() {
     });
     const soonest = soonestDaysLeft([black, color]);
     const needsSetup = (black?.needsSetup || color?.needsSetup) ?? false;
+    // Müşteriye gönderilecek sipariş bağlantısı. Portal kapalıysa null —
+    // kırık bağlantı göndermek, hiç göndermemekten kötüdür.
+    const magazaLink = musteriMagazaLinki(
+      magaza,
+      d.customer?.portalToken ?? null,
+      d.customer?.portalEnabled ?? false
+    );
+
     return {
       id: d.id, brand: d.brand, model: d.model, serialNo: d.serialNo, location: d.location,
-      customer: d.customer,
+      // portalToken DIŞARI ÇIKMAZ: bağlantının içinde zaten var, ayrıca
+      // göndermek jetonu gereksiz yere ikinci bir yere kopyalamak olur.
+      customer: d.customer
+        ? { id: d.customer.id, name: d.customer.name, phone: d.customer.phone, address: d.customer.address }
+        : null,
+      magazaLink,
       tonerChangedAt: d.tonerChangedAt ? d.tonerChangedAt.toISOString() : null,
       black, color, soonestDaysLeft: soonest, needsSetup,
     };
