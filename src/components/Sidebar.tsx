@@ -128,6 +128,15 @@ const menuItems = [
     ),
   },
   {
+    href: '/musteri-portali',
+    label: 'Müşteri Paneli',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+  },
+  {
     href: '/musteri-bildirimleri',
     label: 'Müşteri Bildirimleri',
     icon: (
@@ -278,6 +287,7 @@ const MENU_ORDER = [
   '/devices',
   '/sayac-turu',   // Sayaç Turu — müşteri bazlı toplu sayaç girişi (sahanın can damarı)
   '/sayac-eposta', // Cihazdan gelen sayaç e-postaları — elle işlenmesi gerekenler
+  '/musteri-portali',      // Müşteri Paneli — erişimi açmak ve bağlantıyı göndermek
   '/musteri-bildirimleri', // Müşteri panelinden gelen arıza/sayaç bildirimleri
   '/market',       // Bayi Pazarı (B2B ağ)
   '/magaza',       // Nextus Mağaza — bayinin kendi e-ticaret vitrini
@@ -340,6 +350,13 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
   const advancedSet = new Set(ADVANCED_SABIT);
   if (!sayacEpostaKullaniliyor) advancedSet.add('/sayac-eposta');
   if (!portalKullaniliyor) advancedSet.add('/musteri-bildirimleri');
+  /**
+   * Müşteri Paneli ekranı, portal HİÇ kullanılmamışken bile üstte kalıyor.
+   * Diğer kuyruk ekranlarının tersi bir karar ve bilerek: bu ekranın işi
+   * portalı kullanılır HÂLE GETİRMEK. Gelişmiş'e indirilirse, kullanılmadığı
+   * için gizlenir ve gizlendiği için kullanılmaz — ölçüldü, 305 müşterinin
+   * hiçbirinde erişim yoktu.
+   */
 
   const mainItems = visibleMenuItems.filter((i) => !advancedSet.has(i.href));
   const advItems = visibleMenuItems.filter((i) => advancedSet.has(i.href));
