@@ -370,6 +370,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
     href === '/market' ? rozet.market
       : href === '/sayac-eposta' ? rozet.sayacEposta
         : href === '/musteri-bildirimleri' ? rozet.musteriBildirim
+          : href === '/magaza' ? rozet.magaza
           : 0;
   // Gelişmiş grubu VARSAYILAN KAPALI; içindeki bekleyen işin rozeti hiç
   // görünmezse rozetin anlamı kalmaz — toplamı başlıkta gösteriyoruz.

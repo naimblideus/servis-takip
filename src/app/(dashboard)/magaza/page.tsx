@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
-import { bayiMagazasi } from '@/lib/magaza-baglanti';
+import { bayiMagazasi, magazaKiraciId } from '@/lib/magaza-baglanti';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,12 +56,21 @@ export default async function MagazaSayfasi() {
   }
 
   // Mağaza kurulu — durum özeti.
+  /**
+   * MAĞAZANIN KENDİ KİMLİĞİ — servis kimliği DEĞİL.
+   *
+   * Bu sorgular `user.tenantId`'yi doğrudan kullanıyordu ve kimlik ayrımından
+   * sonra hepsi 0 dönüyordu (ölçüldü: 0 ürün, gerçekte 519). Sıfır burada
+   * masum görünüyor — "daha kurmadım" diye okunur — o yüzden kimse aramaz.
+   */
+  const magazaId = await magazaKiraciId(user.tenantId);
+
   const [urun, yayinda, fiyatsiz, yeniSiparis, stokBekleyen] = await Promise.all([
-    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${user.tenantId}`,
-    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${user.tenantId} AND durum = 'YAYINDA'`,
-    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${user.tenantId} AND fiyat IS NULL`,
-    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopOrder" WHERE "tenantId" = ${user.tenantId} AND durum = 'YENI'`,
-    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopOrder" WHERE "tenantId" = ${user.tenantId} AND durum = 'STOK_BEKLIYOR'`,
+    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${magazaId}`,
+    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${magazaId} AND durum = 'YAYINDA'`,
+    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${magazaId} AND fiyat IS NULL`,
+    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopOrder" WHERE "tenantId" = ${magazaId} AND durum = 'YENI'`,
+    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopOrder" WHERE "tenantId" = ${magazaId} AND durum = 'STOK_BEKLIYOR'`,
   ]);
 
   const s = (r: { c: number }[]) => r[0]?.c ?? 0;

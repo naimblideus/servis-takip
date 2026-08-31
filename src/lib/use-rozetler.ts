@@ -15,9 +15,11 @@ export interface Rozetler {
   market: number;
   sayacEposta: number;
   musteriBildirim: number;
+  /** Onay bekleyen mağaza siparişi — bayinin siparişten haberdar olma yolu. */
+  magaza: number;
 }
 
-const BOS: Rozetler = { market: 0, sayacEposta: 0, musteriBildirim: 0 };
+const BOS: Rozetler = { market: 0, sayacEposta: 0, musteriBildirim: 0, magaza: 0 };
 const ARALIK_MS = 60_000;
 
 let sonDeger: Rozetler = BOS;
@@ -33,6 +35,7 @@ async function getir() {
       market: d.market || 0,
       sayacEposta: d.sayacEposta || 0,
       musteriBildirim: d.musteriBildirim || 0,
+      magaza: d.magaza || 0,
     };
     aboneler.forEach((f) => f(sonDeger));
   } catch { /* ağ hatası rozeti sıfırlamasın — eski değer kalsın */ }
