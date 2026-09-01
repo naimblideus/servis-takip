@@ -116,12 +116,43 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Her serinin KENDİ satırı — kayıt başına tüm raporu saklamamak için.
+  // Tek geçişte kurulur; cihaz başına metin taramak 1000 cihazda karesel olurdu.
+  const satirlar = new Map<string, string>();
+  if (coklu.cihazSayisi > 1) {
+    const seriKumesi = new Set(coklu.okumalar.map((o) => o.serial));
+    for (const satir of duzMetin.split('\n')) {
+      for (const s of seriKumesi) {
+        if (!satirlar.has(s) && satir.includes(s)) { satirlar.set(s, satir.trim().slice(0, 500)); break; }
+      }
+    }
+  }
+
+  // Seri → cihaz dizini, TEK geçişte. Döngü içinde cihazlar.filter() çağırmak
+  // 1000 cihazlık raporda 1.000.000 karşılaştırma demekti (karesel). Aynı seri
+  // iki bayide olabildiği için değer bir DİZİ: belirsizlik korunuyor.
+  const seriDizini = new Map<string, typeof cihazlar>();
+  for (const c of cihazlar) {
+    for (const s of [c.serialNo, c.reportedSerial]) {
+      if (!s) continue;
+      const mevcut = seriDizini.get(s);
+      if (mevcut) { if (!mevcut.includes(c)) mevcut.push(c); } else seriDizini.set(s, [c]);
+    }
+  }
+
+  // Bayi kaydı BİR KEZ çekilir ve createReading'e geçirilir. Geçirilmezse
+  // fonksiyon her cihaz için aynı bayiyi yeniden sorguluyor — 1000 cihazlık
+  // raporda 1000 gereksiz sorgu. (readings.ts bunun için preloadedTenant
+  // parametresini taşıyor; toplu uç kullanıyordu, bu uç kullanmıyordu.)
+  const bayiKaydi = bayi ? await prisma.tenant.findUnique({ where: { id: bayi.id } }) : null;
+
   // ── Her cihaz için ayrı kayıt + ayrı okuma ──────────────────────────────
   const sonuclar: { serial: string; islendi: boolean; sebep?: string; siyah?: number | null }[] = [];
   let islenen = 0, bekleyen = 0;
+  let ilkKayit = true;
 
   for (const okuma of coklu.okumalar) {
-    const eslesen = cihazlar.filter((c) => c.serialNo === okuma.serial || c.reportedSerial === okuma.serial);
+    const eslesen = seriDizini.get(okuma.serial) ?? [];
     // Aynı seri iki bayide olabilir; bayi kodu yoksa hangisi olduğu belirsizdir.
     const belirsiz = eslesen.length > 1;
     const cihaz = eslesen.length === 1 ? eslesen[0] : null;
@@ -134,9 +165,15 @@ export async function POST(req: NextRequest) {
       data: {
         tenantId: cihaz?.tenantId ?? bayi?.id ?? null,
         fromAddress: from || null, subject: subject || null,
-        // Çok cihazlı raporda her kayda TÜM metni yazmak veritabanını
-        // gereksiz şişirir; kayıt başına 20 KB yeterli, tamamı ilk kayıtta.
-        rawText: (coklu.cihazSayisi > 1 ? duzMetin.slice(0, 20_000) : duzMetin.slice(0, 100_000)),
+        // Çok cihazlı raporda her kayda RAPORUN TAMAMINI yazmıyoruz.
+        // 1000 cihazlı bir filoda 20 KB × 1000 = ayda 20 MB, yılda 240 MB —
+        // tek müşteri için. Üstelik bayi kuyrukta o cihaza bakarken 20 KB'lık
+        // raporun tamamını değil, O CİHAZIN SATIRINI görmek istiyor.
+        // İlk kayıtta rapor bütün olarak durur (kanıt için), gerisinde
+        // yalnız ilgili satır.
+        rawText: coklu.cihazSayisi > 1
+          ? (ilkKayit ? duzMetin.slice(0, 100_000) : (satirlar.get(okuma.serial) ?? okuma.serial))
+          : duzMetin.slice(0, 100_000),
         serial: okuma.serial,
         deviceId: cihaz?.id ?? null,
         parsedBlack: okuma.black, parsedColor: okuma.color,
@@ -144,6 +181,8 @@ export async function POST(req: NextRequest) {
         hata,
       },
     });
+
+    ilkKayit = false;
 
     if (!cihaz || !okuma.guvenli || belirsiz) {
       bekleyen++;
@@ -157,7 +196,7 @@ export async function POST(req: NextRequest) {
         deviceId: cihaz.id,
         counterBlack: okuma.black!,
         counterColor: okuma.color ?? sonRenk.get(cihaz.id) ?? 0,
-      });
+      }, cihaz.tenantId === bayi?.id ? bayiKaydi : undefined);
       await prisma.counterEmail.update({
         where: { id: kayit.id },
         data: { status: 'ISLENDI', readingId: r.reading.id },
