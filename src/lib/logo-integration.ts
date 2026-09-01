@@ -195,34 +195,64 @@ export class LogoIntegration {
     private adapter: LogoRestApiAdapter | LogoFileAdapter;
 
     constructor(private config: LogoConfig) {
-        this.adapter = config.method === 'file'
-            ? new LogoFileAdapter(config)
-            : new LogoRestApiAdapter(config);
+        // 'db' (MSSQL) yöntemi UYGULANMADI. Eskiden buradaki koşul yalnız
+        // 'file'ı ayırıyordu, yani 'db' seçen bayi sessizce REST adaptörüne
+        // düşüyordu — apiUrl tanımsız olduğu için anlamsız hatalar alıyor ve
+        // sebebini bulamıyordu. Artık uygulanmamış yöntem uygulanmamış gibi
+        // davranıyor: dosya adaptörüne düşer ve her işlemde açıkça reddeder.
+        this.adapter = config.method === 'rest'
+            ? new LogoRestApiAdapter(config)
+            : new LogoFileAdapter(config);
     }
 
     async testConnection(): Promise<boolean> {
+        // Uygulanmamış yöntemde bağlantı testi BAŞARILI DÖNEMEZ. Eskiden
+        // dosya yönteminde koşulsuz true dönüyordu; bayi "bağlantı tamam"
+        // görüp aktarımın çalıştığını sanıyordu.
+        if (!(this.adapter instanceof LogoRestApiAdapter)) return false;
         return this.adapter.testConnection();
+    }
+
+    /**
+     * UYGULANMAMIŞ YÖNTEM SESSİZCE "BAŞARILI" DÖNMEZ.
+     *
+     * Eskiden REST dışındaki yöntemlerde aşağıdaki üç fonksiyon
+     * `{success:true}` dönüyordu. Sonuç: bayi "100 fatura Logo'ya aktarıldı"
+     * yazısını görüyor, Logo'da hiçbir şey olmuyordu. Fatura aktarımında
+     * sessiz başarı, sessiz para kaybıdır — ay sonunda bayi mutabakat yapamaz
+     * ve sebebini de bulamaz.
+     *
+     * XML üreticileri (generateCariXml / generateInvoiceXml) yazılmış durumda
+     * ama üretilen dosyayı kullanıcıya TESLİM eden bir yol yok. O yol bitene
+     * kadar yöntem "hazır" sayılmaz ve hazırmış gibi davranmaz.
+     */
+    private uygulanmadi(ne: string): LogoResult {
+        const yontem = this.config.method === 'file' ? 'XML dosya' : 'veritabanı (MSSQL)';
+        return {
+            success: false,
+            error: `Logo ${yontem} yöntemi henüz uygulanmadı — ${ne} aktarılmadı. REST API yöntemini kullanın.`,
+        };
     }
 
     async createOrUpdateCustomer(customer: any): Promise<LogoResult> {
         if (this.adapter instanceof LogoRestApiAdapter) {
             return this.adapter.createOrUpdateCari(customer);
         }
-        return { success: true, logoKod: `C-${customer.id?.slice(-8)}` }; // XML moda always success
+        return this.uygulanmadi('cari');
     }
 
     async createInvoice(ticket: any): Promise<LogoResult> {
         if (this.adapter instanceof LogoRestApiAdapter) {
             return this.adapter.createInvoice(ticket);
         }
-        return { success: true };
+        return this.uygulanmadi('fatura');
     }
 
     async createPayment(payment: any): Promise<LogoResult> {
         if (this.adapter instanceof LogoRestApiAdapter) {
             return this.adapter.createPayment(payment);
         }
-        return { success: true };
+        return this.uygulanmadi('tahsilat');
     }
 
     /**
