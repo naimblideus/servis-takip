@@ -97,9 +97,28 @@ export default function SarfPage() {
         <p style={{ color: '#9ca3af' }}>Yükleniyor…</p>
       ) : items.length === 0 ? (
         <div style={{ background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 12, padding: '2rem', textAlign: 'center' }}>
+          {/* ── LİSTE NEDEN BOŞ, TEK CÜMLEYLE ────────────────────────────
+              Buraya "bir cihaz detayına girip verimi yazın" yazıyordu.
+              Talimat doğruydu ama 854 cihazlı bir bayide kimsenin
+              yapmayacağı bir iş tarif ediyordu — ve ölçüldü: 853 cihazda
+              verim boş, yani bu ekran kurulduğundan beri boş.
+
+              Verim CİHAZIN değil MODELİN özelliği. Toplu ekranda 396 satır
+              var ve ilk 20'si 250 cihazı açıyor. Yönlendirme oraya. */}
           <p style={{ color: '#374151', fontWeight: 600, margin: '0 0 0.5rem' }}>Henüz toner takibi yapılan cihaz yok.</p>
-          <p style={{ color: '#6b7280', fontSize: '0.88rem', margin: 0 }}>
-            Bir cihaz detayında <b>🧴 Toner Takibi</b> kartından toner verimini girip “Toner Değişti”yi işaretleyin; tahmin burada görünür.
+          <p style={{ color: '#6b7280', fontSize: '0.88rem', margin: '0 0 1rem' }}>
+            Tükenme tahmini <b>toner verimi</b> girilmeden çalışmıyor. Verim cihazın
+            değil modelin özelliğidir: bir kez modele yazarsınız, o modeldeki
+            bütün cihazlara uygulanır.
+          </p>
+          <Link
+            href="/toner-verimi"
+            style={{ display: 'inline-block', background: '#2563eb', color: '#fff', padding: '0.55rem 1rem', borderRadius: 8, fontSize: '0.88rem', fontWeight: 600, textDecoration: 'none' }}
+          >
+            Toner verimlerini gir →
+          </Link>
+          <p style={{ color: '#9ca3af', fontSize: '0.8rem', margin: '0.75rem 0 0' }}>
+            Tek cihaz için: cihaz detayında <b>🧴 Toner Takibi</b> kartı.
           </p>
         </div>
       ) : (
