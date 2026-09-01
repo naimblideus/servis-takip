@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PublicFaultReport from '@/components/PublicFaultReport';
+import { bayiMagazasi } from '@/lib/magaza-baglanti';
 
 // Cihazdaki QR okutulunca buraya gelinir: /qr/DEV-8F3A12
 // - Personel (oturumlu) → cihaz detayına gider.
@@ -12,7 +13,7 @@ export default async function QRPage({ params }: { params: Promise<{ code: strin
 
   const device = await prisma.device.findUnique({
     where: { publicCode: code },
-    select: { id: true, brand: true, model: true, tenant: { select: { name: true } } },
+    select: { id: true, brand: true, model: true, tenantId: true, tenant: { select: { name: true } } },
   });
 
   // Personel girişliyse cihaz detayına yönlendir
@@ -34,5 +35,35 @@ export default async function QRPage({ params }: { params: Promise<{ code: strin
     );
   }
 
-  return <PublicFaultReport code={code} deviceName={`${device.brand} ${device.model}`} tenantName={device.tenant?.name || 'Servis'} />;
+  /**
+   * ── AYNI QR, İKİ İŞ: ARIZA BİLDİR / SARF SİPARİŞ ET ───────────────
+   * Etiket yazıcının üstünde ve oradaki kişinin iki derdi olabilir: makine
+   * bozuldu ya da toner bitti. İkincisi için mağaza varsa düğme burada.
+   * Mağaza yoksa ya da kapalıysa düğme hiç çizilmiyor — kırık bağlantı
+   * göstermek, hiç göstermemekten kötü.
+   *
+   * QR'ın hedefi hep bu sayfa kalıyor (bayinin kendi alan adı), mağaza
+   * adresi değişse de basılmış etiketler çalışmaya devam ediyor.
+   */
+  const magaza = await bayiMagazasi(device.tenantId);
+  const magazaLinki = magaza?.aktif ? `${magaza.url}/c/${encodeURIComponent(code)}` : null;
+
+  return (
+    <>
+      {magazaLinki && (
+        <div style={{ background: '#0b0e14', padding: '1rem 1.5rem', textAlign: 'center', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+          <div style={{ color: 'rgba(255,255,255,.7)', fontSize: '.8rem', marginBottom: '.5rem' }}>
+            {device.brand} {device.model} — toner ya da parça mı lazım?
+          </div>
+          <a
+            href={magazaLinki}
+            style={{ display: 'inline-block', background: '#1b4dff', color: '#fff', fontWeight: 700, padding: '.7rem 1.4rem', borderRadius: 8, textDecoration: 'none', fontSize: '.95rem' }}
+          >
+            Bu yazıcı için sarf sipariş et →
+          </a>
+        </div>
+      )}
+      <PublicFaultReport code={code} deviceName={`${device.brand} ${device.model}`} tenantName={device.tenant?.name || 'Servis'} />
+    </>
+  );
 }
