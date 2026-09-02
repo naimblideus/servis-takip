@@ -155,6 +155,8 @@ export interface SonOkuma {
   counterBlack: number;
   counterColor: number;
   readingDate: Date;
+  /** Okuma nereden geldi — portal ve bayi ekranı kanıt seviyesini bununla gösterir */
+  source: string;
 }
 
 /**
@@ -174,7 +176,7 @@ export async function sonOkumalar(tenantId: string, deviceIds: string[]): Promis
   // DISTINCT ON: her cihaz için en yeni satır (Postgres'e özgü, tek geçiş).
   const satirlar = await prisma.$queryRaw<SonOkuma[]>`
     SELECT DISTINCT ON ("deviceId")
-      "deviceId", "counterBlack", "counterColor", "readingDate"
+      "deviceId", "counterBlack", "counterColor", "readingDate", "source"
     FROM "CounterReading"
     WHERE "tenantId" = ${tenantId} AND "deviceId" = ANY(${deviceIds})
     ORDER BY "deviceId", "readingDate" DESC

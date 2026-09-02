@@ -29,6 +29,18 @@ export default function SayacTuruPage() {
     }).catch(() => {});
   }, []);
 
+  // Sayacı gelmeyen cihazlar — panel kartı buraya iniyor. Kart "7 cihaz" der;
+  // burada "kim, hangi cihaz, kaç gündür" görünür ve tıklayınca o müşterinin
+  // sayaç listesi açılır. Ölçüt kartla aynı (35+ gün), uç bunu garanti eder.
+  const [eksik, setEksik] = useState<{
+    esikGun: number; toplam: number;
+    musteriler: { id: string; name: string; phone: string;
+      cihazlar: { id: string; ad: string; seri: string; yer: string | null; gunOnce: number | null }[] }[];
+  } | null>(null);
+  useEffect(() => {
+    fetch('/api/sayac/eksik').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setEksik(d); }).catch(() => {});
+  }, []);
+
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return customers.slice(0, 8);
@@ -97,6 +109,42 @@ export default function SayacTuruPage() {
         <p style={{ color: '#5B6479', fontSize: '.9rem', margin: '0 0 1.25rem', lineHeight: 1.55 }}>
           Müşteri seç — tüm kiralık cihazları tek listede çıkar, sadece yeni rakamları yaz.
         </p>
+
+        {/* Sayacı gelmeyen cihazlar: "kimi arayacağım" listesi. Sıfırsa hiç
+            görünmez — boş bir uyarı kutusu, olmayan sorunu varmış gibi gösterir. */}
+        {eksik && eksik.toplam > 0 && (
+          <div style={{ marginBottom: '1.25rem', borderRadius: 14, border: '1px solid #fecaca', background: '#fff7f7', padding: '.85rem 1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontWeight: 800, color: '#991b1b', fontSize: '.95rem' }}>
+                📟 {eksik.toplam} cihazın {eksik.esikGun}+ gündür sayacı yok
+              </div>
+              <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>{eksik.musteriler.length} müşteri</div>
+            </div>
+            <p style={{ margin: '.25rem 0 .6rem', fontSize: '.78rem', color: '#7f1d1d', lineHeight: 1.5 }}>
+              Sayacı gelmeyen makineden o ay para kazanılmaz. Müşteriye tıkla, sayacı yaz.
+            </p>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {eksik.musteriler.slice(0, 12).map((m) => (
+                <button key={m.id} type="button"
+                  onClick={() => load({ id: m.id, name: m.name, phone: m.phone } as Cust)}
+                  style={{ textAlign: 'left', background: '#fff', border: '1px solid #fde2e2', borderRadius: 10, padding: '.55rem .7rem', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '.86rem' }}>
+                    <span style={{ fontWeight: 700, color: '#0B1533' }}>{m.name}</span>
+                    <span style={{ color: '#991b1b', fontWeight: 700, whiteSpace: 'nowrap' }}>{m.cihazlar.length} cihaz</span>
+                  </div>
+                  <div style={{ fontSize: '.72rem', color: '#5B6479', marginTop: 2 }}>
+                    {m.cihazlar.slice(0, 3).map((c) => `${c.ad} · ${c.gunOnce == null ? 'hiç okunmadı' : `${c.gunOnce} gün`}`).join('  ·  ')}
+                    {m.cihazlar.length > 3 ? `  · +${m.cihazlar.length - 3}` : ''}
+                    {m.phone ? `  ·  ☎ ${m.phone}` : ''}
+                  </div>
+                </button>
+              ))}
+              {eksik.musteriler.length > 12 && (
+                <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>+{eksik.musteriler.length - 12} müşteri daha — arama kutusundan bul</div>
+              )}
+            </div>
+          </div>
+        )}
 
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Müşteri ara…"
           style={{ width: '100%', padding: '.7rem .9rem', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: '1rem', boxSizing: 'border-box', outline: 'none' }} />

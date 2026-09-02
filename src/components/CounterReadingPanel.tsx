@@ -31,6 +31,23 @@ function downscaleImage(file: File): Promise<string> {
     });
 }
 
+/**
+ * Okumanın kaynağı — tartışmada kanıt ağırlığını söyler. "Adam o kadar
+ * çekmedim diyor" anında bayinin ekranda görmesi gereken şey bu: cihazın
+ * kendi raporu mu, teknisyenin elle yazdığı mı. Renk kanıt gücünü izler:
+ * yeşil = cihaz kendisi bildirdi (itiraz edilemez), mavi = görsel kanıt,
+ * gri = beyan.
+ */
+const KAYNAK_ETIKET: Record<string, { ad: string; renk: string; arka: string }> = {
+    CIHAZ_EPOSTA:  { ad: 'Cihaz bildirdi',  renk: '#047857', arka: '#d1fae5' },
+    FOTOGRAF:      { ad: 'Fotoğraflı',       renk: '#1d4ed8', arka: '#dbeafe' },
+    WHATSAPP_FOTO: { ad: 'WhatsApp foto',    renk: '#1d4ed8', arka: '#dbeafe' },
+    PORTAL:        { ad: 'Müşteri girdi',    renk: '#6d28d9', arka: '#ede9fe' },
+    TOPLU:         { ad: 'Sayaç turu',       renk: '#4b5563', arka: '#f3f4f6' },
+    SERVIS_FISI:   { ad: 'Servis fişi',      renk: '#4b5563', arka: '#f3f4f6' },
+    ELLE:          { ad: 'Elle',             renk: '#4b5563', arka: '#f3f4f6' },
+};
+
 interface Reading {
     id: string;
     counterBlack: number;
@@ -42,6 +59,8 @@ interface Reading {
     readingDate: string;
     ticket?: { ticketNumber: string } | null;
     hasPhoto?: boolean;
+    /** CIHAZ_EPOSTA | FOTOGRAF | WHATSAPP_FOTO | PORTAL | TOPLU | SERVIS_FISI | ELLE */
+    source?: string;
 }
 
 interface DeviceInfo {
@@ -370,6 +389,17 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                     >
                                         <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: '#374151', whiteSpace: 'nowrap' }}>
                                             {new Date(r.readingDate).toLocaleDateString('tr-TR')}
+                                            {/* Kaynak rozeti: tartışmada bayinin ilk baktığı şey.
+                                                Tarihin altında, ayrı sütun açmadan — tablo zaten geniş. */}
+                                            {r.source && KAYNAK_ETIKET[r.source] && (
+                                                <div style={{
+                                                    display: 'inline-block', marginTop: 3, padding: '1px 7px', borderRadius: 999,
+                                                    fontSize: '0.68rem', fontWeight: 700, letterSpacing: '.01em',
+                                                    color: KAYNAK_ETIKET[r.source].renk, background: KAYNAK_ETIKET[r.source].arka,
+                                                }} title="Okumanın kaynağı — kanıt ağırlığı">
+                                                    {KAYNAK_ETIKET[r.source].ad}
+                                                </div>
+                                            )}
                                         </td>
                                         <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.875rem', fontWeight: '600' }}>
                                             {r.counterBlack.toLocaleString('tr-TR')}

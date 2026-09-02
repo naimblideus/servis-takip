@@ -196,6 +196,9 @@ export async function portalVerisi(m: PortalMusteri) {
       sayacBlack: okuma.get(c.id)?.counterBlack ?? null,
       sayacColor: okuma.get(c.id)?.counterColor ?? null,
       sayacTarih: okuma.get(c.id)?.readingDate.toISOString() ?? null,
+      // Kaynak müşteriye de gösterilir: "cihazınız kendisi bildirdi" cümlesi
+      // faturayı tartışılmaz kılar; bayinin elle girdiği sayı ise itiraza açık.
+      sayacKaynak: okuma.get(c.id)?.source ?? null,
     })),
     fisler: fisler.map((f) => ({
       id: f.id,

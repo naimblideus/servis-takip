@@ -16,7 +16,21 @@ interface Cihaz {
   id: string; ad: string; seri: string; yer: string | null;
   kiralik: boolean; sayacBlack: number | null; sayacColor: number | null;
   sayacTarih: string | null;
+  sayacKaynak: string | null;
 }
+
+/**
+ * Müşteriye gösterilen kaynak cümlesi. YALNIZ itiraz edilemez kaynaklar
+ * yazılır: cihazın kendi raporu, fotoğraf, müşterinin kendi girişi. Bayinin
+ * elle yazdığı sayaç için cümle YOK — "bayi elle girdi" yazmak müşteriyi
+ * itiraza davet eder; yalan da söylenmez, sadece susulur.
+ */
+const KAYNAK_CUMLESI: Record<string, string> = {
+  CIHAZ_EPOSTA: 'cihazınız kendisi bildirdi',
+  FOTOGRAF: 'fotoğrafla doğrulandı',
+  WHATSAPP_FOTO: 'gönderdiğiniz fotoğraftan',
+  PORTAL: 'sizin girişiniz',
+};
 
 const ARAMA_ESIGI = 12;
 const ILK_GOSTERIM = 25;
@@ -70,6 +84,9 @@ export default function CihazListesi({ token, cihazlar }: { token: string; cihaz
                   {c.sayacTarih && (
                     <div className="mt-0.5 text-[11px] text-slate-400">
                       {new Date(c.sayacTarih).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })} tarihinde okundu
+                      {c.sayacKaynak && KAYNAK_CUMLESI[c.sayacKaynak] && (
+                        <span className="text-emerald-700"> · {KAYNAK_CUMLESI[c.sayacKaynak]}</span>
+                      )}
                     </div>
                   )}
                 </div>
