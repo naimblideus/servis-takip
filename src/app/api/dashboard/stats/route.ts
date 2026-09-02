@@ -134,7 +134,34 @@ export async function GET() {
     };
   });
 
+  // ── SAYACI GELMEYEN KİRALIK CİHAZ ──────────────────────────────────────
+  // Bayinin bir numaralı derdi: "ayda 2-3 makinenin sayacı hiç gelmez, o ay
+  // o makineden para kazanmam, çoğu zaman fark etmem bile." Faturalama öncesi
+  // kontrol (invoices/preflight) bunu yalnız faturalama ANINDA gösteriyor;
+  // ay boyu görünür değil. Burada her gün görünür.
+  //
+  // Ölçüt "bu dönem okunmadı" DEĞİL — ayın 2'sinde her cihaz okunmamış olur,
+  // kart 51/51 gösterir, anlamsız. Ölçüt: son okuması 35 günden eski ya da hiç
+  // okuması olmayan kiralık cihaz. Bu, düzeni kaçmış cihazı her gün doğru sayar.
+  const esik = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000);
+  const kiralikIdler = (await prisma.device.findMany({
+    where: { tenantId, isRental: true }, select: { id: true },
+  })).map((d) => d.id);
+  let sayaciEksikCihaz = 0;
+  if (kiralikIdler.length > 0) {
+    const sonOkumalar = await prisma.counterReading.groupBy({
+      by: ['deviceId'],
+      where: { tenantId, deviceId: { in: kiralikIdler } },
+      _max: { readingDate: true },
+    });
+    const guncel = new Set(
+      sonOkumalar.filter((o) => o._max.readingDate && o._max.readingDate >= esik).map((o) => o.deviceId),
+    );
+    sayaciEksikCihaz = kiralikIdler.filter((id) => !guncel.has(id)).length;
+  }
+
   return NextResponse.json({
+    sayaciEksikCihaz,
     openTickets,
     todayTickets,
     waitingParts,

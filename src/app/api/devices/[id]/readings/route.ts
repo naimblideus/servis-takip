@@ -30,6 +30,8 @@ export async function POST(
             includeMonthlyRent,
             photo,
             reset,
+            // Fotoğraf varsa görsel kanıt seviyesi; yoksa en zayıf seviye.
+            source: photo ? 'FOTOGRAF' : 'ELLE',
         });
 
         return NextResponse.json({ ...reading, warning, breakdown });

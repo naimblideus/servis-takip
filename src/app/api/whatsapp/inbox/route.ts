@@ -161,6 +161,7 @@ export async function POST(req: NextRequest) {
           counterBlack: Number(counterBlack) || 0,
           counterColor: Number(counterColor) || 0,
           reset: !!reset,
+          source: 'WHATSAPP_FOTO',
         });
         await prisma.whatsAppMessage.update({
           where: { id: msg.id },

@@ -196,6 +196,7 @@ export async function POST(req: NextRequest) {
         deviceId: cihaz.id,
         counterBlack: okuma.black!,
         counterColor: okuma.color ?? sonRenk.get(cihaz.id) ?? 0,
+        source: 'CIHAZ_EPOSTA',
       }, cihaz.tenantId === bayi?.id ? bayiKaydi : undefined);
       await prisma.counterEmail.update({
         where: { id: kayit.id },

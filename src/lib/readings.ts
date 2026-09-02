@@ -25,7 +25,18 @@ export interface CreateReadingInput {
   photo?: string | null;
   /** Sayaç sıfırlandı/cihaz değişti onayı — düşüş ancak bununla kabul edilir */
   reset?: boolean;
+  /** Okuma nereden geldi — tartışmada kanıt ağırlığını belirler (bkz. şema) */
+  source?: OkumaKaynagi;
 }
+
+export type OkumaKaynagi =
+  | 'CIHAZ_EPOSTA'   // cihazın kendi sayaç raporu — en güçlü kanıt
+  | 'FOTOGRAF'       // teknisyen fotoğraf çekti
+  | 'WHATSAPP_FOTO'  // müşteri WhatsApp'tan fotoğraf gönderdi
+  | 'PORTAL'         // müşteri portaldan kendi girdi
+  | 'TOPLU'          // sayaç turunda toplu giriş
+  | 'SERVIS_FISI'    // servis fişi açılırken girildi
+  | 'ELLE';          // tekil elle giriş
 
 /** Tek okumada olağandışı yüksek artış (bloklamaz, uyarır) */
 const ANOMALY = 200000;
@@ -113,6 +124,7 @@ export async function createReading(
       calculatedCost,
       monthlyRent: monthlyRentAmount,
       photo: safePhotoOf(input.photo),
+      source: input.source ?? 'ELLE',
     },
   });
 

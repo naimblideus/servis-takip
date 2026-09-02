@@ -19,6 +19,7 @@ interface StuckTicket {
 }
 
 interface Stats {
+  sayaciEksikCihaz?: number; // 35+ gundur okumasi olmayan kiralik cihaz
   openTickets: number;
   todayTickets: number;
   waitingParts: number;
@@ -79,7 +80,17 @@ export default function DashboardPage() {
   const stuck = stats?.stuckTickets || [];
   const contracts = stats?.contractAlerts || [];
 
+  // Sayacı gelmeyen kiralık cihaz EN BAŞTA: bayinin bir numaralı derdi bu
+  // ("ayda 2-3 makinenin sayacı hiç gelmez, o ay para kazanmam, fark etmem").
+  // Sıfırken sakin renk; birden fazlaysa kırmızı — bakılması gereken şey o.
+  // Tıklanınca sayaç turuna gider: görmek yetmez, oradan düzeltilebilmeli.
+  const sayaciEksik = stats?.sayaciEksikCihaz || 0;
   const statCards = [
+    {
+      label: 'Sayacı Gelmeyen Cihaz', value: sayaciEksik,
+      color: sayaciEksik > 0 ? 'bg-red-500' : 'bg-slate-400', icon: '📟',
+      href: '/sayac-turu', hint: '35+ gündür okuma yok',
+    },
     { label: 'Açık Fişler', value: stats?.openTickets || 0, color: 'bg-blue-500', icon: '📋' },
     { label: 'Bugünkü Fişler', value: stats?.todayTickets || 0, color: 'bg-green-500', icon: '📅' },
     { label: 'Parça Bekliyor', value: stats?.waitingParts || 0, color: 'bg-orange-500', icon: '⏳' },
@@ -107,19 +118,24 @@ export default function DashboardPage() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {statCards.map((card, i) => (
-          <div key={i} className="card">
+        {statCards.map((card: any, i) => {
+          const govde = (
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">{card.label}</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
+                {card.hint && <p className="text-xs text-gray-400 mt-0.5">{card.hint}</p>}
               </div>
               <div className={`w-12 h-12 ${card.color} rounded-xl flex items-center justify-center text-2xl`}>
                 {card.icon}
               </div>
             </div>
-          </div>
-        ))}
+          );
+          // Tıklanabilir kart: görmek yetmez, oradan düzeltilebilmeli.
+          return card.href
+            ? <Link key={i} href={card.href} className="card block hover:shadow-md transition-shadow">{govde}</Link>
+            : <div key={i} className="card">{govde}</div>;
+        })}
       </div>
 
       {/* Sözleşme Uyarısı — bitmiş / yaklaşan kiralama sözleşmeleri */}

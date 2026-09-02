@@ -111,6 +111,8 @@ export async function POST(req: NextRequest) {
         counterBlack: Number(counterBlack) || 0,
         counterColor: Number(counterColor) || 0,
         reset: !!reset,
+        // Bayi elle eşleştirdi ama SAYI cihazın kendi raporundan geliyor.
+        source: 'CIHAZ_EPOSTA',
       });
       await prisma.counterEmail.update({
         where: { id: kayit.id },

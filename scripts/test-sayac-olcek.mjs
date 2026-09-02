@@ -133,6 +133,17 @@ console.log(`  gerçek         : ${(toplamMetin / 1024).toFixed(0)} KB (${kayitl
 console.log(`  her kayda tüm rapor yazılsaydı: ${(naifBoyut / 1024 / 1024).toFixed(1)} MB`);
 console.log(`  tasarruf       : ${(100 - toplamMetin / naifBoyut * 100).toFixed(1)}%  ·  yılda ${((naifBoyut - toplamMetin) * 12 / 1024 / 1024).toFixed(0)} MB (tek müşteri)`);
 
+// ── Kaynak alanı GERÇEKTEN yazılıyor mu ───────────────────────────────────
+// Tartışmada kanıt ağırlığını belirleyen alan bu; yazılmıyorsa sessizce ELLE
+// (en zayıf seviye) kalır ve cihazdan gelen okuma bayi girişi gibi görünür.
+const kaynaklar = await p.counterReading.groupBy({
+  by: ['source'], where: { deviceId: { in: (await p.device.findMany({ where: { serialNo: { startsWith: 'OLCEK' } }, select: { id: true } })).map((d) => d.id) } },
+  _count: { _all: true },
+});
+const cihazKaynakli = kaynaklar.find((k) => k.source === 'CIHAZ_EPOSTA')?._count._all ?? 0;
+console.log();
+console.log(`  kaynak alanı   : ${cihazKaynakli}/${ADET} okuma CIHAZ_EPOSTA ${cihazKaynakli === ADET ? '✓' : '✗ (ELLE kalmış!)'}`);
+if (cihazKaynakli !== ADET) process.exitCode = 1;
 // ── Temizlik ─────────────────────────────────────────────────────────────
 process.stdout.write('\n  temizleniyor... ');
 const idler = (await p.device.findMany({ where: { serialNo: { startsWith: 'OLCEK' } }, select: { id: true } })).map((d) => d.id);

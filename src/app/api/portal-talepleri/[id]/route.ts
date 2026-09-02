@@ -84,6 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         deviceId: talep.deviceId,
         counterBlack: talep.sayacBlack,
         counterColor: renkli,
+        source: 'PORTAL',
       });
       await prisma.portalRequest.update({
         where: { id },

@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
           deviceId,
           counterBlack: Number(r.counterBlack),
           counterColor: Number(r.counterColor ?? 0),
+          source: 'TOPLU',
           includeMonthlyRent: !!includeMonthlyRent,
           reset: !!r.reset,
         }, tenant);

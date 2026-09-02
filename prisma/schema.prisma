@@ -604,6 +604,12 @@ model CounterReading {
   billed         Boolean  @default(false) // Dönem faturasına dahil edildi mi (idempotency)
   invoiceLineId  String? // Hangi fatura satırına girdi
   photo          String? // Sayaç fotoğrafı (küçültülmüş JPEG data URL — kanıt)
+  // Okuma NEREDEN geldi. Tartışmada belirleyici olan şey bu: "cihazınız kendisi
+  // bildirdi, işte e-postası" ile "teknisyen elle yazdı" aynı ağırlıkta değil.
+  // CIHAZ_EPOSTA (cihazın kendi raporu) > FOTOGRAF / WHATSAPP_FOTO (görsel kanıt)
+  // > PORTAL (müşteri kendi girdi) > TOPLU / SERVIS_FISI / ELLE (bayi girdi).
+  // Eski kayıtlar ELLE sayılır — kaynağı bilinmiyor, en zayıf kanıt seviyesi.
+  source         String   @default("ELLE")
   createdAt      DateTime @default(now())
 
   // Relations

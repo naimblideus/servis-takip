@@ -89,6 +89,7 @@ export async function POST(req: Request) {
           counterBlack: cb ?? device.counterBlack ?? 0,
           counterColor: cc ?? device.counterColor ?? 0,
           ticketId: ticket.id,
+          source: 'SERVIS_FISI',
           photo: body.counterPhoto ?? null,
           reset: !!body.counterReset,
         });
