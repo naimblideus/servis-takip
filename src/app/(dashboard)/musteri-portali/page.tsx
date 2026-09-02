@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { waPhone, waGecerliMi } from '@/lib/share';
 
 interface Musteri {
   id: string;
@@ -61,6 +62,11 @@ export default function MusteriPortaliSayfasi() {
       /* Telefonu olmayanda portal açmak, bağlantı gönderilemeyecek bir
          müşterinin verisini yayınlamak demek: fayda yok, yüzey var. */
       acilabilir: musteriler.filter((m) => !m.acik && m.telefon.trim()).length,
+      /* WhatsApp'a GERÇEKTEN gönderilebilecekler. Ölçüldü: 305 müşterinin
+         124'ünde telefon "BOS-…" yer tutucusu; onlara düğme çizmek kırık
+         bağlantı üretiyordu. Sayı burada duruyor ki bayi kaç kişiye mesaj
+         atabileceğini ÖNCEDEN bilsin, tek tek deneyerek değil. */
+      waHazir: musteriler.filter((m) => waGecerliMi(m.telefon)).length,
     }),
     [musteriler]
   );
@@ -111,8 +117,10 @@ export default function MusteriPortaliSayfasi() {
    * alan kişi "bu ne" diye sormasın.
    */
   const waBaglantisi = (m: Musteri) => {
-    const tel = m.telefon.replace(/\D/g, '');
-    const ulus = tel.length === 11 && tel.startsWith('0') ? '90' + tel.slice(1) : tel;
+    // Numara doğrulaması TEK YERDE (`lib/share`): burada ayrı bir dönüşüm
+    // yazmak, yer tutucu numaraları wa.me/9000070 gibi kırık bağlantılara
+    // çeviren tam olarak o ikinci kopyaydı.
+    const ulus = waPhone(m.telefon);
     const metin =
       `Merhaba, cihazlarınızı ve sarf takibinizi görebileceğiniz kişisel panelinizi açtık.\n` +
       `Şifre gerekmez, bu bağlantı size özeldir:\n${bagAdresi(m.jeton!)}`;
@@ -141,7 +149,7 @@ export default function MusteriPortaliSayfasi() {
         {[
           { ad: 'Erişimi olan', n: sayim.acik },
           { ad: 'Erişimi olmayan', n: sayim.kapali },
-          { ad: 'Şimdi açılabilir', n: sayim.acilabilir, alt: 'telefonu kayıtlı olanlar' },
+          { ad: 'WhatsApp\u2019a hazır', n: sayim.waHazir, alt: 'cep numarası kayıtlı olanlar' },
         ].map((k) => (
           <div key={k.ad} className="rounded-lg border bg-white p-4">
             <div className="text-2xl font-bold tabular-nums">{k.n}</div>
@@ -234,7 +242,16 @@ export default function MusteriPortaliSayfasi() {
                   >
                     Bağlantıyı kopyala
                   </button>
-                  {m.telefon.trim() && (
+                  {!waGecerliMi(m.telefon) && (
+                    <span className="text-xs text-amber-700">
+                      cep numarası yok — kopyalayıp gönderin
+                    </span>
+                  )}
+                  {/* Düğme YALNIZ gerçek cep numarasında. Yer tutucu ya da
+                      sabit hatta çizilirse müşteri "bana gelmedi" diyene
+                      kadar kırık olduğu anlaşılmıyor; bayi bağlantıyı
+                      kopyalayıp başka yoldan gönderiyor. */}
+                  {waGecerliMi(m.telefon) && (
                     <a
                       href={waBaglantisi(m)}
                       target="_blank"

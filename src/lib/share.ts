@@ -1,13 +1,44 @@
 // WhatsApp / paylaşım yardımcıları (mobil-öncelikli; ana yapıyı bozmaz, ek aksiyon).
 
 /** Türk telefonunu wa.me formatına çevir: 0532... -> 90532...; +90/90 korunur; rakam-dışı atılır. */
+/**
+ * WhatsApp'a gönderilebilir TÜRK CEP numarası; değilse boş dize.
+ *
+ * ── NEDEN DOĞRULAMA ŞART ──────────────────────────────────────────────
+ * Önceki hâl her girdiyi bir numaraya çeviriyordu: "BOS-000070" → rakamlar
+ * "000070" → başında 0 var → "9000070". Ortaya wa.me/9000070 gibi ÇALIŞMAYAN
+ * bir bağlantı çıkıyordu.
+ *
+ * Ölçüldü (Saygılı, üretim): 305 müşterinin 124'ünde telefon "BOS-…" yer
+ * tutucusu. Yani Müşteri Paneli ekranındaki "WhatsApp'tan gönder"
+ * düğmelerinin 124'ü kırık bağlantı açıyordu — ve bunu ancak müşteri
+ * "bana bir şey gelmedi" dediğinde öğrenirdiniz.
+ *
+ * ── NEDEN YALNIZ CEP ──────────────────────────────────────────────────
+ * WhatsApp sabit hatta çalışmaz. Sabit hat için bağlantı üretmek de
+ * "bu numara WhatsApp'ta kayıtlı değil" ekranı demek — hiç göstermemekten
+ * kötü. Ölçüt Türkiye cep biçimi: 90 + 5XXXXXXXXX.
+ *
+ * ── BOŞ DÖNMEK GÜVENLİ ────────────────────────────────────────────────
+ * `waUrl` boş numarada `https://wa.me/?text=…` üretiyor: WhatsApp kişi
+ * seçtirme ekranıyla açılıyor ve metin hazır geliyor. Yani kırık numara
+ * yerine "kime göndereceğini sen seç" — bozuk değil, eksik.
+ *
+ * NOT: ICP Türkiye. Yurt dışı numara gerekirse ölçüt burada genişletilir.
+ */
 export function waPhone(raw: string | null | undefined): string {
-  let d = (raw || '').replace(/\D/g, '');
+  const d = (raw || '').replace(/\D/g, '');
   if (!d) return '';
-  if (d.startsWith('90')) return d;
-  if (d.startsWith('0')) return '90' + d.slice(1);
-  if (d.length === 10) return '90' + d; // 5XXXXXXXXX
-  return d;
+  const n = d.startsWith('90') ? d
+    : d.startsWith('0') ? '90' + d.slice(1)
+    : d.length === 10 ? '90' + d // 5XXXXXXXXX
+    : '';
+  return /^905\d{9}$/.test(n) ? n : '';
+}
+
+/** WhatsApp bağlantısı üretilebilir mi? Düğmeyi çizmeden önce sorulur. */
+export function waGecerliMi(raw: string | null | undefined): boolean {
+  return waPhone(raw) !== '';
 }
 
 /** wa.me linki: numara varsa o kişiye, yoksa kişi seçtirir. metin ön-doldurulur. */
