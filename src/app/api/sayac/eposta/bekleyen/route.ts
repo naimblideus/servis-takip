@@ -6,18 +6,25 @@ import { createReading, ReadingError } from '@/lib/readings';
 /**
  * GET — otomatik işlenemeyen sayaç e-postaları.
  *
- * Kapsam bilinçli olarak GENİŞ: tenantId'si NULL olanlar da listelenir. Seri
- * eşleşmediğinde e-postanın hangi bayiye ait olduğu bilinmiyor; onları gizlersek
- * hiç kimse görmez ve sessizce birikirler. Ham metin kırpılarak gönderilir.
+ * SAHİPSİZ KAYITLAR (tenantId = null) YALNIZ SÜPER YÖNETİCİYE GÖSTERİLİR.
+ * Eskiden herkese gösteriliyordu, gerekçesi "gizlersek kimse görmez ve
+ * sessizce birikirler"di. Ama bu kayıt bir müşterinin HAM sayaç raporunu
+ * taşıyor: hangi firma, hangi cihaz, kaç bin sayfa. Bayi kodu çözülemediğinde
+ * o rapor aynı şehirdeki RAKİP bayinin ekranında açılıyordu.
+ *
+ * "Kimse görmesin" endişesi geçerli, çözümü farklı: kayıt açılmaya devam
+ * ediyor (bkz. /api/sayac/eposta — kod tanınmazsa 2xx döner ve kaydı tutar),
+ * ama sahibi belirlenene kadar yalnız işletmeci görüyor.
  */
 export async function GET(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { tenantId, user } = await requireTenantUser();
     const hepsi = new URL(req.url).searchParams.get('hepsi') === '1';
+    const superYonetici = user.role === 'SUPER_ADMIN';
 
     const kayitlar = await prisma.counterEmail.findMany({
       where: {
-        OR: [{ tenantId }, { tenantId: null }],
+        ...(superYonetici ? { OR: [{ tenantId }, { tenantId: null }] } : { tenantId }),
         ...(hepsi ? {} : { status: { in: ['BEKLIYOR', 'HATA'] } }),
       },
       orderBy: { receivedAt: 'desc' },
@@ -83,11 +90,17 @@ export async function GET(req: NextRequest) {
 /** POST — elle işle: bayi cihazı seçip sayacı yazar. */
 export async function POST(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { tenantId, user } = await requireTenantUser();
     const { id, deviceId, counterBlack, counterColor, reset, yoksay } = await req.json();
 
+    // GET ile aynı kural: sahipsiz kaydı yalnız süper yönetici ele alabilir.
+    // Cihaz IDOR'u aşağıda ayrıca kapalı (cihaz bu bayiye ait olmak zorunda),
+    // ama bu kontrol olmadan bayi başkasının bekleyen kaydını "yoksay" ile
+    // düşürebilir ya da ham metnini kimliğiyle çekebilirdi.
     const kayit = await prisma.counterEmail.findFirst({
-      where: { id, OR: [{ tenantId }, { tenantId: null }] },
+      where: user.role === 'SUPER_ADMIN'
+        ? { id, OR: [{ tenantId }, { tenantId: null }] }
+        : { id, tenantId },
     });
     if (!kayit) return NextResponse.json({ error: 'Kayıt bulunamadı' }, { status: 404 });
 

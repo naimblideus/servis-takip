@@ -59,16 +59,36 @@ export async function POST(req: NextRequest) {
     : [];
   const bayi = bulunan.length === 1 ? bulunan[0] : null;
 
-  // GÜVENLİK: kod VAR ama hiçbir bayiye çözülmüyorsa (ya da birden fazlasına
-  // çözülüyorsa) e-posta işlenmez. Eskiden bu durumda seri araması TÜM aktif
-  // bayilere yayılıyordu: aynı şehirdeki iki bayi rakiptir ve bir müşterinin
-  // ham sayaç raporu rakibin kuyruğuna düşebilirdi.
-  // Kod HİÇ yoksa eski davranış korunur — kodsuz eski adres çalışmaya devam etsin.
+  // ── Kod var ama bayiye çözülmüyor ────────────────────────────────────────
+  // Üç şeyin AYNI ANDA doğru olması gerekiyor, üçü de zor yoldan öğrenildi:
+  //
+  // 1. Seri araması yayılMAZ. Eskiden çözülemeyen kodda arama tüm aktif
+  //    bayilere açılıyordu; aynı şehirdeki iki bayi rakiptir ve bir müşterinin
+  //    ham sayaç raporu rakibin kuyruğuna düşebiliyordu.
+  // 2. Cevap 2xx OLMALI. Köprü (Apps Script) yalnız 2xx'te mesajı okundu
+  //    işaretliyor; 4xx dönersek tek bir yanlış yazılmış cihaz kodu 15
+  //    dakikada bir sonsuza kadar yeniden denenir ve hiçbir yerde görünmez.
+  // 3. Kayıt TUTULUR. Aksi hâlde bayi cihaza kodu yanlış girdiğinde sayaçlar
+  //    sessizce kaybolur — fark edildiğinde fatura çoktan kesilmiştir.
+  //
+  // Kayıt sahipsiz (tenantId null) açılır ve YALNIZ süper yönetici görür;
+  // bkz. /api/sayac/eposta/bekleyen.
   if (adaylar.length > 0 && !bayi) {
-    return NextResponse.json(
-      { error: 'Bayi kodu çözülemedi — e-posta işlenmedi', kodlar: adaylar },
-      { status: 422 },
-    );
+    const sebep = bulunan.length > 1
+      ? `Adres birden çok bayiye çözülüyor (${adaylar.join(', ')}) — işlenmedi`
+      : `Adresteki bayi kodu tanınmadı (${adaylar.join(', ')}) — cihazın e-posta ayarını kontrol edin`;
+    const tek = parseCounterEmail(htmlToText(ham), [], subject);
+    await prisma.counterEmail.create({
+      data: {
+        tenantId: null,
+        fromAddress: from || null, subject: subject || null,
+        rawText: htmlToText(ham).slice(0, 100_000),
+        serial: bildirilenSeri(ham)[0] ?? null, deviceId: null,
+        parsedBlack: tek.black, parsedColor: tek.color,
+        status: 'BEKLIYOR', hata: sebep,
+      },
+    });
+    return NextResponse.json({ ok: true, bayi: 'kod tanınmadı', islenen: 0, bekleyen: 1, sebep });
   }
 
   // Seri araması: kod varsa O BAYİYLE sınırlı, yoksa tüm aktif bayiler.
