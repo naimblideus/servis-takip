@@ -942,8 +942,11 @@ export default function AccountingPage() {
                               // Fatura satırı Faturalar ekranından yönetilir.
                               const duzenlenebilir = servis;
                               const kayit = duzenlenebilir ? detail.entries.find(e => e.id === s.id) : null;
+                              // Satırın solunda renk şeridi YOK: borç/ödeme ayrımını tutarın
+                              // rengi ve '+' işareti taşıyor, kaynak ayrımını "Nereden" rozeti.
+                              // Şerit aynı bilgiyi üçüncü kez söylüyordu.
                               return (
-                                <tr key={s.id} style={{borderBottom:'1px solid #f3f4f6',backgroundColor:i%2===0?'white':'#fafafa',borderLeft:`3px solid ${borc?'#f59e0b':'#10b981'}`}}>
+                                <tr key={s.id} style={{borderBottom:'1px solid #f3f4f6',backgroundColor:i%2===0?'white':'#fafafa'}}>
                                   <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem',color:'#6b7280',whiteSpace:'nowrap'}}>{new Date(s.tarih).toLocaleDateString('tr-TR')}</td>
                                   <td style={{padding:'0.6rem 0.875rem'}}>
                                     <span style={{backgroundColor:servis?'#fef3c7':'#dbeafe',color:servis?'#92400e':'#1e40af',padding:'0.15rem 0.45rem',borderRadius:'9999px',fontSize:'0.65rem',fontWeight:'600',whiteSpace:'nowrap'}}>
