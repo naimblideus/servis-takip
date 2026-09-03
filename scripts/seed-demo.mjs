@@ -292,6 +292,12 @@ async function modulVerisi(tenant, kullaniciId, musteriler, cihazlar) {
     const tarih = new Date(Date.now() - gunOnce * 86400000);
     const iscilik = rnd(250, 900);
 
+    // Kapanan fişlerin bir kısmı ÖDENMEMİŞ kalsın: cari defterde gerçek bir
+    // borç görünsün. Hepsi ödenmiş olsaydı Muhasebe ekranı "hepsi ✅ Temiz"
+    // derken Faturalar ekranı "vadesi geçen ₺X" diyordu — bayi iki ekranın
+    // birbirini yalanladığını görüyordu.
+    const odendi = kapali && Math.random() < 0.7;
+
     const fis = await p.serviceTicket.create({
       data: {
         tenantId: tenant.id, deviceId: c.id, customerId: c.customerId,
@@ -301,7 +307,7 @@ async function modulVerisi(tenant, kullaniciId, musteriler, cihazlar) {
         faultCategory: a.k, issueText: a.m,
         actionText: kapali ? a.i : null,
         laborCost: iscilik, totalCost: iscilik,
-        paymentStatus: kapali ? 'PAID' : 'UNPAID',
+        paymentStatus: odendi ? 'PAID' : 'UNPAID',
         createdAt: tarih, updatedAt: tarih, statusUpdatedAt: tarih,
       },
     });
@@ -316,8 +322,76 @@ async function modulVerisi(tenant, kullaniciId, musteriler, cihazlar) {
       await p.part.update({ where: { id: parca.id }, data: { stockQty: { decrement: adet } } });
       const yeniToplam = iscilik + Number(parca.sellPrice) * adet;
       await p.serviceTicket.update({ where: { id: fis.id }, data: { totalCost: yeniToplam } });
+      fis.totalCost = yeniToplam;
+    }
+
+    // ── CARİ DEFTERE İŞLE ───────────────────────────────────────────────
+    // Gerçek akışta bunu lib/ticket-cari.syncTicketToCari yapıyor (fiş
+    // açılınca ve ödeme girilince çağrılıyor). Tohum prisma'ya doğrudan
+    // yazdığı için o yol atlanıyordu ve Muhasebe/Cari ekranı bomboş
+    // kalıyordu. Yazılan satırlar o fonksiyonun ürettiğiyle aynı biçimde.
+    const tutar = Number(fis.totalCost) || 0;
+    if (tutar > 0) {
+      await p.accountEntry.create({
+        data: {
+          tenantId: tenant.id, customerId: c.customerId, ticketId: fis.id,
+          type: 'SALE', product: `Servis ${fis.ticketNumber}`, amount: tutar,
+          method: 'OPEN_ACCOUNT', notes: 'Servis fişi', createdByName: 'Demo Kullanıcı', date: tarih,
+        },
+      });
+      if (odendi) {
+        await p.accountEntry.create({
+          data: {
+            tenantId: tenant.id, customerId: c.customerId, ticketId: fis.id,
+            type: 'PAYMENT', amount: tutar, method: 'CASH',
+            notes: 'Servis tahsilatı', createdByName: 'Demo Kullanıcı', date: tarih,
+          },
+        });
+      }
     }
     fisler.push(fis);
+  }
+
+  // ── YENİLEME ADAYI GARANTİSİ ────────────────────────────────────────────
+  // Rapor bir cihazı ancak YAŞI 5 yılı geçmiş VE son 12 ayda 3+ arıza almışsa
+  // aday sayıyor. Rastgele dağılımda bu ikisi aynı cihazda denk gelmiyordu:
+  // yaş kapsamı %100 iken aday listesi BOŞ çıkıyordu, modül çalışmıyor gibi
+  // görünüyordu. Eskiyen makinenin üst üste bozulması zaten gerçek yenileme
+  // sinyali — iki cihazda bilerek kuruluyor.
+  const bes = new Date(); bes.setMonth(bes.getMonth() - 60);
+  const eskiler = cihazlar.filter((c) => c.installedAt && c.installedAt < bes).slice(0, 2);
+  for (const c of eskiler) {
+    for (let k = 0; k < 3; k++) {
+      const a = ARIZALAR[rnd(0, ARIZALAR.length - 1)];
+      const tarih = new Date(Date.now() - rnd(20, 300) * 86400000);
+      const iscilik = rnd(400, 1100);
+      const fis = await p.serviceTicket.create({
+        data: {
+          tenantId: tenant.id, deviceId: c.id, customerId: c.customerId,
+          ticketNumber: `TSK-${String(++no).padStart(4, '0')}`,
+          status: 'DELIVERED', priority: 'HIGH',
+          createdByUserId: kullaniciId, assignedUserId: kullaniciId,
+          faultCategory: a.k, issueText: a.m, actionText: a.i,
+          laborCost: iscilik, totalCost: iscilik, paymentStatus: 'PAID',
+          createdAt: tarih, updatedAt: tarih, statusUpdatedAt: tarih,
+        },
+      });
+      await p.accountEntry.create({
+        data: {
+          tenantId: tenant.id, customerId: c.customerId, ticketId: fis.id,
+          type: 'SALE', product: `Servis ${fis.ticketNumber}`, amount: iscilik,
+          method: 'OPEN_ACCOUNT', notes: 'Servis fişi', createdByName: 'Demo Kullanıcı', date: tarih,
+        },
+      });
+      await p.accountEntry.create({
+        data: {
+          tenantId: tenant.id, customerId: c.customerId, ticketId: fis.id,
+          type: 'PAYMENT', amount: iscilik, method: 'CASH',
+          notes: 'Servis tahsilatı', createdByName: 'Demo Kullanıcı', date: tarih,
+        },
+      });
+      fisler.push(fis);
+    }
   }
 
   // ── FATURA · TAHSİLAT · CARİ ────────────────────────────────────────────
