@@ -85,19 +85,31 @@ export default function DashboardPage() {
   // Sıfırken sakin renk; birden fazlaysa kırmızı — bakılması gereken şey o.
   // Tıklanınca sayaç turuna gider: görmek yetmez, oradan düzeltilebilmeli.
   const sayaciEksik = stats?.sayaciEksikCihaz || 0;
+  // İkon kutuları artık DOLGU değil yumuşak yüzey: yan yana yedi doygun blok
+  // gözü yoruyor ve hepsi eşit derecede "acil" görünüyordu. Sakin yüzeyde
+  // gerçekten acil olan (kırmızı) öne çıkabiliyor.
+  const ton = {
+    uyari:  { yz: '#FDECEC', ik: '#B93333' },
+    sakin:  { yz: '#F1F4F9', ik: '#6C7A93' },
+    marka:  { yz: '#EEF2FA', ik: '#1D3E7E' },
+    para:   { yz: '#E7F6EF', ik: '#0B8259' },
+    bekle:  { yz: '#FCF3E4', ik: '#B0721F' },
+    hazir:  { yz: '#F0EDFB', ik: '#5A48B8' },
+    cihaz:  { yz: '#E6F4F5', ik: '#0B757D' },
+  };
   const statCards = [
     {
       label: 'Sayacı Gelmeyen Cihaz', value: sayaciEksik,
-      color: sayaciEksik > 0 ? 'bg-red-500' : 'bg-slate-400', icon: '📟',
-      href: '/sayac-turu', hint: '35+ gündür okuma yok',
+      ton: sayaciEksik > 0 ? ton.uyari : ton.sakin, icon: '📟',
+      href: '/sayac-turu', hint: '35+ gündür okuma yok', vurgu: sayaciEksik > 0,
     },
-    { label: 'Açık Fişler', value: stats?.openTickets || 0, color: 'bg-blue-500', icon: '📋' },
-    { label: 'Bugünkü Fişler', value: stats?.todayTickets || 0, color: 'bg-green-500', icon: '📅' },
-    { label: 'Parça Bekliyor', value: stats?.waitingParts || 0, color: 'bg-orange-500', icon: '⏳' },
-    { label: 'Teslime Hazır', value: stats?.readyForPickup || 0, color: 'bg-purple-500', icon: '✅' },
-    { label: 'Bu Ay Ciro', value: formatCurrency(stats?.monthRevenue || 0), color: 'bg-emerald-500', icon: '💰' },
-    { label: 'Kiralık Cihaz', value: stats?.rentalDevices || 0, color: 'bg-cyan-500', icon: '🏷️' },
-    { label: 'Kritik Stok', value: stats?.lowStockItems || 0, color: 'bg-red-500', icon: '⚠️' },
+    { label: 'Açık Fişler', value: stats?.openTickets || 0, ton: ton.marka, icon: '📋' },
+    { label: 'Bugünkü Fişler', value: stats?.todayTickets || 0, ton: ton.para, icon: '📅' },
+    { label: 'Parça Bekliyor', value: stats?.waitingParts || 0, ton: ton.bekle, icon: '⏳' },
+    { label: 'Teslime Hazır', value: stats?.readyForPickup || 0, ton: ton.hazir, icon: '✅' },
+    { label: 'Bu Ay Ciro', value: formatCurrency(stats?.monthRevenue || 0), ton: ton.para, icon: '💰' },
+    { label: 'Kiralık Cihaz', value: stats?.rentalDevices || 0, ton: ton.cihaz, icon: '🏷️' },
+    { label: 'Kritik Stok', value: stats?.lowStockItems || 0, ton: (stats?.lowStockItems || 0) > 0 ? ton.uyari : ton.sakin, icon: '⚠️' },
   ];
 
   return (
@@ -105,8 +117,8 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 text-sm">Genel durum özeti</p>
+          <div className="text-[10.5px] font-bold uppercase tracking-[.18em] text-gray-400">Bugün</div>
+          <h1 className="mt-0.5 text-[1.6rem] font-extrabold tracking-[-.022em] text-gray-900">Genel Durum</h1>
         </div>
         <Link href="/tickets/new" className="btn-primary flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,30 +129,35 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
         {statCards.map((card: any, i) => {
           const govde = (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">{card.label}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
-                {card.hint && <p className="text-xs text-gray-400 mt-0.5">{card.hint}</p>}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                {/* Etiket önce ve küçük, sayı büyük: göz sayıyı tarar, etiketi
+                    yalnız gerektiğinde okur. */}
+                <p className="truncate text-[.78rem] font-semibold uppercase tracking-[.04em] text-gray-500">{card.label}</p>
+                <p className="mt-1.5 text-[1.75rem] font-extrabold leading-none tracking-[-.02em] text-gray-900 tabular-nums">{card.value}</p>
+                {card.hint && <p className="mt-1 text-[.7rem] text-gray-400">{card.hint}</p>}
               </div>
-              <div className={`w-12 h-12 ${card.color} rounded-xl flex items-center justify-center text-2xl`}>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
+                style={{ background: card.ton.yz, color: card.ton.ik }}>
                 {card.icon}
               </div>
             </div>
           );
           // Tıklanabilir kart: görmek yetmez, oradan düzeltilebilmeli.
+          const kap = 'card block transition-shadow duration-150';
           return card.href
-            ? <Link key={i} href={card.href} className="card block hover:shadow-md transition-shadow">{govde}</Link>
-            : <div key={i} className="card">{govde}</div>;
+            ? <Link key={i} href={card.href} className={kap + ' hover:shadow-[0_2px_4px_rgba(11,21,51,.05),0_8px_20px_-6px_rgba(11,21,51,.12)]'}
+                style={card.vurgu ? { borderColor: '#F2C2C2' } : undefined}>{govde}</Link>
+            : <div key={i} className={kap} style={card.vurgu ? { borderColor: '#F2C2C2' } : undefined}>{govde}</div>;
         })}
       </div>
 
       {/* Sözleşme Uyarısı — bitmiş / yaklaşan kiralama sözleşmeleri */}
       {contracts.length > 0 && (
-        <div className="card" style={{ borderLeft: '4px solid #7c3aed' }}>
+        <div className="card" style={{ background: '#FAF9FE', borderColor: '#DDD5F5' }}>
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-semibold" style={{ color: '#6d28d9' }}>📄 Sözleşme Uyarısı ({contracts.length})</h2>
             <Link href="/customers" className="text-blue-600 text-sm hover:underline">Müşteriler →</Link>
@@ -186,7 +203,7 @@ export default function DashboardPage() {
 
       {/* Duran İşler — durumu N gündür değişmemiş açık fişler */}
       {stuck.length > 0 && (
-        <div className="card" style={{ borderLeft: '4px solid #f97316' }}>
+        <div className="card" style={{ background: '#FEFAF3', borderColor: '#F3DFBE' }}>
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-semibold text-orange-600">⏳ Duran İşler ({stuck.length})</h2>
             <Link href="/tickets?status=IN_SERVICE" className="text-blue-600 text-sm hover:underline">Fişler →</Link>
@@ -246,7 +263,7 @@ export default function DashboardPage() {
 
       {/* Overdue Debtors */}
       {overdueDebtors.length > 0 && (
-        <div className="card" style={{borderLeft: '4px solid #ef4444'}}>
+        <div className="card" style={{ background: '#FEF7F7', borderColor: '#F2C2C2' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-red-600">⚠️ Borçlu Müşteriler ({overdueDebtors.length})</h2>
             <Link href="/accounting" className="text-blue-600 text-sm hover:underline">Muhasebe →</Link>

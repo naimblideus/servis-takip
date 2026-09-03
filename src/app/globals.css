@@ -1,25 +1,178 @@
 @import "tailwindcss";
 
+/* ══════════════════════════════════════════════════════════════════════════
+   NEXTUS SERVİS — UYGULAMA GÖRSEL DİLİ
+
+   ── NEDEN BU DOSYA BÖYLE ─────────────────────────────────────────────────
+   Uygulama Tailwind'in kutudan çıkan paletiyle büyüdü: gray-900 kenar
+   çubuğu, blue-500 düğme, kartlarda yedi ayrı doygun renk (blue/green/
+   orange/purple/emerald/cyan/red). Landing ve giriş ekranı ise marka dilini
+   konuşuyor. Satın alan kişi ikisini arka arkaya görüyor ve arada renk
+   kayması oluyor — ürün "yazılım" gibi değil "şablon" gibi duruyor.
+
+   ÇÖZÜM YÖNTEMİ — bileşenlere dokunmadan: Tailwind v4'te @theme, paletin
+   KENDİSİNİ yeniden tanımlar. src/ içinde 70 sayfada yazılı olan
+   bg-gray-900 / bg-blue-600 / text-gray-500 tek satır bile değişmeden
+   marka renklerine çözülür. Bu bilinçli: yazdırma, fiş akışı ve fatura
+   ekranları çalışıyor; onlara dokunmadan görünüşü değiştirmenin tek güvenli
+   yolu paleti kaynağından değiştirmek.
+
+   ── PALET ────────────────────────────────────────────────────────────────
+   Marka çapaları landing ile aynı:
+     lacivert  #0F2253   birincil — düğme, aktif menü, başlık
+     mürekkep  #0B1533   en koyu  — kenar çubuğu zemini
+     zümrüt    #0E9F6E   ikincil  — YALNIZ para/olumlu sonuç
+
+   Zümrüt kısıtlı kullanılıyor: tahsilat, ciro, "tamam" durumu. Menüde ve
+   sıradan düğmede YOK. Her yere serpilirse "para geldi" anlamını kaybeder.
+
+   Nötrler saf gri DEĞİL, laciverte çalan gri: saf gri marka lacivertinin
+   yanında kirli/soğuk duruyor. Aynı sıcaklıkta bir nötr ölçek, ekranı tek
+   parça gösterir.
+
+   ── DEĞİŞTİRİRKEN ────────────────────────────────────────────────────────
+   Bir token'ı değiştirirsen metin/zemin kontrastını ölç. "Yeterince koyu
+   duruyor" 4.5:1'i geçtiği anlamına gelmez; bu ürünü elli yaşında bir bayi
+   sahibi depo ışığında kullanıyor.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── Nötr ölçek: laciverte çalan gri ────────────────────────────────────
+     Uygulamada en çok yazılan renkler bunlar (bg-gray-100 sayfa zemini,
+     bg-gray-900 kenar çubuğu, text-gray-500 ikincil metin). */
+  --color-gray-50:  #F8FAFC;
+  --color-gray-100: #F1F4F9;   /* sayfa zemini */
+  --color-gray-200: #E4E9F1;
+  --color-gray-300: #CFD7E4;
+  --color-gray-400: #98A3B8;   /* susturulmuş metin, ikon */
+  --color-gray-500: #6C7A93;   /* ikincil metin */
+  --color-gray-600: #53617B;
+  --color-gray-700: #33405C;   /* kenar çubuğu ayırıcı */
+  --color-gray-800: #16264A;
+  --color-gray-900: #0B1533;   /* kenar çubuğu zemini — mürekkep */
+  --color-gray-950: #060D22;
+
+  /* Slate ölçeği de aynı aileye çekiliyor: kodun bir kısmı slate yazıyor,
+     ikisi ayrışırsa aynı ekranda iki farklı gri tonu görünür. */
+  --color-slate-50:  #F8FAFC;
+  --color-slate-100: #F1F4F9;
+  --color-slate-200: #E4E9F1;
+  --color-slate-300: #CFD7E4;
+  --color-slate-400: #98A3B8;
+  --color-slate-500: #6C7A93;
+  --color-slate-600: #53617B;
+  --color-slate-700: #33405C;
+  --color-slate-800: #16264A;
+  --color-slate-900: #0B1533;
+
+  /* ── Marka: mavi ölçeği lacivert ailesine bağlanıyor ───────────────────
+     Düğmeler ve aktif menü bg-blue-500/600 yazıyor. Aktif menü öğesi
+     mürekkep zemin üstünde DURMALI, o yüzden 600 kenar çubuğundan belirgin
+     şekilde açık. */
+  --color-blue-50:  #EEF2FA;
+  --color-blue-100: #DDE5F3;
+  --color-blue-200: #B9C7E4;
+  --color-blue-300: #8CA1CE;
+  --color-blue-400: #4C6BA8;
+  --color-blue-500: #1D3E7E;
+  --color-blue-600: #0F2253;   /* birincil — marka laciverti */
+  --color-blue-700: #0C1B42;
+  --color-blue-800: #091533;
+  --color-blue-900: #060F26;
+  --color-indigo-500: #1D3E7E;
+  --color-indigo-600: #0F2253;
+
+  /* ── Zümrüt: para ve olumlu sonuç ──────────────────────────────────────
+     Tailwind'in green'i de buraya bağlanıyor; kodda ikisi karışık yazılmış
+     ve yan yana iki farklı yeşil görünüyordu. */
+  --color-emerald-50:  #E7F6EF;
+  --color-emerald-100: #CFEDE0;
+  --color-emerald-500: #0E9F6E;
+  --color-emerald-600: #0B8259;
+  --color-emerald-700: #096847;
+  --color-green-50:  #E7F6EF;
+  --color-green-100: #CFEDE0;
+  --color-green-500: #0E9F6E;
+  --color-green-600: #0B8259;
+  --color-green-700: #096847;
+
+  /* ── Durum renkleri ────────────────────────────────────────────────────
+     Tailwind varsayılanları ekranda neon duruyor. Aynı anlam, daha sakin
+     ton: yan yana altı kart olduğunda göz yorulmuyor ve GERÇEK uyarı
+     (kırmızı) öne çıkabiliyor. */
+  --color-red-50:  #FDECEC;
+  --color-red-100: #FBDADA;
+  --color-red-500: #D64545;   /* uyarı — alt menü rozetiyle aynı */
+  --color-red-600: #B93333;
+  --color-red-700: #962929;
+  --color-orange-50:  #FCF3E4;
+  --color-orange-100: #F8E6C7;
+  --color-orange-500: #D08A2C;   /* bekliyor */
+  --color-orange-600: #B0721F;
+  --color-amber-500: #D08A2C;
+  --color-purple-50:  #F0EDFB;
+  --color-purple-100: #E2DCF7;
+  --color-purple-500: #6D5BD0;   /* teslime hazır */
+  --color-purple-600: #5A48B8;
+  --color-violet-500: #6D5BD0;
+  --color-cyan-500: #0E8F98;
+  --color-cyan-600: #0B757D;
+
+  /* ── Yüzey yumuşaklığı ─────────────────────────────────────────────────
+     Tek bir sert gölge yerine iki katman: ince kenarlık + çok yumuşak
+     düşüş. Kart "yapıştırılmış" değil "kağıt" gibi duruyor. */
+  --shadow-kart:    0 1px 2px rgba(11, 21, 51, .04), 0 1px 3px rgba(11, 21, 51, .06);
+  --shadow-kart-hv: 0 2px 4px rgba(11, 21, 51, .05), 0 8px 20px -6px rgba(11, 21, 51, .12);
+  --shadow-dugme:   0 1px 2px rgba(11, 21, 51, .12);
+}
+
+/* Tipografi: rakam hizalama. Bu ekranda sayaç, tutar ve fatura numarası
+   alt alta duruyor; orantılı rakamlarla sütun kayıyor ve okuma zorlaşıyor. */
+:root {
+  font-feature-settings: "tnum" 1, "cv05" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-gray-100);
+  color: #0F1E33;
+}
+
+/* Odak halkası: klavyeyle gezen için görünür, fareyle tıklayanı rahatsız
+   etmeyecek şekilde yalnız :focus-visible'da. */
+*:focus-visible {
+  outline: 2px solid #1D3E7E;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Kenar çubuğu ── */
 .sidebar-link {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.625rem;
   font-size: 0.875rem;
-  color: #d1d5db;
+  font-weight: 500;
+  color: #A8B3C7;
   text-decoration: none;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color .15s ease, color .15s ease;
 }
 
 .sidebar-link:hover {
-  background-color: #374151;
-  color: #ffffff;
+  background-color: rgba(255, 255, 255, .07);
+  color: #FFFFFF;
 }
 
+/* Aktif öğe: mürekkep zemin üstünde açık lacivert dolgu. "Buradasın" bir
+   KONUM bilgisi — bu yüzden zümrüt (para rengi) kullanılmıyor. */
 .sidebar-link.active {
-  background-color: #2563eb;
-  color: #ffffff;
+  background-color: #1D3E7E;
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
 }
 
 /* ── Mobil çekmece (drawer) — Tailwind v4 translate çakışmasını önlemek için saf CSS ── */
@@ -41,67 +194,101 @@
 
 /* ── Genel UI ── */
 .card {
-  background-color: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
+  background-color: #FFFFFF;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 0.875rem;
+  box-shadow: var(--shadow-kart);
+  padding: 1.25rem 1.35rem;
 }
 
 .btn-primary {
   display: inline-flex;
   align-items: center;
-  background-color: #3b82f6;
-  color: white;
-  padding: 0.625rem 1.25rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
+  justify-content: center;
+  gap: .5rem;
+  background-color: #0F2253;
+  color: #FFFFFF;
+  padding: 0.6rem 1.15rem;
+  border-radius: 0.625rem;
+  font-weight: 600;
   font-size: 0.875rem;
+  line-height: 1.2;
   text-decoration: none;
   border: none;
   cursor: pointer;
-  transition: background-color 0.15s;
+  box-shadow: var(--shadow-dugme);
+  transition: background-color .15s ease, transform .06s ease, box-shadow .15s ease;
 }
 
 .btn-primary:hover {
-  background-color: #2563eb;
+  background-color: #16305F;
+  box-shadow: 0 2px 6px rgba(11, 21, 51, .18);
+}
+
+/* Basılınca 1px oturma: dokunmatik ekranda "bastım mı" belirsizliğini
+   kaldırır. Teknisyen sahada eldivenle kullanıyor. */
+.btn-primary:active { transform: translateY(1px); }
+
+.btn-primary:disabled {
+  background-color: var(--color-gray-300);
+  color: var(--color-gray-500);
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-secondary {
   display: inline-flex;
   align-items: center;
-  background-color: white;
-  color: #374151;
-  padding: 0.625rem 1.25rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
+  justify-content: center;
+  gap: .5rem;
+  background-color: #FFFFFF;
+  color: #33405C;
+  padding: 0.6rem 1.15rem;
+  border-radius: 0.625rem;
+  font-weight: 600;
   font-size: 0.875rem;
+  line-height: 1.2;
   text-decoration: none;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-gray-300);
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color .15s ease, border-color .15s ease, transform .06s ease;
 }
 
 .btn-secondary:hover {
-  background-color: #f9fafb;
+  background-color: var(--color-gray-50);
+  border-color: var(--color-gray-400);
 }
 
+.btn-secondary:active { transform: translateY(1px); }
+
 .badge {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: 0.22rem 0.6rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: .005em;
 }
 
 .table-header th {
-  background-color: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0.75rem 1rem;
+  background-color: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: 0.7rem 1rem;
   text-align: left;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #374151;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+  white-space: nowrap;
 }
+
+/* Satır ayırıcıları ince ve açık: bu tablolarda 20+ satır oluyor, koyu
+   çizgiler ekranı kafes gibi gösteriyordu. */
+.table-header + tbody tr { border-bottom: 1px solid var(--color-gray-100); }
 
 /* ── Mikro geri bildirim (fiş akışı) ──
    Kısa ve sakin tutuldu: günde onlarca fiş açan teknisyen için
