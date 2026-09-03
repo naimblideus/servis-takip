@@ -564,8 +564,10 @@ export default function AccountingPage() {
       )}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
         <div>
+          {/* "Cari hesap" jargonu kaldırıldı: bayi teknik değil, bu ekrandan
+              tek bir şey soruyor — kim bana ne kadar borçlu. */}
           <h1 style={{fontSize:'1.875rem',fontWeight:'bold',margin:0}}>Muhasebe</h1>
-          <p style={{color:'#6b7280',margin:'0.25rem 0 0'}}>Cari hesap takibi ve stok yönetimi</p>
+          <p style={{color:'#6b7280',margin:'0.25rem 0 0'}}>Kim sana ne kadar borçlu — servis işleri ve kira/sayaç faturaları birlikte</p>
         </div>
         <div style={{display:'flex',gap:'0.5rem'}}>
           {activeTab==='accounting' && (

@@ -5,18 +5,29 @@
 
 export type ModuleKey = 'INVOICING' | 'ROUTE' | 'TRACKING' | 'REVENUE_RISK' | 'REPORTS' | 'MARKETPLACE' | 'PORTAL' | 'SHOP';
 
-export const MODULES: Record<ModuleKey, { label: string; hrefs: string[] }> = {
-  INVOICING:    { label: 'Faturalar & Kira/Sayaç', hrefs: ['/invoices', '/collections'] },
-  ROUTE:        { label: 'Rota',                    hrefs: ['/rota'] },
-  TRACKING:     { label: 'Takip (geç sayaç)',       hrefs: ['/takip'] },
-  REVENUE_RISK: { label: 'Kaçan Gelir',             hrefs: ['/kacan-gelir'] },
-  REPORTS:      { label: 'Raporlar',                hrefs: ['/reports'] },
-  MARKETPLACE:  { label: 'Bayi Pazarı',             hrefs: ['/market'] },
-  PORTAL:       { label: 'Müşteri Paneli',          hrefs: ['/musteri-bildirimleri'] },
+// `aciklama` süper-admin ekranında etiketin altında görünür. Modülü kapatınca
+// bayinin NEYİ kaybedeceğini tek cümlede söyler — toggle'a basan kişi sonucu
+// bilmeden basmasın diye.
+export const MODULES: Record<ModuleKey, { label: string; hrefs: string[]; aciklama: string }> = {
+  INVOICING:    { label: 'Faturalar & Kira/Sayaç', hrefs: ['/invoices', '/collections'],
+                  aciklama: 'Aylık otomatik fatura kesimi ve tahsilat takibi. Kapalıysa kira/sayaç faturası üretilmez.' },
+  ROUTE:        { label: 'Rota',                    hrefs: ['/rota'],
+                  aciklama: 'Sayaç ve servis turunu güzergâha dizer.' },
+  TRACKING:     { label: 'Takip (geç sayaç)',       hrefs: ['/takip'],
+                  aciklama: 'Sayacı geç okunan cihazların listesi.' },
+  REVENUE_RISK: { label: 'Kaçan Gelir',             hrefs: ['/kacan-gelir'],
+                  aciklama: 'Kazanılmış ama faturalanmamış tutar. Satışın ana kancası — kapatmadan önce iki kez düşün.' },
+  REPORTS:      { label: 'Raporlar',                hrefs: ['/reports'],
+                  aciklama: 'Marka/model güvenilirliği, yenileme fırsatları, cihaz kârlılığı.' },
+  MARKETPLACE:  { label: 'Bayi Pazarı',             hrefs: ['/market'],
+                  aciklama: 'Bayiler arası parça/makine alışverişi. Her planda açık — pazar ancak herkes içindeyse işler.' },
+  PORTAL:       { label: 'Müşteri Paneli',          hrefs: ['/musteri-bildirimleri'],
+                  aciklama: 'Müşteri kendi cihazını, sayacını ve faturasını görür; arıza bildirir.' },
   // Nextus Mağaza — bayinin kendi stoğundan beslenen e-ticaret vitrini.
   // Ayrı uygulamada çalışır (nextus-magaza); burada YALNIZ yetki anahtarı
   // tutulur: mağaza açılırken bayinin bu modülü var mı diye bakılır.
-  SHOP:         { label: 'Nextus Mağaza',           hrefs: ['/magaza'] },
+  SHOP:         { label: 'Nextus Mağaza',           hrefs: ['/magaza'],
+                  aciklama: 'Bayinin kendi stoğundan beslenen satış vitrini (ayrı uygulama).' },
 };
 
 export const ALL_MODULE_KEYS = Object.keys(MODULES) as ModuleKey[];

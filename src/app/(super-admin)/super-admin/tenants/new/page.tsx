@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Building2, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { ALL_MODULE_KEYS, MODULES, effectiveModules } from '@/lib/modules';
 
 const BIZ_TYPES = [
     { value: 'general', label: 'Genel' }, { value: 'electronic', label: 'Elektronik' },
@@ -191,6 +192,29 @@ export default function NewTenantPage() {
                                 <label className="text-xs text-gray-400 mb-1 block">Maks. Kullanıcı</label>
                                 <input type="number" value={form.maxUsers} onChange={e => set('maxUsers', parseInt(e.target.value))} min={1}
                                     className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500" />
+                            </div>
+                        </div>
+
+                        {/* Bu paket hangi modülleri açıyor — seçim körlemesine yapılmasın.
+                            Bayi açıldıktan sonra bayi detayından tek tek değiştirilebilir. */}
+                        <div className="mt-4 pt-4 border-t border-white/10">
+                            <div className="text-xs text-gray-400 mb-2">Bu paketle açılacak modüller</div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {ALL_MODULE_KEYS.map((k) => {
+                                    const acik = effectiveModules({ plan: form.plan }).has(k);
+                                    return (
+                                        <span key={k} title={MODULES[k].aciklama}
+                                            className={`text-[11px] px-2 py-1 rounded-lg border ${acik
+                                                ? 'bg-violet-500/20 text-violet-200 border-violet-500/30'
+                                                : 'bg-white/5 text-gray-500 border-white/10 line-through'}`}>
+                                            {MODULES[k].label}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                            <div className="text-[11px] text-gray-500 mt-2">
+                                Çekirdek (fiş, müşteri, cihaz, stok, muhasebe) her pakette açıktır.
+                                Açılıştan sonra bayi detayından tek tek değiştirebilirsin.
                             </div>
                         </div>
                     </div>

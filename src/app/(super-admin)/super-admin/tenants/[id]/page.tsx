@@ -316,17 +316,28 @@ export default function TenantDetailPage() {
                                 {ALL_MODULE_KEYS.map((k) => {
                                     const on = effectiveModules(tenant).has(k);
                                     return (
-                                        <div key={k} className="flex items-center justify-between py-1.5">
-                                            <span className="text-sm text-gray-200">{MODULES[k].label}</span>
-                                            <button onClick={() => handleToggleModule(k)}
-                                                className={`relative w-11 h-6 rounded-full transition-all ${on ? 'bg-violet-500' : 'bg-gray-600'}`}>
+                                        <div key={k} className="flex items-start justify-between gap-3 py-2 border-b border-white/5 last:border-0">
+                                            <div className="min-w-0">
+                                                <div className="text-sm text-gray-200">{MODULES[k].label}</div>
+                                                {/* Toggle'a basan kişi neyi kapattığını bilmeden basmasın */}
+                                                <div className="text-[11px] text-gray-500 leading-snug mt-0.5">{MODULES[k].aciklama}</div>
+                                            </div>
+                                            <button onClick={() => handleToggleModule(k)} title={on ? 'Kapat' : 'Aç'}
+                                                className={`relative w-11 h-6 shrink-0 mt-0.5 rounded-full transition-all ${on ? 'bg-violet-500' : 'bg-gray-600'}`}>
                                                 <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${on ? 'left-5' : 'left-0.5'}`} />
                                             </button>
                                         </div>
                                     );
                                 })}
                             </div>
-                            <p className="text-xs text-gray-500 mt-3">Çekirdek (fiş, müşteri, cihaz, stok, satış, etiket, muhasebe) her zaman açıktır. Boş = plan varsayılanı kullanılır.</p>
+                            {/* "Bu modül neden açık?" sorusunun cevabı ekranda dursun:
+                                plan varsayılanı mı, yoksa bu bayiye özel liste mi. */}
+                            <div className="text-[11px] mt-3">
+                                {Array.isArray(tenant.modules) && tenant.modules.length > 0
+                                    ? <span className="text-amber-400">⚙ Bu bayiye ÖZEL liste geçerli — plan varsayılanı devre dışı.</span>
+                                    : <span className="text-gray-400">Plan varsayılanı geçerli: {PLAN_LABELS[tenant.plan] || tenant.plan}</span>}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Çekirdek (fiş, müşteri, cihaz, stok, satış, etiket, muhasebe) her zaman açıktır ve kapatılamaz.</p>
                         </div>
 
                         <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
