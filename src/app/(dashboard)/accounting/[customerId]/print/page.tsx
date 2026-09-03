@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PrintNowButton from '@/components/PrintNowButton';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { ekstre } from '@/lib/musteri-bakiye';
 
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d: Date) => new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -21,23 +22,23 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
   });
   if (!customer) redirect('/accounting');
 
-  const entries = await prisma.accountEntry.findMany({
-    where: { tenantId: user.tenantId, customerId },
-    orderBy: { date: 'asc' },
-  });
+  // BİRLEŞİK EKSTRE: servis kalemleri + kira/sayaç faturaları.
+  // Eskiden yalnız AccountEntry basılıyordu; müşteriye verilen ekstrede kira
+  // faturası borcu HİÇ görünmüyordu, yani bayi eksik belge veriyordu.
+  const satirlar = await ekstre(user.tenantId, customerId);
+  const eskidenYeniye = [...satirlar].reverse(); // ekstre() yeniden eskiye döner
 
   let running = 0;
-  const rows = entries.map((e) => {
-    const isSale = e.type === 'SALE';
-    const amount = Number(e.amount);
-    running += isSale ? amount : -amount;
+  const rows = eskidenYeniye.map((s) => {
+    const borc = s.tip === 'BORC';
+    running += borc ? s.tutar : -s.tutar;
     return {
-      date: e.date,
-      desc: isSale ? (e.product || 'Satış / Hizmet') : 'Ödeme / Tahsilat',
-      method: e.method,
-      notes: e.notes,
-      debit: isSale ? amount : 0,
-      credit: isSale ? 0 : amount,
+      date: new Date(s.tarih),
+      desc: s.aciklama,
+      method: s.kaynak === 'SERVIS' ? 'Servis' : 'Kira/Sayaç',
+      notes: s.detay ?? null,
+      debit: borc ? s.tutar : 0,
+      credit: borc ? 0 : s.tutar,
       balance: running,
     };
   });

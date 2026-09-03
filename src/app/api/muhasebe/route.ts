@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { AccountEntryType } from '@prisma/client';
 import { validateAmount } from '@/lib/money';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { tumBakiyeler } from '@/lib/musteri-bakiye';
 
 // GET /api/muhasebe — Tüm hesap kayıtlarını listele (filtrelerle)
 export async function GET(req: Request) {
@@ -34,21 +35,12 @@ export async function GET(req: Request) {
             },
         });
 
-        // Müşteri bazlı borç hesaplama
-        const allEntries = await prisma.accountEntry.findMany({
-            where: { tenantId: user.tenantId },
-            select: { customerId: true, type: true, amount: true },
-        });
-
-        const customerBalances = new Map<string, { sales: number; payments: number }>();
-        for (const e of allEntries) {
-            if (!customerBalances.has(e.customerId)) {
-                customerBalances.set(e.customerId, { sales: 0, payments: 0 });
-            }
-            const bal = customerBalances.get(e.customerId)!;
-            if (e.type === 'SALE') bal.sales += Number(e.amount);
-            else bal.payments += Number(e.amount);
-        }
+        // ── BİRLEŞİK BAKİYE ──────────────────────────────────────────────
+        // Borç iki yerde birikiyor: servis (AccountEntry) ve kira/sayaç
+        // faturası (CustomerInvoice). Bu ekran eskiden yalnız SERVİSİ
+        // topluyordu; bayi "bu müşteri bana ne kadar borçlu" sorusuna tek
+        // cevap alamıyordu. Tek kaynak: lib/musteri-bakiye.
+        const bakiyeler = await tumBakiyeler(user.tenantId);
 
         // Müşterileri al
         const customers = await prisma.customer.findMany({
@@ -59,12 +51,16 @@ export async function GET(req: Request) {
 
         // Filtreli müşteri listesi
         let customerList = customers.map(c => {
-            const bal = customerBalances.get(c.id) || { sales: 0, payments: 0 };
+            const b = bakiyeler.get(c.id);
             return {
                 ...c,
-                totalSales: bal.sales,
-                totalPayments: bal.payments,
-                balance: bal.sales - bal.payments, // pozitif = borçlu
+                // Eski alan adları korunuyor (ekran bunları okuyor); anlamları
+                // artık birleşik toplam.
+                totalSales: b?.servisBorc ?? 0,
+                totalPayments: 0,
+                servisBorc: b?.servisBorc ?? 0,
+                faturaBorc: b?.faturaBorc ?? 0,
+                balance: b?.toplamBorc ?? 0, // pozitif = borçlu
             };
         });
 
@@ -83,19 +79,23 @@ export async function GET(req: Request) {
             customerList = customerList.filter(c => c.balance <= 0);
         }
 
-        // Toplam istatistikler
-        const totalSales = Array.from(customerBalances.values()).reduce((s, b) => s + b.sales, 0);
-        const totalPayments = Array.from(customerBalances.values()).reduce((s, b) => s + b.payments, 0);
-        const totalDebt = totalSales - totalPayments;
-        const debtorCount = Array.from(customerBalances.values()).filter(b => b.sales - b.payments > 0).length;
+        // ── ÖZET ─────────────────────────────────────────────────────────
+        // Tek gerçek: TOPLAM ALACAK. Kırılımı (servis / kira-fatura) yanında
+        // durur ki bayi "bu para nereden geliyor" diye sorduğunda cevabı olsun.
+        const yuvarla = (n: number) => Math.round(n * 100) / 100;
+        const hepsi = [...bakiyeler.values()];
+        const servisAlacak = yuvarla(hepsi.reduce((s, b) => s + Math.max(0, b.servisBorc), 0));
+        const faturaAlacak = yuvarla(hepsi.reduce((s, b) => s + Math.max(0, b.faturaBorc), 0));
+        const totalDebt = yuvarla(hepsi.reduce((s, b) => s + Math.max(0, b.toplamBorc), 0));
+        const debtorCount = hepsi.filter((b) => b.toplamBorc > 0).length;
 
         return NextResponse.json({
             entries,
             customers: customerList,
             summary: {
-                totalSales,
-                totalPayments,
-                totalDebt,
+                totalDebt,          // birleşik toplam alacak
+                servisAlacak,       // servis işlerinden
+                faturaAlacak,       // kira/sayaç faturalarından
                 debtorCount,
                 customerCount: customers.length,
             },

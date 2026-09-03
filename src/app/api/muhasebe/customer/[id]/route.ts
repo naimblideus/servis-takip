@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { bakiye, ekstre } from '@/lib/musteri-bakiye';
 
 // GET /api/muhasebe/customer/[id] — Belirli müşterinin hesap detayları
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -34,17 +35,28 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
         const totalSales = sales.reduce((s, e) => s + Number(e.amount), 0);
         const totalPayments = payments.reduce((s, e) => s + Number(e.amount), 0);
-        const balance = totalSales - totalPayments;
+
+        // ── BİRLEŞİK BAKİYE VE EKSTRE ────────────────────────────────────
+        // `entries` (yalnız servis kalemleri) geriye dönük uyum için duruyor.
+        // Ekranın gösterdiği gerçek artık `ekstre`: servis + kira/sayaç
+        // faturası tek listede, tarih sıralı. `balance` da birleşik toplam.
+        const [b, satirlar] = await Promise.all([
+            bakiye(user.tenantId, id),
+            ekstre(user.tenantId, id),
+        ]);
 
         return NextResponse.json({
             customer,
             entries,
             sales,
             payments,
+            ekstre: satirlar,
             summary: {
                 totalSales,
                 totalPayments,
-                balance,
+                balance: b.toplamBorc,   // BİRLEŞİK
+                servisBorc: b.servisBorc,
+                faturaBorc: b.faturaBorc,
                 entryCount: entries.length,
             },
         });

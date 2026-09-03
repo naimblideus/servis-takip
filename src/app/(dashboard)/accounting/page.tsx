@@ -6,9 +6,11 @@ const StockTab = dynamic(() => import('@/components/StockTab'), { ssr: false });
 const ExpenseTab = dynamic(() => import('@/components/ExpenseTab'), { ssr: false });
 
 interface Entry { id: string; type: 'SALE'|'PAYMENT'; product: string|null; amount: number; method: string; notes: string|null; date: string; createdByName?: string|null; customer?: {id:string;name:string;phone:string}|null; }
-interface Customer { id:string; name:string; phone:string; totalSales:number; totalPayments:number; balance:number; }
+// balance = BİRLEŞİK borç (servis + kira/sayaç faturası). Kırılım servisBorc/faturaBorc'ta.
+interface Customer { id:string; name:string; phone:string; totalSales:number; totalPayments:number; balance:number; servisBorc?:number; faturaBorc?:number; }
 interface AllCustomer { id:string; name:string; phone:string; }
-interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; summary:{totalSales:number;totalPayments:number;balance:number;entryCount:number}; }
+interface EkstreSatiri { id:string; kaynak:'SERVIS'|'FATURA'; tip:'BORC'|'ODEME'; aciklama:string; tutar:number; tarih:string; detay?:string|null; }
+interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; ekstre?:EkstreSatiri[]; summary:{totalSales:number;totalPayments:number;balance:number;servisBorc?:number;faturaBorc?:number;entryCount:number}; }
 
 interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; notes?:string|null; }
 const METHOD_LABELS: Record<string,string> = { CASH:'💵 Nakit', CARD:'💳 Kredi Kartı', TRANSFER:'🏦 IBAN/Havale', OPEN_ACCOUNT:'📖 Açık Hesap', OTHER:'📋 Diğer' };
@@ -19,7 +21,7 @@ export default function AccountingPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [allCustomers, setAllCustomers] = useState<AllCustomer[]>([]); // Form dropdown için filtresiz liste
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({totalSales:0,totalPayments:0,totalDebt:0,debtorCount:0,customerCount:0});
+  const [summary, setSummary] = useState({totalDebt:0,servisAlacak:0,faturaAlacak:0,debtorCount:0,customerCount:0});
   const [filter, setFilter] = useState<'all'|'paid'|'unpaid'>('all');
   const [search, setSearch] = useState('');
   const [selCust, setSelCust] = useState<Customer|null>(null);
@@ -609,24 +611,43 @@ export default function AccountingPage() {
       {/* MUHASEBE SEKMESI */}
       {activeTab==='accounting' && <>
 
-      {/* ÖZET KARTLAR */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:'1rem',marginBottom:'1.5rem'}} className="print-hide">
-        {[
-          {label:'Toplam Satış',value:summary.totalSales,icon:'📈',bg:'#ecfdf5',border:'#a7f3d0',color:'#10b981'},
-          {label:'Toplam Ödeme',value:summary.totalPayments,icon:'💵',bg:'#eff6ff',border:'#bfdbfe',color:'#3b82f6'},
-          {label:'Toplam Borç',value:summary.totalDebt,icon:'⚠️',bg:'#fef2f2',border:'#fecaca',color:'#ef4444'},
-          {label:'Borçlu Müşteri',value:summary.debtorCount,icon:'👥',bg:'#fffbeb',border:'#fde68a',color:'#f59e0b',isCurrency:false},
-        ].map(c => (
-          <div key={c.label} style={{backgroundColor:c.bg,borderRadius:'0.75rem',padding:'1.25rem',border:`1px solid ${c.border}`}}>
-            <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem'}}>
-              <span style={{fontSize:'1.25rem'}}>{c.icon}</span>
-              <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{c.label}</span>
-            </div>
-            <div style={{fontSize:'1.5rem',fontWeight:'bold',color:c.color}}>
-              {'isCurrency' in c && !c.isCurrency ? c.value : `₺${Number(c.value).toLocaleString('tr-TR',{minimumFractionDigits:2})}`}
-            </div>
+      {/* ── TEK GERÇEK: TOPLAM ALACAK ────────────────────────────────────
+          Eskiden dört eşit kart vardı (Toplam Satış / Toplam Ödeme / Toplam
+          Borç / Borçlu Müşteri) ve hepsi YALNIZ servis kalemlerini sayıyordu;
+          kira-sayaç faturası borcu bu ekranda hiç görünmüyordu. Artık tek
+          büyük sayı var — "bu bayiye toplam ne kadar girecek" — ve altında
+          nereden geldiğinin kırılımı. */}
+      <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr 1fr',gap:'1rem',marginBottom:'1.5rem'}} className="print-hide">
+        <div style={{backgroundColor:'#fef2f2',borderRadius:'0.75rem',padding:'1.25rem',border:'1px solid #fecaca'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.35rem'}}>
+            <span style={{fontSize:'1.25rem'}}>💰</span>
+            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>Toplam Alacağın</span>
           </div>
-        ))}
+          <div style={{fontSize:'2rem',fontWeight:'bold',color:'#ef4444',lineHeight:1.1}}>
+            ₺{Number(summary.totalDebt).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+          </div>
+          <div style={{fontSize:'0.75rem',color:'#9ca3af',marginTop:'0.35rem'}}>
+            {summary.debtorCount} müşteriden · servis + kira/sayaç birlikte
+          </div>
+        </div>
+        <div style={{backgroundColor:'#fffbeb',borderRadius:'0.75rem',padding:'1.25rem',border:'1px solid #fde68a'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem'}}>
+            <span style={{fontSize:'1.25rem'}}>🔧</span>
+            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>Servis işlerinden</span>
+          </div>
+          <div style={{fontSize:'1.4rem',fontWeight:'bold',color:'#f59e0b'}}>
+            ₺{Number(summary.servisAlacak).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+          </div>
+        </div>
+        <div style={{backgroundColor:'#eff6ff',borderRadius:'0.75rem',padding:'1.25rem',border:'1px solid #bfdbfe'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem'}}>
+            <span style={{fontSize:'1.25rem'}}>🏷️</span>
+            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>Kira / sayaç faturasından</span>
+          </div>
+          <div style={{fontSize:'1.4rem',fontWeight:'bold',color:'#3b82f6'}}>
+            ₺{Number(summary.faturaAlacak).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+          </div>
+        </div>
       </div>
 
       {/* FİLTRELER */}
@@ -856,71 +877,101 @@ export default function AccountingPage() {
                     <button onClick={() => { selectFormCust({ id: selCust.id, name: selCust.name, phone: selCust.phone }); setShowForm(true); }} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>+ Kayıt Ekle</button>
                   </div>
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.75rem',marginTop:'1rem'}}>
-                  {[
-                    {label:'Toplam Satış',value:detail.summary.totalSales,color:'#fbbf24'},
-                    {label:'Toplam Ödeme',value:detail.summary.totalPayments,color:'#34d399'},
-                    {label:detail.summary.balance>0?'Bakiye (Borç)':detail.summary.balance<0?'Alacak (Kredi)':'Bakiye (Kapalı)',value:detail.summary.balance,color:detail.summary.balance>0?'#f87171':detail.summary.balance<0?'#34d399':'#9ca3af'},
-                  ].map(b => (
-                    <div key={b.label} style={{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:'0.5rem',padding:'0.75rem'}}>
-                      <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>{b.label}</div>
-                      <div style={{fontSize:'1.1rem',fontWeight:'700',color:b.color}}>₺{Math.abs(b.value).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+                {/* Tek gerçek önce, kırılımı sonra: bayinin sorduğu soru
+                    "bu müşteri bana ne kadar borçlu" — cevabı büyük yazıyor. */}
+                <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1fr',gap:'0.75rem',marginTop:'1rem'}}>
+                  <div style={{backgroundColor:'rgba(255,255,255,0.14)',borderRadius:'0.5rem',padding:'0.85rem'}}>
+                    <div style={{fontSize:'0.7rem',opacity:0.75,marginBottom:'0.25rem'}}>
+                      {detail.summary.balance>0?'TOPLAM BORCU':detail.summary.balance<0?'FAZLA ÖDEME (kredi)':'BORCU YOK'}
                     </div>
-                  ))}
+                    <div style={{fontSize:'1.6rem',fontWeight:'800',lineHeight:1.1,color:detail.summary.balance>0?'#fca5a5':detail.summary.balance<0?'#6ee7b7':'#d1d5db'}}>
+                      ₺{Math.abs(detail.summary.balance).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+                    </div>
+                  </div>
+                  <div style={{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:'0.5rem',padding:'0.75rem'}}>
+                    <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>🔧 Servisten</div>
+                    <div style={{fontSize:'1.05rem',fontWeight:'700',color:'#fbbf24'}}>₺{Math.abs(detail.summary.servisBorc ?? 0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+                  </div>
+                  <div style={{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:'0.5rem',padding:'0.75rem'}}>
+                    <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>🏷️ Kira / sayaç</div>
+                    <div style={{fontSize:'1.05rem',fontWeight:'700',color:'#93c5fd'}}>₺{Math.abs(detail.summary.faturaBorc ?? 0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+                  </div>
                 </div>
               </div>
 
               {/* İŞLEM GEÇMİŞİ */}
               <div style={{backgroundColor:'white',borderRadius:'0.75rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)',overflow:'hidden'}}>
-                <div style={{padding:'0.75rem 1rem',borderBottom:'1px solid #e5e7eb',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{fontWeight:'600',fontSize:'0.9rem'}}>İşlem Geçmişi</span>
-                  <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{detail.entries.length} kayıt</span>
-                </div>
-                {detail.entries.length === 0 ? (
-                  <div style={{padding:'3rem',textAlign:'center',color:'#9ca3af',fontSize:'0.85rem'}}>
-                    Bu müşteriye ait kayıt yok
-                    <br/>
-                    <button onClick={() => { selectFormCust(selCust as any); setShowForm(true); }} style={{marginTop:'0.75rem',padding:'0.5rem 1rem',backgroundColor:'#3b82f6',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem'}} className="print-hide">+ Kayıt Ekle</button>
-                  </div>
-                ) : (
-                  <table style={{width:'100%',borderCollapse:'collapse'}}>
-                    <thead>
-                      <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
-                        {['Tarih','Tür','Ürün/Hizmet','Yöntem','Kaydeden','Not','Tutar','İşlem'].map(h => (
-                          <th key={h} style={{padding:'0.6rem 0.875rem',textAlign:'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h === 'İşlem' ? '' : h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.entries.map((e: Entry, i: number) => {
-                        const isSale = e.type === 'SALE';
-                        return (
-                          <tr key={e.id} style={{borderBottom:'1px solid #f3f4f6',backgroundColor:i%2===0?'white':'#fafafa',borderLeft:`3px solid ${isSale?'#f59e0b':'#10b981'}`}}>
-                            <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem',color:'#6b7280'}}>{new Date(e.date).toLocaleDateString('tr-TR')}</td>
-                            <td style={{padding:'0.6rem 0.875rem'}}>
-                              <span style={{backgroundColor:isSale?'#fef3c7':'#d1fae5',color:isSale?'#92400e':'#065f46',padding:'0.15rem 0.45rem',borderRadius:'9999px',fontSize:'0.65rem',fontWeight:'600'}}>
-                                {isSale?'SATIŞ':'ÖDEME'}
-                              </span>
-                            </td>
-                            <td style={{padding:'0.6rem 0.875rem',fontSize:'0.875rem',fontWeight:'500'}}>{e.product || '—'}</td>
-                            <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem'}}>{METHOD_LABELS[e.method]||e.method}</td>
-                            <td style={{padding:'0.6rem 0.875rem',fontSize:'0.75rem',color:'#374151'}}>{e.createdByName ? `👤 ${e.createdByName}` : '—'}</td>
-                            <td style={{padding:'0.6rem 0.875rem',fontSize:'0.75rem',color:'#6b7280'}}>{e.notes||'—'}</td>
-                            <td style={{padding:'0.6rem 0.875rem',fontSize:'0.95rem',fontWeight:'700',color:isSale?'#f59e0b':'#10b981'}}>
-                              {isSale?'':'+'} ₺{Number(e.amount).toLocaleString('tr-TR',{minimumFractionDigits:2})}
-                            </td>
-                            <td style={{padding:'0.6rem 0.5rem'}} className="print-hide">
-                              <div style={{display:'flex',gap:'0.25rem'}}>
-                                <button onClick={() => openEdit(e)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#eff6ff',color:'#2563eb',border:'1px solid #bfdbfe',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title="Düzenle">✏️</button>
-                                <button onClick={() => handleDelete(e.id)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#fef2f2',color:'#dc2626',border:'1px solid #fca5a5',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title="Sil">🗑️</button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
+                {/* ── BİRLEŞİK EKSTRE ────────────────────────────────────
+                    Servis kalemleri + kira/sayaç faturaları TEK listede,
+                    tarih sıralı. Eskiden burada yalnız servis kalemleri
+                    vardı; müşterinin kira faturası bu ekranda hiç
+                    görünmüyordu ve bakiye eksik okunuyordu.
+                    Sütunlar da sadeleşti: Yöntem/Kaydeden/Not kolonları
+                    bayinin sorduğu soruya cevap vermiyordu, kaldırıldı
+                    (detay satırın altında küçük yazıyla duruyor). */}
+                {(() => {
+                  const satirlar = detail.ekstre ?? [];
+                  return (
+                    <>
+                      <div style={{padding:'0.75rem 1rem',borderBottom:'1px solid #e5e7eb',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <span style={{fontWeight:'600',fontSize:'0.9rem'}}>Hesap Hareketleri</span>
+                        <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{satirlar.length} hareket</span>
+                      </div>
+                      {satirlar.length === 0 ? (
+                        <div style={{padding:'3rem',textAlign:'center',color:'#9ca3af',fontSize:'0.85rem'}}>
+                          Bu müşteriye ait hareket yok
+                          <br/>
+                          <button onClick={() => { selectFormCust(selCust as any); setShowForm(true); }} style={{marginTop:'0.75rem',padding:'0.5rem 1rem',backgroundColor:'#3b82f6',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem'}} className="print-hide">+ Kayıt Ekle</button>
+                        </div>
+                      ) : (
+                        <table style={{width:'100%',borderCollapse:'collapse'}}>
+                          <thead>
+                            <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
+                              {['Tarih','Nereden','Açıklama','Tutar',''].map((h,hi) => (
+                                <th key={hi} style={{padding:'0.6rem 0.875rem',textAlign:hi===3?'right':'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {satirlar.map((s: EkstreSatiri, i: number) => {
+                              const borc = s.tip === 'BORC';
+                              const servis = s.kaynak === 'SERVIS';
+                              // Düzenle/sil YALNIZ elle girilebilen servis kalemlerinde.
+                              // Fatura satırı Faturalar ekranından yönetilir.
+                              const duzenlenebilir = servis;
+                              const kayit = duzenlenebilir ? detail.entries.find(e => e.id === s.id) : null;
+                              return (
+                                <tr key={s.id} style={{borderBottom:'1px solid #f3f4f6',backgroundColor:i%2===0?'white':'#fafafa',borderLeft:`3px solid ${borc?'#f59e0b':'#10b981'}`}}>
+                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem',color:'#6b7280',whiteSpace:'nowrap'}}>{new Date(s.tarih).toLocaleDateString('tr-TR')}</td>
+                                  <td style={{padding:'0.6rem 0.875rem'}}>
+                                    <span style={{backgroundColor:servis?'#fef3c7':'#dbeafe',color:servis?'#92400e':'#1e40af',padding:'0.15rem 0.45rem',borderRadius:'9999px',fontSize:'0.65rem',fontWeight:'600',whiteSpace:'nowrap'}}>
+                                      {servis?'🔧 Servis':'🏷️ Kira/Sayaç'}
+                                    </span>
+                                  </td>
+                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.875rem',fontWeight:'500'}}>
+                                    {s.aciklama}
+                                    {s.detay && <div style={{fontSize:'0.7rem',color:'#9ca3af',fontWeight:'400'}}>{s.detay}</div>}
+                                  </td>
+                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.95rem',fontWeight:'700',textAlign:'right',whiteSpace:'nowrap',color:borc?'#f59e0b':'#10b981'}}>
+                                    {borc?'':'+'} ₺{Number(s.tutar).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+                                  </td>
+                                  <td style={{padding:'0.6rem 0.5rem'}} className="print-hide">
+                                    {kayit && (
+                                      <div style={{display:'flex',gap:'0.25rem'}}>
+                                        <button onClick={() => openEdit(kayit)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#eff6ff',color:'#2563eb',border:'1px solid #bfdbfe',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title="Düzenle">✏️</button>
+                                        <button onClick={() => handleDelete(kayit.id)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#fef2f2',color:'#dc2626',border:'1px solid #fca5a5',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title="Sil">🗑️</button>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </>
           ) : null}

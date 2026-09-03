@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { tumBakiyeler } from '@/lib/musteri-bakiye';
 
-// GET /api/muhasebe/overdue — Geciken borçlu müşteriler (dashboard + ana ekran için)
-export async function GET(req: Request) {
+// GET /api/muhasebe/overdue — Borçlu müşteriler (dashboard + ana ekran için).
+//
+// Artık BİRLEŞİK borç: servis (AccountEntry) + kira/sayaç faturası
+// (CustomerInvoice). Eskiden yalnız servis borcunu okuyordu; kira faturasını
+// ödemeyen ama servis borcu olmayan müşteri dashboard'da HİÇ görünmüyordu —
+// gerçek bir kör noktaydı. Tek kaynak: lib/musteri-bakiye.
+export async function GET() {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -12,66 +18,41 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     try {
-        // Tüm hesap kayıtları
-        const entries = await prisma.accountEntry.findMany({
-            where: { tenantId: user.tenantId },
-            select: { customerId: true, type: true, amount: true, date: true },
-            orderBy: { date: 'asc' },
-        });
+        const bakiyeler = await tumBakiyeler(user.tenantId);
+        const borclular = [...bakiyeler.values()].filter((b) => b.toplamBorc > 0);
 
-        // Müşteri bazlı borç hesapla
-        const customerBalances = new Map<string, { sales: number; payments: number; lastSaleDate: Date | null }>();
-        for (const e of entries) {
-            if (!customerBalances.has(e.customerId)) {
-                customerBalances.set(e.customerId, { sales: 0, payments: 0, lastSaleDate: null });
-            }
-            const bal = customerBalances.get(e.customerId)!;
-            if (e.type === 'SALE') {
-                bal.sales += Number(e.amount);
-                if (!bal.lastSaleDate || e.date > bal.lastSaleDate) bal.lastSaleDate = e.date;
-            } else {
-                bal.payments += Number(e.amount);
-            }
-        }
-
-        // Borçlu müşteri id'leri
-        const debtorIds = Array.from(customerBalances.entries())
-            .filter(([, bal]) => bal.sales - bal.payments > 0)
-            .map(([id]) => id);
-
-        if (debtorIds.length === 0) {
+        if (borclular.length === 0) {
             return NextResponse.json({ debtors: [], summary: { totalDebtors: 0, totalDebt: 0 } });
         }
 
-        // Müşteri bilgileri
         const customers = await prisma.customer.findMany({
-            where: { id: { in: debtorIds }, tenantId: user.tenantId },
+            where: { id: { in: borclular.map((b) => b.customerId) }, tenantId: user.tenantId },
             select: { id: true, name: true, phone: true },
         });
+        const bilgi = new Map(customers.map((c) => [c.id, c]));
 
-        const debtors = customers.map(c => {
-            const bal = customerBalances.get(c.id)!;
-            const debt = bal.sales - bal.payments;
-            const daysSinceLastSale = bal.lastSaleDate
-                ? Math.floor((Date.now() - bal.lastSaleDate.getTime()) / (1000 * 60 * 60 * 24))
-                : 0;
-            return {
-                customer: c,
-                totalSales: bal.sales,
-                totalPayments: bal.payments,
-                debt,
-                daysSinceLastSale,
-            };
-        }).sort((a, b) => b.debt - a.debt);
+        const debtors = borclular
+            .map((b) => {
+                const c = bilgi.get(b.customerId);
+                if (!c) return null;
+                // Ekranların beklediği eski alan adı (debt) korunuyor; anlamı artık
+                // "birleşik toplam". Kırılım ayrıca veriliyor ki ekran isterse
+                // "servisten şu kadar, kiradan şu kadar" diye açabilsin.
+                return {
+                    customer: c,
+                    debt: b.toplamBorc,
+                    servisBorc: b.servisBorc,
+                    faturaBorc: b.faturaBorc,
+                };
+            })
+            .filter((x): x is NonNullable<typeof x> => !!x)
+            .sort((a, b) => b.debt - a.debt);
 
-        const totalDebt = debtors.reduce((s, d) => s + d.debt, 0);
+        const totalDebt = Math.round(debtors.reduce((s, d) => s + d.debt, 0) * 100) / 100;
 
         return NextResponse.json({
             debtors,
-            summary: {
-                totalDebtors: debtors.length,
-                totalDebt,
-            },
+            summary: { totalDebtors: debtors.length, totalDebt },
         });
     } catch (e: any) {
         console.error('MUHASEBE OVERDUE ERROR:', e.message);
