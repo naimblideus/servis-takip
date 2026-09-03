@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseCounterEmail, parseCounterEmailCoklu, htmlToText, bildirilenSeri } from '@/lib/counter-email';
 import { createReading, ReadingError, sonOkumalar } from '@/lib/readings';
+import { bayiKodAdaylari } from '@/lib/sayac-eposta';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -42,17 +43,33 @@ export async function POST(req: NextRequest) {
   const ham = String(body?.text ?? body?.html ?? '').slice(0, 500_000);
   const subject = String(body?.subject ?? '').slice(0, 500);
   const from = String(body?.from ?? '').slice(0, 200);
-  const to = String(body?.to ?? '').slice(0, 200);
+  const to = String(body?.to ?? '').slice(0, 1000);
   if (!ham.trim()) return NextResponse.json({ error: 'Boş e-posta' }, { status: 400 });
 
-  // ── Alıcı adresinden bayi kodunu çıkar: sayac+KOD@… ya da KOD@… ──
-  const kod = (to.match(/\+([a-z0-9]{4,32})@/i) ?? to.match(/^([a-z0-9]{4,32})@/i))?.[1]?.toLowerCase() ?? null;
-  const bayi = kod
-    ? await prisma.tenant.findFirst({
-        where: { sayacEpostaKodu: kod, isActive: true, isSuspended: false, deletedAt: null },
+  // ── Alıcı adresinden bayi kodunu çıkar: sayac+KOD@… ya da KOD@alanadi ──
+  // Çıkarma kuralı adres KURMA ile aynı dosyada (lib/sayac-eposta) — ikisi
+  // birbirinin tersi ve ayrı yerlerde durursa sessizce ayrışırlar.
+  // Çoğul olmasının sebebi orada anlatıldı: 'to' başlığı çok alıcılıdır.
+  const adaylar = bayiKodAdaylari(to);
+  const bulunan = adaylar.length
+    ? await prisma.tenant.findMany({
+        where: { sayacEpostaKodu: { in: adaylar }, isActive: true, isSuspended: false, deletedAt: null },
         select: { id: true },
       })
-    : null;
+    : [];
+  const bayi = bulunan.length === 1 ? bulunan[0] : null;
+
+  // GÜVENLİK: kod VAR ama hiçbir bayiye çözülmüyorsa (ya da birden fazlasına
+  // çözülüyorsa) e-posta işlenmez. Eskiden bu durumda seri araması TÜM aktif
+  // bayilere yayılıyordu: aynı şehirdeki iki bayi rakiptir ve bir müşterinin
+  // ham sayaç raporu rakibin kuyruğuna düşebilirdi.
+  // Kod HİÇ yoksa eski davranış korunur — kodsuz eski adres çalışmaya devam etsin.
+  if (adaylar.length > 0 && !bayi) {
+    return NextResponse.json(
+      { error: 'Bayi kodu çözülemedi — e-posta işlenmedi', kodlar: adaylar },
+      { status: 422 },
+    );
+  }
 
   // Seri araması: kod varsa O BAYİYLE sınırlı, yoksa tüm aktif bayiler.
   const cihazlar = await prisma.device.findMany({
@@ -86,9 +103,9 @@ export async function POST(req: NextRequest) {
         serial: yazilanSeri, deviceId: null,
         parsedBlack: tek.black, parsedColor: tek.color,
         status: 'BEKLIYOR',
-        hata: kod && !bayi
-          ? 'Adresteki bayi kodu tanınmadı — kod yanlış ya da bayi pasif'
-          : yazilanSeri
+        // Tanınmayan bayi kodu buraya HİÇ ulaşmaz — yukarıda 422 ile
+        // reddediliyor. Buraya düşen e-postada ya kod yok ya da kod geçerli.
+        hata: yazilanSeri
             ? `Cihaz "${yazilanSeri}" serisini bildirdi${yazilanSeriler.length > 1 ? ` (+${yazilanSeriler.length - 1} cihaz daha)` : ''} ama bu seri sistemde yok — cihazı seçip bağlayın`
             : 'Seri numarası eşleşmedi',
       },
@@ -109,7 +126,9 @@ export async function POST(req: NextRequest) {
   const renksizSeriler = new Set(coklu.okumalar.filter((o) => o.color === null).map((o) => o.serial));
   const sonRenk = new Map<string, number>();
   if (renksizSeriler.size > 0) {
-    const hedef = cihazlar.filter((c) => renksizSeriler.has(c.serialNo));
+    const hedef = cihazlar.filter(
+      (c) => renksizSeriler.has(c.serialNo) || (!!c.reportedSerial && renksizSeriler.has(c.reportedSerial)),
+    );
     for (const t of new Set(hedef.map((c) => c.tenantId))) {
       const harita = await sonOkumalar(t, hedef.filter((c) => c.tenantId === t).map((c) => c.id));
       for (const [id, o] of harita) sonRenk.set(id, o.counterColor);
@@ -220,7 +239,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    bayi: bayi ? 'kodla belirlendi' : (kod ? 'kod tanınmadı' : 'kod yok — seriyle arandı'),
+    bayi: bayi ? 'kodla belirlendi' : 'kod yok — seriyle arandı',
     yerlesim: coklu.yerlesim,
     cihazSayisi: coklu.cihazSayisi,
     islenen, bekleyen,

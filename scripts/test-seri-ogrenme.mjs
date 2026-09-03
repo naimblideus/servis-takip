@@ -39,6 +39,7 @@ try {
     join(KOK, 'src/app/api/sayac/eposta/route.ts'),
     join(KOK, 'src/lib/counter-email.ts'), join(KOK, 'src/lib/readings.ts'),
     join(KOK, 'src/lib/prisma.ts'), join(KOK, 'src/lib/invoicing.ts'),
+    join(KOK, 'src/lib/sayac-eposta.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
     '--moduleResolution', 'bundler', '--skipLibCheck', '--allowJs',
   ], { stdio: 'pipe' });
@@ -55,6 +56,7 @@ writeFileSync(join(g, 'next-server-shim.js'), 'export const NextResponse = { jso
 duzelt('app/api/sayac/eposta/route.js', [
   ["'@/lib/prisma'", "'../../../../prisma-shim.js'"], ["'@/lib/counter-email'", "'../../../../lib/counter-email.js'"],
   ["'@/lib/readings'", "'../../../../lib/readings.js'"], ["'next/server'", "'../../../../next-server-shim.js'"],
+  ["'@/lib/sayac-eposta'", "'../../../../lib/sayac-eposta.js'"],
 ]);
 duzelt('lib/readings.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/invoicing'", "'./invoicing.js'"]]);
 duzelt('lib/invoicing.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]]);
