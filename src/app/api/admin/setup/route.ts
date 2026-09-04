@@ -2,10 +2,22 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-// POST /api/admin/setup — İlk SUPER_ADMIN kullanıcıyı oluştur
-// Güvenlik: Zaten SUPER_ADMIN varsa çalışmaz
+// POST /api/admin/setup — İlk SUPER_ADMIN kullanıcıyı oluştur.
+//
+// Tek korumu "zaten SUPER_ADMIN varsa reddet"ti. Bu yarış açıktı: süper admin
+// HENÜZ yokken (taze kurulum, sıfırlanmış veritabanı, geri yükleme sonrası)
+// adresi bilen herkes kendine en yetkili hesabı açabilirdi. Artık diğer iki
+// kurulum ucuyla aynı kapı: SETUP_SECRET tanımlı ve doğru olmalı.
 export async function POST(req: Request) {
     try {
+        const beklenen = process.env.SETUP_SECRET;
+        if (!beklenen) {
+            return NextResponse.json(
+                { error: 'Kurulum ucu kapalı — SETUP_SECRET tanımlı değil.' },
+                { status: 503 },
+            );
+        }
+
         // Zaten SUPER_ADMIN varsa reddet
         const existing = await prisma.user.findFirst({
             where: { role: 'SUPER_ADMIN' as any },
@@ -15,6 +27,9 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
+        if (body?.secret !== beklenen) {
+            return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+        }
         const { email, password, name } = body;
 
         if (!email || !password || !name) {

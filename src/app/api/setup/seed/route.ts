@@ -2,12 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-const SETUP_SECRET = 'setup-servis-takip-2026';
-
+// ⛔ SIR KODA GÖMÜLMEZ. Bu dosyada sabit bir sır vardı ('setup-servis-...')
+// ve DEPO PUBLIC: sır GitHub'da herkese açıktı. Bu ucu bilen herkes demo
+// bayisi açıp kullanıcı yazabiliyordu.
+//
+// Artık sır YALNIZ ortam değişkeninden gelir ve tanımlı değilse uç KAPALIDIR
+// (fail-closed). Kurulum bir kez yapılır; kalıcı açık bir arka kapı olmamalı.
+// Aynı desen sayaç e-posta ucunda da kullanılıyor.
 export async function POST(req: NextRequest) {
     try {
+        const beklenen = process.env.SETUP_SECRET;
+        if (!beklenen) {
+            return NextResponse.json(
+                { error: 'Kurulum ucu kapalı — SETUP_SECRET tanımlı değil.' },
+                { status: 503 },
+            );
+        }
         const { secret } = await req.json();
-        if (secret !== SETUP_SECRET) {
+        if (secret !== beklenen) {
             return NextResponse.json({ error: 'Yetkisiz' }, { status: 403 });
         }
 

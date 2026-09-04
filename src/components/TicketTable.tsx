@@ -119,8 +119,16 @@ export default function TicketTable({ tickets, onDelete }: { tickets: Ticket[]; 
                                     </div>
                                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                                         {t.device.brand} {t.device.model}
+                                        {/* Bu sayı CİHAZIN BUGÜNKÜ sayacı — fişin kesildiği andaki
+                                            sayaç DEĞİL. Fiş detayı fişe bağlı okumayı gösteriyor;
+                                            etiketsizken aynı fiş iki ekranda farklı sayı gösteriyor
+                                            ve bayi hangisinin doğru olduğunu bilemiyordu.
+                                            Listede fiş başına gerçek okumayı çekmek 698 fişte N+1
+                                            sorgu demek; sayının NE OLDUĞUNU söylemek doğru çözüm. */}
                                         {hasCounter && (
-                                            <span style={{ marginLeft: '0.5rem', color: '#9ca3af' }}>
+                                            <span style={{ marginLeft: '0.5rem', color: '#9ca3af' }}
+                                                title="Cihazın şu anki sayacı — fişin kesildiği andaki değer için fişi açın">
+                                                şu an{' '}
                                                 {t.device.counterBlack != null && `⚫${t.device.counterBlack.toLocaleString('tr-TR')}`}
                                                 {t.device.counterBlack != null && t.device.counterColor != null && ' '}
                                                 {t.device.counterColor != null && `🟣${t.device.counterColor.toLocaleString('tr-TR')}`}
