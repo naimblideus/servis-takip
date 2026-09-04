@@ -154,6 +154,10 @@ export async function POST(req: NextRequest) {
 
     // ── AKTAR ──
     let customersCreated = 0, customersUpdated = 0, devicesCreated = 0, devicesUpdated = 0;
+    // Seri no'su olmayan cihazlar: kimlikleri satır içeriğinden türetiliyor, o
+    // yüzden çoğalmıyorlar — ama SAYAÇ E-POSTASI seri numarasıyla eşleştiği
+    // için bu cihazların sayacı otomatik işlenemez. Bayi bunu bilmeli.
+    let seriNosuz = 0;
     const failures: { row: number; error: string }[] = [];
     const custIdByPhone = new Map<string, string>();
 
@@ -196,7 +200,23 @@ export async function POST(req: NextRequest) {
         if (wantsDevice) {
           if (!customerId) { failures.push({ row: p.row, error: 'Cihaz için müşteri bulunamadı' }); continue; }
 
-          const serial = p.serialNo || `IMP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+          // ── SERİ NO YOKSA: RASTGELE DEĞİL, DETERMİNİSTİK KİMLİK ─────────
+          // Eskiden `crypto.randomBytes` ile RASTGELE seri üretiliyordu. Rastgele
+          // seri hiçbir zaman mevcut kayıtla eşleşmez: bayi aynı dosyayı ikinci
+          // kez yüklediğinde (ki eşleme kolonunu düzeltip tekrar yüklemek çok
+          // olağan) seri no'suz her cihaz YENİDEN oluşuyordu. Kiralıksa kirası
+          // iki kez faturalanıyordu.
+          //
+          // Artık kimlik, satırın kendi içeriğinden türetiliyor: aynı satır
+          // ikinci kez yüklenince AYNI kimliği üretir ve eşleşir, çoğalmaz.
+          const seriYok = !p.serialNo;
+          const serial = p.serialNo || `IMP-${crypto
+            .createHash('sha1')
+            .update([customerId, p.brand || '', p.model || '', p.location || ''].join('|').toLocaleLowerCase('tr-TR'))
+            .digest('hex')
+            .slice(0, 10)
+            .toUpperCase()}`;
+          if (seriYok) seriNosuz++;
           const existing = await prisma.device.findFirst({
             where: { tenantId, serialNo: serial },
             select: { id: true },
@@ -241,6 +261,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       customersCreated, customersUpdated, devicesCreated, devicesUpdated,
+      seriNosuz,
+      // Sessiz kalmasın: seri no'suz cihaz sayaç e-postasıyla EŞLEŞEMEZ.
+      seriNosuzUyari: seriNosuz > 0
+        ? `${seriNosuz} cihazın seri numarası yoktu. Bu cihazlar eklendi ama cihazdan gelen sayaç e-postası seri numarasıyla eşleştiği için sayaçları otomatik işlenemez. Seri numaralarını cihaz kartından girmeniz gerekir.`
+        : null,
       skippedInvalid: invalid.length,
       failed: failures.length,
       failures: failures.slice(0, 20),
