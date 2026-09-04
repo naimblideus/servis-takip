@@ -19,6 +19,8 @@ import { InvoiceStatus } from '@prisma/client';
 // CANCELLED iptal, PAID kapanmıştır — üçü de açık borç değildir.
 const ACIK_FATURA: InvoiceStatus[] = ['OPEN', 'PARTIAL', 'OVERDUE'];
 
+const yuvarla = (n: number) => Math.round(n * 100) / 100;
+
 export type BakiyeSatiri = {
   id: string;
   kaynak: 'SERVIS' | 'FATURA';
@@ -72,17 +74,40 @@ export async function tumBakiyeler(tenantId: string): Promise<Map<string, Muster
   }
 
   for (const b of harita.values()) {
-    b.servisBorc = Math.round(b.servisBorc * 100) / 100;
-    b.faturaBorc = Math.round(b.faturaBorc * 100) / 100;
-    b.toplamBorc = Math.round((b.servisBorc + b.faturaBorc) * 100) / 100;
+    b.servisBorc = yuvarla(b.servisBorc);
+    b.faturaBorc = yuvarla(b.faturaBorc);
+    b.toplamBorc = yuvarla(b.servisBorc + b.faturaBorc);
   }
   return harita;
 }
 
-/** Tek müşterinin birleşik bakiyesi. */
+/**
+ * Tek müşterinin birleşik bakiyesi.
+ *
+ * YALNIZ O MÜŞTERİYİ sorgular. Önceden `tumBakiyeler()` çağırıp içinden birini
+ * alıyordu; ölçüldü (scripts/olcum-bakiye.mjs, 300 müşteri / 1.800 fatura):
+ * tek müşteri 16,5 ms, bütün bayi 14,6 ms — yani tek müşteri için bütün bayi
+ * taranıyordu ve maliyet bayi büyüdükçe artıyordu. Müşteri detayı her
+ * açılışta bu yolu kullanıyor.
+ */
 export async function bakiye(tenantId: string, customerId: string): Promise<MusteriBakiye> {
-  const hepsi = await tumBakiyeler(tenantId);
-  return hepsi.get(customerId) ?? { customerId, servisBorc: 0, faturaBorc: 0, toplamBorc: 0 };
+  const [gruplar, faturalar] = await Promise.all([
+    prisma.accountEntry.groupBy({
+      by: ['type'],
+      where: { tenantId, customerId },
+      _sum: { amount: true },
+    }),
+    prisma.customerInvoice.aggregate({
+      where: { tenantId, customerId, deletedAt: null, status: { in: ACIK_FATURA } },
+      _sum: { totalAmount: true, paidAmount: true },
+    }),
+  ]);
+
+  const topla = (t: string) => Number(gruplar.find((g) => g.type === t)?._sum.amount ?? 0);
+  const servisBorc = yuvarla(topla('SALE') - topla('PAYMENT'));
+  const faturaBorc = yuvarla(Number(faturalar._sum.totalAmount ?? 0) - Number(faturalar._sum.paidAmount ?? 0));
+
+  return { customerId, servisBorc, faturaBorc, toplamBorc: yuvarla(servisBorc + faturaBorc) };
 }
 
 /**
