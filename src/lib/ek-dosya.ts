@@ -105,7 +105,23 @@ function zipAc(buf: Buffer): { ad: string; icerik: Buffer }[] {
 function tabloyuMetneCevir(icerik: string): string {
   return icerik
     .split(/\r?\n/)
-    .map((satir) => satir.replace(/"/g, '').replace(/[;,\t]+/g, '  ').trim())
+    .map((satir) => {
+      // ── BOŞ HÜCRE SÜTUNU KAYDIRIYORDU ────────────────────────────────
+      // Eskiden `[;,\t]+` ile ARDIŞIK ayraçlar tek boşluğa iniyordu: boş hücre
+      // yok oluyor ve satırın sütun hizası kayıyordu. ÖLÇÜLDÜ —
+      //   Serial,Model,Location,Black,Color
+      //   ABC12345,Canon iR2530,,145230,22410      (Location boş)
+      // satırı "ABC12345  Canon iR2530  145230  22410" oluyor; ayrıştırıcı
+      // siyahı 22.410 okuyordu (o aslında RENKLİ değer), renkliyi hiç
+      // okumuyordu ve sonucu `guvenli: true` işaretleyip otomatik yazıyordu.
+      //
+      // Artık boş hücre "-" ile korunuyor: sütun sayısı bozulmuyor ve "-" sayı
+      // olmadığı için sayaç sanılmıyor.
+      const temiz = satir.replace(/"/g, '');
+      const hucreler = temiz.split(/[;,\t]/);
+      if (hucreler.length <= 1) return temiz.trim();
+      return hucreler.map((h) => (h.trim() === '' ? '-' : h.trim())).join('  ').trim();
+    })
     .filter(Boolean)
     .join('\n');
 }

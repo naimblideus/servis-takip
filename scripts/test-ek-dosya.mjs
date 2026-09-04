@@ -142,6 +142,27 @@ console.log('\nASIL MESELE — ek metni MEVCUT ayrıştırıcı tarafından okun
   t('renksiz cihazda renkli UYDURULMUYOR', (bul('VLK9909999')?.color ?? null) !== 999, bul('VLK9909999'));
 }
 
+// ── BOŞ HÜCRE SÜTUN KAYDIRMASI ────────────────────────────────────────────
+// Ölçülmüş gerçek hata: ardışık ayraçlar tek boşluğa inince boş hücre yok
+// oluyor, sütun kayıyor ve RENKLİ değer siyah sanılıyordu — üstelik sonuç
+// "güvenli" işaretlenip otomatik faturaya yazılıyordu.
+{
+  const csv = [
+    'Serial Number,Model,Location,Black,Color',
+    'ABC12345,Canon iR2530,,145230,22410',      // Location BOŞ
+    'WXY9988,Ricoh IM C300,Kat 2,998450,1200',  // dolu
+  ].join('\n');
+  const r = ekleriMetneCevir([{ ad: 'bos-hucre.csv', base64: b64(Buffer.from(csv, 'utf8')) }]);
+  t('boş hücre sütunu kaydırmıyor (yer tutucu korunuyor)', /Canon iR2530\s+-\s+145230/.test(r.metin), r.metin);
+
+  const c = parseCounterEmailCoklu(r.metin, ['ABC12345', 'WXY9988'], 'Counter Report');
+  const a = (c.okumalar || []).find((x) => x.serial === 'ABC12345');
+  const b = (c.okumalar || []).find((x) => x.serial === 'WXY9988');
+  t('boş hücreli satırda SİYAH doğru (145.230)', a && a.black === 145230, a);
+  t('boş hücreli satırda RENKLİ doğru (22.410)', a && a.color === 22410, a);
+  t('dolu satır etkilenmedi (998.450 / 1.200)', b && b.black === 998450 && b.color === 1200, b);
+}
+
 rmSync(g, { recursive: true, force: true });
 console.log(`\n${gecti} geçti, ${kaldi} kaldı\n`);
 process.exit(kaldi ? 1 : 0);
