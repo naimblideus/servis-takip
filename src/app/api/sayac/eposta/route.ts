@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { parseCounterEmail, parseCounterEmailCoklu, htmlToText, bildirilenSeri } from '@/lib/counter-email';
 import { createReading, ReadingError, sonOkumalar } from '@/lib/readings';
 import { bayiKodAdaylari } from '@/lib/sayac-eposta';
+import { ekleriMetneCevir } from '@/lib/ek-dosya';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -40,11 +41,31 @@ export async function POST(req: NextRequest) {
   if (verilen !== secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const ham = String(body?.text ?? body?.html ?? '').slice(0, 500_000);
+  const govde = String(body?.text ?? body?.html ?? '').slice(0, 500_000);
   const subject = String(body?.subject ?? '').slice(0, 500);
   const from = String(body?.from ?? '').slice(0, 200);
   const to = String(body?.to ?? '').slice(0, 1000);
-  if (!ham.trim()) return NextResponse.json({ error: 'Boş e-posta' }, { status: 400 });
+
+  // ── EK DOSYALAR ─────────────────────────────────────────────────────────
+  // Filo yazılımları (Kyocera Fleet Services, Lexmark Fleet Manager, MPS
+  // Monitor…) sayaç raporunu gövdede DEĞİL ek dosyada gönderiyor — KFS
+  // varsayılan olarak ZIP'li CSV atıyor. Uç yalnız gövdeyi okurken bu
+  // e-postalar SESSİZCE SIFIR okuma üretiyordu: posta geliyor, hiçbir sayaç
+  // işlenmiyor, kimse fark etmiyor.
+  //
+  // Ek yalnızca DÜZ METNE çevrilip mevcut ayrıştırıcıya veriliyor; yeni bir
+  // sayaç çıkarma mantığı yok (bkz. lib/ek-dosya).
+  const ekSonuc = ekleriMetneCevir(body?.attachments ?? body?.ekler);
+  const ham = [govde, ekSonuc.metin].filter((x) => x.trim()).join('\n\n').slice(0, 500_000);
+
+  if (!ham.trim()) {
+    // Gövde de ek de okunamadıysa sebebi söyle — "Boş e-posta" demek,
+    // ekli bir raporu sessizce çöpe atmak olurdu.
+    const sebep = ekSonuc.atlanan.length
+      ? `Gövde boş ve ek okunamadı: ${ekSonuc.atlanan.map((a) => `${a.ad} (${a.sebep})`).join(', ')}`
+      : 'Boş e-posta';
+    return NextResponse.json({ error: sebep }, { status: 400 });
+  }
 
   // ── Alıcı adresinden bayi kodunu çıkar: sayac+KOD@… ya da KOD@alanadi ──
   // Çıkarma kuralı adres KURMA ile aynı dosyada (lib/sayac-eposta) — ikisi
@@ -260,6 +281,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     bayi: bayi ? 'kodla belirlendi' : 'kod yok — seriyle arandı',
+    // Ek okunduysa hangisi, okunamadıysa NEDEN — köprü günlüğünde görünsün.
+    ...(ekSonuc.okunan.length || ekSonuc.atlanan.length
+      ? { ekler: { okunan: ekSonuc.okunan, atlanan: ekSonuc.atlanan } }
+      : {}),
     yerlesim: coklu.yerlesim,
     cihazSayisi: coklu.cihazSayisi,
     islenen, bekleyen,

@@ -38,6 +38,27 @@ function sayaclariAktar() {
       if (!/\+[a-z0-9]{4,32}@/i.test(to)) { atlanan++; continue; }
 
       try {
+        // ── EK DOSYALAR ────────────────────────────────────────────────
+        // Filo yazılımları (Kyocera Fleet Services, Lexmark Fleet Manager…)
+        // sayaç raporunu gövdede DEĞİL ek dosyada gönderiyor; KFS varsayılan
+        // olarak ZIP'li CSV atıyor. Ekler gönderilmezse o raporlar sessizce
+        // sıfır okuma üretir. Uç yalnız metne çevrilebilenleri işler.
+        const ekler = [];
+        try {
+          const dosyalar = mesaj.getAttachments({ includeInlineImages: false }) || [];
+          for (const d of dosyalar) {
+            const ad = d.getName() || '';
+            // Yalnız işe yarayabilecek türler taşınır; görsel/PDF boşuna
+            // ağ trafiği ve uçta nasılsa atlanıyor.
+            if (!/\.(zip|csv|txt|xml|tsv|htm|html|json)$/i.test(ad)) continue;
+            if (d.getSize() > 8 * 1024 * 1024) continue;   // 8 MB üstünü taşıma
+            ekler.push({ ad: ad, base64: Utilities.base64Encode(d.getBytes()) });
+            if (ekler.length >= 10) break;
+          }
+        } catch (e) {
+          console.error('ek okunamadi: ' + e);
+        }
+
         const cevap = UrlFetchApp.fetch(UC, {
           method: 'post',
           contentType: 'application/json',
@@ -47,6 +68,7 @@ function sayaclariAktar() {
             from: mesaj.getFrom(),
             subject: mesaj.getSubject(),
             text: mesaj.getPlainBody(),
+            attachments: ekler,
           }),
           muteHttpExceptions: true,
         });
