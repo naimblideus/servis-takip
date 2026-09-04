@@ -133,12 +133,25 @@ export default function InventoryPage() {
         setSaving(false);
     };
 
+    // Sunucu hatasını KULLANICIYA söyler. Eskiden stok yazma fonksiyonları
+    // yanıtı hiç okumuyordu: hata olduğunda load() taze veriyi çekiyor, sayı
+    // sessizce eski hâline dönüyor ve bayi neden değişmediğini anlamıyordu
+    // (barkod çakışması, yetersiz stok...).
+    const hataVarsaSoyle = async (res: Response) => {
+        if (res.ok) return false;
+        let mesaj = 'İşlem kaydedilemedi.';
+        try { const d = await res.json(); if (d?.error) mesaj = d.error; } catch { /* gövde yoksa genel mesaj */ }
+        alert(mesaj);
+        return true;
+    };
+
     const adjustStock = async (id: string, delta: number) => {
-        await fetch(`/api/inventory/${id}`, {
+        const res = await fetch(`/api/inventory/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ adjustQty: delta }),
         });
+        await hataVarsaSoyle(res);
         load();
     };
 
@@ -146,18 +159,19 @@ export default function InventoryPage() {
     const setStockDirect = async (id: string, value: string) => {
         const qty = parseInt(value);
         if (isNaN(qty) || qty < 0) { setEditStockId(null); return; }
-        await fetch(`/api/inventory/${id}`, {
+        const res = await fetch(`/api/inventory/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ stockQty: qty }),
         });
+        await hataVarsaSoyle(res);
         setEditStockId(null);
         load();
     };
 
     // Tüm satırı güncelle
     const updatePart = async (id: string) => {
-        await fetch(`/api/inventory/${id}`, {
+        const res = await fetch(`/api/inventory/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -170,6 +184,9 @@ export default function InventoryPage() {
                 barcode: editRow.barcode,
             }),
         });
+        // Hata varsa satırı AÇIK bırak: kullanıcı düzeltebilsin, yazdığı
+        // değerler kaybolmasın.
+        if (await hataVarsaSoyle(res)) return;
         setEditingId(null);
         load();
     };
@@ -595,8 +612,12 @@ export default function InventoryPage() {
                                     </td>
                                     <td style={{ padding: '0.75rem 1rem' }}>
                                         <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
-                                            <button onClick={() => adjustStock(p.id, -1)} title="Azalt"
-                                                style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                                            {/* Stok 0'ken azaltma kapalı: eskiden basılabiliyor ve
+                                                stok eksiye düşüyordu (kritik-stok uyarısını ve
+                                                sipariş listesini bozar). Sunucu da artık reddediyor. */}
+                                            <button onClick={() => adjustStock(p.id, -1)} title={p.stockQty <= 0 ? 'Stok zaten 0' : 'Azalt'}
+                                                disabled={p.stockQty <= 0}
+                                                style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: p.stockQty <= 0 ? '#f3f4f6' : 'white', color: p.stockQty <= 0 ? '#9ca3af' : 'inherit', cursor: p.stockQty <= 0 ? 'not-allowed' : 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                                             <button onClick={() => adjustStock(p.id, 1)} title="Artır"
                                                 style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: '#f0fdf4', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                                             <button

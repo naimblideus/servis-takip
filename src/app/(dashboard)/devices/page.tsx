@@ -14,7 +14,9 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
 
   const devices = await prisma.device.findMany({
     where: { tenantId: user!.tenantId },
-    include: { customer: true, serviceTickets: { orderBy: { createdAt: 'desc' }, take: 1 } },
+    // `take: 1` cihazın SON fişini alıyor. Filtre yokken silinmiş bir fiş en
+    // yeniyse cihazın "son servisi" olarak ÇÖPTEKİ fiş görünüyordu.
+    include: { customer: true, serviceTickets: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 1 } },
     orderBy: { createdAt: 'desc' },
   });
 

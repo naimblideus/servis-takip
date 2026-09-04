@@ -50,9 +50,19 @@ export async function GET() {
     prisma.serviceTicket.count({
       where: { tenantId, deletedAt: null, status: 'READY' },
     }),
-    prisma.serviceTicket.aggregate({
-      where: { tenantId, deletedAt: null, paymentStatus: 'PAID', updatedAt: { gte: startOfMonth } },
-      _sum: { totalCost: true },
+    // ── BU AYIN TAHSİLATI — nakit defterinden ───────────────────────────
+    // Eskiden bu, ödenmiş SERVİS FİŞLERİNİN toplamıydı ve iki yönden yanlıştı:
+    //   1. Kira ve sayaç faturası tahsilatını HİÇ saymıyordu. Kiralama bayisinin
+    //      gelirinin büyük kısmı orada; panel gerçeğin küçük bir dilimini
+    //      "ciro" diye gösteriyor, Faturalar/Muhasebe ekranıyla çelişiyordu.
+    //   2. Ölçüt `updatedAt`'ti. Eski bir fiş bu ay herhangi bir sebeple
+    //      güncellenince (durum değişti, not eklendi) o ayın cirosuna giriyordu.
+    // FinancialTransaction sistemdeki TEK nakit defteri: servis tahsilatı,
+    // fatura tahsilatı ve cari tahsilat üçü de buraya yazılıyor. Muhasebe
+    // ekranı da bunu okuyor — iki ekran artık aynı sayıyı söylüyor.
+    prisma.financialTransaction.aggregate({
+      where: { tenantId, type: 'INCOME', date: { gte: startOfMonth } },
+      _sum: { amount: true },
     }),
     prisma.serviceTicket.findMany({
       where: { tenantId, deletedAt: null },
@@ -166,7 +176,7 @@ export async function GET() {
     todayTickets,
     waitingParts,
     readyForPickup,
-    monthRevenue: monthRevenue._sum.totalCost || 0,
+    monthRevenue: monthRevenue._sum.amount || 0,
     lowStockItems,
     rentalDevices,
     recentTickets,

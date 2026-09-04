@@ -107,7 +107,10 @@ export default function DashboardPage() {
     { label: 'Bugünkü Fişler', value: stats?.todayTickets || 0, ton: ton.para, icon: '📅' },
     { label: 'Parça Bekliyor', value: stats?.waitingParts || 0, ton: ton.bekle, icon: '⏳' },
     { label: 'Teslime Hazır', value: stats?.readyForPickup || 0, ton: ton.hazir, icon: '✅' },
-    { label: 'Bu Ay Ciro', value: formatCurrency(stats?.monthRevenue || 0), ton: ton.para, icon: '💰' },
+    // "Ciro" değil "Tahsilat": bu sayı nakit esaslı, kesilen faturayı değil
+    // KASAYA GİRENİ ölçüyor. "Ciro" derken bayi "faturaladım ama ciro artmadı"
+    // diye haklı olarak şaşırıyordu.
+    { label: 'Bu Ay Tahsilat', value: formatCurrency(stats?.monthRevenue || 0), ton: ton.para, icon: '💰', hint: 'kasaya giren' },
     { label: 'Kiralık Cihaz', value: stats?.rentalDevices || 0, ton: ton.cihaz, icon: '🏷️' },
     { label: 'Kritik Stok', value: stats?.lowStockItems || 0, ton: (stats?.lowStockItems || 0) > 0 ? ton.uyari : ton.sakin, icon: '⚠️' },
   ];

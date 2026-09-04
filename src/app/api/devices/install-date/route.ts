@@ -55,7 +55,9 @@ export async function GET(req: Request) {
       customer: { select: { name: true } },
       // Kanıt: ilk servis kaydı => cihaz EN GEÇ o tarihte kuruluydu.
       // Bu bir üst sınırdır, kurulum tarihi DEĞİLDİR — arayüz böyle sunar.
-      serviceTickets: { orderBy: { createdAt: 'asc' }, take: 1, select: { createdAt: true } },
+      // Çöpe atılmış fiş kanıt sayılmaz: silinmiş bir fiş en eskiyse cihaz
+      // olduğundan yaşlı görünüyor ve Yenileme raporu yanlış aday üretiyordu.
+      serviceTickets: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' }, take: 1, select: { createdAt: true } },
     },
     orderBy: [{ customerId: 'asc' }, { brand: 'asc' }],
     take: PARTI,

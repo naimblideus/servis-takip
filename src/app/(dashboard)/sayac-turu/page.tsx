@@ -29,6 +29,7 @@ export default function SayacTuruPage() {
     }).catch(() => {});
   }, []);
 
+
   // Sayacı gelmeyen cihazlar — panel kartı buraya iniyor. Kart "7 cihaz" der;
   // burada "kim, hangi cihaz, kaç gündür" görünür ve tıklayınca o müşterinin
   // sayaç listesi açılır. Ölçüt kartla aynı (35+ gün), uç bunu garanti eder.
@@ -65,9 +66,45 @@ export default function SayacTuruPage() {
   const setVal = (id: string, k: 'black' | 'color', v: string) =>
     setSt((s) => ({ ...s, [id]: { ...s[id], [k]: v.replace(/[^\d]/g, ''), err: null } }));
 
-  // Doldurulmuş + henüz kaydedilmemiş satırlar
-  const pending = rows.filter((r) => !st[r.id]?.done && (st[r.id]?.black || '').length > 0);
+  // ── Kaydedilmeye HAZIR satırlar ───────────────────────────────────────
+  // Renkli cihazda İKİ kutu da dolu olmak zorunda. Eskiden yalnız siyah şart
+  // koşuluyordu; renkli kutusu boş bırakılan satır yine gönderiliyor ve
+  // payload'a cihazın ÖNCEKİ renkli değeri konuyordu. Sonuç: delta 0, kayıt
+  // hatasız geçiyor, satır yeşil "✓" oluyor — ama o ayın renkli sayfaları
+  // faturaya HİÇ girmiyordu. Ertesi ay iki aylık renkli sayfa tek dönemde
+  // toplandığı için dahil paket bir kez uygulanıyor ve bu sefer müşteri FAZLA
+  // faturalanıyordu: iki ay üst üste yanlış fatura, ikisi de sessiz.
+  const hazir = (r: Row) => {
+    const s = st[r.id];
+    if (!s || s.done) return false;
+    if (!(s.black || '').length) return false;
+    if (r.hasColor && !(s.color || '').length) return false;
+    return true;
+  };
+  const pending = rows.filter(hazir);
+
+  // Siyahı yazılmış ama renklisi boş kalmış satırlar: kaydedilMEZ, uyarılır.
+  const renkliEksik = rows.filter(
+    (r) => !st[r.id]?.done && (st[r.id]?.black || '').length > 0 && r.hasColor && !(st[r.id]?.color || '').length,
+  );
   const doneCount = rows.filter((r) => st[r.id]?.done).length;
+
+  // Herhangi bir kutuya rakam yazılmış ama henüz kaydedilmemiş satır sayısı.
+  // "Müşteri değiştir" ve sekme kapatma korumaları buna bakar.
+  const yazilmisSayisi = rows.filter((r) => {
+    const s = st[r.id];
+    return s && !s.done && ((s.black || '').length > 0 || (s.color || '').length > 0);
+  }).length;
+
+  // Sekme kapatma / sayfadan ayrılma koruması. Sahada asıl kayıp yolu bu:
+  // teknisyen telefonda çalışıyor, girişler yalnız bellekte duruyor ve
+  // sekmeyi kapatınca ya da geri tuşuna basınca hepsi gidiyordu.
+  useEffect(() => {
+    if (!yazilmisSayisi) return;
+    const uyar = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', uyar);
+    return () => window.removeEventListener('beforeunload', uyar);
+  }, [yazilmisSayisi]);
 
   const save = async () => {
     if (!pending.length) return;
@@ -76,7 +113,10 @@ export default function SayacTuruPage() {
       const payload = pending.map((r) => ({
         deviceId: r.id,
         counterBlack: Number(st[r.id].black),
-        counterColor: r.hasColor && st[r.id].color ? Number(st[r.id].color) : (r.lastColor ?? 0),
+        // Renkli cihazda kutu artık ZORUNLU (bkz. `hazir`), o yüzden burada
+        // "boşsa öncekini gönder" yedeği YOK. Renkli olmayan cihazda sayaç
+        // zaten değişmiyor; önceki değer korunur.
+        counterColor: r.hasColor ? Number(st[r.id].color) : (r.lastColor ?? 0),
         reset: !!st[r.id].reset,
       }));
       const res = await fetch('/api/readings/bulk', {
@@ -166,7 +206,15 @@ export default function SayacTuruPage() {
   // ── Sayaç listesi ──
   return (
     <div style={{ padding: '1.25rem 1rem 6.5rem', maxWidth: 820, margin: '0 auto' }}>
-      <button onClick={() => { setCust(null); setRows([]); setSt({}); setSummary(null); }}
+      {/* Kaydedilmemiş giriş varken onay sorar. Eskiden tek dokunuşta sessizce
+          siliniyordu: teknisyen 40 cihazın sayacını yazıp (10-15 dk) bu
+          düğmeye dokunduğunda hepsi kayboluyor ve ancak ofise tekrar giderek
+          geri getirilebiliyordu. */}
+      <button onClick={() => {
+        if (yazilmisSayisi > 0 &&
+          !confirm(`${yazilmisSayisi} cihazın sayacı yazıldı ama KAYDEDİLMEDİ.\n\nMüşteri değiştirirsen bu girişler kaybolur.\n\nYine de çıkılsın mı?`)) return;
+        setCust(null); setRows([]); setSt({}); setSummary(null);
+      }}
         style={{ background: 'none', border: 'none', color: '#8A93AB', fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}>← Müşteri değiştir</button>
       <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-.02em', margin: '.4rem 0 .2rem', color: '#0B1533' }}>{cust.name}</h1>
       <p style={{ color: '#5B6479', fontSize: '.85rem', margin: '0 0 1rem' }}>
@@ -194,6 +242,13 @@ export default function SayacTuruPage() {
             const showLoc = r.location && r.location !== prevLoc;
             const nb = s.black ? Number(s.black) : null;
             const diff = nb != null && r.lastBlack != null ? nb - r.lastBlack : null;
+            // Renkli fark da gösterilir: eskiden yalnız siyahın farkı vardı,
+            // teknisyen renkliyi yanlış/eksik yazdığında hiçbir geri bildirim
+            // almıyordu.
+            const nc = s.color ? Number(s.color) : null;
+            const diffC = nc != null && r.lastColor != null ? nc - r.lastColor : null;
+            // Siyah yazılmış ama renkli boş — bu satır kaydedilmeyecek.
+            const renkliBos = r.hasColor && !s.done && (s.black || '').length > 0 && !(s.color || '').length;
 
             return (
               <div key={r.id}>
@@ -232,9 +287,27 @@ export default function SayacTuruPage() {
                     </div>
                   </div>
 
-                  {diff != null && !s.done && (
-                    <div style={{ fontSize: '.78rem', marginTop: 6, color: diff < 0 ? '#B91C1C' : '#0B6B4A', fontWeight: 600 }}>
-                      {diff < 0 ? `⚠ ${nf(diff)} — sayaç düşük görünüyor` : `+${nf(diff)} sayfa`}
+                  {(diff != null || diffC != null) && !s.done && (
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '.78rem', marginTop: 6, fontWeight: 600 }}>
+                      {diff != null && (
+                        <span style={{ color: diff < 0 ? '#B91C1C' : '#0B6B4A' }}>
+                          {diff < 0 ? `⚠ ⚫ ${nf(diff)} — sayaç düşük` : `⚫ +${nf(diff)} sayfa`}
+                        </span>
+                      )}
+                      {diffC != null && (
+                        <span style={{ color: diffC < 0 ? '#B91C1C' : '#6D28D9' }}>
+                          {diffC < 0 ? `⚠ 🟣 ${nf(diffC)} — sayaç düşük` : `🟣 +${nf(diffC)} sayfa`}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Renkli kutusu boş bırakılmış: satır kaydedilmeyecek.
+                      Eskiden sessizce kaydedilip o ayın renkli geliri sıfırlanıyordu. */}
+                  {renkliBos && (
+                    <div style={{ marginTop: 8, background: '#FEF6E7', border: '1px solid #FDE68A', borderRadius: 10, padding: '.55rem .7rem', color: '#8A5A08', fontSize: '.8rem', lineHeight: 1.45 }}>
+                      🟣 <b>Renkli sayacı da yazın.</b> Boş bırakılırsa bu cihaz kaydedilmez —
+                      çünkü boş geçilirse o ayın renkli sayfaları faturaya girmez.
                     </div>
                   )}
 
@@ -270,6 +343,13 @@ export default function SayacTuruPage() {
           <div style={{ flex: 1, fontSize: '.85rem', color: '#5B6479' }}>
             <b style={{ color: '#0B1533' }}>{doneCount}/{rows.length}</b> okundu
             {pending.length > 0 && <> · {pending.length} kaydedilecek</>}
+            {/* Sessizce atlanan satır kalmasın: alt çubuk her zaman görünür,
+                teknisyen "Kaydet"e basmadan önce eksiği burada görür. */}
+            {renkliEksik.length > 0 && (
+              <div style={{ color: '#8A5A08', fontWeight: 700, marginTop: 2 }}>
+                🟣 {renkliEksik.length} cihazda renkli sayaç boş — kaydedilmeyecek
+              </div>
+            )}
           </div>
           <button onClick={save} disabled={saving || pending.length === 0}
             style={{

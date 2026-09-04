@@ -24,6 +24,9 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
     include: {
       customer: true,
       serviceTickets: {
+        // Çöpe atılan fiş cihazın arıza geçmişinde görünmemeli — hem sayım
+        // hem de "bu cihaz kaç kez arızalandı" değerlendirmesi bozuluyordu.
+        where: { deletedAt: null },
         include: { assignedUser: true },
         orderBy: { createdAt: 'desc' },
       },

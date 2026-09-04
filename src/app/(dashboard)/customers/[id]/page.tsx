@@ -31,7 +31,10 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     include: {
       devices: {
         include: {
-          serviceTickets: { orderBy: { createdAt: 'desc' } },
+          // Çöp kutusundaki fiş bu ekranda görünmemeli ve SAYILMAMALI.
+          // Filtre yokken silinen fiş müşterinin servis geçmişinde durmaya
+          // devam ediyor ve sayaçlara dahil oluyordu.
+          serviceTickets: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
         },
       },
     },
