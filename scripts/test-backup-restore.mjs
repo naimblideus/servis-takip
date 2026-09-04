@@ -35,7 +35,7 @@ try {
 } finally {
   rmSync(gecici, { recursive: true, force: true });
 }
-const { YAZMA_SIRASI, MODEL_ADI, tarihAlaniMi, tarihleriCevir, dogrulaYedek, hazirlaSatirlar, hazirlaKullanicilar, hazirlaFirmaAyarlari } = mod;
+const { YAZMA_SIRASI, MODEL_ADI, tarihAlaniMi, tarihleriCevir, dogrulaYedek, hazirlaSatirlar, hazirlaKullanicilar, hazirlaFirmaAyarlari, dosyadaBolumVar } = mod;
 
 let gecti = 0, kaldi = 0;
 const t = (ad, fn) => {
@@ -133,6 +133,36 @@ t('yazma sırası FK güvenli', () => {
   dogru(i('parts') < i('ticketParts'), 'fiş parçası parçadan önce');
   dogru(i('tickets') < i('readings'), 'sayaç fişten önce (reading.ticketId)');
   dogru(i('tickets') < i('payments'), 'tahsilat fişten önce');
+  // Sonradan eklenen tablolar
+  dogru(i('customers') < i('financialTransactions'), 'kasa müşteriden önce (transaction.customerId)');
+  dogru(i('tickets') < i('financialTransactions'), 'kasa fişten önce (transaction.ticketId)');
+  dogru(i('invoices') < i('invoicePayments'), 'tahsilat dağıtımı faturadan önce');
+  dogru(i('payments') < i('invoicePayments'), 'tahsilat dağıtımı ödemeden önce');
+});
+
+t('kasa, gider ve tahsilat dağıtımı yedeğin KAPSAMINDA', () => {
+  // Bunlar "tam yedek"te hiç yoktu: felaket sonrası boş kiracıya geri
+  // yüklerken kasa ve gider defteri yok oluyordu, geri getirmenin yolu da
+  // yoktu. Bu test o boşluğun geri açılmasını engeller.
+  for (const zorunlu of ['financialTransactions', 'expenses', 'invoicePayments', 'counterEmails', 'printerStock']) {
+    dogru(YAZMA_SIRASI.includes(zorunlu), `${zorunlu} yedek kapsamında değil`);
+    dogru(MODEL_ADI[zorunlu], `${zorunlu} için model adı yok`);
+  }
+});
+
+t('dosyada olmayan bölüm SİLİNMEZ (eski yedek kasayı yok etmesin)', () => {
+  const y = ornekYedek();
+  // Eski sürüm yedeğinde bu bölümler hiç yok
+  dogru(!dosyadaBolumVar(y, 'financialTransactions'), 'kasa bölümü var sayıldı');
+  dogru(!dosyadaBolumVar(y, 'expenses'), 'gider bölümü var sayıldı');
+  // Bölümü OLAN tablo normal davranır
+  dogru(dosyadaBolumVar(y, 'customers'), 'müşteri bölümü yok sayıldı');
+  // Boş dizi de "bölüm var" demektir: bilerek boşaltılmış yedek geçerlidir
+  dogru(dosyadaBolumVar({ expenses: [] }, 'expenses'), 'boş dizi bölüm sayılmadı');
+  // Uyarı metni artık "boş geri yüklenir" değil "olduğu gibi bırakılır" demeli
+  const s2 = dogrulaYedek(y);
+  const u = s2.uyarilar.find((x) => x.includes('financialTransactions'));
+  dogru(u && u.includes('OLDUĞU GİBİ'), 'eksik bölüm uyarısı silme vaadi veriyor: ' + u);
 });
 
 t('her tablonun bir Prisma modeli var', () => {

@@ -5,7 +5,7 @@ import { getSuperAdminSession } from '@/lib/super-admin-auth';
 import { writeAudit, istekIp } from '@/lib/audit';
 import {
   YAZMA_SIRASI, MODEL_ADI, dogrulaYedek, hazirlaSatirlar,
-  hazirlaKullanicilar, hazirlaFirmaAyarlari,
+  hazirlaKullanicilar, hazirlaFirmaAyarlari, dosyadaBolumVar,
 } from '@/lib/backup-restore';
 
 /**
@@ -36,15 +36,24 @@ export async function POST(req: NextRequest) {
   const kontrol = dogrulaYedek(backup);
 
   // Hedefte HÂLİHAZIRDA ne var — silinecek olan bu.
-  const [mCustomers, mDevices, mTickets, mReadings, mInvoices, mPayments] = await Promise.all([
+  const [mCustomers, mDevices, mTickets, mReadings, mInvoices, mPayments, mKasa, mGider] = await Promise.all([
     prisma.customer.count({ where: { tenantId } }),
     prisma.device.count({ where: { tenantId } }),
     prisma.serviceTicket.count({ where: { tenantId } }),
     prisma.counterReading.count({ where: { tenantId } }),
     prisma.customerInvoice.count({ where: { tenantId } }),
     prisma.payment.count({ where: { tenantId } }),
+    prisma.financialTransaction.count({ where: { tenantId } }),
+    prisma.expense.count({ where: { tenantId } }),
   ]);
-  const silinecek = { musteri: mCustomers, cihaz: mDevices, fis: mTickets, sayac: mReadings, fatura: mInvoices, tahsilat: mPayments };
+  // Yalnız DOSYADA BÖLÜMÜ OLAN tablolar silinir; olmayanlar 0 gösterilir ki
+  // önizleme yalan söylemesin.
+  const silinecek = {
+    musteri: mCustomers, cihaz: mDevices, fis: mTickets, sayac: mReadings,
+    fatura: mInvoices, tahsilat: mPayments,
+    kasa: dosyadaBolumVar(backup, 'financialTransactions') ? mKasa : 0,
+    gider: dosyadaBolumVar(backup, 'expenses') ? mGider : 0,
+  };
   const hedefBos = Object.values(silinecek).every((n) => n === 0);
 
   const onizleme = {
@@ -81,7 +90,10 @@ export async function POST(req: NextRequest) {
     await prisma.$transaction(async (tx) => {
       // 1) Sil — yazma sırasının TERSİ (FK'ler bozulmasın).
       //    Kullanıcılar SİLİNMEZ: bayiyi kendi sisteminden kilitlemek olurdu.
+      //    Dosyada BÖLÜMÜ OLMAYAN tabloya dokunulmaz: eski sürüm yedeklerinde
+      //    kasa/gider/stok bölümü yok; boş yazmak onları yok ederdi.
       for (const t of [...YAZMA_SIRASI].reverse()) {
+        if (!dosyadaBolumVar(backup, t)) continue;
         await (tx as any)[MODEL_ADI[t]].deleteMany({ where: { tenantId } });
       }
 
@@ -92,6 +104,7 @@ export async function POST(req: NextRequest) {
 
       // 3) Yaz — FK'ye güvenli sırada.
       for (const t of YAZMA_SIRASI) {
+        if (!dosyadaBolumVar(backup, t)) { yazilan[t] = 0; continue; }
         const veri = satirlar[t];
         if (!veri.length) { yazilan[t] = 0; continue; }
         const r = await (tx as any)[MODEL_ADI[t]].createMany({ data: veri, skipDuplicates: true });

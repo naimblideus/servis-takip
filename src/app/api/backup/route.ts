@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const [
       tenant, customers, devices, tickets, ticketParts, readings,
       parts, accountEntries, payments, invoices, invoiceLines, users,
+      financialTransactions, expenses, invoicePayments, counterEmails, printerStock,
     ] = await Promise.all([
       prisma.tenant.findUnique({
         where: { id: tenantId },
@@ -42,6 +43,19 @@ export async function GET(req: NextRequest) {
       prisma.customerInvoice.findMany({ where: { tenantId } }),
       prisma.invoiceLine.findMany({ where: { tenantId } }),
       prisma.user.findMany({ where: { tenantId }, select: { id: true, name: true, email: true, role: true, isActive: true } }),
+      // ── EKSİK OLANLAR ────────────────────────────────────────────────
+      // Dosya kendine "tam yedek" diyordu ama KASA ve GİDER DEFTERİ hiç
+      // içinde değildi. Bayi felaket sonrası boş bir kiracıya geri
+      // yüklediğinde kasası ve bütün giderleri yok oluyordu; üstelik
+      // yedek dosyasında karşılığı olmadığı için geri getirmenin yolu da
+      // yoktu. Fatura tahsilat dağıtımı (invoicePayment) da aynı durumda:
+      // fatura silinince cascade ile gidiyor, yedekte olmadığı için
+      // dönmüyordu — hangi ödemenin hangi faturayı kapattığı kayboluyordu.
+      prisma.financialTransaction.findMany({ where: { tenantId } }),
+      prisma.expense.findMany({ where: { tenantId } }),
+      prisma.invoicePayment.findMany({ where: { tenantId } }),
+      prisma.counterEmail.findMany({ where: { tenantId } }),
+      prisma.printerStock.findMany({ where: { tenantId } }),
     ]);
 
     const backup = {
@@ -55,10 +69,23 @@ export async function GET(req: NextRequest) {
           customers: customers.length, devices: devices.length, tickets: tickets.length,
           readings: readings.length, parts: parts.length, accountEntries: accountEntries.length,
           payments: payments.length, invoices: invoices.length,
+          financialTransactions: financialTransactions.length, expenses: expenses.length,
+          invoicePayments: invoicePayments.length, counterEmails: counterEmails.length,
+          printerStock: printerStock.length,
         },
+        // Bilerek DIŞARIDA: denetim kaydı (AuditLog), bildirim/WhatsApp
+        // günlükleri, içe aktarma oturumları, portal talepleri, Logo eşitleme
+        // günlüğü ve platform faturaları. Bunlar iş verisi değil iz kaydıdır;
+        // geri yüklendiğinde geçmişi tahrif ederler.
+        kapsamDisi: [
+          'AuditLog', 'NotificationLog', 'WhatsAppMessage', 'ImportSession',
+          'PortalRequest', 'LogoSyncLog', 'TenantInvoice', 'SubscriptionHistory',
+          'Attachment', 'TicketStatusHistory',
+        ],
       },
       tenant, users, customers, devices, tickets, ticketParts, readings,
       parts, accountEntries, payments, invoices, invoiceLines,
+      financialTransactions, expenses, invoicePayments, counterEmails, printerStock,
     };
 
     const stamp = new Date().toISOString().slice(0, 10);

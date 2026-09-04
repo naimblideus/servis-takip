@@ -22,6 +22,9 @@ export const YEDEK_FORMAT = 'nexus-servis-backup';
 export const YAZMA_SIRASI = [
   'customers',    // → tenant
   'parts',        // → tenant
+  'expenses',     // → tenant  (GİDER DEFTERİ — "tam yedek"te hiç yoktu)
+  'printerStock', // → tenant  (yazıcı stoğu)
+  'counterEmails', // → tenant (sayaç e-posta kuyruğu; deviceId FK değil)
   'devices',      // → customer
   'invoices',     // → customer
   'invoiceLines', // → invoice
@@ -30,6 +33,8 @@ export const YAZMA_SIRASI = [
   'readings',     // → device, ticket?
   'accountEntries', // → customer
   'payments',     // → ticket?, customer?
+  'financialTransactions', // → customer?, ticket?  (KASA — yoktu)
+  'invoicePayments', // → invoice, payment  (tahsilat dağıtımı; EN SON)
 ] as const;
 
 export type Tablo = (typeof YAZMA_SIRASI)[number];
@@ -38,6 +43,9 @@ export type Tablo = (typeof YAZMA_SIRASI)[number];
 export const MODEL_ADI: Record<Tablo, string> = {
   customers: 'customer',
   parts: 'part',
+  expenses: 'expense',
+  printerStock: 'printerStock',
+  counterEmails: 'counterEmail',
   devices: 'device',
   invoices: 'customerInvoice',
   invoiceLines: 'invoiceLine',
@@ -46,7 +54,22 @@ export const MODEL_ADI: Record<Tablo, string> = {
   readings: 'counterReading',
   accountEntries: 'accountEntry',
   payments: 'payment',
+  financialTransactions: 'financialTransaction',
+  invoicePayments: 'invoicePayment',
 };
+
+/**
+ * Dosyada BÖLÜMÜ OLMAYAN tabloya geri yükleme DOKUNMAZ.
+ *
+ * Neden: eski sürüm yedekleri kasayı, gideri, stoğu ve tahsilat dağıtımını
+ * hiç içermiyordu. "Bölüm yoksa boş yaz" davranışı, elindeki eski dosyayla
+ * geri yükleme yapan bayinin kasasını ve gider defterini SİLERDİ — hem de
+ * yedekte karşılığı olmadığı için geri getirmenin yolu yok. Artık eksik
+ * bölüm = "bu tabloya karışma" ve önizlemede açıkça yazılır.
+ */
+export function dosyadaBolumVar(ham: any, t: Tablo): boolean {
+  return Array.isArray(ham?.[t]);
+}
 
 /**
  * Şemadaki TÜM DateTime alanları `...At`, `...Date` ile biter ya da tam olarak
@@ -99,7 +122,13 @@ export function dogrulaYedek(ham: any): DogrulamaSonuc {
 
   for (const t of YAZMA_SIRASI) {
     const dizi = ham[t];
-    if (dizi === undefined) { sayimlar[t] = 0; uyarilar.push(`"${t}" bölümü dosyada yok — bu tablo boş geri yüklenir`); continue; }
+    if (dizi === undefined) {
+      sayimlar[t] = 0;
+      // "Boş geri yüklenir" DEĞİL: eski yedeklerde kasa/gider bölümü yok ve
+      // boş yazmak hedefteki veriyi yok ederdi. Dokunulmuyor.
+      uyarilar.push(`"${t}" bölümü dosyada yok — bu tablo OLDUĞU GİBİ BIRAKILIR (silinmez, yazılmaz)`);
+      continue;
+    }
     if (!Array.isArray(dizi)) { hatalar.push(`"${t}" bir liste değil`); sayimlar[t] = 0; continue; }
     sayimlar[t] = dizi.length;
   }
