@@ -27,7 +27,9 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        /* Font YEREL: yazdirma internetsizken de dogru fontla bassin.
+           public/fonts/inter.css — bkz. scripts/font-indir.mjs */
+        @import url('/fonts/inter.css');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #e5e7eb; color: #111827; }
         @page { size: A5 portrait; margin: 8mm 10mm; }
