@@ -16,18 +16,35 @@
 const UC = 'https://UYGULAMA-ADRESIN/api/sayac/eposta';
 const SIR = 'BURAYA-SIR';
 
+// "Bu mesajı işledim mi?" bilgisi BU ETİKETTE tutulur, okundu işaretinde değil.
+// Neden: okundu işareti kullanılırsa, kutuyu Gmail'de açan biri (ya da "hepsini
+// okundu işaretle") o mesajları köprüye görünmez yapar ve O AYIN SAYAÇLARI
+// SESSİZCE KAYBOLUR — kimse fark etmez, fatura eksik çıkar. Etiketi yalnız bu
+// script koyar; insan davranışı sonucu değiştiremez.
+const ETIKET = 'nextus-aktarildi';
+
 /**
  * Zamanlayıcı bunu çağırır. Ayda bir gelen sayaç için 15 dakikada bir fazlasıyla
  * yeterli — sıklığı artırmak hiçbir şey kazandırmaz.
  */
 function sayaclariAktar() {
-  // Yalnız SON GÜNLERİN okunmamışları: eski kutuyu her seferinde taramayalım.
-  const konular = GmailApp.search('is:unread newer_than:7d', 0, 100);
+  // Yalnız SON GÜNLERİN HENÜZ AKTARILMAMIŞLARI. Ölçüt etiket: insanın
+  // mesajı okuması, yıldızlaması, arşivlemesi bu taramayı etkilemez.
+  const etiket = GmailApp.getUserLabelByName(ETIKET) || GmailApp.createLabel(ETIKET);
+  const konular = GmailApp.search('-label:' + ETIKET + ' newer_than:7d', 0, 100);
+  // Etiket KONU (thread) düzeyindedir: konudaki bir mesaj aktarılınca konu
+  // etiketlenir. Aynı konuya sonradan yeni sayaç mesajı düşerse konu arama
+  // sonucundan çıkar — onu etiketliKonularaGelenler() yakalar. Hangi MESAJIN
+  // gittiği ise script özelliklerinde tutulur; iki kez göndermeyi bu önler.
+  // Döngü DIŞINDA alınıyor: her konuda yeniden çağırmak 100 gereksiz API
+  // isteği demek ve Apps Script kotası bunu sevmiyor.
+  const islenmis = PropertiesService.getScriptProperties();
   let aktarilan = 0, atlanan = 0;
 
   for (const konu of konular) {
     for (const mesaj of konu.getMessages()) {
-      if (!mesaj.isUnread()) continue;
+      const mid = mesaj.getId();
+      if (islenmis.getProperty('m_' + mid)) continue;   // bu mesaj zaten gitti
 
       const to = mesaj.getTo() || '';
 
@@ -75,9 +92,10 @@ function sayaclariAktar() {
 
         const kod = cevap.getResponseCode();
         if (kod >= 200 && kod < 300) {
-          // Okundu işareti SADECE uç kabul edince. Uç geçici olarak
-          // düşerse mesaj okunmamış kalır ve sonraki turda tekrar denenir.
-          mesaj.markRead();
+          // İşaretleme SADECE uç kabul edince. Uç geçici olarak düşerse hiçbir
+          // işaret konmaz ve mesaj sonraki turda tekrar denenir.
+          islenmis.setProperty('m_' + mid, '1');
+          konu.addLabel(etiket);
           aktarilan++;
           console.log('aktarildi: ' + to + ' → ' + cevap.getContentText().slice(0, 200));
         } else {
@@ -94,13 +112,70 @@ function sayaclariAktar() {
 }
 
 /**
+ * Etiketli konulara sonradan düşen YENİ mesajları da yakalar.
+ * (Aynı cihaz her ay aynı konu başlığıyla yazarsa Gmail bunları tek konuda
+ * toplar; konu zaten etiketli olduğu için ana tarama onu görmez.)
+ * Ana fonksiyondan hemen sonra çalışır, aynı 15 dakikalık tetikleyicide.
+ */
+function etiketliKonularaGelenler() {
+  const konular = GmailApp.search('label:' + ETIKET + ' newer_than:7d', 0, 50);
+  const islenmis = PropertiesService.getScriptProperties();
+  let ek = 0;
+
+  for (const konu of konular) {
+    for (const mesaj of konu.getMessages()) {
+      const mid = mesaj.getId();
+      if (islenmis.getProperty('m_' + mid)) continue;
+      const to = mesaj.getTo() || '';
+      if (!/\+[a-z0-9]{4,32}@/i.test(to)) continue;
+
+      try {
+        const cevap = UrlFetchApp.fetch(UC, {
+          method: 'post',
+          contentType: 'application/json',
+          headers: { 'x-sayac-secret': SIR },
+          payload: JSON.stringify({
+            to: to, from: mesaj.getFrom(), subject: mesaj.getSubject(),
+            text: mesaj.getPlainBody(), attachments: [],
+          }),
+          muteHttpExceptions: true,
+        });
+        const kod = cevap.getResponseCode();
+        if (kod >= 200 && kod < 300) { islenmis.setProperty('m_' + mid, '1'); ek++; }
+        else console.error('uc reddetti (' + kod + ')');
+      } catch (e) { console.error('gonderilemedi: ' + e); }
+    }
+  }
+  if (ek) console.log('etiketli konulardan ek aktarim: ' + ek);
+}
+
+/**
+ * 7 günden eski işlendi kayıtlarını temizler — script özellikleri 500 KB ile
+ * sınırlı, sonsuza kadar birikirse kota dolar ve köprü durur.
+ * Ayda bir çalışması yeter; tetikleyiciKur() bunu da kurar.
+ */
+function eskiKayitlariTemizle() {
+  const islenmis = PropertiesService.getScriptProperties();
+  const hepsi = islenmis.getProperties();
+  const anahtarlar = Object.keys(hepsi).filter(function (k) { return k.indexOf('m_') === 0; });
+  // 2000'den fazlaysa en eskileri at (Gmail zaten newer_than:7d ile sınırlı,
+  // 7 günden eski bir mesaj tekrar taranmaz — kaydı tutmanın anlamı yok).
+  if (anahtarlar.length <= 2000) { console.log('temizlik gerekmedi: ' + anahtarlar.length); return; }
+  for (let i = 0; i < anahtarlar.length - 1000; i++) islenmis.deleteProperty(anahtarlar[i]);
+  console.log('temizlendi, kalan: 1000');
+}
+
+/**
  * Kurulumu bir kez çalıştır: 15 dakikada bir tetikleyici kurar.
  * İki kez çalıştırırsan eskisini siler, tetikleyici çoğalmaz.
  */
 function tetikleyiciKur() {
+  const bizim = ['sayaclariAktar', 'etiketliKonularaGelenler', 'eskiKayitlariTemizle'];
   for (const t of ScriptApp.getProjectTriggers()) {
-    if (t.getHandlerFunction() === 'sayaclariAktar') ScriptApp.deleteTrigger(t);
+    if (bizim.indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   }
   ScriptApp.newTrigger('sayaclariAktar').timeBased().everyMinutes(15).create();
-  console.log('tetikleyici kuruldu: 15 dakikada bir');
+  ScriptApp.newTrigger('etiketliKonularaGelenler').timeBased().everyHours(1).create();
+  ScriptApp.newTrigger('eskiKayitlariTemizle').timeBased().everyDays(1).atHour(4).create();
+  console.log('tetikleyiciler kuruldu: aktarim 15 dk, etiketli konular 1 sa, temizlik gunluk');
 }

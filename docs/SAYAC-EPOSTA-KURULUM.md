@@ -85,10 +85,25 @@ Hesap adını not et; A3'te lazım.
      **Go to nextus-sayac (unsafe)** → **Allow**.
      (Bu senin kendi hesabında, kendi yazdığın script — uyarı yayımlanmamış
      script'ler için standart.)
-6. Log'da `tetikleyici kuruldu: 15 dakikada bir` görmelisin
+6. Log'da `tetikleyiciler kuruldu: aktarim 15 dk, ...` görmelisin
 
 Bundan sonra script 15 dakikada bir kutuyu tarar. Sayaç ayda bir geldiği için
 bu fazlasıyla sık.
+
+> **Script'i güncellediyseniz `tetikleyiciKur`'u TEKRAR çalıştırın.**
+> Eski sürüm tek tetikleyici kuruyordu; yenisi üç tane kuruyor. Eskisini
+> silip yenilerini kurar, çoğalmaz.
+
+### Kutuyu açmak artık sayaç kaybettirmiyor
+
+Eski sürüm "bu mesajı işledim mi?" bilgisini **okundu işaretinde** tutuyordu.
+Yani Gmail'i açıp o postaları okuyan (ya da "hepsini okundu işaretle" diyen)
+biri, o mesajları köprüye görünmez yapıyordu: **o ayın sayaçları sessizce
+kayboluyor**, kimse fark etmiyordu, fatura eksik çıkıyordu.
+
+Artık ölçüt `nextus-aktarildi` **etiketi** ve mesaj kimliği. Kutuyu
+okumak, yıldızlamak, arşivlemek hiçbir şeyi değiştirmez — etiketi yalnız
+script koyar. Kutuya istediğiniz gibi bakabilirsiniz.
 
 ## A3 — Coolify (EN SON)
 
