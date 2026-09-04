@@ -130,7 +130,11 @@ export async function POST(req: NextRequest) {
     }
     const noSerial = valid.filter((p) => (p.brand || p.model) && !p.serialNo).length;
     if (noSerial > 0) {
-      warnings.push(`${noSerial} cihazda seri no yok — otomatik geçici seri no üretilecek (sonra düzeltebilirsiniz).`);
+      warnings.push(
+        `${noSerial} cihazda seri no yok. Bu cihazlara satır bilgisinden türetilen sabit bir kimlik verilecek ` +
+        `(aynı dosyayı tekrar yüklerseniz çoğalmazlar), ama cihazdan gelen sayaç e-postası SERİ NUMARASIYLA ` +
+        `eşleştiği için bu cihazların sayacı otomatik işlenemez — seri numaralarını sonradan girmeniz gerekir.`,
+      );
     }
 
     // ── ÖNİZLEME ──
@@ -158,6 +162,8 @@ export async function POST(req: NextRequest) {
     // yüzden çoğalmıyorlar — ama SAYAÇ E-POSTASI seri numarasıyla eşleştiği
     // için bu cihazların sayacı otomatik işlenemez. Bayi bunu bilmeli.
     let seriNosuz = 0;
+    // Devredilen sayac icin yazilan acilis okumasi sayisi (faturalanmaz).
+    let baslangicOkumasi = 0;
     const failures: { row: number; error: string }[] = [];
     const custIdByPhone = new Map<string, string>();
 
@@ -242,7 +248,7 @@ export async function POST(req: NextRequest) {
             await prisma.device.update({ where: { id: existing.id }, data: { ...base, customerId } });
             devicesUpdated++;
           } else {
-            await prisma.device.create({
+            const yeniCihaz = await prisma.device.create({
               data: {
                 ...base,
                 tenantId, customerId, serialNo: serial,
@@ -251,6 +257,32 @@ export async function POST(req: NextRequest) {
               },
             });
             devicesCreated++;
+
+            // ── BAŞLANGIÇ OKUMASI ────────────────────────────────────────
+            // İçe aktarma sayacı YALNIZCA cihaz kartına yazıyordu; okuma
+            // kaydı üretmiyordu. Sonuç: cihazda "142.000 sayfa" yazıyor ama
+            // okuma geçmişi boş olduğu için ilk gerçek okumada fark
+            // hesaplanamıyor, o cihaz faturalanamıyordu. (Ölçüldü: bir bayide
+            // 552 cihazda 69,7 milyon sayfa yazılı, counterReading sayısı 0.)
+            //
+            // Artık zincirin BAŞI yazılıyor: delta 0 — devredilen sayaç bu
+            // ayın kullanımı değildir — ve `billed: true` ile kapalı, yani
+            // faturaya asla girmez. Bundan sonraki ilk gerçek okuma farkı
+            // doğru hesaplar.
+            if (p.counterBlack != null || p.counterColor != null) {
+              await prisma.counterReading.create({
+                data: {
+                  tenantId, deviceId: yeniCihaz.id,
+                  counterBlack: p.counterBlack ?? 0,
+                  counterColor: p.counterColor ?? 0,
+                  deltaBlack: 0, deltaColor: 0,
+                  calculatedCost: 0,
+                  billed: true,
+                  source: 'TOPLU',
+                },
+              });
+              baslangicOkumasi++;
+            }
           }
         }
       } catch (e: any) {
@@ -262,6 +294,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       customersCreated, customersUpdated, devicesCreated, devicesUpdated,
       seriNosuz,
+      baslangicOkumasi,
       // Sessiz kalmasın: seri no'suz cihaz sayaç e-postasıyla EŞLEŞEMEZ.
       seriNosuzUyari: seriNosuz > 0
         ? `${seriNosuz} cihazın seri numarası yoktu. Bu cihazlar eklendi ama cihazdan gelen sayaç e-postası seri numarasıyla eşleştiği için sayaçları otomatik işlenemez. Seri numaralarını cihaz kartından girmeniz gerekir.`
