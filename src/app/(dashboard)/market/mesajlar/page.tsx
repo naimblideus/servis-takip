@@ -48,7 +48,10 @@ export default function MesajlarPage() {
       <div className="mk-eyebrow" style={{ marginTop: 10 }}>İletişim</div>
       <h1 className="mk-h1" style={{ marginBottom: '1.35rem' }}>Pazar Mesajları</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 330px) 1fr', gap: '1rem', alignItems: 'start' }}>
+      {/* Telefonda tek sütun: sabit 250 px'lik konuşma listesi + sağdaki
+          panel 375 px'e sığmıyordu. Sohbet ekranı iki panelli düzende
+          telefonda çalışmaz — alt alta konur, önce liste sonra konuşma. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(15.5rem,1fr))', gap: '1rem', alignItems: 'start' }}>
         {/* Konuşma listesi */}
         <div className="mk-panel" style={{ overflow: 'hidden', maxHeight: '70vh', overflowY: 'auto' }}>
           {loading ? (

@@ -81,8 +81,12 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
       {/* Başlık */}
       <div style={{ marginBottom: '1.5rem' }}>
         <Link href="/devices" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Cihazlar</Link>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '0.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* flexWrap: telefonda cihaz adı + KİRALIK rozeti solda, QR/Düzenle/
+            Sil sağda aynı satıra sıkışıyordu; buton grubu ekranın dışına
+            taşıyordu (ölçüldü: grup 228 px, toplam taşma 258 px) — teknisyen
+            cihazı telefondan düzenleyemiyordu. Artık alt satıra iniyor. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', minWidth: 0 }}>
             <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{device.brand} {device.model}</h1>
             {device.isRental && (
               <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.25rem 0.75rem', borderRadius: '9999px' }}>KİRALIK</span>
@@ -105,7 +109,10 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
       </div>
 
       {/* Cihaz + Müşteri + Kiralık Bilgisi */}
-      <div style={{ display: 'grid', gridTemplateColumns: device.isRental ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+      {/* auto-fit: kiralık cihazda üç kart 375 px'e sığmıyordu, "Kira
+          Bilgileri" kartı ekranın dışında kalıyordu. Telefonda tek sütun,
+          masaüstünde yine yan yana. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(15rem,1fr))', gap: '1rem', marginBottom: '1rem' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
           <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Cihaz Bilgileri</h2>
           {[
@@ -193,7 +200,12 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
         {device.serviceTickets.length === 0 ? (
           <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>Henüz servis fişi yok</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          /* Sarmalayıcı: bu tablo 577 px, telefonda kap 311 px. Kaydırıcı
+             yokken SAYFANIN TAMAMI yana kayıyordu (ölçüldü: #app-main 633/375)
+             ve yana kaydırınca cihaz kartları ekrandan çıkıyordu. Sayaç
+             tablosunun zaten olan sarmalayıcısının aynısı. */
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: '36rem', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                 {['Fiş No', 'Arıza', '⚫ S. Sayaç', '🟣 R. Sayaç', 'Teknisyen', 'Tarih', ''].map(h => (
@@ -228,6 +240,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
               })}
             </tbody>
           </table>
+          </div>
         )}
         {device.serviceTickets.length > 0 && (
           <p style={{ marginTop: '0.6rem', fontSize: '0.72rem', color: '#9ca3af' }}>

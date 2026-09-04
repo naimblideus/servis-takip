@@ -47,7 +47,11 @@ export default function CustomerCariPanel({ customerId }: { customerId: string }
             {/* Bakiye Özeti */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.25rem', marginBottom: '1rem' }}>
                 <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Cari Hesap</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                {/* auto-fit: sabit üç sütunda 375 px'te para rakamları kutuya
+                    sığmıyordu (ölçüldü: "Net Bakiye ₺21.150,93" 127 px'lik
+                    kutuda, sayfa 53 px yana kayıyordu). Telefonda alt alta,
+                    masaüstünde yine üç kart yan yana. */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(8.5rem,1fr))', gap: '0.75rem' }}>
                     <div style={{ backgroundColor: '#ecfdf5', borderRadius: '0.5rem', padding: '0.75rem', textAlign: 'center' }}>
                         <div style={{ fontSize: '0.75rem', color: '#065f46' }}>Toplam Gelir</div>
                         <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#10b981' }}>₺{balance.totalIncome.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</div>

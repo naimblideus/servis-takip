@@ -816,7 +816,11 @@ export default function AccountingPage() {
       )}
 
       {/* ANA İÇERİK: MÜŞTERİ LİSTESİ + DETAY */}
-      <div style={{display:'grid',gridTemplateColumns:'340px 1fr',gap:'1.5rem'}}>
+      {/* 340 px'lik sabit sol sütun telefonda da duruyordu; sağdaki müşteri
+          detay paneli ekranın 175 px dışında kalıyordu — bayi telefonda bir
+          müşteriye dokunduğunda açılan paneli göremiyordu. auto-fit ile
+          telefonda alt alta, masaüstünde yine liste solda / detay sağda. */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(19rem,1fr))',gap:'1.5rem'}}>
         {/* SOL: MÜŞTERİ LİSTESİ */}
         <div>
           <div style={{backgroundColor:'white',borderRadius:'0.75rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)',overflow:'hidden',maxHeight:'75vh',overflowY:'auto'}}>

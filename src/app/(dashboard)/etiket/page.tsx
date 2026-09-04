@@ -207,8 +207,10 @@ export default function EtiketPage() {
           ))}
         </div>
 
-        {/* Ara + toplu ekle */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: '0.5rem' }}>
+        {/* Ara + toplu ekle
+            flexWrap: arama kutusu ile "Görünenleri ekle" düğmesi 375 px'te aynı
+            satıra sığmıyordu; düğme ekranın 43 px dışında kalıyordu. */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '0.5rem' }}>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={source === 'DEVICE' ? '🔍 Marka / model / seri / müşteri…' : '🔍 Ad / SKU / barkod…'}
             style={{ flex: 1, padding: '0.6rem 0.9rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', boxSizing: 'border-box' }} />
           <button onClick={addAllFiltered}

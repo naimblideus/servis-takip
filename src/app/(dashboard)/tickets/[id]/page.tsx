@@ -137,7 +137,13 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+      {/* auto-fit: telefonda tek sütun, masaüstünde yine iki kart yan yana.
+          Sabit iki sütun 375 px'te 408 px istiyordu ve sağdaki "Fiş Bilgileri"
+          kartı ekranın 65 px dışında kalıyordu (ölçüldü: #app-main 440/375).
+          Teknisyen fişi açtığında arıza kategorisini, toplam tutarı, ödemeyi
+          ve sayaç değerlerini göremiyordu; görmek için yana kaydırınca bu kez
+          soldaki müşteri kartı ekrandan çıkıyordu. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(17rem,1fr))', gap: '1rem', marginBottom: '1rem' }}>
         {/* Cihaz & Müşteri */}
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
           <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Cihaz & Müşteri</h2>

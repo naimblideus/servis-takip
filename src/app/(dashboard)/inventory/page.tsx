@@ -268,7 +268,10 @@ export default function InventoryPage() {
             )}
 
             {/* Özet Kartlar */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+            {/* auto-fit: sabit üç sütunda "Stok Değeri" kartı ekranın
+                dışında kalıyordu (ölçüldü: kart 193 px, taşma 160 px).
+                Bayi telefonda stoğunun ₺ değerini göremiyordu. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(9rem,1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
                     { label: 'Toplam Kalem', value: parts.length, color: '#6b7280', icon: '📦', onClick: () => setStockFilter('all') },
                     { label: 'Kritik Stok', value: lowStock.length, color: lowStock.length > 0 ? '#ef4444' : '#10b981', icon: '⚠️', onClick: () => setStockFilter('critical') },

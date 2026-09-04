@@ -42,7 +42,9 @@ export default async function UsersPage() {
             </div>
 
             {/* Rol Özeti */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+            {/* auto-fit: sabit üç sütun 375 px'te taşıyordu (ölçüldü: 264 px).
+                Rol kartları telefonda alt alta, masaüstünde yan yana. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(9rem,1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {Object.entries(ROLE_LABELS).map(([role, label]) => {
                     const count = users.filter(u => u.role === role).length;
                     return (

@@ -131,8 +131,14 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+      {/* Stat Cards
+          TELEFONDA TEK SÜTUN: iki sütunda kart içi metne yalnız 56 px kalıyordu
+          ve etiketler üç noktayla kesiliyordu — ölçüldü: "Sayacı Gelmeyen Cihaz"
+          156 px istiyor, 56 px alıyordu; bayi "Sayacı…" görüyordu. O kart
+          bayinin bir numaralı derdi; adı okunmuyorsa kart yok demektir.
+          Üç nokta burada çözüm değil: etiketin üçte ikisini yiyorsa kaybın
+          kendisidir. Tek sütunda aynı metne 284 px kalıyor. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
         {statCards.map((card: any, i) => {
           const govde = (
             <div className="flex items-start justify-between gap-3">
