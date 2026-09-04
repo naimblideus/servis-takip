@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { oturumKullanicisi } from '@/lib/api-auth';
+import { oturumKullanicisi, yoneticiDegilse } from '@/lib/api-auth';
 
 // GET /api/expenses — Gider listesi
 export async function GET(req: Request) {
@@ -10,6 +10,11 @@ export async function GET(req: Request) {
   try {
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Menüde gizlemek yetkilendirme değildir: teknisyen adresi elle yazıp
+    // bütün müşterilerin mali verisini okuyabiliyor/değiştirebiliyordu. Saha
+    // tahsilatı ayrı uçtan geçer (/api/tickets/[id]/payments), o kapanmıyor.
+    const yetki = yoneticiDegilse(user);
+    if (yetki) return yetki;
 
     const { searchParams } = new URL(req.url);
     const month = searchParams.get('month'); // YYYY-MM formatında
@@ -46,6 +51,11 @@ export async function POST(req: Request) {
   try {
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Menüde gizlemek yetkilendirme değildir: teknisyen adresi elle yazıp
+    // bütün müşterilerin mali verisini okuyabiliyor/değiştirebiliyordu. Saha
+    // tahsilatı ayrı uçtan geçer (/api/tickets/[id]/payments), o kapanmıyor.
+    const yetki = yoneticiDegilse(user);
+    if (yetki) return yetki;
     const body = await req.json();
     const { category, description, amount, date, payee, method, notes } = body;
     if (!description || !amount) {
@@ -76,6 +86,11 @@ export async function PATCH(req: Request) {
   try {
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Menüde gizlemek yetkilendirme değildir: teknisyen adresi elle yazıp
+    // bütün müşterilerin mali verisini okuyabiliyor/değiştirebiliyordu. Saha
+    // tahsilatı ayrı uçtan geçer (/api/tickets/[id]/payments), o kapanmıyor.
+    const yetki = yoneticiDegilse(user);
+    if (yetki) return yetki;
     const body = await req.json();
     const { id, ...data } = body;
     if (!id) return NextResponse.json({ error: 'id zorunlu' }, { status: 400 });
@@ -106,6 +121,11 @@ export async function DELETE(req: Request) {
   try {
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Menüde gizlemek yetkilendirme değildir: teknisyen adresi elle yazıp
+    // bütün müşterilerin mali verisini okuyabiliyor/değiştirebiliyordu. Saha
+    // tahsilatı ayrı uçtan geçer (/api/tickets/[id]/payments), o kapanmıyor.
+    const yetki = yoneticiDegilse(user);
+    if (yetki) return yetki;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id zorunlu' }, { status: 400 });

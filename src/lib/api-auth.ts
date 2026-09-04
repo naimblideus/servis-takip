@@ -55,6 +55,27 @@ export async function oturumKullanicisi(session: { user?: { email?: string | nul
   return prisma.user.findFirst({ where: tenantId ? { email, tenantId } : { email } });
 }
 
+/**
+ * Yönetici mi? `oturumKullanicisi()` ile alınan kullanıcı için.
+ * SUPER_ADMIN da yöneticidir (bayi hesabına destek için girer).
+ */
+export function yoneticiMi(user: { role?: string | null } | null | undefined) {
+  return user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+}
+
+/**
+ * Yönetici DEĞİLSE hazır 403 yanıtı döndürür, yöneticiyse null.
+ * Kullanım:  const yetki = yoneticiDegilse(user); if (yetki) return yetki;
+ *
+ * Neden ayrı bir yardımcı: mali rotaların çoğu `requireTenantUser` değil
+ * `oturumKullanicisi` deseniyle yazılmış. Onları toptan değiştirmek yerine
+ * tek satırlık kapı ekleniyor — davranış aynı, risk düşük.
+ */
+export function yoneticiDegilse(user: { role?: string | null } | null | undefined) {
+  if (yoneticiMi(user)) return null;
+  return NextResponse.json({ error: 'Bu ekran için yönetici yetkisi gerekir.' }, { status: 403 });
+}
+
 /** AuthError'ı standart JSON yanıta çevirir; değilse 500. Rota catch'inde kullan. */
 export function authErrorResponse(e: unknown) {
   if (e instanceof AuthError) return NextResponse.json({ error: e.message }, { status: e.status });

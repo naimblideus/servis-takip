@@ -8,14 +8,36 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const tenantId = (session.user as any).tenantId;
 
+    // Dış muhasebeye (Logo) FATURA yazar — geri alınamaz. Yalnız yönetici.
+    const kullanici = await prisma.user.findFirst({
+        where: { email: session.user?.email!, ...(tenantId ? { tenantId } : {}) },
+        select: { role: true },
+    });
+    if (kullanici?.role !== 'ADMIN' && kullanici?.role !== 'SUPER_ADMIN') {
+        return NextResponse.json({ error: 'Bu işlem için yönetici yetkisi gerekir.' }, { status: 403 });
+    }
+
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     const integration = createLogoIntegration(tenant);
     if (!integration) return NextResponse.json({ error: 'Logo entegrasyonu aktif değil' }, { status: 400 });
 
     const { period } = await req.json();
-    const dateFilter = period
-        ? { gte: new Date(`${period}-01`), lt: new Date(`${period}-01T00:00:00Z`) }
-        : undefined;
+    // Dönem filtresi BOZUKTU: gte ile lt aynı tarihti (`YYYY-MM-01` ve
+    // `YYYY-MM-01T00:00:00Z`), yani aralık boş — dönem verildiğinde HİÇBİR
+    // fiş eşleşmiyor, "0 fatura aktarıldı" sessizce dönüyordu.
+    // Doğrusu: ayın 1'inden ERTESİ ayın 1'ine.
+    let dateFilter: { gte: Date; lt: Date } | undefined;
+    if (period) {
+        const [yil, ay] = String(period).split('-').map(Number);
+        if (Number.isFinite(yil) && Number.isFinite(ay) && ay >= 1 && ay <= 12) {
+            dateFilter = {
+                gte: new Date(Date.UTC(yil, ay - 1, 1)),
+                lt: new Date(Date.UTC(ay === 12 ? yil + 1 : yil, ay === 12 ? 0 : ay, 1)),
+            };
+        } else {
+            return NextResponse.json({ error: 'Dönem YYYY-AA biçiminde olmalı' }, { status: 400 });
+        }
+    }
 
     const tickets = await prisma.serviceTicket.findMany({
         where: { tenantId, paymentStatus: 'PAID', ...(dateFilter ? { createdAt: dateFilter } : {}) },

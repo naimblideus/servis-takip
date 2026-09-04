@@ -6,8 +6,21 @@ import { previewPeriodCharges, commitPeriodCharges } from '@/lib/period-charges'
 async function authCustomer(id: string) {
   const session = await auth();
   if (!session) return { error: 'Unauthorized', status: 401 as const };
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! }, select: { tenantId: true } });
+  // Yalnız e-postayla aramak YANLIŞ BAYİYE bağlayabilir: e-posta bayi
+  // bazında benzersiz, global değil (canlı veride görüldü). Oturumdaki
+  // tenantId doğru kaynak — bkz. lib/api-auth.ts requireTenantUser.
+  const tenantId = (session.user as any)?.tenantId as string | undefined;
+  const email = session.user?.email ?? undefined;
+  if (!email) return { error: 'Unauthorized', status: 401 as const };
+  const user = await prisma.user.findFirst({
+    where: tenantId ? { email, tenantId } : { email },
+    select: { tenantId: true, role: true },
+  });
   if (!user) return { error: 'User not found', status: 404 as const };
+  // POST cari'ye PARA yazar; GET bütün dönem bedelini gösterir. Ofis işi.
+  if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+    return { error: 'Bu ekran için yönetici yetkisi gerekir.', status: 403 as const };
+  }
   const customer = await prisma.customer.findFirst({ where: { id, tenantId: user.tenantId }, select: { id: true } });
   if (!customer) return { error: 'Müşteri bulunamadı', status: 404 as const };
   return { tenantId: user.tenantId };

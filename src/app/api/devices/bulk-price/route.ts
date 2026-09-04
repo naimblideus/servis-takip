@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
+import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { writeAudit, istekIp } from '@/lib/audit';
 
 // TOPLU ZAM — kiralık cihazların kira ve/veya sayfa fiyatlarını tek işlemde günceller.
@@ -22,7 +22,10 @@ const roundTo = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
 
 export async function POST(req: NextRequest) {
   try {
-    const { tenantId, user } = await requireTenantUser();
+    // Toplu zam, denetim notunun da dediği gibi sistemdeki en yüksek mali
+    // etkili tek işlem — tek istekle bütün kiralık parkın fiyatını değiştirir.
+    // Yalnız oturum yetmez, YÖNETİCİ şart.
+    const { tenantId, user } = await requireAdminUser();
     const body = await req.json();
     const { customerId, mode, value, fields, dryRun } = body as {
       customerId?: string; mode: 'percent' | 'amount'; value: number; fields: Field[]; dryRun?: boolean;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { oturumKullanicisi } from '@/lib/api-auth';
+import { oturumKullanicisi, yoneticiDegilse } from '@/lib/api-auth';
 import { tumBakiyeler } from '@/lib/musteri-bakiye';
 
 // GET /api/muhasebe/overdue — Borçlu müşteriler (dashboard + ana ekran için).
@@ -16,6 +16,11 @@ export async function GET() {
 
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Menüde gizlemek yetkilendirme değildir: teknisyen adresi elle yazıp
+    // bütün müşterilerin mali verisini okuyabiliyor/değiştirebiliyordu. Saha
+    // tahsilatı ayrı uçtan geçer (/api/tickets/[id]/payments), o kapanmıyor.
+    const yetki = yoneticiDegilse(user);
+    if (yetki) return yetki;
 
     try {
         const bakiyeler = await tumBakiyeler(user.tenantId);
