@@ -263,7 +263,18 @@ export default function AccountingPage() {
       const rent = c.rent || 0, counter = c.counter || 0;
       if (rent <= 0 && counter <= 0) { alert('Bu dönem için eklenecek kira/sayaç yok (zaten eklenmiş ya da kiralık cihaz/okuma yok).'); return; }
       const f = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
-      if (!confirm(`${c.period} dönemi — ${selCust.name}\n\n🖨️ Kira: ${f(rent)}\n🔢 Sayaç: ${f(counter)}\n───────────\nToplam: ${f(rent + counter)}\n\nBu tutarlar cari hesaba eklensin mi?`)) return;
+      // Gösterilen tutar KDV DAHİL — cariye yazılan tutarın aynısı.
+      // Net ve KDV ayrı satırda: bayi neyi onayladığını tahmin etmesin.
+      const net = (c.rentNet || 0) + (c.counterNet || 0);
+      const kdv = rent + counter - net;
+      if (!confirm(
+        `${c.period} dönemi — ${selCust.name}\n\n` +
+        `🖨️ Kira: ${f(rent)}\n🔢 Sayaç: ${f(counter)}\n───────────\n` +
+        `Ara toplam (KDV hariç): ${f(net)}\n` +
+        `KDV %${c.vatRate ?? 0}: ${f(kdv)}\n` +
+        `Toplam: ${f(rent + counter)}\n\n` +
+        `Bu tutarlar cari hesaba eklensin mi?`,
+      )) return;
       const r = await fetch(`/api/customers/${selCust.id}/period-charges`, { method: 'POST' });
       const d = await r.json().catch(() => ({}));
       if (r.ok) { alert(`✓ ${d.added} kayıt cariye eklendi.`); loadData(); loadDetail(selCust.id); }

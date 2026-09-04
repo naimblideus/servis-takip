@@ -14,8 +14,14 @@ function periodRange(period: string) {
 
 export interface PeriodCharges {
   period: string;
+  /** KDV DAHİL kira — cariye yazılan ve kullanıcıya gösterilen tutar. */
   rent: number;
+  /** KDV DAHİL sayaç bedeli. */
   counter: number;
+  /** KDV hariç tutarlar (dökümde gösterilir). */
+  rentNet: number;
+  counterNet: number;
+  vatRate: number;
   rentDetail: { device: string; amount: number }[];
   counterDetail: { device: string; amount: number }[];
   readingIds: string[];
@@ -26,7 +32,7 @@ export interface PeriodCharges {
 async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: string, customerId: string): Promise<PeriodCharges> {
   const period = periodOf();
   const { start, end } = periodRange(period);
-  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { pricePerBlack: true, pricePerColor: true } });
+  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { pricePerBlack: true, pricePerColor: true, vatRate: true } });
   const devices = await tx.device.findMany({ where: { tenantId, customerId } });
 
   let rent = 0, counter = 0;
@@ -57,7 +63,24 @@ async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: s
     }
   }
 
-  return { period, rent: round2(rent), counter: round2(counter), rentDetail, counterDetail, readingIds, rentDeviceIds };
+  // ── NEDEN KDV EKLENİYOR ─────────────────────────────────────────────
+  // Bu yol ile OTOMATİK FATURALAMA (lib/invoicing) aynı borcu yazmalı.
+  // invoicing subtotal + KDV yazıyordu, burası KDV'siz yazıyordu ve
+  // lib/musteri-bakiye ikisini AYNI bakiyede topluyor. Sonuç: aynı ₺10.000
+  // kira, hangi düğmeye basıldığına göre ₺12.000 ya da ₺10.000 borç
+  // üretiyordu — bayinin alacağı yanlış görünüyordu. Dosyanın kendi
+  // başlığı da "faturalama ile aynı mantık" diyor; artık gerçekten öyle.
+  const vatRate = Number(tenant?.vatRate ?? 0);
+  const kdvli = (net: number) => round2(net * (1 + vatRate / 100));
+  const rentNet = round2(rent);
+  const counterNet = round2(counter);
+
+  return {
+    period,
+    rent: kdvli(rentNet), counter: kdvli(counterNet),
+    rentNet, counterNet, vatRate,
+    rentDetail, counterDetail, readingIds, rentDeviceIds,
+  };
 }
 
 /** Önizleme — cari'ye yazmadan hesapla (kullanıcı onayından önce gösterilir). */
@@ -77,19 +100,45 @@ export async function commitPeriodCharges(tenantId: string, customerId: string) 
       ? await tx.counterReading.updateMany({ where: { tenantId, id: { in: c.readingIds }, billed: false }, data: { billed: true } })
       : { count: 0 };
     const rentClaim = c.rentDeviceIds.length
-      ? await tx.device.updateMany({ where: { tenantId, id: { in: c.rentDeviceIds }, lastInvoicedPeriod: { not: c.period } }, data: { lastInvoicedPeriod: c.period } })
+      // NULL TUZAĞI: `{ not: 'X' }` SQL'de NULL satırları EŞLEŞTİRMEZ. Hiç
+      // faturalanmamış cihazın lastInvoicedPeriod'u NULL olduğu için claim
+      // 0 satır dönüyor, alttaki `rentClaim.count > 0` koşulu yüzünden KİRA
+      // SESSİZCE YAZILMIYORDU: önizleme kirayı gösteriyor, kullanıcı
+      // onaylıyor, cariye yalnız sayaç düşüyordu — yani her yeni kiralık
+      // cihaz ilk ayının kirasını kaybediyordu. (Ölçüldü: count=0.)
+      ? await tx.device.updateMany({
+          where: {
+            tenantId, id: { in: c.rentDeviceIds },
+            OR: [{ lastInvoicedPeriod: null }, { lastInvoicedPeriod: { not: c.period } }],
+          },
+          data: { lastInvoicedPeriod: c.period },
+        })
       : { count: 0 };
 
     // SALE yalnız GERÇEKTEN bu çağrının claim ettiği kalemler için yazılır.
     if (c.rent > 0 && rentClaim.count > 0) {
       await tx.accountEntry.create({
-        data: { tenantId, customerId, type: 'SALE', product: `Aylık Kira — ${c.period}`, amount: c.rent, method: 'OPEN_ACCOUNT', notes: 'Kira (elle eklendi)', date: new Date() },
+        data: {
+          tenantId, customerId, type: 'SALE',
+          product: `Aylık Kira — ${c.period}`,
+          amount: c.rent,          // KDV DAHİL (faturalama ile aynı)
+          method: 'OPEN_ACCOUNT',
+          notes: `Kira (elle eklendi) · KDV %${c.vatRate} dahil · net ${c.rentNet.toFixed(2)}`,
+          date: new Date(),
+        },
       });
       added++;
     }
     if (c.counter > 0 && readClaim.count > 0) {
       await tx.accountEntry.create({
-        data: { tenantId, customerId, type: 'SALE', product: `Sayaç — ${c.period}`, amount: c.counter, method: 'OPEN_ACCOUNT', notes: 'Sayaç (elle eklendi)', date: new Date() },
+        data: {
+          tenantId, customerId, type: 'SALE',
+          product: `Sayaç — ${c.period}`,
+          amount: c.counter,       // KDV DAHİL (faturalama ile aynı)
+          method: 'OPEN_ACCOUNT',
+          notes: `Sayaç (elle eklendi) · KDV %${c.vatRate} dahil · net ${c.counterNet.toFixed(2)}`,
+          date: new Date(),
+        },
       });
       added++;
     }
