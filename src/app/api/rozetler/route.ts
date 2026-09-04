@@ -24,7 +24,11 @@ export async function GET() {
       prisma.tenant.findUnique({ where: { id: tenantId }, select: { marketEnabled: true } }),
       prisma.marketOrder.count({ where: { sellerTenantId: tenantId, status: 'REQUESTED' } }),
       prisma.marketOrder.count({ where: { buyerTenantId: tenantId, status: 'SHIPPED' } }),
-      prisma.counterEmail.count({ where: { tenantId, status: 'BEKLIYOR' } }),
+      // HATA da sayılır: "sayaç geldi ama KAYDEDİLEMEDİ" demek (ör. sayaç
+      // düşüşü). Rozetin var oluş sebebi tam bu — görünmeyen kuyruk birikir
+      // ve ay sonunda eksik fatura kesilir. Kuyruk sayfası zaten ikisini de
+      // listeliyordu; menüdeki sayı ondan küçük kalıyordu.
+      prisma.counterEmail.count({ where: { tenantId, status: { in: ['BEKLIYOR', 'HATA'] } } }),
       prisma.portalRequest.count({ where: { tenantId, durum: 'BEKLIYOR' } }),
       /**
        * MAĞAZA SİPARİŞİ — bayinin haber alma yolu.

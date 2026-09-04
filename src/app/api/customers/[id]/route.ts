@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { oturumKullanicisi } from '@/lib/api-auth';
+import { oturumKullanicisi, yoneticiDegilse } from '@/lib/api-auth';
 
 export async function PATCH(
     req: Request,
@@ -58,8 +58,53 @@ export async function DELETE(
     try {
         const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        // IDOR koruması: yalnızca bu tenant'ın müşterisi silinebilir
-        const res = await prisma.customer.deleteMany({ where: { id, tenantId: user.tenantId } });
+
+        // ── NEDEN YÖNETİCİ ŞART ──────────────────────────────────────────
+        // Müşteri silmek zincirleme (cascade) olarak AccountEntry ve
+        // CustomerInvoice kayıtlarını da siler — yani o müşterinin BÜTÜN
+        // MALİ GEÇMİŞİNİ. Bu yetki her role açıktı: teknisyen tek istekle
+        // yılların cari hesabını yok edebiliyordu.
+        const yetki = yoneticiDegilse(user);
+        if (yetki) return yetki;
+
+        const tenantId = user.tenantId;
+        const musteri = await prisma.customer.findFirst({
+            where: { id, tenantId }, select: { id: true, name: true },
+        });
+        if (!musteri) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+
+        // ── NEDEN MALİ GEÇMİŞİ OLAN MÜŞTERİ SİLİNEMİYOR ──────────────────
+        // Silme geri alınamaz ve fatura/cari kaydı vergi açısından tutulması
+        // gereken veridir. "Yanlış girilmiş müşteriyi sil" ihtiyacı gerçek,
+        // ama o müşterinin hareketi yoktur. Hareketi olan kayıt silinmez;
+        // kullanıcıya ne engellediği SAYIYLA söylenir, tahmin ettirilmez.
+        const [cari, fatura, tahsilat, kasa, fis, cihaz] = await Promise.all([
+            prisma.accountEntry.count({ where: { tenantId, customerId: id } }),
+            prisma.customerInvoice.count({ where: { tenantId, customerId: id } }),
+            prisma.payment.count({ where: { tenantId, customerId: id } }),
+            prisma.financialTransaction.count({ where: { tenantId, customerId: id } }),
+            prisma.serviceTicket.count({ where: { tenantId, customerId: id } }),
+            prisma.device.count({ where: { tenantId, customerId: id } }),
+        ]);
+        const mali = cari + fatura + tahsilat + kasa;
+        if (mali > 0 || fis > 0 || cihaz > 0) {
+            const parca: string[] = [];
+            if (cari) parca.push(`${cari} cari hareket`);
+            if (fatura) parca.push(`${fatura} fatura`);
+            if (tahsilat) parca.push(`${tahsilat} tahsilat`);
+            if (kasa) parca.push(`${kasa} kasa hareketi`);
+            if (fis) parca.push(`${fis} servis fişi`);
+            if (cihaz) parca.push(`${cihaz} cihaz`);
+            return NextResponse.json({
+                error: `"${musteri.name}" silinemez: ${parca.join(', ')} bağlı. ` +
+                    `Silmek bu kayıtların hepsini de siler ve geri alınamaz. ` +
+                    `Müşteri artık çalışmıyorsa cihazlarını başka müşteriye taşıyın ` +
+                    `ya da adına "(pasif)" ekleyip listede bırakın.`,
+                engel: { cari, fatura, tahsilat, kasa, fis, cihaz },
+            }, { status: 409 });
+        }
+
+        const res = await prisma.customer.deleteMany({ where: { id, tenantId } });
         if (res.count === 0) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
         return NextResponse.json({ ok: true });
     } catch (e: any) {
