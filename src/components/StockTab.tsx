@@ -93,7 +93,7 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
       </div>
 
       {form.source === 'PART' ? (
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem'}}>
           <div style={{gridColumn:'1/-1'}}><label style={s.lbl}>Parça Adı *</label><input style={s.inp} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Drum ünitesi, toner, vs." /></div>
           <div><label style={s.lbl}>SKU / Kod</label><input style={s.inp} value={form.sku} onChange={e=>setForm(f=>({...f,sku:e.target.value}))} placeholder="Otomatik" /></div>
           <div><label style={s.lbl}>📷 Barkod</label><input style={s.inp} value={form.barcode} onChange={e=>setForm(f=>({...f,barcode:e.target.value}))} placeholder="Okuyucuyla okut veya yaz (EAN-13)" /></div>
@@ -104,7 +104,7 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
           <div><label style={s.lbl}>Min. Stok Uyarısı</label><input type="number" style={s.inp} value={form.minStock} onChange={e=>setForm(f=>({...f,minStock:e.target.value}))} /></div>
         </div>
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem'}}>
           <div><label style={s.lbl}>Kategori</label><select style={s.inp} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>{PRINTER_CATS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
           <div><label style={s.lbl}>Durum</label><select style={s.inp} value={form.condition} onChange={e=>setForm(f=>({...f,condition:e.target.value}))}><option value="SIFIR">Sıfır</option><option value="IKINCI_EL">İkinci El</option></select></div>
           <div><label style={s.lbl}>Marka *</label><input style={s.inp} value={form.brand} onChange={e=>setForm(f=>({...f,brand:e.target.value}))} placeholder="HP, Canon, Epson..." /></div>
@@ -149,8 +149,8 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
       )}
 
       {/* Header */}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
-        <div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'0.75rem',flexWrap:'wrap',marginBottom:'1.25rem'}}>
+        <div style={{minWidth:'11rem',flex:'1 1 14rem'}}>
           <h2 style={{fontWeight:'700',fontSize:'1.25rem',margin:0}}>📦 Stok Yönetimi</h2>
           <p style={{color:'#6b7280',margin:'0.2rem 0 0',fontSize:'0.85rem'}}>Parça, sarf malzeme ve yazıcı stoklarınız · <span style={{color:'#2563eb'}}>📷 barkod okuyucu hazır</span></p>
         </div>
@@ -162,7 +162,7 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
       </div>
 
       {/* Filters */}
-      <div style={{display:'flex',gap:'0.75rem',marginBottom:'1rem',alignItems:'center'}}>
+      <div style={{display:'flex',gap:'0.75rem',marginBottom:'1rem',alignItems:'center',flexWrap:'wrap'}}>
         <div style={{display:'flex',gap:'0.25rem',backgroundColor:'#f3f4f6',borderRadius:'0.5rem',padding:'0.25rem'}}>
           {([['all','Tümü'],['PART','🔧 Parçalar'],['PRINTER','🖨️ Yazıcı/Toner']] as const).map(([k,l])=>(
             <button key={k} onClick={()=>setSrcFilter(k)} style={{padding:'0.4rem 0.875rem',borderRadius:'0.375rem',border:'none',cursor:'pointer',fontSize:'0.82rem',fontWeight:srcFilter===k?'600':'400',backgroundColor:srcFilter===k?'white':'transparent',color:srcFilter===k?'#374151':'#6b7280',boxShadow:srcFilter===k?'0 1px 2px rgba(0,0,0,0.1)':'none'}}>{l}</button>
@@ -172,7 +172,7 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
       </div>
 
       {/* Stats */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem',marginBottom:'1.25rem'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(8.5rem,1fr))',gap:'0.75rem',marginBottom:'1.25rem'}}>
         {[
           {label:'Toplam Kalem',val:items.length,icon:'📦',color:'#3b82f6'},
           {label:'Parça',val:items.filter(i=>i.source==='PART').length,icon:'🔧',color:'#8b5cf6'},
@@ -193,8 +193,11 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
           {!search && <button onClick={openAdd} style={{marginTop:'0.75rem',padding:'0.5rem 1rem',backgroundColor:'#2563eb',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.85rem'}}>+ İlk Kalemi Ekle</button>}
         </div>
       ) : (
-        <div style={{backgroundColor:'white',borderRadius:'0.75rem',border:'1px solid #e5e7eb',overflow:'hidden'}}>
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
+        /* overflowX:auto — eskiden overflow:'hidden' idi ve geniş tablo
+              telefonda KIRPILIYORDU: son sütunlara ulaşmanın hiçbir yolu
+              yoktu. Artık tablo kendi içinde yana kayıyor, sayfa kaymıyor. */
+        <div style={{backgroundColor:'white',borderRadius:'0.75rem',border:'1px solid #e5e7eb',overflowX:'auto'}}>
+          <table style={{width:'100%',minWidth:'34rem',borderCollapse:'collapse'}}>
             <thead>
               <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
                 {['Stok Kalemi','Kategori/Grup','Adet','Alış','Satış','İşlem'].map(h=>(

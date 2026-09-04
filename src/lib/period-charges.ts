@@ -22,6 +22,12 @@ export interface PeriodCharges {
   rentNet: number;
   counterNet: number;
   vatRate: number;
+  /**
+   * Cihaz kırılımı — tutarlar KDV HARİÇ (cihaz kartındaki kira ile aynı
+   * rakam, bayi orada ne yazdıysa onu görsün). Üstteki `rent`/`counter`
+   * ise KDV DAHİL. Bu diziyi toplayıp `rent` ile karşılaştırmayın; net
+   * karşılığı `rentNet`/`counterNet`.
+   */
   rentDetail: { device: string; amount: number }[];
   counterDetail: { device: string; amount: number }[];
   readingIds: string[];

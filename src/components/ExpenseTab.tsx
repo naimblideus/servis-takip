@@ -71,7 +71,7 @@ export default function ExpenseTab() {
               <span style={{fontWeight:'700',fontSize:'1rem'}}>{editId?'✏️ Gider Düzenle':'💸 Yeni Gider'}</span>
               <button onClick={()=>{setShowForm(false);setEditId(null);setForm(EMPTY);}} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',borderRadius:'50%',width:'28px',height:'28px',cursor:'pointer'}}>✕</button>
             </div>
-            <div style={{padding:'1.25rem',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+            <div style={{padding:'1.25rem',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem'}}>
               <div style={{gridColumn:'1/-1'}}>
                 <label style={s.lbl}>Kategori</label>
                 <div style={{display:'flex',flexWrap:'wrap',gap:'0.4rem'}}>
@@ -144,8 +144,12 @@ export default function ExpenseTab() {
           <button onClick={()=>{setForm(EMPTY);setShowForm(true);}} style={{marginTop:'0.75rem',padding:'0.5rem 1rem',backgroundColor:'#dc2626',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.85rem'}}>+ İlk Gideri Ekle</button>
         </div>
       ) : (
-        <div style={{backgroundColor:'white',borderRadius:'0.75rem',border:'1px solid #e5e7eb',overflow:'hidden'}}>
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
+        /* overflowX:auto — eskiden overflow:'hidden' idi ve 7 sütunlu gider
+           tablosu telefonda KIRPILIYORDU: Yöntem, Tutar ve silme sütununa
+           ulaşmanın hiçbir yolu yoktu. Artık tablo kendi içinde yana
+           kayıyor, sayfa yana kaymıyor. */
+        <div style={{backgroundColor:'white',borderRadius:'0.75rem',border:'1px solid #e5e7eb',overflowX:'auto'}}>
+          <table style={{width:'100%',minWidth:'36rem',borderCollapse:'collapse'}}>
             <thead>
               <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
                 {['Tarih','Kategori','Açıklama','Ödenecek','Yöntem','Tutar',''].map(h=>(

@@ -573,14 +573,17 @@ export default function AccountingPage() {
           </div>
         </div>
       )}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-        <div>
+      {/* flexWrap + minWidth: dar ekranda buton grubu küçülemediği için
+          başlığın ÜSTÜNE biniyordu (telefonda "Muhasebe" yazısı butonların
+          altında kalıyordu). Artık alt satıra iniyor. */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'0.75rem',flexWrap:'wrap',marginBottom:'1rem'}}>
+        <div style={{minWidth:'12rem',flex:'1 1 16rem'}}>
           {/* "Cari hesap" jargonu kaldırıldı: bayi teknik değil, bu ekrandan
               tek bir şey soruyor — kim bana ne kadar borçlu. */}
           <h1 style={{fontSize:'1.875rem',fontWeight:'bold',margin:0}}>Muhasebe</h1>
           <p style={{color:'#6b7280',margin:'0.25rem 0 0'}}>Kim sana ne kadar borçlu — servis işleri ve kira/sayaç faturaları birlikte</p>
         </div>
-        <div style={{display:'flex',gap:'0.5rem'}}>
+        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
           {activeTab==='accounting' && (
             <>
               <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>🖨️ Yazdır</button>
@@ -630,7 +633,10 @@ export default function AccountingPage() {
           kira-sayaç faturası borcu bu ekranda hiç görünmüyordu. Artık tek
           büyük sayı var — "bu bayiye toplam ne kadar girecek" — ve altında
           nereden geldiğinin kırılımı. */}
-      <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr 1fr',gap:'1rem',marginBottom:'1.5rem'}} className="print-hide">
+      {/* auto-fit: geniş ekranda üç kart yan yana, telefonda alt alta.
+          Sabit üç sütun 375 px'de taşıyordu — rakamın sonu kesiliyordu
+          (₺17.103,0) ve üçüncü kart hiç görünmüyordu. */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(13rem,1fr))',gap:'1rem',marginBottom:'1.5rem'}} className="print-hide">
         <div style={{backgroundColor:'#fef2f2',borderRadius:'0.75rem',padding:'1.25rem',border:'1px solid #fecaca'}}>
           <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.35rem'}}>
             <span style={{fontSize:'1.25rem'}}>💰</span>
@@ -694,7 +700,7 @@ export default function AccountingPage() {
                 }}>{t==='SALE'?'🛒 Satış/Ürün':'💵 Ödeme'}</button>
               ))}
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(11rem,1fr))',gap:'1rem',marginBottom:'1rem'}}>
               <div style={{position:'relative'}}>
                 <label style={lbl}>Müşteri *</label>
                 <input
@@ -786,7 +792,7 @@ export default function AccountingPage() {
                 <input required type="number" step="0.01" min="0" style={inp} value={form.amount} onChange={e => setForm({...form,amount:e.target.value})} placeholder="0.00" />
               </div>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(11rem,1fr))',gap:'1rem',marginBottom:'1rem'}}>
               <div>
                 <label style={lbl}>Ödeme Yöntemi</label>
                 <select style={inp} value={form.method} onChange={e => setForm({...form,method:e.target.value})}>
@@ -859,7 +865,7 @@ export default function AccountingPage() {
               </div>
             </div>
             {selCust && (
-              <div style={{backgroundColor:'#f8fafc',border:'1px solid #e2e8f0',borderTop:'none',padding:'0.75rem 1.5rem',display:'grid',gridTemplateColumns:'1fr 1fr',fontSize:'0.8rem'}}>
+              <div style={{backgroundColor:'#f8fafc',border:'1px solid #e2e8f0',borderTop:'none',padding:'0.75rem 1.5rem',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(9rem,1fr))',gap:'0.35rem',fontSize:'0.8rem'}}>
                 <div><span style={{color:'#6b7280'}}>Müşteri: </span><strong>{selCust.name}</strong></div>
                 <div><span style={{color:'#6b7280'}}>Telefon: </span>{selCust.phone}</div>
               </div>
@@ -892,7 +898,7 @@ export default function AccountingPage() {
                 </div>
                 {/* Tek gerçek önce, kırılımı sonra: bayinin sorduğu soru
                     "bu müşteri bana ne kadar borçlu" — cevabı büyük yazıyor. */}
-                <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1fr',gap:'0.75rem',marginTop:'1rem'}}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem',marginTop:'1rem'}}>
                   <div style={{backgroundColor:'rgba(255,255,255,0.14)',borderRadius:'0.5rem',padding:'0.85rem'}}>
                     <div style={{fontSize:'0.7rem',opacity:0.75,marginBottom:'0.25rem'}}>
                       {detail.summary.balance>0?'TOPLAM BORCU':detail.summary.balance<0?'FAZLA ÖDEME (kredi)':'BORCU YOK'}
@@ -1017,7 +1023,7 @@ export default function AccountingPage() {
                 <input style={inp} value={editModal.product} onChange={e => setEditModal({...editModal,product:e.target.value})} placeholder="Aldığı ürün..." />
               </div>
             )}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem',marginBottom:'0.75rem'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem',marginBottom:'0.75rem'}}>
               <div>
                 <label style={lbl}>Tutar (₺) *</label>
                 <input type="number" step="0.01" min="0" style={inp} value={editModal.amount} onChange={e => setEditModal({...editModal,amount:e.target.value})} />
@@ -1029,7 +1035,7 @@ export default function AccountingPage() {
                 </select>
               </div>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem',marginBottom:'1rem'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem',marginBottom:'1rem'}}>
               <div>
                 <label style={lbl}>Tarih</label>
                 <input type="date" style={inp} value={editModal.date} onChange={e => setEditModal({...editModal,date:e.target.value})} />
