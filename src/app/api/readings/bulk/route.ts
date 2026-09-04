@@ -105,6 +105,9 @@ export async function POST(req: NextRequest) {
           source: 'TOPLU',
           includeMonthlyRent: !!includeMonthlyRent,
           reset: !!r.reset,
+          // Sebep istemciden gelir; gelmezse createReading güvenli tarafı
+          // (CIHAZ_DEGISTI → delta 0) seçer.
+          resetTur: r.resetTur,
         }, tenant);
         saved++;
         totalCost += out.calculatedCost || 0;

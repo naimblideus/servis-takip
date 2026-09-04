@@ -8,7 +8,7 @@ interface Row {
   id: string; brand: string; model: string; serialNo: string; location: string;
   lastBlack: number | null; lastColor: number | null; hasColor: boolean; readAt: string | null;
 }
-interface RowState { black: string; color: string; reset: boolean; done?: boolean; err?: string | null; code?: string }
+interface RowState { black: string; color: string; reset: boolean; resetTur?: "CIHAZ_DEGISTI" | "SAYAC_SIFIRLANDI"; done?: boolean; err?: string | null; code?: string }
 
 const nf = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('tr-TR'));
 const money = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -118,6 +118,7 @@ export default function SayacTuruPage() {
         // zaten değişmiyor; önceki değer korunur.
         counterColor: r.hasColor ? Number(st[r.id].color) : (r.lastColor ?? 0),
         reset: !!st[r.id].reset,
+        resetTur: st[r.id].resetTur,
       }));
       const res = await fetch('/api/readings/bulk', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -314,12 +315,28 @@ export default function SayacTuruPage() {
                   {s.err && (
                     <div style={{ marginTop: 8, background: '#FDECEC', border: '1px solid #FCA5A5', borderRadius: 10, padding: '.55rem .7rem' }}>
                       <div style={{ color: '#9B1C1C', fontSize: '.8rem', lineHeight: 1.45 }}>{s.err}</div>
+                      {/* Tek kutu İKİ FARKLI olayı temsil ediyordu ve ikisi
+                          aynı sayılıyordu: "cihaz değişti"de yeni makinenin
+                          ömür boyu sayacı o ayın kullanımı sayılıp
+                          faturalanıyordu (480.000 sayfa ≈ ₺201.600 yanlış
+                          fatura). Artık sebep soruluyor. */}
                       {s.code === 'COUNTER_DECREASE' && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6, fontSize: '.8rem', color: '#7C2D12', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={s.reset}
-                            onChange={(e) => setSt((x) => ({ ...x, [r.id]: { ...x[r.id], reset: e.target.checked } }))} />
-                          Sayaç sıfırlandı / cihaz değişti — yine de kaydet
-                        </label>
+                        <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+                          <div style={{ fontSize: '.78rem', color: '#7C2D12', fontWeight: 700 }}>Sebebi ne?</div>
+                          {([
+                            ['CIHAZ_DEGISTI', 'Cihaz değişti — başka makine takıldı', 'Yeni makinenin sayacı bu ayın kullanımı sayılmaz; buradan sonrası sayılır.'],
+                            ['SAYAC_SIFIRLANDI', 'Aynı makine, sayacı sıfırlandı', 'Okunan değer bu ayın kullanımıdır ve faturalanır.'],
+                          ] as const).map(([tur, baslik, aciklama]) => (
+                            <label key={tur} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: '.8rem', color: '#7C2D12', cursor: 'pointer' }}>
+                              <input type="radio" name={`reset-${r.id}`} checked={s.reset === true && s.resetTur === tur} style={{ marginTop: 3 }}
+                                onChange={() => setSt((x) => ({ ...x, [r.id]: { ...x[r.id], reset: true, resetTur: tur } }))} />
+                              <span>
+                                {baslik}
+                                <span style={{ display: 'block', color: '#9A6B3F', fontSize: '.72rem' }}>{aciklama}</span>
+                              </span>
+                            </label>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )}

@@ -25,6 +25,19 @@ export interface CreateReadingInput {
   photo?: string | null;
   /** Sayaç sıfırlandı/cihaz değişti onayı — düşüş ancak bununla kabul edilir */
   reset?: boolean;
+  /**
+   * Düşüşün SEBEBİ. İki durum tamamen farklı sonuç doğurur ve eskiden
+   * ayrılmıyordu — ikisi de "o ayın kullanımı = okunan değer" sayılıyordu:
+   *
+   * · CIHAZ_DEGISTI    → başka bir makine takıldı. Yeni makinenin sayacı ONUN
+   *                      ömür boyu değeridir, bu ayın kullanımı DEĞİLDİR.
+   *                      delta = 0; okunan değer bundan sonrası için başlangıç.
+   * · SAYAC_SIFIRLANDI → aynı makine, sayaç sıfıra döndü. Okunan değer
+   *                      sıfırlamadan sonraki gerçek kullanımdır. delta = değer.
+   *
+   * Belirtilmezse CIHAZ_DEGISTI varsayılır — güvenli taraf.
+   */
+  resetTur?: 'CIHAZ_DEGISTI' | 'SAYAC_SIFIRLANDI';
   /** Okuma nereden geldi — tartışmada kanıt ağırlığını belirler (bkz. şema) */
   source?: OkumaKaynagi;
 }
@@ -51,7 +64,7 @@ export async function createReading(
   /** Toplu çağrıda tenant'ı bir kez çekip geçir (N+1 önle) */
   preloadedTenant?: any,
 ) {
-  const { tenantId, deviceId, counterBlack, counterColor, ticketId, includeMonthlyRent, reset } = input;
+  const { tenantId, deviceId, counterBlack, counterColor, ticketId, includeMonthlyRent, reset, resetTur } = input;
 
   if (counterBlack === undefined || counterColor === undefined || counterBlack === null || counterColor === null) {
     throw new ReadingError('MISSING', 'counterBlack ve counterColor zorunlu');
@@ -85,8 +98,23 @@ export async function createReading(
     );
   }
 
-  const deltaBlack = prevB === null ? 0 : (reset && counterBlack < prevB ? Math.max(0, counterBlack) : Math.max(0, counterBlack - prevB));
-  const deltaColor = prevC === null ? 0 : (reset && counterColor < prevC ? Math.max(0, counterColor) : Math.max(0, counterColor - prevC));
+  // ── DÜŞÜŞTE DELTA ─────────────────────────────────────────────────────
+  // Eskiden `reset` onayı verildiğinde delta = OKUNAN DEĞER oluyordu. Bu yalnız
+  // "sayaç sıfırlandı" için doğru. "Cihaz değişti"de felaket üretiyordu:
+  // müşteride 620.000'de arızalanan makinenin yerine depodan 480.000 sayfalık
+  // ikinci el takılınca, o makinenin ÖMÜR BOYU sayacı o ayın kullanımı sayılıp
+  // faturalanıyordu — ₺0,42'den ₺201.600 yanlış fatura.
+  //
+  // Artık sebep ayrıştırılıyor. Tür belirtilmemişse CIHAZ_DEGISTI varsayılır:
+  // eksik faturalamak, fahiş faturalamaktan iyidir; eksik kalan sayfa bir
+  // sonraki okumada zaten farka giriyor, fahiş fatura ise müşteriyi kaybettirir.
+  const sayacSifirlandi = reset && resetTur === 'SAYAC_SIFIRLANDI';
+  const dusustekiDelta = (yeni: number) => (sayacSifirlandi ? Math.max(0, yeni) : 0);
+
+  const deltaBlack = prevB === null ? 0
+    : (reset && counterBlack < prevB ? dusustekiDelta(counterBlack) : Math.max(0, counterBlack - prevB));
+  const deltaColor = prevC === null ? 0
+    : (reset && counterColor < prevC ? dusustekiDelta(counterColor) : Math.max(0, counterColor - prevC));
   const warning = deltaBlack > ANOMALY || deltaColor > ANOMALY ? 'Olağandışı yüksek sayfa artışı — lütfen kontrol edin.' : null;
 
   // Kiralık cihazda kademeli (dahil paket + aşım) ücret — gerçek fatura mantığıyla AYNI kaynak
