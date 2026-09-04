@@ -129,13 +129,27 @@ export async function POST(req: NextRequest) {
 
   // Hiç seri eşleşmedi: tek kayıt aç, elle incelensin.
   if (coklu.seriYok) {
-    const tek = parseCounterEmail(duzMetin, [], subject);
     // Sistemde bulamasak bile cihazın YAZDIĞI seriyi kaydet. Eskiden null
     // yazılıyordu; bayi kuyrukta "bu hangi cihaz?" sorusunu ham metinden
     // çözmek zorunda kalıyor, sistem de hiçbir şey öğrenemiyordu. Seri
     // kayıtlıysa ekran eşleşme önerebiliyor ve tek tıkla kalıcı bağlanıyor.
     const yazilanSeriler = bildirilenSeri(ham);
     const yazilanSeri = yazilanSeriler[0] ?? null;
+
+    // ── ÇOK CİHAZLI RAPORA TEK-CİHAZ OKUYUCUSU UYGULANMAZ ──────────────
+    // `parseCounterEmail(duzMetin, [], …)` BÜTÜN metni tek cihaz gibi okur.
+    // Rapor çok cihazlıysa (birden fazla seri bildirilmişse) bu, A cihazının
+    // serisini B cihazının sayacıyla eşleştirip kuyruğa yazıyordu; bayi
+    // kuyrukta "eşleştir" dediğinde YANLIŞ sayaç kaydediliyordu.
+    // Bu özellikle ilk kurulumda tehlikeli: seriler henüz sisteme girilmemişken
+    // gelen ilk filo raporlarının hepsi bu yoldan geçiyor.
+    //
+    // Çok seri varsa sayaç DOLDURULMAZ — bayi ham metne bakıp kendi girer.
+    // Eksik veri, yanlış veriden iyidir.
+    const cokCihazli = yazilanSeriler.length > 1;
+    const tek = cokCihazli
+      ? { black: null as number | null, color: null as number | null }
+      : parseCounterEmail(duzMetin, [], subject);
     const kayit = await prisma.counterEmail.create({
       data: {
         tenantId: bayi?.id ?? null,
@@ -146,8 +160,10 @@ export async function POST(req: NextRequest) {
         status: 'BEKLIYOR',
         // Tanınmayan bayi kodu buraya HİÇ ulaşmaz — yukarıda 422 ile
         // reddediliyor. Buraya düşen e-postada ya kod yok ya da kod geçerli.
-        hata: yazilanSeri
-            ? `Cihaz "${yazilanSeri}" serisini bildirdi${yazilanSeriler.length > 1 ? ` (+${yazilanSeriler.length - 1} cihaz daha)` : ''} ama bu seri sistemde yok — cihazı seçip bağlayın`
+        hata: cokCihazli
+          ? `Bu rapor ${yazilanSeriler.length} cihaz içeriyor (${yazilanSeriler.slice(0, 3).join(', ')}${yazilanSeriler.length > 3 ? '…' : ''}) ve hiçbiri sistemde kayıtlı değil. Hangi sayacın hangi cihaza ait olduğu güvenle ayrılamadığı için sayaç DOLDURULMADI — cihazların seri numaralarını girip raporu tekrar gönderin ya da sayaçları ham metinden okuyup elle yazın.`
+          : yazilanSeri
+            ? `Cihaz "${yazilanSeri}" serisini bildirdi ama bu seri sistemde yok — cihazı seçip bağlayın`
             : 'Seri numarası eşleşmedi',
       },
     });

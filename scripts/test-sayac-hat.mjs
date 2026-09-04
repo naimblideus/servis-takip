@@ -188,6 +188,26 @@ t('bir satirin hatasi diger cihazlari DURDURMAZ', r.__json.islenen === 2 && r.__
 r = await POST(istek({ to: 'sayac+yanliskod@nextusservis.com', subject: 's', text: 'Toplam: 5' }));
 t('taninmayan kod kuyruga duser', r.__json.bekleyen === 1 && /kod/i.test(r.__json.sebep ?? ''), r.__json.sebep);
 
+// 7) ÇOK CİHAZLI rapor, hiçbir seri sistemde YOK.
+// Eskiden bütün metne TEK-cihaz okuyucusu uygulanıp ilk serinin yanına
+// (muhtemelen başka cihazın) sayacı yazılıyordu; bayi kuyrukta "eşleştir"
+// dediğinde YANLIŞ sayaç kaydediliyordu. Artık sayaç doldurulmaz.
+r = await POST(istek({
+  to: adres, subject: 'Counter Report',
+  text: [
+    'Serial Number: BILINMEYEN-AAA1',
+    'Black: 145230',
+    'Color: 22410',
+    'Serial Number: BILINMEYEN-BBB2',
+    'Black: 998450',
+    'Color: 1200',
+  ].join('\n'),
+}));
+t('cok cihazli + seri yok: kuyruga duser', r.__json.bekleyen === 1, JSON.stringify(r.__json).slice(0, 200));
+t('cok cihazli + seri yok: SAYAC DOLDURULMAZ (yanlis eslesme onlenir)',
+  /ayrılamadığı|DOLDURULMADI/i.test(r.__json.sebep ?? ''), r.__json.sebep);
+t('kac cihaz oldugu bayiye soylenir', /2 cihaz/.test(r.__json.sebep ?? ''), r.__json.sebep);
+
 // ── Temizlik: testin yazdığı her şeyi geri al ──
 const eposta = await p.counterEmail.deleteMany({ where: { tenantId: bayi.id, receivedAt: { gte: baslangic } } });
 const okuma = await p.counterReading.deleteMany({
