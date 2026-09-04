@@ -5,6 +5,30 @@ import { buildInvoiceForCustomerPeriod, periodOf } from '@/lib/invoicing';
 // Vercel function timeout (saniye) — büyük tenant'lar için
 export const maxDuration = 300;
 
+/**
+ * KAPANMIŞ dönemi faturala — bugünün dönemini DEĞİL.
+ *
+ * Cron ayın 1'inde 06:00'da çalışıyor (`0 6 1 * *`). Varsayılan dönem
+ * `periodOf()` yani BUGÜNÜN dönemiydi: 1 Ekim'de "2026-10" faturalanıyordu.
+ * Fatura ise yalnız `readingDate >= 1 Ekim && < 1 Kasım` aralığındaki
+ * okumaları alıyor (invoicing.ts periodRange) — o pencerede daha hiç okuma
+ * yok. Sonuç: EYLÜL boyunca okunan bütün sayaçlar `billed:false` kalıyor ve
+ * bir sonraki ay da kendi penceresine bakacağı için o gelir BİR DAHA HİÇ
+ * faturalanmıyordu. Bayinin ayın tüm sayaç geliri sessizce kayboluyordu.
+ *
+ * Doğrusu: ay kapandığında KAPANAN ayı faturalamak. Kira da o döneme yazılır,
+ * yani fatura "geçen ayın kirası + geçen ayın aşımı" olur — dönem sonu
+ * faturalama. Elle tetikte `period` verilirse o kullanılır, bu yalnız
+ * varsayılan.
+ */
+function kapananDonem(): string {
+  const d = new Date();
+  // Ayın 1'ine sabitleyip geri git: 31'inde ay çıkarmanın taşma tuzağı olmasın.
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  return periodOf(d);
+}
+
 // CRON_SECRET ile koruma (Vercel Cron: Authorization: Bearer <secret>)
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -72,7 +96,7 @@ async function run(period: string, tenantId?: string) {
 // Vercel Cron GET ile çağırır
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const period = new URL(req.url).searchParams.get('period') || periodOf();
+  const period = new URL(req.url).searchParams.get('period') || kapananDonem();
   const results = await run(period);
   return NextResponse.json({ ok: true, period, tenants: results.length, results });
 }
@@ -86,7 +110,7 @@ export async function POST(req: NextRequest) {
   } catch {
     /* boş body */
   }
-  const period = body.period || periodOf();
+  const period = body.period || kapananDonem();
   const results = await run(period, body.tenantId);
   return NextResponse.json({ ok: true, period, tenants: results.length, results });
 }
