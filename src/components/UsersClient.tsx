@@ -54,8 +54,8 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
     const inp = { padding: '0.35rem 0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.8rem', width: '100%', boxSizing: 'border-box' as const };
 
     return (
-        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+            <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                 <thead>
                     <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
                         {['Ad Soyad', 'E-posta', 'Rol', 'Durum', 'Şifre', 'Atanan Fiş', 'Kayıt', 'İşlem'].map(h => (

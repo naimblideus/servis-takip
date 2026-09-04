@@ -362,8 +362,8 @@ export default function TenantDetailPage() {
                                 + Fatura Oluştur
                             </button>
                         </div>
-                        <div className="bg-white/3 border border-white/10 rounded-2xl overflow-hidden">
-                            <table className="w-full text-sm">
+                        <div className="bg-white/3 border border-white/10 rounded-2xl overflow-x-auto">
+                            <table className="w-full text-sm min-w-[40rem]">
                                 <thead>
                                     <tr className="border-b border-white/10 text-xs text-gray-400">
                                         <th className="text-left px-4 py-3">No</th>
@@ -403,8 +403,8 @@ export default function TenantDetailPage() {
 
                 {/* Tab: Kullanıcılar */}
                 {tab === 4 && (
-                    <div className="bg-white/3 border border-white/10 rounded-2xl overflow-hidden">
-                        <table className="w-full text-sm">
+                    <div className="bg-white/3 border border-white/10 rounded-2xl overflow-x-auto">
+                        <table className="w-full text-sm min-w-[40rem]">
                             <thead>
                                 <tr className="border-b border-white/10 text-xs text-gray-400">
                                     <th className="text-left px-4 py-3">Ad Soyad</th>

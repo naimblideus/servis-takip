@@ -114,8 +114,8 @@ export default function TenantsPage() {
                         <RefreshCw className="w-7 h-7 animate-spin text-violet-400" />
                     </div>
                 ) : (
-                    <div className="bg-white/3 border border-white/10 rounded-2xl overflow-hidden">
-                        <table className="w-full text-sm">
+                    <div className="bg-white/3 border border-white/10 rounded-2xl overflow-x-auto">
+                        <table className="w-full text-sm min-w-[44rem]">
                             <thead>
                                 <tr className="border-b border-white/10 text-gray-400 text-xs">
                                     <th className="text-left px-4 py-3">İşletme</th>

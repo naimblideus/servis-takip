@@ -86,8 +86,8 @@ export default function TrashPage() {
                     <p style={{ color: '#6b7280', fontSize: '1rem' }}>Çöp kutusu boş</p>
                 </div>
             ) : (
-                <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ backgroundColor: '#fef2f2', borderBottom: '2px solid #fecaca' }}>
                                 {['Fiş No', 'Müşteri / Cihaz', 'Arıza', 'Silinme Tarihi', 'İşlem'].map(h => (

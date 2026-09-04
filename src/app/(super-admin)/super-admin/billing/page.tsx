@@ -95,8 +95,8 @@ export default function BillingPage() {
                 {loading ? (
                     <div className="flex items-center justify-center h-48"><RefreshCw className="w-7 h-7 animate-spin text-violet-400" /></div>
                 ) : (
-                    <div className="bg-white/3 border border-white/10 rounded-2xl overflow-hidden">
-                        <table className="w-full text-sm">
+                    <div className="bg-white/3 border border-white/10 rounded-2xl overflow-x-auto">
+                        <table className="w-full text-sm min-w-[40rem]">
                             <thead>
                                 <tr className="border-b border-white/10 text-xs text-gray-400">
                                     <th className="text-left px-4 py-3">Fatura No</th>

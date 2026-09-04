@@ -75,8 +75,8 @@ export default function TicketTable({ tickets, onDelete }: { tickets: Ticket[]; 
     const arrow = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕';
 
     return (
-        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+            <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                 <thead>
                     <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
                         <th style={thStyle('ticketNumber')} onClick={() => toggleSort('ticketNumber')}>Fiş No{arrow('ticketNumber')}</th>
@@ -146,13 +146,22 @@ export default function TicketTable({ tickets, onDelete }: { tickets: Ticket[]; 
                                 <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: '#6b7280' }}>{t.assignedUser?.name ?? '—'}</td>
                                 <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: '#6b7280' }}>{new Date(t.createdAt).toLocaleDateString('tr-TR')}</td>
                                 <td style={{ padding: '0.75rem 1rem' }}>
-                                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
-                                        <Link href={`/tickets/${t.id}/print`} style={{ color: '#6b7280', fontSize: '0.85rem', textDecoration: 'none' }} target="_blank" title="Yazdır">🖨️</Link>
+                                    {/* DOKUNMA HEDEFİ: ölçüldü — yazdır 20×19 px, sil 17×25 px idi.
+                                        Telefonda parmak ucu ~45 px'lik alana basar; 19 px'lik hedefte
+                                        yanlış düğmeye basmak kural olur ve bunlardan biri FİŞİ SİLİYOR.
+                                        36×36'ya çıkarıldı, aralık açıldı. */}
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                                        <Link
+                                            href={`/tickets/${t.id}/print`}
+                                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', color: '#6b7280', fontSize: '1rem', textDecoration: 'none' }}
+                                            target="_blank" title="Yazdır" aria-label="Fişi yazdır"
+                                        >🖨️</Link>
                                         {onDelete && (
                                             <button
                                                 onClick={() => onDelete(t.id, t.ticketNumber)}
                                                 title="Çöp Kutusuna Taşı"
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: '0.85rem', padding: '0.1rem 0.2rem', lineHeight: 1 }}
+                                                aria-label="Fişi çöp kutusuna taşı"
+                                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: '1rem', lineHeight: 1 }}
                                             >🗑️</button>
                                         )}
                                     </div>

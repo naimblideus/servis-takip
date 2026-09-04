@@ -82,9 +82,9 @@ export default function CustomerCariPanel({ customerId }: { customerId: string }
 
             {/* İşlem Geçmişi */}
             {transactions.length > 0 && (
-                <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+                <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
                     <h3 style={{ fontWeight: '600', fontSize: '0.9rem', padding: '1rem 1rem 0.5rem' }}>İşlem Geçmişi</h3>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                                 {['Tarih', 'Kategori', 'Açıklama', 'Tutar'].map(h => (

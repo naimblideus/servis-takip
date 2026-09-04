@@ -56,7 +56,11 @@ export default function TalepFormu({
     ? aciklama.trim().length >= 5
     : black.trim() !== '' && Number.isFinite(Number(black.replace(/\D/g, '')));
 
-  const dugme = 'rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50';
+  // DOKUNMA HEDEFİ: ölçüldü — bu düğmeler 30 px yüksekliğindeydi. Bu sayfayı
+  // MÜŞTERİ kendi telefonundan açıyor ve bunlar sayfanın tek eyleme geçme
+  // noktası. Parmak ucu ~45 px'lik alana basar; 30 px'te yanlış basış olağan.
+  // min-h-11 (44 px) ile Apple'ın önerdiği hedefe çıkarıldı, yazı okunur boya.
+  const dugme = 'inline-flex items-center justify-center min-h-11 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50';
   const alan = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400';
 
   return (

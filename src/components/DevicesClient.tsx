@@ -156,8 +156,8 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                 </p>
             )}
 
-            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+                <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                             {['Marka / Model', 'Seri No', 'Müşteri', 'Konum', activeTab !== 'normal' ? 'Kira' : '', 'Son Fiş', ''].filter(Boolean).map(h => (
