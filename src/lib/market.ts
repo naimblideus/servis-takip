@@ -3,6 +3,7 @@
 // Satıcının iç verisi (müşteri/maliyet/cari) ASLA dışarı verilmez — sadece görünen ad + şehir.
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { bayiSuzgeci } from '@/lib/api-auth';
 import { hasModule } from '@/lib/modules';
 
 export interface MarketAuth {
@@ -15,7 +16,7 @@ export interface MarketAuth {
 export async function marketAuth(requireEnabled = true): Promise<MarketAuth> {
   const session = await auth();
   if (!session) return { error: 'Unauthorized', status: 401, user: null, tenant: null };
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! }, select: { id: true, tenantId: true, name: true, role: true } });
+  const user = await prisma.user.findFirst({ where: { email: session.user?.email!, ...bayiSuzgeci(session) }, select: { id: true, tenantId: true, name: true, role: true } });
   if (!user) return { error: 'User not found', status: 404, user: null, tenant: null };
   const tenant = await prisma.tenant.findUnique({
     where: { id: user.tenantId },

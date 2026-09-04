@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { bayiSuzgeci } from '@/lib/api-auth';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 
 // POST /api/tickets/backfill-cari — Açık (iptal/silinmemiş, tutarı>0, müşterili) tüm servis fişlerini
@@ -8,7 +9,7 @@ import { syncTicketToCari } from '@/lib/ticket-cari';
 export async function POST() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const user = await prisma.user.findFirst({ where: { email: session.user?.email! }, select: { tenantId: true, role: true } });
+  const user = await prisma.user.findFirst({ where: { email: session.user?.email!, ...bayiSuzgeci(session) }, select: { tenantId: true, role: true } });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Bu işlem için yönetici yetkisi gerekir' }, { status: 403 });
 

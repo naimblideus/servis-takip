@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { bayiSuzgeci } from '@/lib/api-auth';
 import { cleanPhone } from '@/lib/import-parser';
 
 // Bozuk telefon tespiti: hex karakter içeren, BOS- olmayan, geçersiz formatlı
@@ -30,7 +31,7 @@ export async function GET() {
         if (!session) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
 
         const user = await prisma.user.findFirst({
-            where: { email: session.user?.email! },
+            where: { email: session.user?.email!, ...bayiSuzgeci(session) },
         });
         if (!user) return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
         if (user.role !== 'ADMIN') {

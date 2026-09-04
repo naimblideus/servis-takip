@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { bayiSuzgeci } from '@/lib/api-auth';
 
 // GET /api/onboarding/status — ilk-giris durumu + veri-bazli baslangic rehberi adimlari
 export async function GET() {
@@ -8,7 +9,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const user = await prisma.user.findFirst({
-    where: { email: session.user?.email! },
+    where: { email: session.user?.email!, ...bayiSuzgeci(session) },
     select: { id: true, tenantId: true, onboardedAt: true, name: true },
   });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });

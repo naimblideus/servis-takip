@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { bayiSuzgeci } from '@/lib/api-auth';
 
 // GET /api/customers/[id]/devices — Müşterinin cihazlarını döndür
 export async function GET(
@@ -14,7 +15,7 @@ export async function GET(
         const { id: customerId } = await params;
 
         const user = await prisma.user.findFirst({
-            where: { email: session.user?.email! },
+            where: { email: session.user?.email!, ...bayiSuzgeci(session) },
         });
         if (!user) return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
 

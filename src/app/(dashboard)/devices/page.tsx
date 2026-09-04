@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { bayiSuzgeci } from '@/lib/api-auth';
 import DevicesClient from '@/components/DevicesClient';
 
 export default async function DevicesPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
@@ -9,7 +10,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   if (!session) redirect('/login');
 
   const user = await prisma.user.findFirst({
-    where: { email: session.user?.email! },
+    where: { email: session.user?.email!, ...bayiSuzgeci(session) },
   });
 
   const devices = await prisma.device.findMany({

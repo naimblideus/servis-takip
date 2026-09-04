@@ -56,6 +56,24 @@ export async function oturumKullanicisi(session: { user?: { email?: string | nul
 }
 
 /**
+ * Oturumdaki BAYİ kimliğini bir Prisma `where` nesnesine eklenmek üzere verir.
+ *
+ * ── NEDEN VAR ────────────────────────────────────────────────────────────
+ * E-posta bayi bazında benzersiz (@@unique([tenantId, email])), GLOBAL DEĞİL.
+ * Aynı e-posta iki bayide olabilir — canlı veride görüldü. Yalnız e-postayla
+ * `prisma.user.findFirst({ where: { email } })` yapan kod, kullanıcıyı YANLIŞ
+ * BAYİYE bağlayabilir; o noktadan sonra bütün tenant-kapsamlı işler başka bir
+ * bayinin verisinde çalışır. SQL içe aktarmada bu, yüzlerce cihazın yanlış
+ * bayiye yazılması demektir.
+ *
+ * Kullanım:  where: { email: session.user?.email!, ...bayiSuzgeci(session) }
+ */
+export function bayiSuzgeci(session: { user?: unknown } | null | undefined) {
+  const tenantId = (session?.user as { tenantId?: string } | undefined)?.tenantId;
+  return tenantId ? { tenantId } : {};
+}
+
+/**
  * Yönetici mi? `oturumKullanicisi()` ile alınan kullanıcı için.
  * SUPER_ADMIN da yöneticidir (bayi hesabına destek için girer).
  */

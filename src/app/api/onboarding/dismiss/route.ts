@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { bayiSuzgeci } from '@/lib/api-auth';
 
 // POST /api/onboarding/dismiss — hos geldin sihirbazi tamamlandi/atlandi -> onboardedAt damgala
 export async function POST() {
@@ -8,7 +9,7 @@ export async function POST() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const user = await prisma.user.findFirst({
-    where: { email: session.user?.email! },
+    where: { email: session.user?.email!, ...bayiSuzgeci(session) },
     select: { id: true },
   });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });

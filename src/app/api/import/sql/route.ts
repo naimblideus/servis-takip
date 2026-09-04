@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { bayiSuzgeci } from '@/lib/api-auth';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import {
     parseSQLDump,
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
         }
 
         const currentUser = await prisma.user.findFirst({
-            where: { email: session.user?.email! },
+            where: { email: session.user?.email!, ...bayiSuzgeci(session) },
         });
         if (!currentUser) {
             return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
