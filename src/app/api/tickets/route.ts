@@ -10,13 +10,60 @@ import { generateTicketNumber } from '@/lib/ticket-number';
 import { oturumKullanicisi } from '@/lib/api-auth';
 
 
-export async function GET() {
+/** Bayinin "üzerinde çalışılan" saydığı durumlar — teslim/iptal hariç. */
+const AKTIF_DURUMLAR = ['NEW', 'IN_SERVICE', 'WAITING_FOR_PART', 'READY'];
+
+/**
+ * GET /api/tickets — servis fişleri.
+ *
+ * ÖLÇÜLDÜ (698 fişlik gerçek bayi): filtresiz hâli 1,7 MB yanıt üretiyordu ve
+ * tek tüketicisi olan Rota sayfası bunu indirip İSTEMCİDE süzüp her fişten
+ * yalnız 4 alan kullanıyordu. 5 yıllık bir bayide 10.000+ fiş olacak; o
+ * noktada bu uç tarayıcıyı kilitler. Bu yüzden iki parametre var:
+ *
+ *   ?durum=aktif  → yalnız üzerinde çalışılan fişler
+ *   ?sade=1       → yalnız liste için gereken alanlar (ağır include yok)
+ *
+ * Parametresiz çağrı ESKİ davranışı korur (geriye uyum).
+ *
+ * deletedAt filtresi de eklendi: çöp kutusuna atılan fiş bu listede
+ * görünmemeliydi. Şu an silinmiş fiş olmadığı için sorun GİZLİYDİ — ilk
+ * silme işleminde ortaya çıkardı.
+ */
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const user = await oturumKullanicisi(session);
+  if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+  const sp = new URL(req.url).searchParams;
+  const yalnizAktif = sp.get('durum') === 'aktif';
+  const sade = sp.get('sade') === '1';
+
+  const where: any = {
+    tenantId: user.tenantId,
+    deletedAt: null,
+    ...(yalnizAktif ? { status: { in: AKTIF_DURUMLAR } } : {}),
+  };
+
+  if (sade) {
+    // Liste/rota için yeten en küçük şekil. Müşteri adı da geliyor ki
+    // istemci ikinci bir istek atmak zorunda kalmasın.
+    const tickets = await prisma.serviceTicket.findMany({
+      where,
+      select: {
+        id: true, ticketNumber: true, status: true, priority: true, createdAt: true,
+        device: { select: { id: true, brand: true, model: true, serialNo: true,
+          customer: { select: { id: true, name: true, phone: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json(tickets);
+  }
+
   const tickets = await prisma.serviceTicket.findMany({
-    where: { tenantId: user!.tenantId },
+    where,
     include: { device: { include: { customer: true } }, assignedUser: true },
     orderBy: { createdAt: 'desc' },
   });

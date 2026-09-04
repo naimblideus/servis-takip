@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { mapsUrl } from '@/lib/share';
 import ContactActions from '@/components/ContactActions';
 
-const ACTIVE = ['NEW', 'IN_SERVICE', 'WAITING_FOR_PART', 'READY'];
+// Aktif durum listesi artık SUNUCUDA (api/tickets · AKTIF_DURUMLAR).
+// İki yerde durursa sessizce ayrışır: biri güncellenir, öteki eski listeyle
+// süzmeye devam eder ve rota yanlış fiş gösterir.
 const ST: Record<string, { label: string; bg: string; color: string }> = {
   NEW: { label: 'Yeni', bg: '#fef3c7', color: '#92400e' },
   IN_SERVICE: { label: 'Serviste', bg: '#dbeafe', color: '#1e40af' },
@@ -29,11 +31,14 @@ export default function RotaPage() {
   useEffect(() => {
     Promise.all([
       fetch('/api/customers').then((r) => r.json()).catch(() => []),
-      fetch('/api/tickets').then((r) => r.json()).catch(() => []),
+      // Süzme SUNUCUDA yapılıyor ve yalnız gereken alanlar isteniyor.
+      // Önceden bütün fişler (698 fişte 1,7 MB) indirilip burada süzülüyordu;
+      // rota her açılışta o yükü ödüyordu.
+      fetch('/api/tickets?durum=aktif&sade=1').then((r) => r.json()).catch(() => []),
     ]).then(([cs, ts]) => {
       setCustomers(Array.isArray(cs) ? cs : []);
       const map: Record<string, ActiveT[]> = {};
-      (Array.isArray(ts) ? ts : []).filter((t: any) => ACTIVE.includes(t.status)).forEach((t: any) => {
+      (Array.isArray(ts) ? ts : []).forEach((t: any) => {
         const cid = t.device?.customer?.id;
         if (!cid) return;
         (map[cid] ||= []).push({ id: t.id, ticketNumber: t.ticketNumber, status: t.status });
