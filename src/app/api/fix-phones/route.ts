@@ -2,6 +2,13 @@
 // GET/POST /api/fix-phones
 // Mevcut bozuk telefon numaralarını (hex, boş vb.) düzelt
 // Sadece ADMIN kullanabilir - bir seferlik çalıştır
+//
+// ── GET ARTIK YAZMIYOR (ÖNİZLEME) ────────────────────────────────────────
+// Bu uç GET ile veri DEĞİŞTİRİYORDU. Oturum çerezi SameSite=Lax olduğu için
+// üst düzey GET gezinmesinde çereze eşlik eder: yöneticiye gönderilen bir
+// bağlantı ya da tarayıcı ön-yüklemesi, kimse istemeden veriyi yeniden
+// yazabilirdi. Artık GET yalnız NE DEĞİŞECEĞİNİ söyler; uygulamak için
+// POST gerekir.
 // ═══════════════════════════════════════
 
 import { NextResponse } from 'next/server';
@@ -25,7 +32,11 @@ function generateFallbackPhone(id: string, index: number): string {
     return `BOS-${String(index).padStart(6, '0')}`;
 }
 
-export async function GET() {
+/** GET = ÖNİZLEME (yazmaz) · POST = UYGULA */
+export async function GET() { return calistir(false); }
+export async function POST() { return calistir(true); }
+
+async function calistir(uygula: boolean) {
     try {
         const session = await auth();
         if (!session) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
@@ -69,21 +80,24 @@ export async function GET() {
                 });
                 const finalPhone = existing ? `BOS-${c.id.slice(-6).toUpperCase()}` : newPhone;
 
-                await prisma.customer.update({
-                    where: { id: c.id },
-                    data: { phone: finalPhone },
-                });
-
+                if (uygula) {
+                    await prisma.customer.update({
+                        where: { id: c.id },
+                        data: { phone: finalPhone },
+                    });
+                }
                 results.push({ id: c.id, name: c.name, oldPhone: phone, newPhone: finalPhone });
                 fixedCount++;
             } catch (e: any) {
                 // Unique constraint ihlali olabilir, ID bazlı fallback dene
                 try {
                     const safePhone = `BOS-${c.id.slice(-6).toUpperCase()}`;
-                    await prisma.customer.update({
-                        where: { id: c.id },
-                        data: { phone: safePhone },
-                    });
+                    if (uygula) {
+                        await prisma.customer.update({
+                            where: { id: c.id },
+                            data: { phone: safePhone },
+                        });
+                    }
                     results.push({ id: c.id, name: c.name, oldPhone: phone, newPhone: safePhone });
                     fixedCount++;
                 } catch { /* skip */ }
@@ -92,6 +106,8 @@ export async function GET() {
 
         return NextResponse.json({
             success: true,
+            uygulandi: uygula,
+            not: uygula ? undefined : 'Bu bir ÖNİZLEME — hiçbir şey değişmedi. Uygulamak için aynı adrese POST gönderin.',
             total: customers.length,
             fixed: fixedCount,
             skipped: skippedCount,

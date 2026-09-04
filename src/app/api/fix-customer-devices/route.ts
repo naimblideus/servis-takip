@@ -1,8 +1,20 @@
 // ═══════════════════════════════════════
 // GET /api/fix-customer-devices
-// Müşteri adına göre cihazların doğru müşteriye bağlanıp bağlanmadığını kontrol eder.
-// Servis fişindeki müşteri ile cihazın müşterisi uyuşmuyorsa cihazı doğru müşteriye taşır.
+// Servis fişindeki müşteri ile cihazın müşterisi uyuşmuyorsa cihazı taşır.
 // Sadece ADMIN - bir seferlik çalıştır
+//
+// ── GET ARTIK YAZMIYOR (ÖNİZLEME) ────────────────────────────────────────
+// Bu uç GET ile veri DEĞİŞTİRİYORDU. Oturum çerezi SameSite=Lax olduğu için
+// üst düzey GET gezinmesinde çereze eşlik eder: yöneticiye gönderilen bir
+// bağlantı ya da tarayıcı ön-yüklemesi, kimse istemeden veriyi yeniden
+// yazabilirdi. Artık GET yalnız NE DEĞİŞECEĞİNİ söyler; uygulamak için
+// POST gerekir.
+//
+// ── DİKKAT: BU ARAÇ HER ZAMAN "DÜZELTMEZ" ────────────────────────────────
+// Cihaz gerçekten el değiştirdiyse (bayi makineyi A müşterisinden alıp B'ye
+// verdiyse) ESKİ fişler hâlâ A'yı gösterir ve bu araç cihazı A'ya GERİ
+// taşır. Yani meşru bir devri bozabilir. Bu yüzden önizleme varsayılan:
+// listeye bakıp gerçekten yanlış bağlanmış cihazları görmeden uygulamayın.
 // ═══════════════════════════════════════
 
 import { NextResponse } from 'next/server';
@@ -10,7 +22,11 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
 
-export async function GET() {
+/** GET = ÖNİZLEME (yazmaz) · POST = UYGULA */
+export async function GET() { return calistir(false); }
+export async function POST() { return calistir(true); }
+
+async function calistir(uygula: boolean) {
     try {
         const session = await auth();
         if (!session) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
@@ -50,10 +66,12 @@ export async function GET() {
                 if (targetCustomer) {
                     // Cihazı hedef müşteriye taşı
                     try {
-                        await prisma.device.update({
-                            where: { id: device.id },
-                            data: { customerId: ticket.customerId },
-                        });
+                        if (uygula) {
+                            await prisma.device.update({
+                                where: { id: device.id },
+                                data: { customerId: ticket.customerId },
+                            });
+                        }
                         fixes.push({
                             ticketId: ticket.id,
                             deviceId: device.id,
@@ -71,6 +89,11 @@ export async function GET() {
 
         return NextResponse.json({
             success: true,
+            uygulandi: uygula,
+            not: uygula
+                ? undefined
+                : 'Bu bir ÖNİZLEME — hiçbir cihaz taşınmadı. Listeyi kontrol edin; ' +
+                  'gerçekten el değiştirmiş cihazlar varsa uygulamayın. Uygulamak için POST gönderin.',
             totalTicketsChecked: tickets.length,
             fixedDevices: fixedCount,
             details: fixes,
