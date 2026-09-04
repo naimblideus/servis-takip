@@ -117,24 +117,62 @@ export async function DELETE(
         if (!reading) return NextResponse.json({ error: 'Okuma bulunamadı' }, { status: 404 });
         if (reading.billed) return NextResponse.json({ error: 'Bu okuma faturalandığı için silinemez' }, { status: 409 });
 
-        // Sayaç okumasını sil
-        await prisma.counterReading.delete({ where: { id: readingId } });
+        // ── SİLİNEN OKUMADAN SONRAKİNİN FARKI ─────────────────────────────
+        // Okumalar bir ZİNCİR: her okumanın farkı bir öncekine göre hesaplanır.
+        // Ortadaki halka silinince sonrakinin farkı ESKİ öncekine göre kalıyordu:
+        //   #1 140.000 (fark 0) · #2 150.000 (fark 10.000) · #3 160.000 (fark 10.000)
+        // #2 silinince #3'ün farkı hâlâ 10.000 görünüyordu; oysa artık öncesi
+        // 140.000 olduğu için gerçek fark 20.000. Aradaki 10.000 sayfa
+        // faturadan SESSİZCE düşüyordu.
+        const sonraki = await prisma.counterReading.findFirst({
+            where: { tenantId: user.tenantId, deviceId, readingDate: { gt: reading.readingDate } },
+            orderBy: { readingDate: 'asc' },
+        });
 
-        // Cihaz sayaç değerlerini son okumayla güncelle
-        const lastReading = await prisma.counterReading.findFirst({
-            where: { tenantId: user.tenantId, deviceId },
+        // Sonraki okuma FATURALANMIŞSA farkını değiştiremeyiz — kesilmiş fatura
+        // geriye dönük bozulur. Düzeltmezsek de sayfa kaybolur. İkisi de kabul
+        // edilemez, o yüzden silme reddedilir ve sebebi söylenir.
+        if (sonraki?.billed) {
+            return NextResponse.json({
+                error: 'Bu okuma silinemez: sonrasındaki okuma faturalandı. Silinirse o faturanın dayandığı sayfa farkı bozulur. Önce ilgili faturayı iptal edin.',
+            }, { status: 409 });
+        }
+
+        const oncekiOkuma = await prisma.counterReading.findFirst({
+            where: { tenantId: user.tenantId, deviceId, readingDate: { lt: reading.readingDate } },
             orderBy: { readingDate: 'desc' },
         });
 
-        await prisma.device.update({
-            where: { id: deviceId },
-            data: {
-                counterBlack: lastReading?.counterBlack ?? null,
-                counterColor: lastReading?.counterColor ?? null,
-            },
+        await prisma.$transaction(async (tx) => {
+            await tx.counterReading.delete({ where: { id: readingId } });
+
+            // Zinciri onar: sonraki okumanın farkı artık BİR ÖNCEKİNE göre.
+            // Öncesi hiç yoksa o okuma zincirin başı olur → fark 0.
+            if (sonraki) {
+                await tx.counterReading.update({
+                    where: { id: sonraki.id },
+                    data: {
+                        deltaBlack: oncekiOkuma ? Math.max(0, sonraki.counterBlack - oncekiOkuma.counterBlack) : 0,
+                        deltaColor: oncekiOkuma ? Math.max(0, sonraki.counterColor - oncekiOkuma.counterColor) : 0,
+                    },
+                });
+            }
+
+            // Cihaz sayaç değerlerini son okumayla güncelle
+            const lastReading = await tx.counterReading.findFirst({
+                where: { tenantId: user.tenantId, deviceId },
+                orderBy: { readingDate: 'desc' },
+            });
+            await tx.device.update({
+                where: { id: deviceId },
+                data: {
+                    counterBlack: lastReading?.counterBlack ?? null,
+                    counterColor: lastReading?.counterColor ?? null,
+                },
+            });
         });
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, zincirOnarildi: !!sonraki });
     } catch (e: any) {
         console.error('COUNTER READING DELETE ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
