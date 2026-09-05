@@ -112,12 +112,18 @@ export default async function CihazDokumuPage({
         .grp { margin-bottom:14px; }
         .grp-h { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.08em;
                  color:#0f2253; background:#f0f4fa; padding:5px 10px; border-radius:5px; margin-bottom:6px; }
-        table { width:100%; border-collapse:collapse; font-size:11px; table-layout:fixed; }
+        /* min-width: sabit sütunlar 390 px tuttuğu için Marka/Model sütununa
+           telefonda sıfır piksel kalıyordu (ölçüldü: hücre genişliği 0). Taban
+           genişlik verilince sütun payını alıyor, tablo da .tbl-kaydir içinde
+           yana kayıyor. Yazdırmada sayfa ~718 px olduğu için çıktı DEĞİŞMEZ. */
+        table { width:100%; min-width:530px; border-collapse:collapse; font-size:11px; table-layout:fixed; }
+        .tbl-kaydir { overflow-x:auto; }
+        @media print { .tbl-kaydir { overflow:visible !important; } }
         th { background:#fafbfd; border-bottom:1.5px solid #cbd5e1; padding:6px 6px; text-align:left;
              font-size:9px; font-weight:800; color:#374151; text-transform:uppercase; letter-spacing:.04em; }
         td { padding:7px 6px; border-bottom:1px solid #eef2f7; vertical-align:top; line-height:1.4; }
         .c-no { width:24px; text-align:right; color:#9ca3af; }
-        .c-dev { width:auto; }
+        .c-dev { width:auto; }   /* payini tablonun min-width'inden alir */
         .c-ser { width:104px; }
         .c-kind { width:52px; }
         .c-cnt { width:74px; text-align:right; }
@@ -187,7 +193,8 @@ export default async function CihazDokumuPage({
                             {groups.map((g, gi) => (
                                 <div className="grp" key={gi}>
                                     <div className="grp-h">📍 {g.loc} <span style={{ opacity: .6, fontWeight: 700 }}>({g.items.length})</span></div>
-                                    <table>
+                                    <div className="tbl-kaydir">
+            <table>
                                         <thead>
                                             <tr>
                                                 <th className="c-no">#</th>
@@ -230,6 +237,7 @@ export default async function CihazDokumuPage({
                                             })}
                                         </tbody>
                                     </table>
+            </div>
                                 </div>
                             ))}
 

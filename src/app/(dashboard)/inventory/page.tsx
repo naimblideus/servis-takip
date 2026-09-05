@@ -361,7 +361,9 @@ export default function InventoryPage() {
                 <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
                     <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Yeni Parça Ekle</h2>
                     <form onSubmit={handleSubmit}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                        {/* auto-fit: telefonda üç sütun sıkışıyordu (SKU/Ad/Grup).
+                            minmax ile dar ekranda alt alta iner. */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(9rem,1fr))', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
                                 <label style={lbl}>SKU / Kod</label>
                                 <input style={inp} value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="Otomatik" />
@@ -403,7 +405,10 @@ export default function InventoryPage() {
                                 Girerseniz aynı parçayı farklı isimle kaydetseniz bile sistem tek parça olarak tanır. Marka, parça adından otomatik algılanır.
                             </span>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+                        {/* auto-fit: dört sütunda sayı kutuları 54 px kalıyordu
+                            (ölçüldü) — fiyat/stok girmek için fazla dar. Telefonda
+                            iki sütuna düşüp ~120 px'e çıkıyor. */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(7.5rem,1fr))', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
                                 <label style={lbl}>Alış Fiyatı (₺)</label>
                                 <input type="number" step="0.01" style={inp} value={form.buyPrice} onChange={e => setForm({ ...form, buyPrice: e.target.value })} placeholder="0" />

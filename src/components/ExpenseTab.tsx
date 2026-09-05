@@ -104,8 +104,10 @@ export default function ExpenseTab() {
       )}
 
       {/* Header */}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
-        <div>
+      {/* flexWrap: dar ekranda başlık ile sağdaki düğme aynı satıra
+          sıkışıyordu. Aynı desen Muhasebe ve Stok başlıklarında da düzeltildi. */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'0.75rem',flexWrap:'wrap',marginBottom:'1.25rem'}}>
+        <div style={{minWidth:'11rem',flex:'1 1 14rem'}}>
           <h2 style={{fontWeight:'700',fontSize:'1.25rem',margin:0}}>💸 Gider Yönetimi</h2>
           <p style={{color:'#6b7280',margin:'0.2rem 0 0',fontSize:'0.85rem'}}>İşletme giderlerinizi takip edin</p>
         </div>

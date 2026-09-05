@@ -78,9 +78,12 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
       {/* Cihazlar */}
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ fontWeight: '600' }}>Cihazlar ({customer.devices.length})</h2>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {/* flexWrap: 263 px'lik satırda başlık + iki düğme yan yana durmuyordu;
+            "Cihazlar" ile "(2)" alt alta düşüyor, düğme yazıları kırılıyordu
+            (ölçüldü: başlık yüksekliği 48 px). Artık düğmeler alt satıra iniyor. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          <h2 style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>Cihazlar ({customer.devices.length})</h2>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {customer.devices.length > 0 && (
               <Link href={`/customers/${customer.id}/cihaz-dokumu`} title="Cihaz dökümü / zimmet listesi yazdır (kat-oda gruplu tek sayfa)" style={{
                 backgroundColor: '#eef2ff', color: '#4338ca', padding: '0.4rem 0.875rem',
