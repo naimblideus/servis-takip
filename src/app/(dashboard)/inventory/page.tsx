@@ -643,9 +643,9 @@ export default function InventoryPage() {
                                                         barcode: p.barcode || '',
                                                     });
                                                 }}
-                                                style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✏</button>
+                                                style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Parçayı düzenle">✏</button>
                                             <button onClick={() => deletePart(p.id, p.name)} title="Sil"
-                                                style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: 'none', backgroundColor: '#fee2e2', color: '#b91c1c', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                                style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', border: 'none', backgroundColor: '#fee2e2', color: '#b91c1c', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Parçayı sil">✕</button>
                                         </div>
                                     </td>
                                 </tr>
