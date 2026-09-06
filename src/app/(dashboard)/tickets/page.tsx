@@ -147,6 +147,9 @@ export default async function TicketsPage({
         total={total}
         open={open}
         ready={ready}
+        /* Boş tabloda ne yazacağını belirler: filtre sonucu boş olmakla
+           bayinin hiç fişi olmaması aynı şey değil. */
+        filtreliMi={Boolean(sp.status || sp.priority || sp.assignedUserId || sp.dateFrom || sp.dateTo || sp.customer)}
       />
     </div>
   );

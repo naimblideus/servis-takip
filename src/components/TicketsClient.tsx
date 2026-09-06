@@ -20,11 +20,14 @@ interface Ticket {
     assignedUser: { name: string } | null;
 }
 
-export default function TicketsClient({ initialTickets, total, open, ready }: {
+export default function TicketsClient({ initialTickets, total, open, ready, filtreliMi = false }: {
     initialTickets: Ticket[];
     total: number;
     open: number;
     ready: number;
+    /** Sayfada bir filtre aktif mi? Boş tabloda "filtre sonucu boş" ile
+        "hiç fiş yok" farklı cümleler gerektiriyor. */
+    filtreliMi?: boolean;
 }) {
     const router = useRouter();
     const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
@@ -59,7 +62,7 @@ export default function TicketsClient({ initialTickets, total, open, ready }: {
                     <Link href="/tickets/trash" style={{ color: '#059669', fontWeight: '600', textDecoration: 'none', fontSize: '0.8rem' }}>🗑️ Çöp Kutusuna Git</Link>
                 </div>
             )}
-            <TicketTable tickets={tickets as any} onDelete={handleDelete} />
+            <TicketTable tickets={tickets as any} onDelete={handleDelete} filtreliMi={filtreliMi} />
         </>
     );
 }

@@ -825,7 +825,16 @@ export default function AccountingPage() {
         <div>
           <div style={{backgroundColor:'white',borderRadius:'0.75rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)',overflow:'hidden',maxHeight:'75vh',overflowY:'auto'}}>
             {customers.length === 0 ? (
-              <div style={{padding:'2rem',textAlign:'center',color:'#9ca3af',fontSize:'0.85rem'}}>Müşteri bulunamadı</div>
+              <div style={{padding:'1.75rem 1rem',textAlign:'center',color:'#6b7280',fontSize:'0.85rem'}}>
+                <div style={{fontSize:'1.5rem',marginBottom:'0.35rem'}}>👥</div>
+                <div style={{fontWeight:600,color:'#111827',marginBottom:'0.15rem'}}>Henüz müşteri yok</div>
+                <div style={{marginBottom:'0.85rem'}}>Borç takibi müşteri eklendikten sonra başlar.</div>
+                <a href="/customers/new" style={{
+                  display:'inline-flex',alignItems:'center',justifyContent:'center',minHeight:'2.5rem',
+                  padding:'0 1rem',backgroundColor:'#1e3a5f',color:'white',borderRadius:'0.5rem',
+                  textDecoration:'none',fontWeight:600,fontSize:'0.85rem',
+                }}>+ İlk müşteriyi ekle</a>
+              </div>
             ) : customers.map(c => (
               <div key={c.id} onClick={() => setSelCust(c)} style={{
                 padding:'0.875rem 1rem',cursor:'pointer',borderBottom:'1px solid #f3f4f6',
@@ -876,9 +885,17 @@ export default function AccountingPage() {
             )}
           </div>
           {!selCust ? (
-            <div style={{backgroundColor:'white',borderRadius:'0.75rem',padding:'3rem',textAlign:'center',color:'#9ca3af',border:'2px dashed #e5e7eb'}}>
-              <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>👈</div>
-              <div>Sol taraftan bir müşteri seçin</div>
+            <div style={{backgroundColor:'white',borderRadius:'0.75rem',padding:'2.5rem 1.5rem',textAlign:'center',color:'#6b7280',border:'2px dashed #e5e7eb'}}>
+              {/* Liste boşken "soldan seç" demek çelişki: seçilecek bir şey yok. */}
+              <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>{customers.length === 0 ? '🧾' : '👈'}</div>
+              <div style={{fontWeight:600,color:'#111827',marginBottom:'0.2rem'}}>
+                {customers.length === 0 ? 'Burada müşteri borçları görünecek' : 'Soldan bir müşteri seçin'}
+              </div>
+              <div style={{fontSize:'0.85rem'}}>
+                {customers.length === 0
+                  ? 'Servis fişi kestikçe ve kira/sayaç faturası oluştukça bu ekran kendiliğinden dolar.'
+                  : 'Seçtiğin müşterinin borcunu, ödemelerini ve hesap hareketlerini burada görürsün.'}
+              </div>
             </div>
           ) : detailLoading ? (
             <div style={{padding:'2rem',textAlign:'center',color:'#6b7280'}}>Yükleniyor...</div>

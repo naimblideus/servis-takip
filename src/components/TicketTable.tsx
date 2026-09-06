@@ -37,7 +37,7 @@ interface Ticket {
 
 type SortKey = 'ticketNumber' | 'customer' | 'status' | 'createdAt';
 
-export default function TicketTable({ tickets, onDelete }: { tickets: Ticket[]; onDelete?: (id: string, num: string) => void }) {
+export default function TicketTable({ tickets, onDelete, filtreliMi = false }: { tickets: Ticket[]; onDelete?: (id: string, num: string) => void; filtreliMi?: boolean }) {
     const router = useRouter();
     const [sortKey, setSortKey] = useState<SortKey>('createdAt');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -170,8 +170,27 @@ export default function TicketTable({ tickets, onDelete }: { tickets: Ticket[]; 
                         );
                     })}
                     {tickets.length === 0 && (
-                        <tr><td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>
-                            Fiş bulunamadı
+                        <tr><td colSpan={8} style={{ padding: '2.5rem 1.5rem', textAlign: 'center', color: '#6b7280' }}>
+                            {/* Filtre sonucu boş olmakla HİÇ fiş olmaması aynı şey değil.
+                                Yeni bayiye "bulunamadı" demek hata gibi okunur. */}
+                            {filtreliMi ? (
+                                <>
+                                    <div style={{ fontSize: '1.4rem', marginBottom: '0.35rem' }}>🔍</div>
+                                    <div style={{ fontWeight: 600, color: '#111827', marginBottom: '0.15rem' }}>Bu filtreye uyan fiş yok</div>
+                                    <div style={{ fontSize: '0.85rem' }}>Filtreleri temizleyip tekrar deneyin.</div>
+                                </>
+                            ) : (
+                                <>
+                                    <div style={{ fontSize: '1.4rem', marginBottom: '0.35rem' }}>🧾</div>
+                                    <div style={{ fontWeight: 600, color: '#111827', marginBottom: '0.15rem' }}>Henüz servis fişi yok</div>
+                                    <div style={{ fontSize: '0.85rem', marginBottom: '0.9rem' }}>Bir arıza geldiğinde buradan fiş açarsın.</div>
+                                    <a href="/tickets/new" style={{
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        minHeight: '2.5rem', padding: '0 1rem', backgroundColor: '#1e3a5f', color: 'white',
+                                        borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
+                                    }}>+ İlk fişi aç</a>
+                                </>
+                            )}
                         </td></tr>
                     )}
                 </tbody>

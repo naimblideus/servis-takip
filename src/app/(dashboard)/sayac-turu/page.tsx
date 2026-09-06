@@ -198,7 +198,28 @@ export default function SayacTuruPage() {
               {c.phone && <span style={{ color: '#9AA3B8', fontWeight: 400, fontSize: '.82rem' }}> · {c.phone}</span>}
             </button>
           ))}
-          {filtered.length === 0 && <p style={{ color: '#9AA3B8', fontSize: '.9rem', textAlign: 'center', padding: '1.5rem' }}>Müşteri bulunamadı.</p>}
+          {filtered.length === 0 && (
+            customers.length === 0 ? (
+              /* HİÇ müşteri yok: yeni bayi. "Bulunamadı" demek hata gibi
+                 okunur ve çıkmaz sokaktır — yapılacak tek şeyi söyle. */
+              <div style={{ textAlign: 'center', padding: '1.75rem 1rem', color: '#6B7280' }}>
+                <div style={{ fontSize: '1.6rem', marginBottom: '.4rem' }}>👥</div>
+                <p style={{ margin: '0 0 .2rem', fontWeight: 600, color: '#0B1533' }}>Henüz müşteri eklenmemiş</p>
+                <p style={{ margin: '0 0 .9rem', fontSize: '.86rem' }}>
+                  Sayaç turu için önce müşteri ve kiralık cihaz gerekir.
+                </p>
+                <a href="/customers/new" style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  minHeight: '2.5rem', padding: '0 1rem', background: '#0B1533', color: 'white',
+                  borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: '.88rem',
+                }}>+ İlk müşteriyi ekle</a>
+              </div>
+            ) : (
+              <p style={{ color: '#9AA3B8', fontSize: '.9rem', textAlign: 'center', padding: '1.5rem' }}>
+                Aramanla eşleşen müşteri yok.
+              </p>
+            )
+          )}
         </div>
       </div>
     );
