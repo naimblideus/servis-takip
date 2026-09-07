@@ -1,6 +1,6 @@
 {
-  "name": "Nexus Servis",
-  "short_name": "Nexus Servis",
+  "name": "Nextus Servis",
+  "short_name": "Nextus Servis",
   "description": "Servis, sayaç faturalama, cari ve Bayi Pazarı — tek panelde.",
   "start_url": "/dashboard",
   "scope": "/",
@@ -9,9 +9,25 @@
   "background_color": "#0F2253",
   "theme_color": "#0F2253",
   "lang": "tr",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Sayaç Turu",
+      "short_name": "Sayaç",
+      "description": "Müşteri seç, tüm kiralık cihazların sayacını tek listede gir",
+      "url": "/sayac-turu"
+    },
+    {
+      "name": "Yeni Servis Fişi",
+      "short_name": "Yeni Fiş",
+      "description": "Arıza geldiğinde fiş aç",
+      "url": "/tickets/new"
+    }
   ]
 }

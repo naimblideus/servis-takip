@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from './providers';
+import ServiceWorkerKurulum from '@/components/ServiceWorkerKurulum';
 
 export const metadata: Metadata = {
   title: 'Nextus Servis - Yazıcı Servis Yönetimi',
@@ -27,6 +28,8 @@ export default function RootLayout({
     <html lang="tr">
       <body>
         <Providers>{children}</Providers>
+        {/* Çevrimdışı kabuk + yeni sürüm bildirimi. Yalnız üretimde kaydolur. */}
+        <ServiceWorkerKurulum />
       </body>
     </html>
   );

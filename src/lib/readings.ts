@@ -109,12 +109,30 @@ export async function createReading(
   // eksik faturalamak, fahiş faturalamaktan iyidir; eksik kalan sayfa bir
   // sonraki okumada zaten farka giriyor, fahiş fatura ise müşteriyi kaybettirir.
   const sayacSifirlandi = reset && resetTur === 'SAYAC_SIFIRLANDI';
-  const dusustekiDelta = (yeni: number) => (sayacSifirlandi ? Math.max(0, yeni) : 0);
+  const cihazDegisti = reset && !sayacSifirlandi;   // tür verilmezse varsayılan bu
 
-  const deltaBlack = prevB === null ? 0
-    : (reset && counterBlack < prevB ? dusustekiDelta(counterBlack) : Math.max(0, counterBlack - prevB));
-  const deltaColor = prevC === null ? 0
-    : (reset && counterColor < prevC ? dusustekiDelta(counterColor) : Math.max(0, counterColor - prevC));
+  /**
+   * ── CİHAZ DEĞİŞİMİ ARTIK HER İKİ YÖNDE DE KORUYOR ───────────────────
+   * İlk düzeltmede koşul yalnız DÜŞÜŞE bakıyordu (`yeni < onceki`). Oysa
+   * sahada ters yön DAHA SIK: bayi müşterideki 10.000 sayfalık makineyi
+   * alıp depodan 480.000 sayfalık ikinci el takıyor — sayaç DÜŞMÜYOR,
+   * ARTIYOR. O hâlde eski koşul hiç devreye girmiyor ve aradaki 470.000
+   * sayfa o ayın kullanımı sayılıp faturalanıyordu.
+   * (Uçtan uca testte ölçüldü: fark 470.000, tutar ₺235.000.)
+   *
+   * Doğrusu yönden bağımsız: takılan makinenin geçmişi, müşterinin bu ay
+   * bastığı sayfa DEĞİLDİR. Bu dönemin farkı sıfırdır; yeni sayaç
+   * başlangıç olur ve bir sonraki okuma farkı doğru hesaplar.
+   */
+  const farkHesapla = (yeni: number, onceki: number | null): number => {
+    if (onceki === null) return 0;                       // zincirin başı
+    if (cihazDegisti) return 0;                          // yön fark etmez
+    if (sayacSifirlandi && yeni < onceki) return Math.max(0, yeni);
+    return Math.max(0, yeni - onceki);
+  };
+
+  const deltaBlack = farkHesapla(counterBlack, prevB);
+  const deltaColor = farkHesapla(counterColor, prevC);
   const warning = deltaBlack > ANOMALY || deltaColor > ANOMALY ? 'Olağandışı yüksek sayfa artışı — lütfen kontrol edin.' : null;
 
   // Kiralık cihazda kademeli (dahil paket + aşım) ücret — gerçek fatura mantığıyla AYNI kaynak

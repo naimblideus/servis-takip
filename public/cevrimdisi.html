@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bağlantı yok · Nextus Servis</title>
+  <link rel="icon" href="/icon-192.png">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+      background: #f1f5f9; color: #0f172a;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+    }
+    .kart {
+      max-width: 26rem; width: 100%;
+      background: #fff; border-radius: 1rem; padding: 2rem 1.5rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px rgba(15, 23, 42, .08);
+      text-align: center;
+    }
+    .isaret { font-size: 2.6rem; line-height: 1; margin-bottom: .6rem; }
+    h1 { font-size: 1.3rem; font-weight: 800; margin: 0 0 .5rem; color: #0f2253; }
+    p { margin: 0 0 1rem; color: #475569; }
+    .ipucu {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: .7rem;
+      padding: .8rem 1rem; text-align: left; font-size: .9rem; color: #475569;
+      margin-bottom: 1.25rem;
+    }
+    .ipucu b { color: #0f2253; }
+    button {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 2.75rem; padding: 0 1.4rem;
+      background: #0f2253; color: #fff; border: 0; border-radius: .6rem;
+      font-weight: 700; font-size: .95rem; cursor: pointer;
+      font-family: inherit;
+    }
+    button:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+    .durum { margin-top: .9rem; font-size: .82rem; color: #94a3b8; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <div class="kart">
+    <div class="isaret">📡</div>
+    <h1>Bağlantı yok</h1>
+    <p>Şu an internete ulaşılamıyor. Uygulama açık kaldı — bağlantı gelince kaldığın yerden devam edebilirsin.</p>
+
+    <div class="ipucu">
+      <b>Sahadaysan:</b> fotokopi odaları genelde bodrumdadır. Bir kat yukarı
+      çıkmak ya da telefonun mobil verisini açmak çoğu zaman yetiyor.
+    </div>
+
+    <button type="button" id="yenile">Tekrar dene</button>
+    <div class="durum" id="durum"></div>
+  </div>
+
+  <script>
+    var dugme = document.getElementById('yenile');
+    var durum = document.getElementById('durum');
+
+    dugme.addEventListener('click', function () {
+      durum.textContent = 'Deneniyor…';
+      location.reload();
+    });
+
+    // Bağlantı geri gelince kendiliğinden dön — teknisyon tekrar tıklamasın.
+    window.addEventListener('online', function () {
+      durum.textContent = 'Bağlantı geldi, açılıyor…';
+      location.reload();
+    });
+
+    if (navigator.onLine) {
+      durum.textContent = 'Cihaz çevrimiçi görünüyor — sunucuya ulaşılamıyor olabilir.';
+    }
+  </script>
+</body>
+</html>
