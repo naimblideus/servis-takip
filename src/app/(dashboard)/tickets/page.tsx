@@ -52,10 +52,23 @@ export default async function TicketsPage({
   }
 
   const [tickets, users] = await Promise.all([
+    // SELECT, TicketTable'ın Ticket tipiyle birebir. Eskiden her fiş için
+    // cihazın TÜM sütunları (fiyatlar, QR jetonu, notlar, tarihler) ve
+    // müşterinin TÜM alanları (adres, vergi no, portal jetonu) taşınıyordu;
+    // listede yalnız marka/model/sayaç/müşteri adı çiziliyor.
+    // Ölçüldü — 696 fişlik gerçek bayide: sayfa 681 KB, açılmış 5,5 MB.
     prisma.serviceTicket.findMany({
       where,
-      include: {
-        device: { include: { customer: true } },
+      select: {
+        id: true, ticketNumber: true, issueText: true,
+        status: true, priority: true, createdAt: true,
+        device: {
+          select: {
+            brand: true, model: true, isRental: true,
+            counterBlack: true, counterColor: true,
+            customer: { select: { name: true } },
+          },
+        },
         assignedUser: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },

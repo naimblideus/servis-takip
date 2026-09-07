@@ -266,6 +266,40 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    // ── MÜKERRER KORUMASI ────────────────────────────────────────────────
+    // Şema `ATLANDI = aynı e-posta daha önce işlendi` diyordu ama kontrol
+    // hiç YAZILMAMIŞTI: aynı rapor iki kez gelince İKİNCİ BİR OKUMA daha
+    // yazılıyordu (uçtan uca testte görüldü: 5 → 6 okuma).
+    //
+    // Gerçekleşen senaryo: Gmail köprüsü mesajı yalnız uç 2xx dönünce
+    // işaretler; işaretleme adımı düşerse (ağ, kota) aynı mesaj sonraki
+    // turda tekrar gelir. Bayi de bir raporu elle iletebilir.
+    //
+    // Ölçüt DAR tutuldu — aynı cihaz, aynı sayaç değerleri, SON 24 SAAT
+    // içinde zaten işlenmiş. Gerçek aylık tekrar (müşteri hiç basmadıysa
+    // sayaç aynı kalır) 30 gün sonra gelir ve bu kapıdan geçer; aksi hâlde
+    // "sayacı gelmeyen cihaz" kartı o cihazı yanlışlıkla işaretlerdi.
+    const birGunOnce = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const zatenIslenmis = await prisma.counterEmail.findFirst({
+      where: {
+        id: { not: kayit.id },
+        deviceId: cihaz.id,
+        status: 'ISLENDI',
+        parsedBlack: okuma.black,
+        parsedColor: okuma.color ?? null,
+        receivedAt: { gte: birGunOnce },
+      },
+      select: { id: true },
+    });
+    if (zatenIslenmis) {
+      await prisma.counterEmail.update({
+        where: { id: kayit.id },
+        data: { status: 'ATLANDI', hata: 'Aynı rapor son 24 saatte zaten işlendi — çift okuma yazılmadı' },
+      });
+      sonuclar.push({ serial: okuma.serial, islendi: false, sebep: 'Aynı rapor zaten işlenmişti (atlandı)' });
+      continue;
+    }
+
     try {
       const r = await createReading({
         tenantId: cihaz.tenantId,
