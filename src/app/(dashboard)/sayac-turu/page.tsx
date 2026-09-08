@@ -8,7 +8,11 @@ interface Row {
   id: string; brand: string; model: string; serialNo: string; location: string;
   lastBlack: number | null; lastColor: number | null; hasColor: boolean; readAt: string | null;
 }
-interface RowState { black: string; color: string; reset: boolean; resetTur?: "CIHAZ_DEGISTI" | "SAYAC_SIFIRLANDI"; done?: boolean; err?: string | null; code?: string }
+// `uyari`: okuma KAYDEDİLDİ ama cihazın kendi geçmişine uymuyor. Uç bunu
+// zaten satır satır döndürüyordu; ekran okumuyordu. Yanlış yazılmış bir
+// sayacı düzeltmenin en ucuz anı teknisyenin hâlâ sahada olduğu andır —
+// ay sonunda düzeltmek fatura tartışması demek.
+interface RowState { black: string; color: string; reset: boolean; resetTur?: "CIHAZ_DEGISTI" | "SAYAC_SIFIRLANDI"; done?: boolean; err?: string | null; code?: string; uyari?: string | null }
 
 const nf = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('tr-TR'));
 const money = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -150,8 +154,8 @@ export default function SayacTuruPage() {
         const next = { ...s };
         for (const r of d.results || []) {
           next[r.deviceId] = r.ok
-            ? { ...next[r.deviceId], done: true, err: null }
-            : { ...next[r.deviceId], done: false, err: r.error, code: r.code };
+            ? { ...next[r.deviceId], done: true, err: null, uyari: typeof r.warning === 'string' ? r.warning : null }
+            : { ...next[r.deviceId], done: false, err: r.error, code: r.code, uyari: null };
         }
         return next;
       });
@@ -408,6 +412,19 @@ export default function SayacTuruPage() {
                     <div style={{ marginTop: 8, background: '#FEF6E7', border: '1px solid #FDE68A', borderRadius: 10, padding: '.55rem .7rem', color: '#8A5A08', fontSize: '.8rem', lineHeight: 1.45 }}>
                       🟣 <b>Renkli sayacı da yazın.</b> Boş bırakılırsa bu cihaz kaydedilmez —
                       çünkü boş geçilirse o ayın renkli sayfaları faturaya girmez.
+                    </div>
+                  )}
+
+                  {/* KAYDEDİLDİ AMA TUHAF: okuma yazıldı, yine de cihazın kendi
+                      geçmişine uymuyor. Teknisyen hâlâ sahada — rakamı burada
+                      düzeltmek bir dokunuş, ay sonunda düzeltmek fatura
+                      tartışması. Satır yeşil kalıyor: okuma gerçekten yazıldı,
+                      sistem sessizce para tutmuyor. */}
+                  {s.done && s.uyari && (
+                    <div style={{ marginTop: 8, background: '#FFF7ED', border: '1px solid #FDBA74', borderRadius: 10, padding: '.55rem .7rem' }}>
+                      <div style={{ color: '#9A3412', fontSize: '.8rem', lineHeight: 1.45 }}>
+                        ⚠️ <b>Kaydedildi ama kontrol edin.</b> {s.uyari}
+                      </div>
                     </div>
                   )}
 

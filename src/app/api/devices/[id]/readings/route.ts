@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { counterOverage } from '@/lib/invoicing';
-import { createReading, ReadingError } from '@/lib/readings';
+import { createReading, ReadingError, okumaFarki } from '@/lib/readings';
 import { oturumKullanicisi } from '@/lib/api-auth';
 
 export async function POST(
@@ -18,7 +18,7 @@ export async function POST(
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();
-        const { counterBlack, counterColor, ticketId, includeMonthlyRent, photo, reset } = body;
+        const { counterBlack, counterColor, ticketId, includeMonthlyRent, photo, reset, resetTur } = body;
 
         // TEK KAYNAK: aşım/dahil-paket/düşüş mantığı src/lib/readings.ts'te (toplu uç da aynısını kullanır)
         const { reading, breakdown, warning } = await createReading({
@@ -30,6 +30,12 @@ export async function POST(
             includeMonthlyRent,
             photo,
             reset,
+            // Sebep olmadan gelen 'reset' CIHAZ_DEGISTI sayılır (fark 0). Bu tekil
+            // uç eskiden türü hiç geçirmiyordu: Sayaç Turu'nda "sayaç sıfırlandı"
+            // diyen bayi o dönemin kullanımını faturalayabiliyor, cihaz kartından
+            // aynı şeyi diyen bayi ise sessizce SIFIR yazıyordu. Aynı beyan, iki
+            // ekran, iki farklı tutar.
+            resetTur,
             // Fotoğraf varsa görsel kanıt seviyesi; yoksa en zayıf seviye.
             source: photo ? 'FOTOGRAF' : 'ELLE',
         });
@@ -196,7 +202,7 @@ export async function PATCH(
         if (!readingId) return NextResponse.json({ error: 'readingId zorunlu' }, { status: 400 });
 
         const body = await req.json();
-        const { counterBlack, counterColor, reset } = body;
+        const { counterBlack, counterColor, reset, resetTur } = body;
 
         if (counterBlack === undefined || counterColor === undefined) {
             return NextResponse.json({ error: 'counterBlack ve counterColor zorunlu' }, { status: 400 });
@@ -227,8 +233,15 @@ export async function PATCH(
         if (decreased && !reset) {
             return NextResponse.json({ error: 'Sayaç değeri öncekinden düşük. Cihaz sıfırlandıysa/değiştiyse "sayaç sıfırlandı" onayıyla tekrar gönderin.', code: 'COUNTER_DECREASE' }, { status: 400 });
         }
-        const deltaBlack = prevB === null ? 0 : (reset && counterBlack < prevB ? Math.max(0, counterBlack) : Math.max(0, counterBlack - prevB));
-        const deltaColor = prevC === null ? 0 : (reset && counterColor < prevC ? Math.max(0, counterColor) : Math.max(0, counterColor - prevC));
+        // TEK KURAL: fark hesabı src/lib/readings.ts'teki okumaFarki().
+        // Burada AYRI bir kopya vardı ve o kopya, oluşturma yolunda düzeltilen
+        // hatanın eski hâlini taşıyordu: yalnız düşüş yönünü koruyor, sıfırlama
+        // türünü hiç bilmiyordu. Yani bayi cihaz değişimini beyan etse bile
+        // DÜZENLEME yolunda yeni makinenin ömür boyu sayacı o ayın kullanımı
+        // sayılabiliyordu (oluşturma yolunda ölçülen aynı hatanın bedeli
+        // ₺235.000'di). Kopya kaldırıldı; iki yol da aynı fonksiyonu çağırıyor.
+        const deltaBlack = okumaFarki(counterBlack, prevB, reset, resetTur);
+        const deltaColor = okumaFarki(counterColor, prevC, reset, resetTur);
 
         // ── SONRAKİ OKUMA ZİNCİRİ ────────────────────────────────────────────
         // Bir okumayı değiştirmek YALNIZ onu ilgilendirmez: bir SONRAKİ okumanın

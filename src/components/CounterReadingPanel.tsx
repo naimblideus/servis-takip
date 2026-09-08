@@ -88,6 +88,16 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
     const [photo, setPhoto] = useState<string>('');
     const [photoBusy, setPhotoBusy] = useState(false);
     const [lastResult, setLastResult] = useState<any>(null);
+    // Sayaç düşünce uç REDDEDİYOR ve 'sıfırlandı onayıyla tekrar gönderin'
+    // diyordu — ama bu ekranda öyle bir onay YOKTU. Bayi çıkmaz sokakta
+    // kalıyor, tek makineyi düzeltmek için Sayaç Turu'na gitmesi gerekiyordu.
+    // Sebep sorulmadan onay alınmıyor: iki durum tamamen farklı para demek.
+    const [dususSoruluyor, setDususSoruluyor] = useState(false);
+    const [resetTur, setResetTur] = useState<'CIHAZ_DEGISTI' | 'SAYAC_SIFIRLANDI' | null>(null);
+    // Girişin YAPILDIĞI AN, teknisyen hâlâ makinenin başındayken verilen uyarı.
+    // Kaçan Gelir ekranındaki şüpheli listesi ay sonunda yakalıyor; burası
+    // hatanın düzeltilmesi en ucuz olan yer.
+    const [uyari, setUyari] = useState<string | null>(null);
 
     // Edit modal state
     const [editReading, setEditReading] = useState<Reading | null>(null);
@@ -109,8 +119,12 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
 
     const save = async () => {
         if (!form.counterBlack || !form.counterColor) return;
+        // Düşüş soruldu ama sebep seçilmediyse gönderme: sebepsiz onay,
+        // sistemin kendi kendine karar vermesi demek olurdu.
+        if (dususSoruluyor && !resetTur) return;
         setSaving(true);
         setLastResult(null);
+        setUyari(null);
         const res = await fetch(`/api/devices/${deviceId}/readings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -119,18 +133,28 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                 counterColor: parseInt(form.counterColor),
                 includeMonthlyRent: form.includeMonthlyRent,
                 photo: photo || undefined,
+                ...(resetTur ? { reset: true, resetTur } : {}),
             }),
         });
         if (res.ok) {
             const data = await res.json();
             setLastResult(data.breakdown);
+            // Uç uyarıyı zaten döndürüyordu; bu ekran onu okumuyordu. Yanlış
+            // yazılmış bir sayaç için en ucuz an, teknisyenin hâlâ makinenin
+            // başında olduğu andır.
+            setUyari(typeof data.warning === 'string' ? data.warning : null);
             setForm({ counterBlack: '', counterColor: '', includeMonthlyRent: true });
             setPhoto('');
+            setDususSoruluyor(false);
+            setResetTur(null);
             await load();
             router.refresh();
         } else {
             const d = await res.json();
-            alert('Hata: ' + d.error);
+            // Düşüşte hata kutusu göstermek yerine SEBEBİ soruyoruz — bayinin
+            // burada yapacağı iş bu.
+            if (d.code === 'COUNTER_DECREASE') setDususSoruluyor(true);
+            else alert('Hata: ' + d.error);
         }
         setSaving(false);
     };
@@ -341,6 +365,62 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                         {saving ? '...' : '📊 Ekle'}
                     </button>
                 </div>
+
+                {/* DÜŞÜŞTE SEBEP SORUSU
+                    Uç düşüşü reddedip "sıfırlandı onayıyla tekrar gönderin" diyordu,
+                    ama bu ekranda öyle bir onay yoktu: bayi tek makineyi düzeltmek
+                    için Sayaç Turu'na gitmek zorundaydı. Onay tek başına da yetmez —
+                    iki durum tamamen farklı para demek, o yüzden SEBEP soruluyor. */}
+                {dususSoruluyor && (
+                    <div style={{ padding: '0.9rem 1rem', background: '#fff7ed', border: '1px solid #fdba74', borderRadius: '0.6rem', marginBottom: '1.25rem' }}>
+                        <div style={{ fontWeight: 700, color: '#9a3412', fontSize: '0.9rem' }}>Sayaç öncekinden düşük — ne oldu?</div>
+                        <p style={{ margin: '0.25rem 0 0.7rem', fontSize: '0.78rem', color: '#7c2d12', lineHeight: 1.5 }}>
+                            İki durum farklı fatura üretir. Emin değilseniz birincisini seçin: eksik faturalamak,
+                            müşteriye fahiş fatura göndermekten iyidir.
+                        </p>
+                        <div style={{ display: 'grid', gap: 8 }}>
+                            {([
+                                ['CIHAZ_DEGISTI', 'Cihaz değişti', 'Yerine başka bir makine takıldı. Takılan makinenin geçmişi müşterinin bu ay bastığı sayfa DEĞİLDİR — bu dönemin farkı sıfır yazılır.'],
+                                ['SAYAC_SIFIRLANDI', 'Sayaç sıfırlandı', 'Aynı makine, sayaç sıfıra döndü. Okunan değer sıfırlamadan sonraki gerçek kullanımdır — o kadarı faturalanır.'],
+                            ] as const).map(([tur, baslik, aciklama]) => (
+                                <label key={tur} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: 'white', border: '1px solid ' + (resetTur === tur ? '#ea580c' : '#fed7aa'), borderRadius: 8, padding: '0.6rem 0.7rem', cursor: 'pointer' }}>
+                                    <input type="radio" name="resetTur" checked={resetTur === tur} onChange={() => setResetTur(tur)} style={{ marginTop: 3 }} />
+                                    <span>
+                                        <span style={{ display: 'block', fontWeight: 700, fontSize: '0.84rem', color: '#0B1533' }}>{baslik}</span>
+                                        <span style={{ display: 'block', fontSize: '0.74rem', color: '#5B6479', lineHeight: 1.45 }}>{aciklama}</span>
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: '0.7rem', flexWrap: 'wrap' }}>
+                            <button onClick={save} disabled={!resetTur || saving}
+                                style={{ minHeight: 40, padding: '0 1rem', background: '#ea580c', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', opacity: (!resetTur || saving) ? 0.6 : 1 }}>
+                                {saving ? '...' : 'Onayla ve kaydet'}
+                            </button>
+                            <button onClick={() => { setDususSoruluyor(false); setResetTur(null); }}
+                                style={{ minHeight: 40, padding: '0 1rem', background: 'white', color: '#7c2d12', border: '1px solid #fed7aa', borderRadius: 8, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                                Vazgeç
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* GİRİŞ ANINDAKİ ANOMALİ UYARISI
+                    Uç bunu zaten döndürüyordu, ekran okumuyordu. Yanlış yazılmış bir
+                    sayacı düzeltmenin en ucuz anı, teknisyenin hâlâ makinenin başında
+                    olduğu andır; ay sonunda düzeltmek fatura tartışması demektir.
+                    Okuma yine de KAYDEDİLİR — sistem sessizce para tutmaz. */}
+                {uyari && (
+                    <div style={{ padding: '0.8rem 1rem', background: '#fff7ed', border: '1px solid #fdba74', borderRadius: '0.6rem', marginBottom: '1.25rem', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '1rem' }}>⚠️</span>
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, color: '#9a3412', fontSize: '0.85rem' }}>Okuma kaydedildi ama kontrol edin</div>
+                            <div style={{ fontSize: '0.78rem', color: '#7c2d12', lineHeight: 1.5, marginTop: 2 }}>{uyari}</div>
+                        </div>
+                        <button onClick={() => setUyari(null)} title="Kapat"
+                            style={{ marginLeft: 'auto', minWidth: 32, minHeight: 32, border: 'none', background: 'transparent', color: '#9a3412', cursor: 'pointer', fontSize: '0.95rem' }}>✕</button>
+                    </div>
+                )}
 
                 {/* Son Hesaplama */}
                 {lastResult && (

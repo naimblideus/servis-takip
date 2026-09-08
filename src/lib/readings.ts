@@ -57,6 +57,38 @@ export function safePhotoOf(photo: unknown): string | null {
   return typeof photo === 'string' && photo.startsWith('data:image/') && photo.length < 800000 ? photo : null;
 }
 
+/**
+ * SAYAC FARKI - TEK KURAL.
+ *
+ * Modül düzeyinde ve dışa açık, çünkü bu mantığın İKİNCİ bir kopyası olamaz.
+ * Nitekim olmuştu: okuma DÜZENLEME ucu (PATCH /api/devices/[id]/readings)
+ * kendi kopyasını taşıyordu ve o kopya bu dosyada düzeltilen hatanın ESKİ
+ * hâlindeydi - yalnız düşüş yönünü koruyor, sıfırlama TÜRÜNÜ hiç bilmiyordu.
+ * Aynı beyan iki ekranda iki farklı tutar demektir; kiralamada bu, doğrudan
+ * faturaya inen bir hatadır.
+ *
+ * @param yeni     Okunan sayaç.
+ * @param onceki   Bir önceki okumanın sayacı (yoksa null = zincirin başı).
+ * @param reset    Bayi "sıfırlandı / cihaz değişti" onayı verdi mi?
+ * @param resetTur Sebebi. Belirtilmezse CIHAZ_DEGISTI varsayılır - güvenli
+ *                 taraf: eksik faturalamak fahiş faturalamaktan iyidir. Eksik
+ *                 kalan sayfa sonraki okumada zaten farka girer, fahiş fatura
+ *                 ise müşteriyi kaybettirir.
+ */
+export function okumaFarki(
+  yeni: number,
+  onceki: number | null,
+  reset?: boolean,
+  resetTur?: 'CIHAZ_DEGISTI' | 'SAYAC_SIFIRLANDI',
+): number {
+  if (onceki === null) return 0;                       // zincirin başı
+  const sayacSifirlandi = !!reset && resetTur === 'SAYAC_SIFIRLANDI';
+  const cihazDegisti = !!reset && !sayacSifirlandi;    // tür verilmezse varsayılan bu
+  if (cihazDegisti) return 0;                          // yön fark etmez
+  if (sayacSifirlandi && yeni < onceki) return Math.max(0, yeni);
+  return Math.max(0, yeni - onceki);
+}
+
 export async function createReading(
   input: CreateReadingInput,
   /** Toplu çağrıda tenant'ı bir kez çekip geçir (N+1 önle) */
@@ -111,9 +143,6 @@ export async function createReading(
   // Artık sebep ayrıştırılıyor. Tür belirtilmemişse CIHAZ_DEGISTI varsayılır:
   // eksik faturalamak, fahiş faturalamaktan iyidir; eksik kalan sayfa bir
   // sonraki okumada zaten farka giriyor, fahiş fatura ise müşteriyi kaybettirir.
-  const sayacSifirlandi = reset && resetTur === 'SAYAC_SIFIRLANDI';
-  const cihazDegisti = reset && !sayacSifirlandi;   // tür verilmezse varsayılan bu
-
   /**
    * ── CİHAZ DEĞİŞİMİ ARTIK HER İKİ YÖNDE DE KORUYOR ───────────────────
    * İlk düzeltmede koşul yalnız DÜŞÜŞE bakıyordu (`yeni < onceki`). Oysa
@@ -127,15 +156,8 @@ export async function createReading(
    * bastığı sayfa DEĞİLDİR. Bu dönemin farkı sıfırdır; yeni sayaç
    * başlangıç olur ve bir sonraki okuma farkı doğru hesaplar.
    */
-  const farkHesapla = (yeni: number, onceki: number | null): number => {
-    if (onceki === null) return 0;                       // zincirin başı
-    if (cihazDegisti) return 0;                          // yön fark etmez
-    if (sayacSifirlandi && yeni < onceki) return Math.max(0, yeni);
-    return Math.max(0, yeni - onceki);
-  };
-
-  const deltaBlack = farkHesapla(counterBlack, prevB);
-  const deltaColor = farkHesapla(counterColor, prevC);
+  const deltaBlack = okumaFarki(counterBlack, prevB, reset, resetTur);
+  const deltaColor = okumaFarki(counterColor, prevC, reset, resetTur);
 
   // ── ANOMALİ: "bu artış bu makineye ait olamaz" ──────────────────────
   // Eskiden tek sabit eşik vardı (delta > 200.000). İki yönde de kördü:
