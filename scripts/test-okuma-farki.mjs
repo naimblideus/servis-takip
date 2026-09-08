@@ -223,6 +223,31 @@ if (!sunucu) {
         { sifirlandi: oa?.deltaBlack, degisti: ob?.deltaBlack });
     }
 
+    console.log('\nSERVİS FİŞİ YOLU DA AYNI KURALI KULLANMALI\n');
+    {
+      // Fiş açılırken sayaç da yazılıyor (SERVIS_FISI kaynağı). Bu yol sebebi
+      // hiç geçirmiyordu; formda sebep sorusu olmadığı için yanlış bir vaat
+      // yoktu ama kural yine çatallanmış oluyordu. Beş yazma yolunun beşi de
+      // aynı kurala bağlı olmalı, yoksa bir sonraki ekran yine ayrışır.
+      const c1 = await cihazKur('FIS-DEGISTI', 10000);
+      const y1 = await fetch(`${KOKURL}/api/tickets`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', cookie: cerez },
+        body: JSON.stringify({ customerId: musteri.id, deviceId: c1.id, issueText: 'test arıza',
+          counterBlack: 480000, counterColor: 0, counterReset: true, counterResetTur: 'CIHAZ_DEGISTI' }),
+      });
+      const o1 = await p.counterReading.findFirst({ where: { deviceId: c1.id }, orderBy: { readingDate: 'desc' } });
+      t('fiş yolunda cihaz değişimi fark üretmiyor', y1.ok && o1?.deltaBlack === 0, { ok: y1.ok, delta: o1?.deltaBlack });
+
+      const c2 = await cihazKur('FIS-SIFIR', 620000);
+      const y2 = await fetch(`${KOKURL}/api/tickets`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', cookie: cerez },
+        body: JSON.stringify({ customerId: musteri.id, deviceId: c2.id, issueText: 'test arıza',
+          counterBlack: 12000, counterColor: 0, counterReset: true, counterResetTur: 'SAYAC_SIFIRLANDI' }),
+      });
+      const o2 = await p.counterReading.findFirst({ where: { deviceId: c2.id }, orderBy: { readingDate: 'desc' } });
+      t('fiş yolunda sıfırlama gerçek kullanımı faturalıyor', y2.ok && o2?.deltaBlack === 12000, { ok: y2.ok, delta: o2?.deltaBlack });
+    }
+
     console.log('\nDÜZENLEME UCU DA AYNI KURALI KULLANMALI\n');
     {
       // PATCH kendi kopyasını taşıyordu: cihaz değişimi beyan edilse bile

@@ -139,6 +139,11 @@ export async function POST(req: Request) {
           source: 'SERVIS_FISI',
           photo: body.counterPhoto ?? null,
           reset: !!body.counterReset,
+          // Fiş formunda henüz sebep sorusu yok; geçmediğinde createReading
+          // güvenli tarafı (CIHAZ_DEGISTI, fark 0) seçiyor. Alanı yine de
+          // geçiriyoruz: sayaç dört yoldan giriliyor ve dördü de aynı kurala
+          // bağlı olmalı — biri sebebi taşımazsa kural yine çatallanır.
+          resetTur: body.counterResetTur,
         });
         counterWarning = warning ?? null;
       } catch (e: any) {

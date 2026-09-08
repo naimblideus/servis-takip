@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
     // yanlış okunan tek bir sayaç yanlış fatura demektir. createReading zaten
     // düşüş kontrolü ve dönem/aşım hesabını yapıyor; o mantığı burada tekrarlamıyoruz.
     if (action === 'saveReading') {
-      const { deviceId, counterBlack, counterColor, reset } = body;
+      const { deviceId, counterBlack, counterColor, reset, resetTur } = body;
       if (!deviceId) return NextResponse.json({ error: 'Cihaz seçilmedi' }, { status: 400 });
       try {
         const r = await createReading({
@@ -161,6 +161,10 @@ export async function POST(req: NextRequest) {
           counterBlack: Number(counterBlack) || 0,
           counterColor: Number(counterColor) || 0,
           reset: !!reset,
+          // Sebep geçmezse createReading CIHAZ_DEGISTI varsayar ve farkı sıfır
+          // yazar. Ekranda ise "Sayaç sıfırlandı" yazan tek kutu vardı —
+          // kutu bir şey vaat ediyor, sistem başkasını yapıyordu.
+          resetTur,
           source: 'WHATSAPP_FOTO',
         });
         await prisma.whatsAppMessage.update({

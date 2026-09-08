@@ -54,7 +54,12 @@ export default function WhatsAppInboxPage() {
   const [selDev, setSelDev] = useState('');
   const [cb, setCb] = useState('');
   const [cc, setCc] = useState('');
-  const [reset, setReset] = useState(false);
+  // Tek kutu vardı ve üstünde "Sayaç sıfırlandı" yazıyordu — ama uç sebebi
+  // göndermediği için sistem CIHAZ_DEGISTI varsayıp farkı SIFIR yazıyordu.
+  // Yani kutu bir şey vaat ediyor, sistem başkasını yapıyordu. Sayaç Turu,
+  // cihaz kartı ve kuyrukta sebep zaten soruluyor; burası da aynı soruyu
+  // aynı sözcüklerle sormalı — dördü de tek kurala bağlı.
+  const [resetTur, setResetTur] = useState<'CIHAZ_DEGISTI' | 'SAYAC_SIFIRLANDI' | null>(null);
   const [readErr, setReadErr] = useState<string | null>(null);
 
   // Öneri düzeltme paneli — bayi sistemin önerisini değiştirdiğinde kullanılır
@@ -90,7 +95,7 @@ export default function WhatsAppInboxPage() {
 
   /** Sayaç panelini aç: müşterinin kiralık cihazlarını getir (Sayaç Turu ile aynı uç). */
   const openReading = async (m: Msg) => {
-    setReading(m.id); setSelDev(''); setCb(''); setCc(''); setReset(false); setReadErr(null);
+    setReading(m.id); setSelDev(''); setCb(''); setCc(''); setResetTur(null); setReadErr(null);
     if (!m.customer) return;
     setDevLoading(true);
     try {
@@ -126,10 +131,11 @@ export default function WhatsAppInboxPage() {
     if (cb === '') { setReadErr('Siyah sayacı yazın'); return; }
     const d = await act({
       action: 'saveReading', messageId: m.id, deviceId: selDev,
-      counterBlack: cb, counterColor: dev.hasColor ? (cc || 0) : 0, reset,
+      counterBlack: cb, counterColor: dev.hasColor ? (cc || 0) : 0,
+      ...(resetTur ? { reset: true, resetTur } : {}),
     });
     if (d?.ok) { setReading(null); if (d.warning) alert('⚠️ ' + d.warning); }
-    else setReadErr('Kaydedilemedi — sayaç önceki değerden küçükse "sayaç sıfırlandı" işaretleyin');
+    else setReadErr('Kaydedilemedi — sayaç önceki değerden küçükse aşağıdan sebebini seçin');
   };
 
   const fmtTime = (iso: string) => {
@@ -353,10 +359,32 @@ export default function WhatsAppInboxPage() {
                       </div>
                     )}
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#0369a1', marginTop: '0.5rem', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={reset} onChange={e => setReset(e.target.checked)} />
-                    Sayaç sıfırlandı (yeni değer eskisinden küçükse)
-                  </label>
+                  <div style={{ marginTop: '0.6rem' }}>
+                    <div style={{ fontSize: '0.74rem', color: '#0369a1', fontWeight: 700, marginBottom: 4 }}>
+                      Yeni değer eskisinden küçükse sebebini seçin
+                    </div>
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      {([
+                        ['CIHAZ_DEGISTI', 'Cihaz değişti — başka makine takıldı', 'Yeni makinenin sayacı bu ayın kullanımı sayılmaz; buradan sonrası sayılır.'],
+                        ['SAYAC_SIFIRLANDI', 'Aynı makine, sayacı sıfırlandı', 'Okunan değer bu ayın kullanımıdır ve faturalanır.'],
+                      ] as const).map(([tur, baslik, aciklama]) => (
+                        <label key={tur} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: '0.78rem', color: '#0369a1', cursor: 'pointer' }}>
+                          <input type="radio" name={`resetTur-${m.id}`} checked={resetTur === tur}
+                            onChange={() => setResetTur(tur)} style={{ marginTop: 3 }} />
+                          <span>
+                            {baslik}
+                            <span style={{ display: 'block', color: '#5B7A91', fontSize: '0.71rem', lineHeight: 1.4 }}>{aciklama}</span>
+                          </span>
+                        </label>
+                      ))}
+                      {resetTur && (
+                        <button type="button" onClick={() => setResetTur(null)}
+                          style={{ justifySelf: 'start', minHeight: 32, padding: '0 .5rem', background: 'transparent', border: 'none', color: '#0369a1', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+                          seçimi kaldır
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   {readErr && <div style={{ fontSize: '0.8rem', color: '#b91c1c', marginTop: '0.5rem' }}>{readErr}</div>}
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem' }}>
                     <button onClick={() => saveReading(m)} disabled={busy === m.id}
