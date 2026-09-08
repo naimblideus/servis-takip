@@ -30,6 +30,19 @@ export default async function DashboardLayout({
     prisma.platformSettings.findFirst({ select: { maintenanceMode: true, contactEmail: true } }).catch(() => null),
   ]);
 
+  // 0) OTURUM BAYAT — çereze yazılı bayi artık yok.
+  // Oturum jetonu tenantId'yi taşıyor; kayıt silinip yeniden kurulduğunda
+  // (süper-admin taşıması, demo hesabının tazelenmesi) eski kimlik ayakta
+  // kalıyor. Eskiden bu sessizce `modules = []` demekti: kullanıcı giriş
+  // yapmış görünüyor, ekranlar açılıyor ama her özellik "paketinizde yok"
+  // diyordu. Ölçüldü — demo hesabı tazelendikten sonra Kaçan Gelir tam da
+  // böyle kayboldu. Paketi olmayan bayiyle bayat oturumu ayırt edemeyen bir
+  // ekran, satış görüşmesinin ortasında ürünü yoksun gösterir.
+  // Doğrusu: kimlik geçersizse yeniden giriş istemek.
+  if (tenantId && !tenant) {
+    redirect('/login?hata=oturum-bayat');
+  }
+
   // 1) Bakım modu — tüm tenant kullanıcıları
   if (settings?.maintenanceMode) {
     return <AccessLock title="Bakımdayız" message="Sistem kısa süreli bakımda. Lütfen birazdan tekrar deneyin." contactEmail={settings?.contactEmail} showLogout={false} />;

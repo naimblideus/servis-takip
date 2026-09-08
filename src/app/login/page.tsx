@@ -26,7 +26,14 @@ const OZELLIKLER = [
  * durum: kullanıcı sistemde tanımlı değil, ya da aynı e-posta iki bayide var.
  * İkisinin de çözümü farklı — bu yüzden mesaj da farklı.
  */
+// Giriş ekranına ?hata= ile gelen sebepler. Hepsinin ortak kuralı: NE OLDUĞUNU
+// söyle. "Bir hata oluştu" diyen bir giriş ekranı, karşı taraftaki BT ekibinin
+// gününü yakar.
 const SSO_HATA: Record<string, string> = {
+  // Oturum jetonundaki bayi kaydı artık yok (taşıma, hesap tazeleme). Eskiden
+  // bu sessizce "modülsüz" bir panele düşürüyordu: kullanıcı içeride görünüp
+  // her özelliği "paketinizde yok" olarak görüyordu.
+  'oturum-bayat': 'Oturumunuz artık geçerli değil (hesabınız güncellenmiş olabilir). Lütfen tekrar giriş yapın.',
   'sso-tanimsiz': 'Bu e-posta sistemde tanımlı değil ya da hesabınız kapatılmış. Kurumsal giriş yeni hesap açmaz; yöneticinizin sizi eklemesi gerekir.',
   'sso-coklu': 'Bu e-posta birden fazla firmada tanımlı. Kurumsal giriş kullanılamıyor — lütfen e-posta ve şifrenizle girin.',
   'sso-eposta-yok': 'Kurumsal hesabınız e-posta adresi paylaşmadı. E-posta ve şifrenizle girebilirsiniz.',

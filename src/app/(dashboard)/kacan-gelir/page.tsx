@@ -9,6 +9,14 @@ interface Item {
   counterAmount: number; billBlack: number; billColor: number; rentAmount: number; total: number;
 }
 interface Summary { counterTotal: number; rentTotal: number; grandTotal: number; deviceCount: number; customerCount: number; }
+// Faturaya girecek ama inandırıcı olmayan okumalar. Bu ekran "fatura kes"
+// butonunun bulunduğu yer, yani zincirdeki SON insanlı nokta — uyarı
+// başka bir sayfada dursa kimse görmeden fatura kesilir.
+interface Supheli {
+  id: string; deviceId: string; brand: string; model: string; serialNo: string;
+  musteriId: string | null; musteri: string; tarih: string; kaynak: string;
+  sayfa: number; tutar: number; kat: number | null; gun: number; beklenen: number | null; aciklama: string;
+}
 
 const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -19,6 +27,7 @@ export default function KacanGelirPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [supheli, setSupheli] = useState<{ toplam: number; tutar: number; okumalar: Supheli[] }>({ toplam: 0, tutar: 0, okumalar: [] });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,13 +38,25 @@ export default function KacanGelirPage() {
       setSummary(d.summary || { counterTotal: 0, rentTotal: 0, grandTotal: 0, deviceCount: 0, customerCount: 0 });
       setPeriod(d.period || '');
     } catch { /* yoksay */ }
+    try {
+      const rs = await fetch('/api/sayac/supheli');
+      if (rs.ok) { const ds = await rs.json(); setSupheli({ toplam: ds.toplam || 0, tutar: ds.tutar || 0, okumalar: Array.isArray(ds.okumalar) ? ds.okumalar : [] }); }
+    } catch { /* yoksay — şüphe listesi gelmezse asıl ekran yine çalışsın */ }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const runBilling = async () => {
-    if (!confirm('Bu dönem için tüm müşterilere otomatik fatura kesilecek (sayaç aşımı + kira + ödenmemiş servis). Devam edilsin mi?')) return;
+    // Şüpheli okuma varsa onay metni bunu SAYIYLA söylüyor. "Uyarı bir yerde
+    // duruyordu" yetmez: yanlış fatura müşteride teknik hata değil güven
+    // kaybı yaratır, ve o noktadan sonra düzeltmenin bedeli bir müşteridir.
+    const uyari = supheli.toplam > 0
+      ? `⚠️ DİKKAT: ${supheli.toplam} okuma cihazın normal kullanımına uymuyor (${fmt(supheli.tutar)}). Faturaya bu hâliyle girecekler.
+
+`
+      : '';
+    if (!confirm(uyari + 'Bu dönem için tüm müşterilere otomatik fatura kesilecek (sayaç aşımı + kira + ödenmemiş servis). Devam edilsin mi?')) return;
     setRunning(true); setMsg(null);
     try {
       const res = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
@@ -80,6 +101,37 @@ export default function KacanGelirPage() {
           <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#1d4ed8' }}>{fmt(summary.rentTotal)}</div>
         </div>
       </div>
+
+      {supheli.toplam > 0 && (
+        <div style={{ margin: '0 0 1rem', borderRadius: 12, border: '1px solid #fdba74', background: '#fff7ed', padding: '0.85rem 1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ fontWeight: 800, color: '#9a3412', fontSize: '0.95rem' }}>
+              ⚠️ {supheli.toplam} okuma cihazın normal kullanımına uymuyor
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#9a3412', fontWeight: 700, whiteSpace: 'nowrap' }}>faturaya girecek: {fmt(supheli.tutar)}</div>
+          </div>
+          <p style={{ margin: '0.25rem 0 0.6rem', fontSize: '0.78rem', color: '#7c2d12', lineHeight: 1.5 }}>
+            Bunlar &quot;yanlış&quot; demek değil, <b>kontrol edilmedi</b> demek. Faturalamadan önce bakın:
+            yanlış cihazın raporu, hatalı okuma ya da değişen makine olabilir. Faturadan sonra düzeltmek
+            müşteride güven kaybı yaratır.
+          </p>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {supheli.okumalar.slice(0, 8).map((o) => (
+              <Link key={o.id} href={`/devices/${o.deviceId}`}
+                style={{ display: 'block', background: 'white', border: '1px solid #fed7aa', borderRadius: 10, padding: '0.55rem 0.7rem', textDecoration: 'none', color: 'inherit' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.86rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700 }}>{o.musteri} <span style={{ fontWeight: 400, color: '#6b7280' }}>· {o.brand} {o.model} · SN {o.serialNo}</span></span>
+                  <span style={{ color: '#9a3412', fontWeight: 800, whiteSpace: 'nowrap' }}>{fmt(o.tutar)}</span>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#7c2d12', marginTop: 2 }}>{o.aciklama}</div>
+              </Link>
+            ))}
+            {supheli.okumalar.length > 8 && (
+              <div style={{ fontSize: '0.74rem', color: '#9a3412' }}>+{supheli.okumalar.length - 8} okuma daha</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p style={{ color: '#9ca3af' }}>Yükleniyor…</p>

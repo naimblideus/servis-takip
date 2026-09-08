@@ -181,6 +181,19 @@ async function main() {
         okumaSayisi++;
       }
 
+      // ── CİHAZ SAYACI = SON OKUMA ───────────────────────────────────────
+      // Zincirin başlangıcı yukarıda `Math.max(0, …)` ile kırpılıyor. Cihazın
+      // renkli sayacı üç ayın renkli hacminden küçükse başlangıç 0'a çekiliyor
+      // ve ileri doğru toplandığında son okuma cihaz kartındaki sayacın
+      // ÜSTÜNE çıkıyordu. Ölçüldü: DEMO0003 kartta 2.261, son okumada 2.908.
+      // Bu ayrışma zararsız görünür ama tam da ürünün "kartta gördüğün sayı
+      // faturayı belirleyen sayıdır" sözünü bozar (bkz. sonOkumalar()).
+      // Sayacın doğrusu okumadır; kart okumaya hizalanıyor.
+      await p.device.update({
+        where: { id: cihaz.id },
+        data: { counterBlack: oncekiS, counterColor: oncekiR },
+      });
+
       // ── BU DÖNEMİN FATURALANMAMIŞ OKUMASI ──────────────────────────────
       // "Kaçan Gelir" ekranı yalnız billed=false okumaları sayıyor. Tüm
       // okumalar faturalanmış işaretliyken ekranın "SAYAÇ AŞIMI" yarısı
@@ -235,6 +248,53 @@ async function main() {
             billed: true, source: 'CIHAZ_EPOSTA',
             readingDate: new Date(Date.now() - gunOnce * 86400000),
           },
+        });
+        okumaSayisi++;
+      }
+    }
+  }
+
+  // ── ŞÜPHELİ OKUMA: faturaya girmeden yakalanan hatalı sayaç ────────────
+  // Uzaktan sayaç kanalının bedeli bu: yanlış bir sayıyı durduracak insan yok.
+  // Demoda görünmesi şart, çünkü bayinin sorduğu ilk soru "ya yanlış okursa?".
+  // Kendi hacminin sekiz katını basmış gibi duran, HENÜZ FATURALANMAMIŞ tek bir
+  // okuma bırakıyoruz; Kaçan Gelir ekranı faturalamadan önce uyarıyor.
+  // En küçük seri seçiliyor — durgun cihaz en büyük seriden alındığı için
+  // ikisi asla aynı makineye düşmüyor, iki hikâye birbirine karışmıyor.
+  {
+    const aday = await p.device.findFirst({
+      where: { tenantId: tenant.id, isRental: true },
+      orderBy: { serialNo: 'asc' },
+      select: { id: true },
+    });
+    if (aday) {
+      // Faturalanmamış okuma varsa onun yerine geçiyor: aynı dönemde iki
+      // okuma bırakmak çift sayım gibi görünürdü.
+      await p.counterReading.deleteMany({ where: { deviceId: aday.id, billed: false } });
+      const gecmis = await p.counterReading.findMany({
+        where: { deviceId: aday.id },
+        orderBy: { readingDate: 'asc' },
+        select: { counterBlack: true, counterColor: true, deltaBlack: true },
+      });
+      if (gecmis.length >= 3) {
+        const aylikOrtalama = Math.max(1500, Math.round(
+          gecmis.reduce((a, o) => a + o.deltaBlack, 0) / Math.max(1, gecmis.length - 1)));
+        const hataliArtis = aylikOrtalama * 8;   // cihazın kendi hızının 8 katı
+        const son = gecmis.at(-1);
+        const asim = Math.max(0, hataliArtis - 2000);
+        await p.counterReading.create({
+          data: {
+            tenantId: tenant.id, deviceId: aday.id,
+            counterBlack: son.counterBlack + hataliArtis, counterColor: son.counterColor,
+            deltaBlack: hataliArtis, deltaColor: 0,
+            calculatedCost: Math.round(asim * 0.42 * 100) / 100,
+            billed: false, source: 'CIHAZ_EPOSTA',
+            readingDate: new Date(),
+          },
+        });
+        await p.device.update({
+          where: { id: aday.id },
+          data: { counterBlack: son.counterBlack + hataliArtis, counterColor: son.counterColor },
         });
         okumaSayisi++;
       }

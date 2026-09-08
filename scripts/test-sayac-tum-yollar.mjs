@@ -28,6 +28,7 @@ try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),
     join(KOK, 'src/lib/readings.ts'),
+    join(KOK, 'src/lib/sayac-anomali.ts'),
     join(KOK, 'src/lib/invoicing.ts'),
     join(KOK, 'src/lib/prisma.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
@@ -46,7 +47,7 @@ const duzelt = (dosya, esle) => {
   fs.writeFileSync(y, s);
 };
 const ORTAK = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]];
-duzelt('readings.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"]]);
+duzelt('readings.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"]]);
 duzelt('invoicing.js', ORTAK);
 
 const { createReading, ReadingError } = await import(pathToFileURL(join(g, 'readings.js')).href);

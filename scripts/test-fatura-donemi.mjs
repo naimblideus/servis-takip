@@ -60,7 +60,7 @@ const duzelt = (dosya, esle) => {
 };
 writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
 duzelt('invoicing.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ['"@prisma/client"', JSON.stringify(P)], ["'@prisma/client'", JSON.stringify(P)]]);
-try { duzelt('readings.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@prisma/client'", JSON.stringify(P)]]); } catch { /* yok */ }
+try { duzelt('readings.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@prisma/client'", JSON.stringify(P)]]); } catch { /* yok */ }
 ({ buildInvoiceForCustomerPeriod } = await import(pathToFileURL(join(g, 'invoicing.js')).href));
 
 const p = new PrismaClient();

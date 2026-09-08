@@ -47,6 +47,7 @@ try {
     join(KOK, 'src/app/api/sayac/eposta/route.ts'),
     join(KOK, 'src/lib/counter-email.ts'),
     join(KOK, 'src/lib/readings.ts'),
+    join(KOK, 'src/lib/sayac-anomali.ts'),
     join(KOK, 'src/lib/prisma.ts'),
     join(KOK, 'src/lib/invoicing.ts'),
     join(KOK, 'src/lib/sayac-eposta.ts'),
@@ -75,7 +76,7 @@ duzelt('app/api/sayac/eposta/route.js', [
   ["'@/lib/sayac-eposta'", "'../../../../lib/sayac-eposta.js'"],
   ["'@/lib/ek-dosya'", "'../../../../lib/ek-dosya.js'"],
 ]);
-duzelt('lib/readings.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/invoicing'", "'./invoicing.js'"]]);
+duzelt('lib/readings.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"]]);
 duzelt('lib/invoicing.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]]);
 
 const { POST } = await import(pathToFileURL(join(g, 'app/api/sayac/eposta/route.js')).href);

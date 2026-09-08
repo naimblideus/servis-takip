@@ -3,6 +3,7 @@
 // KRİTİK: bu mantık kopyalanmamalı — aşım/dahil-paket hesabı ikiye çatallanırsa fatura hatası olur.
 import { prisma } from '@/lib/prisma';
 import { counterOverage } from '@/lib/invoicing';
+import { anomaliDegerlendir, type AnomaliSonucu } from '@/lib/sayac-anomali';
 
 export class ReadingError extends Error {
   code: string;
@@ -51,9 +52,6 @@ export type OkumaKaynagi =
   | 'SERVIS_FISI'    // servis fişi açılırken girildi
   | 'ELLE';          // tekil elle giriş
 
-/** Tek okumada olağandışı yüksek artış (bloklamaz, uyarır) */
-const ANOMALY = 200000;
-
 /** Sayaç fotoğrafı: küçültülmüş JPEG data URL; güvenli boyut sınırı */
 export function safePhotoOf(photo: unknown): string | null {
   return typeof photo === 'string' && photo.startsWith('data:image/') && photo.length < 800000 ? photo : null;
@@ -80,11 +78,16 @@ export async function createReading(
   const tenant = preloadedTenant ?? await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new ReadingError('TENANT_NOT_FOUND', 'Tenant bulunamadı', 404);
 
-  // Son okuma (delta hesabı)
-  const prev = await prisma.counterReading.findFirst({
+  // Son okumalar. Bir satır yeter gibi görünür (delta için öyle) ama anomali
+  // kararı cihazın KENDİ hızına bakıyor ve o hız birkaç aralıktan çıkıyor.
+  // Aynı sorguda 6 satır çekmek, ayrı bir geçmiş sorgusu açmaktan ucuz.
+  const gecmis = await prisma.counterReading.findMany({
     where: { tenantId, deviceId },
     orderBy: { readingDate: 'desc' },
+    take: 6,
+    select: { readingDate: true, counterBlack: true, counterColor: true },
   });
+  const prev = gecmis[0] ?? null;
 
   // Düşüş kontrolü: sayaç gerilemişse SESSİZCE 0 yazma. 'reset' onayı yoksa REDDET
   // (yoksa ya gelir kaybı [delta=0] ya da yanlış devasa delta oluşur).
@@ -133,7 +136,21 @@ export async function createReading(
 
   const deltaBlack = farkHesapla(counterBlack, prevB);
   const deltaColor = farkHesapla(counterColor, prevC);
-  const warning = deltaBlack > ANOMALY || deltaColor > ANOMALY ? 'Olağandışı yüksek sayfa artışı — lütfen kontrol edin.' : null;
+
+  // ── ANOMALİ: "bu artış bu makineye ait olamaz" ──────────────────────
+  // Eskiden tek sabit eşik vardı (delta > 200.000). İki yönde de kördü:
+  // ayda 3.000 basan makinenin 150.000'e fırlaması eşiğin ALTINDA kalıyor,
+  // gerçekten ayda 250.000 basan matbaa makinesi ise HER AY uyarı üretip
+  // bayiyi uyarılara bakmaz hâle getiriyordu. Artık ölçüt makinenin kendi
+  // geçmişi. Sıfırlama/cihaz değişiminde bakılmıyor: bayi zaten beyan etti.
+  let anomali: AnomaliSonucu | null = null;
+  if (!reset) {
+    const gecenGun = prev ? (Date.now() - new Date(prev.readingDate).getTime()) / 86400000 : 1;
+    anomali = anomaliDegerlendir(deltaBlack + deltaColor, gecenGun, gecmis);
+  }
+  // Şüphe faturayı DURDURMAZ — okuma normal yazılır, karar bayinindir.
+  // Sistemin sessizce para tutması, yanlış faturadan daha kötü bir sürprizdir.
+  const warning = anomali?.supheli ? anomali.aciklama : null;
 
   // Kiralık cihazda kademeli (dahil paket + aşım) ücret — gerçek fatura mantığıyla AYNI kaynak
   let calculatedCost = 0;
@@ -193,7 +210,7 @@ export async function createReading(
     total: calculatedCost,
   } : null;
 
-  return { reading, breakdown, warning, deltaBlack, deltaColor, calculatedCost };
+  return { reading, breakdown, warning, anomali, deltaBlack, deltaColor, calculatedCost };
 }
 
 export interface SonOkuma {
