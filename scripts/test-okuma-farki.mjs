@@ -185,6 +185,44 @@ if (!sunucu) {
       t('bu para gerçekten sıfır DEĞİL (sessiz kayıp yok)', Number(d1.calculatedCost) === 6000, d1.calculatedCost);
     }
 
+    console.log('\nKUYRUK EKRANI DA AYNI KURALI KULLANMALI\n');
+    {
+      // Cihazdan Sayaç kuyruğunda TEK kutu vardı: "Sayaç sıfırlandı". Ama uç
+      // sebebi almadığı için sistem CIHAZ_DEGISTI sayıp farkı SIFIR yazıyordu —
+      // etiket bir şey vaat ediyor, sistem başkasını yapıyordu. Bu iki durum,
+      // bir kiralamacı için ayın tüm kullanımı kadar fark demek.
+      const kuyrukKur = async (seri) => {
+        const c = await cihazKur(seri, 620000);
+        const k = await p.counterEmail.create({
+          data: { tenantId: tenant.id, rawText: 'test raporu', serial: seri, status: 'BEKLIYOR', parsedBlack: 12000, parsedColor: 0 },
+        });
+        return { c, k };
+      };
+
+      const a = await kuyrukKur('KUYRUK-SIFIR');
+      const ya = await fetch(`${KOKURL}/api/sayac/eposta/bekleyen`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', cookie: cerez },
+        body: JSON.stringify({ id: a.k.id, deviceId: a.c.id, counterBlack: 12000, counterColor: 0, reset: true, resetTur: 'SAYAC_SIFIRLANDI' }),
+      });
+      const da = await ya.json();
+      const oa = await p.counterReading.findFirst({ where: { deviceId: a.c.id }, orderBy: { readingDate: 'desc' } });
+      t('kuyruk "sayaç sıfırlandı" beyanını kabul etti', ya.ok, da);
+      t('kuyrukta sıfırlama gerçek kullanımı faturalıyor (eskiden 0 yazıyordu)',
+        oa?.deltaBlack === 12000, oa);
+
+      const b = await kuyrukKur('KUYRUK-DEGISTI');
+      const yb = await fetch(`${KOKURL}/api/sayac/eposta/bekleyen`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', cookie: cerez },
+        body: JSON.stringify({ id: b.k.id, deviceId: b.c.id, counterBlack: 12000, counterColor: 0, reset: true, resetTur: 'CIHAZ_DEGISTI' }),
+      });
+      const ob = await p.counterReading.findFirst({ where: { deviceId: b.c.id }, orderBy: { readingDate: 'desc' } });
+      t('kuyrukta cihaz değişimi fark üretmiyor', yb.ok && ob?.deltaBlack === 0, ob);
+
+      t('ÜÇ EKRAN DA AYNI BEYANDA AYNI FARKI YAZIYOR',
+        oa?.deltaBlack === 12000 && ob?.deltaBlack === 0,
+        { sifirlandi: oa?.deltaBlack, degisti: ob?.deltaBlack });
+    }
+
     console.log('\nDÜZENLEME UCU DA AYNI KURALI KULLANMALI\n');
     {
       // PATCH kendi kopyasını taşıyordu: cihaz değişimi beyan edilse bile

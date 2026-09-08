@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { tenantId, user } = await requireTenantUser();
-    const { id, deviceId, counterBlack, counterColor, reset, yoksay } = await req.json();
+    const { id, deviceId, counterBlack, counterColor, reset, resetTur, yoksay } = await req.json();
 
     // GET ile aynı kural: sahipsiz kaydı yalnız süper yönetici ele alabilir.
     // Cihaz IDOR'u aşağıda ayrıca kapalı (cihaz bu bayiye ait olmak zorunda),
@@ -124,6 +124,11 @@ export async function POST(req: NextRequest) {
         counterBlack: Number(counterBlack) || 0,
         counterColor: Number(counterColor) || 0,
         reset: !!reset,
+        // Sebep GEÇMEZSE createReading CIHAZ_DEGISTI varsayar ve farkı sıfır
+        // yazar. Bu uç sebebi hiç geçirmiyordu; ekranda ise "Sayaç sıfırlandı"
+        // yazan tek bir kutu vardı. Etiket bir şey vaat ediyor, sistem
+        // başkasını yapıyordu — aradaki fark doğrudan para.
+        resetTur,
         // Bayi elle eşleştirdi ama SAYI cihazın kendi raporundan geliyor.
         source: 'CIHAZ_EPOSTA',
       });

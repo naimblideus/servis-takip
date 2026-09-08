@@ -29,7 +29,12 @@ export default function SayacEpostaPage() {
   const [dev, setDev] = useState('');
   const [cb, setCb] = useState('');
   const [cc, setCc] = useState('');
-  const [reset, setReset] = useState(false);
+  // Burada TEK kutu vardı ve üstünde "Sayaç sıfırlandı" yazıyordu — ama uç
+  // sebebi almadığı için sistem bunu CIHAZ_DEGISTI sayıp farkı SIFIR
+  // yazıyordu. Yani etiket bir şey vaat ediyor, sistem başkasını yapıyordu ve
+  // aradaki fark doğrudan para. Sayaç Turu ile cihaz kartında sebep zaten
+  // soruluyor; üçüncü ekran da aynı soruyu sormalı.
+  const [resetTur, setResetTur] = useState<'CIHAZ_DEGISTI' | 'SAYAC_SIFIRLANDI' | null>(null);
   const [hata, setHata] = useState<string | null>(null);
   const [mesgul, setMesgul] = useState<string | null>(null);
 
@@ -49,7 +54,7 @@ export default function SayacEpostaPage() {
 
   /** Paneli açarken okunan değerlerle DOLDUR — bayi yalnızca yanlışı düzeltsin. */
   const ac = (k: Kayit) => {
-    setAcik(k.id); setHata(null); setReset(false);
+    setAcik(k.id); setHata(null); setResetTur(null);
     setCb(k.siyah != null ? String(k.siyah) : '');
     setCc(k.renkli != null ? String(k.renkli) : '');
     // Seri okunduysa cihazı önceden seç
@@ -173,13 +178,35 @@ export default function SayacEpostaPage() {
                     <input value={cc} onChange={e => setCc(e.target.value.replace(/\D/g, ''))} inputMode="numeric" style={inp} />
                   </div>
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#0369a1', marginTop: '0.5rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={reset} onChange={e => setReset(e.target.checked)} />
-                  Sayaç sıfırlandı (yeni değer eskisinden küçükse)
-                </label>
+                <div style={{ marginTop: '0.6rem' }}>
+                  <div style={{ fontSize: '0.74rem', color: '#0369a1', fontWeight: 700, marginBottom: 4 }}>
+                    Yeni değer eskisinden küçükse sebebini seçin
+                  </div>
+                  <div style={{ display: 'grid', gap: 4 }}>
+                    {([
+                      ['CIHAZ_DEGISTI', 'Cihaz değişti — başka makine takıldı', 'Yeni makinenin sayacı bu ayın kullanımı sayılmaz; buradan sonrası sayılır.'],
+                      ['SAYAC_SIFIRLANDI', 'Aynı makine, sayacı sıfırlandı', 'Okunan değer bu ayın kullanımıdır ve faturalanır.'],
+                    ] as const).map(([tur, baslik, aciklama]) => (
+                      <label key={tur} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: '0.78rem', color: '#0369a1', cursor: 'pointer' }}>
+                        <input type="radio" name={`resetTur-${k.id}`} checked={resetTur === tur}
+                          onChange={() => setResetTur(tur)} style={{ marginTop: 3 }} />
+                        <span>
+                          {baslik}
+                          <span style={{ display: 'block', color: '#5B7A91', fontSize: '0.71rem', lineHeight: 1.4 }}>{aciklama}</span>
+                        </span>
+                      </label>
+                    ))}
+                    {resetTur && (
+                      <button type="button" onClick={() => setResetTur(null)}
+                        style={{ justifySelf: 'start', minHeight: 32, padding: '0 .5rem', background: 'transparent', border: 'none', color: '#0369a1', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+                        seçimi kaldır
+                      </button>
+                    )}
+                  </div>
+                </div>
                 {hata && <div style={{ fontSize: '0.8rem', color: '#b91c1c', marginTop: '0.5rem' }}>{hata}</div>}
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem', flexWrap: 'wrap' }}>
-                  <button onClick={() => gonder({ id: k.id, deviceId: dev, counterBlack: cb, counterColor: cc || 0, reset })}
+                  <button onClick={() => gonder({ id: k.id, deviceId: dev, counterBlack: cb, counterColor: cc || 0, ...(resetTur ? { reset: true, resetTur } : {}) })}
                     disabled={mesgul === k.id || !dev || cb === ''}
                     style={{ padding: '0.55rem 1.1rem', background: (!dev || cb === '') ? '#cbd5e1' : '#0284c7', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.85rem', cursor: (!dev || cb === '') ? 'not-allowed' : 'pointer' }}>
                     {mesgul === k.id ? 'Kaydediliyor…' : 'Sayacı kaydet'}
