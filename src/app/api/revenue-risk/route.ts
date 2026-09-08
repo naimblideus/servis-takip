@@ -88,9 +88,46 @@ export async function GET() {
 
   items.sort((a, b) => b.total - a.total);
 
+  // ── GEÇMİŞ DÖNEMDE UNUTULMUŞ OKUMALAR ─────────────────────────────────
+  // Her iki para yolu da (invoicing.ts ve period-charges.ts) okumaları
+  // [dönem başı, dönem sonu) ile süzüyor. Doğru bir kural: kapanmış ayın
+  // parası o ayın faturasına yazılır. Ama bir okuma o ay faturalanmadan
+  // kaldıysa (sunucu kapalıydı, bayi o ay hiç faturalamadı, cihaz yeni
+  // bağlandı) BİR DAHA hiçbir turun kapsamına girmiyor: sonraki aylar
+  // yalnız kendi dönemlerine bakıyor. Sessiz ve KALICI kayıp.
+  //
+  // Ölçüldü: gerçek bir bayide 2026-02'den kalmış ₺2.900'lük iki okuma
+  // vardı; ekran "bu dönem" gösterdiği için görünmüyordu bile.
+  //
+  // Burada faturalamıyoruz — dönem muhasebesini bozmamak için. Geçmiş ayın
+  // sayfaları o ayın dahil paketiyle hesaplanmalı; bu ayın faturasına
+  // eklemek hem kendi ayının paketini yer hem de tutarı kaydırır.
+  // Yapılan şey: bayiye GÖSTERMEK. Faturalama ucu zaten dönem alıyor, o
+  // dönemi tek düğmeyle kesebiliyor.
+  const gecmisOkumalar = ids.length
+    ? await prisma.counterReading.findMany({
+        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: false, readingDate: { lt: start } },
+        select: { readingDate: true, calculatedCost: true, deviceId: true },
+      })
+    : [];
+  const gecmisHarita = new Map<string, { okuma: number; tutar: number; cihazlar: Set<string> }>();
+  for (const r of gecmisOkumalar) {
+    const dnm = `${r.readingDate.getFullYear()}-${String(r.readingDate.getMonth() + 1).padStart(2, '0')}`;
+    const g = gecmisHarita.get(dnm) ?? { okuma: 0, tutar: 0, cihazlar: new Set<string>() };
+    g.okuma++;
+    g.tutar += Number(r.calculatedCost);
+    g.cihazlar.add(r.deviceId);
+    gecmisHarita.set(dnm, g);
+  }
+  const gecmisDonemler = [...gecmisHarita.entries()]
+    .map(([donem, g]) => ({ donem, okuma: g.okuma, cihaz: g.cihazlar.size, tutar: round2(g.tutar) }))
+    .sort((a, b) => (a.donem < b.donem ? 1 : -1));   // en yeni ay önce
+
   return NextResponse.json({
     period,
     items,
+    gecmisDonemler,
+    gecmisToplam: round2(gecmisDonemler.reduce((a, g) => a + g.tutar, 0)),
     summary: {
       counterTotal: round2(counterTotal),
       rentTotal: round2(rentTotal),

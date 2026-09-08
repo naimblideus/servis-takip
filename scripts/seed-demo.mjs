@@ -274,13 +274,21 @@ async function main() {
       const gecmis = await p.counterReading.findMany({
         where: { deviceId: aday.id },
         orderBy: { readingDate: 'asc' },
-        select: { counterBlack: true, counterColor: true, deltaBlack: true },
+        select: { counterBlack: true, counterColor: true, deltaBlack: true, readingDate: true },
       });
       if (gecmis.length >= 3) {
-        const aylikOrtalama = Math.max(1500, Math.round(
-          gecmis.reduce((a, o) => a + o.deltaBlack, 0) / Math.max(1, gecmis.length - 1)));
-        const hataliArtis = aylikOrtalama * 8;   // cihazın kendi hızının 8 katı
         const son = gecmis.at(-1);
+        // Kural GÜNLÜK hıza bakıyor, aylık toplama değil. Cihazların bir kısmı
+        // bilerek 2-3 ay okunmamış bırakılıyor ("sayacı gelmeyen cihaz"
+        // hikâyesi); orada sabit bir çarpan uzun aralığa yayılıp eşiğin
+        // altında kalıyor ve demo bazı koşularda uyarıyı hiç göstermiyordu.
+        // Ölçüldü. Artık artış, cihazın kendi günlük hızının aynı aralıktaki
+        // karşılığının katı olarak kuruluyor — aralık ne olursa olsun tutar.
+        const gunlukHiz = Math.max(30,
+          gecmis.reduce((a, o) => a + o.deltaBlack, 0) /
+          Math.max(1, (son.readingDate - gecmis[0].readingDate) / 86400000));
+        const gecenGun = Math.max(1, (Date.now() - son.readingDate.getTime()) / 86400000);
+        const hataliArtis = Math.max(6000, Math.round(gunlukHiz * gecenGun * 8));
         const asim = Math.max(0, hataliArtis - 2000);
         await p.counterReading.create({
           data: {

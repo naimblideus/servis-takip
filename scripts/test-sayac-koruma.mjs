@@ -190,6 +190,44 @@ try {
     t('başka bayinin kira riski karışmıyor', d.aylikRiskTutari === 9999, d.aylikRiskTutari);
   }
 
+  // ── GEÇMİŞ DÖNEMDE UNUTULMUŞ OKUMA ────────────────────────────────────
+  // Her iki para yolu da okumaları [dönem başı, dönem sonu) ile süzüyor.
+  // Kapanmış bir ayda faturalanmadan kalan okuma bir daha HİÇBİR turun
+  // kapsamına girmiyor: sonraki aylar yalnız kendi dönemine bakıyor.
+  // Ölçüldü — gerçek bir bayide 2026-02'den kalmış ₺2.900'lük iki okuma
+  // vardı ve ekranda hiç görünmüyordu. Sessiz, kalıcı kayıp.
+  console.log('\nGEÇMİŞ DÖNEMDE UNUTULAN PARA GÖRÜNÜYOR\n');
+  {
+    const eskiCihaz = await cihazKur(tenant, musteri, 'KORUMA-ESKI',
+      [{ gun: 150, siyah: 1000 }, { gun: 120, siyah: 4000 }], 1000);
+    const eskiTarih = gunOnce(70);
+    const eskiDonem = `${eskiTarih.getFullYear()}-${String(eskiTarih.getMonth() + 1).padStart(2, '0')}`;
+    await p.counterReading.create({
+      data: {
+        tenantId: tenant.id, deviceId: eskiCihaz.id,
+        counterBlack: 9000, counterColor: 0, deltaBlack: 5000, deltaColor: 0,
+        calculatedCost: 1234.5, billed: false, source: 'CIHAZ_EPOSTA',
+        readingDate: eskiTarih,
+      },
+    });
+
+    const y = await fetch(`${KOK}/api/revenue-risk`, { headers: { cookie: cerez } });
+    const d = await y.json();
+    t('uç cevap veriyor', y.ok, d);
+    const satir = (d.gecmisDonemler || []).find((g) => g.donem === eskiDonem);
+    t('kapanmış aydaki faturalanmamış okuma görünüyor', !!satir, d.gecmisDonemler);
+    t('o dönemin tutarı bildiriliyor', satir?.tutar >= 1234.5, satir);
+    t('kaç okuma ve kaç cihaz olduğu yazıyor', satir?.okuma >= 1 && satir?.cihaz >= 1, satir);
+    t('toplam da veriliyor (bayi tek rakam görüyor)', d.gecmisToplam >= 1234.5, d.gecmisToplam);
+    t('içinde bulunulan dönem bu listeye KARIŞMIYOR',
+      !(d.gecmisDonemler || []).some((g) => g.donem === d.period), d.gecmisDonemler);
+  }
+  {
+    const y = await fetch(`${KOK}/api/revenue-risk`, { headers: { cookie: cerezB } });
+    const d = await y.json();
+    t('başka bayinin geçmiş dönem parası sızmıyor', (d.gecmisDonemler || []).length === 0, d.gecmisDonemler);
+  }
+
   // ── BAYAT OTURUM ──────────────────────────────────────────────────────
   // Oturum jetonu tenantId taşıyor. Bayi kaydı silinip yeniden kurulduğunda
   // (taşıma, demo hesabının tazelenmesi) eski jeton ayakta kalıyordu ve panel

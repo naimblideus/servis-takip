@@ -12,6 +12,10 @@ interface Summary { counterTotal: number; rentTotal: number; grandTotal: number;
 // Faturaya girecek ama inandırıcı olmayan okumalar. Bu ekran "fatura kes"
 // butonunun bulunduğu yer, yani zincirdeki SON insanlı nokta — uyarı
 // başka bir sayfada dursa kimse görmeden fatura kesilir.
+// Kapanmış bir ayda faturalanmadan kalmış okumalar. Her iki para yolu da
+// okumaları dönem aralığıyla süzdüğü için bunlar bir daha HİÇBİR turun
+// kapsamına girmiyor — sessiz ve kalıcı kayıp. Ekran bu yüzden var.
+interface GecmisDonem { donem: string; okuma: number; cihaz: number; tutar: number; }
 interface Supheli {
   id: string; deviceId: string; brand: string; model: string; serialNo: string;
   musteriId: string | null; musteri: string; tarih: string; kaynak: string;
@@ -28,6 +32,7 @@ export default function KacanGelirPage() {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [supheli, setSupheli] = useState<{ toplam: number; tutar: number; okumalar: Supheli[] }>({ toplam: 0, tutar: 0, okumalar: [] });
+  const [gecmis, setGecmis] = useState<{ donemler: GecmisDonem[]; toplam: number }>({ donemler: [], toplam: 0 });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +42,7 @@ export default function KacanGelirPage() {
       setItems(Array.isArray(d.items) ? d.items : []);
       setSummary(d.summary || { counterTotal: 0, rentTotal: 0, grandTotal: 0, deviceCount: 0, customerCount: 0 });
       setPeriod(d.period || '');
+      setGecmis({ donemler: Array.isArray(d.gecmisDonemler) ? d.gecmisDonemler : [], toplam: d.gecmisToplam || 0 });
     } catch { /* yoksay */ }
     try {
       const rs = await fetch('/api/sayac/supheli');
@@ -47,7 +53,10 @@ export default function KacanGelirPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const runBilling = async () => {
+  // Dönem verilirse O DÖNEM kesilir. Geçmiş ayı bu ayın faturasına eklemek
+  // yerine kendi ayında kesmek şart: dahil paket dönem başına tanımlı, taşınan
+  // sayfa hem kendi ayının paketini yer hem tutarı kaydırır.
+  const runBilling = async (hedefDonem?: string) => {
     // Şüpheli okuma varsa onay metni bunu SAYIYLA söylüyor. "Uyarı bir yerde
     // duruyordu" yetmez: yanlış fatura müşteride teknik hata değil güven
     // kaybı yaratır, ve o noktadan sonra düzeltmenin bedeli bir müşteridir.
@@ -56,12 +65,18 @@ export default function KacanGelirPage() {
 
 `
       : '';
-    if (!confirm(uyari + 'Bu dönem için tüm müşterilere otomatik fatura kesilecek (sayaç aşımı + kira + ödenmemiş servis). Devam edilsin mi?')) return;
+    const donemMetni = hedefDonem
+      ? `${hedefDonem} DÖNEMİ için (geçmiş ay) tüm müşterilere fatura kesilecek.`
+      : 'Bu dönem için tüm müşterilere otomatik fatura kesilecek (sayaç aşımı + kira + ödenmemiş servis).';
+    if (!confirm(uyari + donemMetni + ' Devam edilsin mi?')) return;
     setRunning(true); setMsg(null);
     try {
-      const res = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const res = await fetch('/api/invoices', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(hedefDonem ? { period: hedefDonem } : {}),
+      });
       const d = await res.json();
-      if (res.ok) { setMsg(`✓ ${d.created} fatura kesildi (toplam ${fmt(d.total)})${d.errors ? ` · ${d.errors} hata` : ''}`); load(); }
+      if (res.ok) { setMsg(`✓ ${hedefDonem ? `${hedefDonem} dönemi: ` : ''}${d.created} fatura kesildi (toplam ${fmt(d.total)})${d.errors ? ` · ${d.errors} hata` : ''}`); load(); }
       else setMsg('❌ ' + (d.error || 'Hata'));
     } catch { setMsg('❌ Sunucuya bağlanılamadı'); }
     setRunning(false);
@@ -77,7 +92,7 @@ export default function KacanGelirPage() {
           </p>
         </div>
         {summary.grandTotal > 0 && (
-          <button onClick={runBilling} disabled={running}
+          <button onClick={() => runBilling()} disabled={running}
             style={{ padding: '0.6rem 1.1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: 10, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', opacity: running ? 0.6 : 1, whiteSpace: 'nowrap' }}>
             {running ? 'Kesiliyor…' : '⚡ Bu Dönemi Faturala'}
           </button>
@@ -101,6 +116,39 @@ export default function KacanGelirPage() {
           <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#1d4ed8' }}>{fmt(summary.rentTotal)}</div>
         </div>
       </div>
+
+      {gecmis.donemler.length > 0 && (
+        <div style={{ margin: '0 0 1rem', borderRadius: 12, border: '1px solid #c7d2fe', background: '#eef2ff', padding: '0.85rem 1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ fontWeight: 800, color: '#3730a3', fontSize: '0.95rem' }}>
+              🗓️ Geçmiş aylarda faturalanmamış sayaç var
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#3730a3', fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(gecmis.toplam)}</div>
+          </div>
+          <p style={{ margin: '0.25rem 0 0.6rem', fontSize: '0.78rem', color: '#312e81', lineHeight: 1.5 }}>
+            Bu okumalar kapanmış bir aya ait ve o ay faturalanmamış. Aylık faturalama yalnız <b>içinde
+            bulunulan</b> döneme bakar; bu yüzden kendiliğinden bir daha kesilmezler. Her ayı <b>kendi
+            dönemiyle</b> kesin — geçmiş ayın sayfalarını bu aya taşımak dahil paketi ve tutarı bozar.
+          </p>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {gecmis.donemler.map((g) => (
+              <div key={g.donem} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', background: 'white', border: '1px solid #ddd6fe', borderRadius: 10, padding: '0.55rem 0.7rem' }}>
+                <div style={{ fontSize: '0.86rem' }}>
+                  <b>{g.donem}</b>
+                  <span style={{ color: '#6b7280' }}> · {g.okuma} okuma · {g.cihaz} cihaz</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontWeight: 800, color: '#3730a3' }}>{fmt(g.tutar)}</span>
+                  <button onClick={() => runBilling(g.donem)} disabled={running}
+                    style={{ padding: '0.35rem 0.7rem', background: '#4338ca', color: 'white', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', opacity: running ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    {g.donem} dönemini kes
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {supheli.toplam > 0 && (
         <div style={{ margin: '0 0 1rem', borderRadius: 12, border: '1px solid #fdba74', background: '#fff7ed', padding: '0.85rem 1rem' }}>
