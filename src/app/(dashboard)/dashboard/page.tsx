@@ -138,15 +138,24 @@ export default function DashboardPage() {
           bayinin bir numaralı derdi; adı okunmuyorsa kart yok demektir.
           Üç nokta burada çözüm değil: etiketin üçte ikisini yiyorsa kaybın
           kendisidir. Tek sütunda aynı metne 284 px kalıyor. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+      {/* DÖRT SÜTUN 2XL'DEN SONRA: 1280 px'te dört sütunda kart içi metne
+          129 px kalıyordu. Ölçüldü — "Sayacı Gelmeyen Cihaz" 156 px istiyor
+          (üç noktayla kesiliyordu) ve "₺31.535,16" 140 px istiyor, üstelik
+          para rakamı ÜÇ NOKTASIZ kırpılıyordu: kesilmiş bir tutar, yanlış
+          okunan bir tutardır. Üç sütunda aynı metne 266 px kalıyor. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3.5">
         {statCards.map((card: any, i) => {
+          // Uzun tutarlar (milyonlu bakiye) dar bir kartta yine sığmayabilir.
+          // Rakamı KISALTMAK yerine küçültüyoruz: eksik bir tutar göstermek,
+          // küçük bir tutar göstermekten kötüdür.
+          const uzunDeger = String(card.value ?? '').length >= 10;
           const govde = (
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 {/* Etiket önce ve küçük, sayı büyük: göz sayıyı tarar, etiketi
                     yalnız gerektiğinde okur. */}
                 <p className="truncate text-[.78rem] font-semibold uppercase tracking-[.04em] text-gray-500">{card.label}</p>
-                <p className="mt-1.5 text-[1.75rem] font-extrabold leading-none tracking-[-.02em] text-gray-900 tabular-nums">{card.value}</p>
+                <p className={`mt-1.5 font-extrabold leading-none tracking-[-.02em] text-gray-900 tabular-nums ${uzunDeger ? 'text-[1.35rem]' : 'text-[1.75rem]'}`}>{card.value}</p>
                 {card.hint && <p className="mt-1 text-[.7rem] text-gray-400">{card.hint}</p>}
               </div>
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
