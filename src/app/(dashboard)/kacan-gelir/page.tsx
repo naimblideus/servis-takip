@@ -140,7 +140,7 @@ export default function KacanGelirPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontWeight: 800, color: '#3730a3' }}>{fmt(g.tutar)}</span>
                   <button onClick={() => runBilling(g.donem)} disabled={running}
-                    style={{ padding: '0.35rem 0.7rem', background: '#4338ca', color: 'white', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', opacity: running ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    style={{ padding: '0.6rem 0.9rem', minHeight: 40, background: '#4338ca', color: 'white', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', opacity: running ? 0.6 : 1, whiteSpace: 'nowrap' }}>
                     {g.donem} dönemini kes
                   </button>
                 </div>
@@ -193,7 +193,7 @@ export default function KacanGelirPage() {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700 }}>{i.brand} {i.model} <span style={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 400 }}>· SN {i.serialNo}</span></div>
                   <div style={{ fontSize: '0.85rem', color: '#374151', marginTop: 2 }}>
-                    👤 {i.customer ? <Link href={`/customers/${i.customer.id}`} style={{ color: '#1d4ed8', textDecoration: 'none' }}>{i.customer.name}</Link> : '—'}
+                    👤 {i.customer ? <Link href={`/customers/${i.customer.id}`} style={{ color: '#1d4ed8', textDecoration: 'none', padding: '0.35rem 0.15rem' }}>{i.customer.name}</Link> : '—'}
                     {i.location ? ` · ${i.location}` : ''}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -203,7 +203,8 @@ export default function KacanGelirPage() {
                 </div>
                 <div style={{ flexShrink: 0, textAlign: 'right' }}>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#b91c1c' }}>{fmt(i.total)}</div>
-                  <Link href={`/devices/${i.id}`} style={{ fontSize: '0.78rem', color: '#0ea5e9', textDecoration: 'none', fontWeight: 600 }}>Cihaz →</Link>
+                  <Link href={`/devices/${i.id}`}
+                    style={{ display: 'inline-block', padding: '0.6rem 0.4rem 0.35rem', fontSize: '0.78rem', color: '#0ea5e9', textDecoration: 'none', fontWeight: 600 }}>Cihaz →</Link>
                 </div>
               </div>
             </div>
