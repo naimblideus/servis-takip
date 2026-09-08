@@ -210,6 +210,37 @@ async function main() {
     }
   }
 
+  // ── DURGUN CİHAZ: sayaç geliyor ama ARTMIYOR ───────────────────────────
+  // Ürünün en ayırt edici sinyali bu ve demoda görünmesi gerekiyor. Kiralık
+  // bir cihaza üç aylık DÜZ sayaç yazıyoruz: kanal çalışıyor, rakam sabit.
+  // Bayi bunu "kira kesiliyor ama makine basmıyor" diye görüyor — sessiz
+  // sözleşme kaybının erken uyarısı. Tek cihazda bırakıldı ki demo ekranı
+  // uyarıyla dolmasın, sinyal güçlü kalsın.
+  {
+    const durgunCihaz = await p.device.findFirst({
+      where: { tenantId: tenant.id, isRental: true },
+      orderBy: { serialNo: 'desc' },
+      select: { id: true, counterBlack: true, counterColor: true },
+    });
+    if (durgunCihaz) {
+      await p.counterReading.deleteMany({ where: { deviceId: durgunCihaz.id } });
+      const sabitS = durgunCihaz.counterBlack ?? 55000;
+      const sabitR = durgunCihaz.counterColor ?? 0;
+      for (const gunOnce of [92, 61, 30, 1]) {
+        await p.counterReading.create({
+          data: {
+            tenantId: tenant.id, deviceId: durgunCihaz.id,
+            counterBlack: sabitS, counterColor: sabitR,
+            deltaBlack: 0, deltaColor: 0, calculatedCost: 0,
+            billed: true, source: 'CIHAZ_EPOSTA',
+            readingDate: new Date(Date.now() - gunOnce * 86400000),
+          },
+        });
+        okumaSayisi++;
+      }
+    }
+  }
+
   const kullanici = await p.user.findFirst({ where: { tenantId: tenant.id }, select: { id: true } });
   const sayilar = await modulVerisi(tenant, kullanici.id, tumMusteriler, tumCihazlar);
 

@@ -42,6 +42,22 @@ export default function SayacTuruPage() {
     fetch('/api/sayac/eksik').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setEksik(d); }).catch(() => {});
   }, []);
 
+  // SAYACI GELEN AMA ARTMAYAN cihazlar. Yukarıdakinin tersi ve bayinin
+  // SESSİZ kaybı: sayaç düzenli geliyor, rakam kıpırdamıyor. Üç anlamı var,
+  // üçü de para — makine kullanılmıyor (yenilemede iptal), bozuk/fişte değil
+  // (sessiz hizmet ihlali), ya da başka ofise taşınmış (fatura yanlış
+  // müşteriye gidiyor). Sayacı gelmeyen listesinin ALTINDA duruyor: önce
+  // hiç gelmeyeni topla, sonra gelen ama boş olanı ara.
+  const [durgun, setDurgun] = useState<{
+    esikGun: number; toplam: number; aylikRiskTutari: number;
+    musteriler: { id: string; ad: string; telefon: string; aylikKira: number;
+      cihazlar: { id: string; brand: string; model: string; serialNo: string;
+        durum: string; gun: number; aciklama: string }[] }[];
+  } | null>(null);
+  useEffect(() => {
+    fetch('/api/sayac/durgun').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setDurgun(d); }).catch(() => {});
+  }, []);
+
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return customers.slice(0, 8);
@@ -182,6 +198,46 @@ export default function SayacTuruPage() {
               ))}
               {eksik.musteriler.length > 12 && (
                 <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>+{eksik.musteriler.length - 12} müşteri daha — arama kutusundan bul</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {durgun && durgun.toplam > 0 && (
+          <div style={{ marginBottom: '1.25rem', borderRadius: 14, border: '1px solid #fde68a', background: '#fffbeb', padding: '.85rem 1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 800, color: '#92400e', fontSize: '.95rem' }}>
+                📉 {durgun.toplam} makinenin sayacı geliyor ama ARTMIYOR
+              </div>
+              {durgun.aylikRiskTutari > 0 && (
+                <div style={{ fontSize: '.78rem', color: '#92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  aylık ₺{durgun.aylikRiskTutari.toLocaleString('tr-TR')} kira risk altında
+                </div>
+              )}
+            </div>
+            <p style={{ margin: '.25rem 0 .6rem', fontSize: '.78rem', color: '#78350f', lineHeight: 1.5 }}>
+              Kira kesiliyor ama makine basmıyor. Ya müşteri kullanmıyor (yenilemede iptal gelir),
+              ya makine bozuk/fişte değil, ya da başka ofise taşınmış. Müşteriyi arayın.
+            </p>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {durgun.musteriler.slice(0, 8).map((m) => (
+                <button key={m.id || m.ad} type="button"
+                  onClick={() => m.id && load({ id: m.id, name: m.ad, phone: m.telefon } as Cust)}
+                  style={{ textAlign: 'left', background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '.55rem .7rem', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '.86rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, color: '#0B1533' }}>{m.ad}</span>
+                    <span style={{ color: '#92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                      {m.cihazlar.length} cihaz{m.aylikKira > 0 ? ` · ₺${m.aylikKira.toLocaleString('tr-TR')}/ay` : ''}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '.72rem', color: '#5B6479', marginTop: 2 }}>
+                    {m.cihazlar[0]?.brand} {m.cihazlar[0]?.model} — {m.cihazlar[0]?.aciklama}
+                    {m.cihazlar.length > 1 ? `  · +${m.cihazlar.length - 1} cihaz daha` : ''}
+                  </div>
+                </button>
+              ))}
+              {durgun.musteriler.length > 8 && (
+                <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>+{durgun.musteriler.length - 8} müşteri daha</div>
               )}
             </div>
           </div>
