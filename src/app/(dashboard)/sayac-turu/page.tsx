@@ -37,6 +37,9 @@ export default function SayacTuruPage() {
     esikGun: number; toplam: number;
     musteriler: { id: string; name: string; phone: string;
       cihazlar: { id: string; ad: string; seri: string; yer: string | null; gunOnce: number | null }[] }[];
+    // Kanalın kendisi ayakta mı? Aynı cevapta geliyor, çünkü aşağıdaki
+    // cihaz listesi kanal durduğunda YANLIŞ SEBEBİ gösterir.
+    kanal?: { durum: string; gecenGun: number | null; tipikGun: number | null; aciklama: string };
   } | null>(null);
   useEffect(() => {
     fetch('/api/sayac/eksik').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setEksik(d); }).catch(() => {});
@@ -166,6 +169,25 @@ export default function SayacTuruPage() {
         <p style={{ color: '#5B6479', fontSize: '.9rem', margin: '0 0 1.25rem', lineHeight: 1.55 }}>
           Müşteri seç — tüm kiralık cihazları tek listede çıkar, sadece yeni rakamları yaz.
         </p>
+
+        {/* KANAL DURDU: cihaz listesinin ÜSTÜNDE durur, çünkü onu AÇIKLAR.
+            Kanal kesildiyse aşağıdaki "sayacı gelmeyen" listesi şişer ve bayi
+            40 müşteriyi boşuna arar; sorun müşteride değil köprüdedir. Yanlış
+            yeri aratmak, hiç uyarmamaktan pahalıdır. */}
+        {eksik?.kanal?.durum === 'DURDU' && (
+          <div style={{ marginBottom: '1rem', borderRadius: 14, border: '1px solid #fca5a5', background: '#450a0a', color: '#fff', padding: '.85rem 1rem' }}>
+            <div style={{ fontWeight: 800, fontSize: '.95rem' }}>
+              🔌 Cihazdan sayaç kanalı durmuş görünüyor
+            </div>
+            <p style={{ margin: '.3rem 0 .6rem', fontSize: '.8rem', lineHeight: 1.5, color: '#fecaca' }}>
+              {eksik.kanal.aciklama}
+            </p>
+            <Link href="/sayac-eposta"
+              style={{ display: 'inline-block', minHeight: 40, lineHeight: '40px', padding: '0 .9rem', background: '#fff', color: '#7f1d1d', borderRadius: 10, textDecoration: 'none', fontWeight: 800, fontSize: '.82rem' }}>
+              Kanalı kontrol et →
+            </Link>
+          </div>
+        )}
 
         {/* Sayacı gelmeyen cihazlar: "kimi arayacağım" listesi. Sıfırsa hiç
             görünmez — boş bir uyarı kutusu, olmayan sorunu varmış gibi gösterir. */}

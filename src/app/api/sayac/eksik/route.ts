@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
+import { kanalDurumu } from '@/lib/sayac-kanal';
 
 /**
  * GET /api/sayac/eksik — sayacı GELMEYEN kiralık cihazlar, müşteriye göre.
@@ -24,6 +25,20 @@ export async function GET() {
     const { tenantId } = await requireTenantUser();
     const esik = new Date(Date.now() - ESIK_GUN * 24 * 60 * 60 * 1000);
 
+    // ── KANAL SAĞLIĞI ───────────────────────────────────────────────────
+    // Aşağıdaki liste cihaz cihaz "sayacı gelmiyor" diyor. Ama kanalın
+    // kendisi durduysa o liste YANLIŞ SEBEBİ gösterir: bayi 40 müşteriyi
+    // boşuna arar, oysa tek bir sorun vardır ve müşteride değil bizdedir.
+    // Bu yüzden aynı cevapta dönüyor — iki bilgi ayrı ekranlarda dursa
+    // kimse ikisini yan yana koymaz.
+    const sonEpostalar = await prisma.counterEmail.findMany({
+      where: { tenantId },
+      orderBy: { receivedAt: 'desc' },
+      take: 30,
+      select: { receivedAt: true },
+    });
+    const kanal = kanalDurumu(sonEpostalar.map((e) => e.receivedAt));
+
     const cihazlar = await prisma.device.findMany({
       where: { tenantId, isRental: true },
       select: {
@@ -32,7 +47,7 @@ export async function GET() {
       },
     });
     if (cihazlar.length === 0) {
-      return NextResponse.json({ esikGun: ESIK_GUN, toplam: 0, kiralik: 0, musteriler: [] });
+      return NextResponse.json({ esikGun: ESIK_GUN, toplam: 0, kiralik: 0, musteriler: [], kanal });
     }
 
     // Her cihazın SON okuması — tek sorgu, N+1 yok.
@@ -70,7 +85,7 @@ export async function GET() {
     const musteriler = [...harita.values()]
       .sort((a, b) => b.cihazlar.length - a.cihazlar.length || coll.compare(a.name, b.name));
 
-    return NextResponse.json({ esikGun: ESIK_GUN, toplam: eksik.length, kiralik: cihazlar.length, musteriler });
+    return NextResponse.json({ esikGun: ESIK_GUN, toplam: eksik.length, kiralik: cihazlar.length, musteriler, kanal });
   } catch (e) {
     return authErrorResponse(e);
   }

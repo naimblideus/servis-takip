@@ -190,6 +190,46 @@ try {
     t('başka bayinin kira riski karışmıyor', d.aylikRiskTutari === 9999, d.aylikRiskTutari);
   }
 
+  // ── KANAL SAĞLIĞI ─────────────────────────────────────────────────────
+  // Cihaz cihaz "sayacı gelmiyor" uyarısı, kanal durduğunda YANLIŞ SEBEBİ
+  // gösteriyor: bayi 40 müşteriyi boşuna arar, oysa sorun köprüdedir.
+  // Uyarı bu yüzden aynı cevapta ve listenin ÜSTÜNDE duruyor.
+  console.log('\nKANAL DURUMU AYNI CEVAPTA GELİYOR\n');
+  {
+    // Önce hiç e-posta yok — kanal kurulmamış, uyarı olmamalı
+    const y0 = await fetch(`${KOK}/api/sayac/eksik`, { headers: { cookie: cerez } });
+    const d0 = await y0.json();
+    t('kanal bilgisi cevapta var', !!d0.kanal, d0.kanal);
+    t('hiç e-posta yokken uyarı verilmiyor', d0.kanal?.durum === 'KURULMAMIS', d0.kanal);
+
+    // Günlük ritimle 12 rapor, sonuncusu 30 gün önce → köprü durmuş
+    for (let i = 0; i < 12; i++) {
+      await p.counterEmail.create({
+        data: {
+          tenantId: tenant.id, rawText: 'test', status: 'ISLENDI',
+          receivedAt: gunOnce(30 + (11 - i)),
+        },
+      });
+    }
+    const y1 = await fetch(`${KOK}/api/sayac/eksik`, { headers: { cookie: cerez } });
+    const d1 = await y1.json();
+    t('günlük ritimden sonra 30 gün sessizlik DURDU sayılıyor', d1.kanal?.durum === 'DURDU', d1.kanal);
+    t('bayiye kaç gündür sessiz olduğu söyleniyor', /30 gündür/.test(d1.kanal?.aciklama || ''), d1.kanal);
+
+    // Öteki bayinin kanalı bundan etkilenmemeli
+    const y2 = await fetch(`${KOK}/api/sayac/eksik`, { headers: { cookie: cerezB } });
+    const d2 = await y2.json();
+    t('başka bayinin kanal durumu karışmıyor', d2.kanal?.durum === 'KURULMAMIS', d2.kanal);
+
+    // Bugün bir rapor gelsin — uyarı kalkmalı
+    await p.counterEmail.create({
+      data: { tenantId: tenant.id, rawText: 'test', status: 'ISLENDI', receivedAt: new Date() },
+    });
+    const y3 = await fetch(`${KOK}/api/sayac/eksik`, { headers: { cookie: cerez } });
+    const d3 = await y3.json();
+    t('yeni rapor gelince uyarı kendiliğinden kalkıyor', d3.kanal?.durum === 'CALISIYOR', d3.kanal);
+  }
+
   // ── GEÇMİŞ DÖNEMDE UNUTULMUŞ OKUMA ────────────────────────────────────
   // Her iki para yolu da okumaları [dönem başı, dönem sonu) ile süzüyor.
   // Kapanmış bir ayda faturalanmadan kalan okuma bir daha HİÇBİR turun
