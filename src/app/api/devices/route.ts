@@ -57,6 +57,35 @@ export async function POST(req: Request) {
         publicCode: generatePublicCode(),
       },
     });
+
+    // ── BAŞLANGIÇ OKUMASI ─────────────────────────────────────────────
+    // Formda girilen devir sayacı YALNIZCA cihaz kartına yazılıyordu, okuma
+    // kaydı üretmiyordu. Sonuç sessiz kayıp: kartta 48.210 yazıyor, ilk
+    // gerçek okuma 52.410 geldiğinde zincirin başı orası sayılıyor ve
+    // aradaki 4.200 sayfa hiçbir yere düşmüyordu — ne faturaya, ne geçmişe.
+    // Ölçüldü: telefondan cihaz eklenip sayaç girildiğinde ilk okumanın
+    // farkı 0, cihaz kartındaki devir değeri ise üzerine yazılıyor.
+    //
+    // Aynı hata içe aktarma yolunda zaten bulunup düzeltilmişti (bkz.
+    // api/import/sheet: bir bayide 552 cihazda 69,7 milyon sayfa yazılıydı
+    // ve okuma sayısı sıfırdı). Elle ekleme yolu o düzeltmenin dışında
+    // kalmış. Bayi cihazları tek tek eklerken de aynı şey oluyordu.
+    //
+    // Zincirin başı: delta 0 — devredilen sayaç bu ayın kullanımı değildir —
+    // ve billed:true ile kapalı, yani faturaya asla girmez. Bundan sonraki
+    // ilk gerçek okuma farkı doğru hesaplar.
+    if (device.counterBlack != null || device.counterColor != null) {
+      await prisma.counterReading.create({
+        data: {
+          tenantId: user.tenantId, deviceId: device.id,
+          counterBlack: device.counterBlack ?? 0,
+          counterColor: device.counterColor ?? 0,
+          deltaBlack: 0, deltaColor: 0, calculatedCost: 0,
+          billed: true, source: 'ELLE',
+        },
+      });
+    }
+
     return NextResponse.json(device);
   } catch (e: any) {
     console.error('DEVICE CREATE ERROR:', e.message);

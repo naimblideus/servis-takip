@@ -138,14 +138,18 @@ export default function NewDevicePage() {
                       key={c.id}
                       onClick={() => selectCustomer(c)}
                       style={{
-                        padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem',
+                        // Sahada cihaz eklerken İLK adım bu satıra dokunmak.
+                        // 38 px ölçüldü — telefonda ıskalanacak kadar ince,
+                        // üstelik yanlış müşteriye cihaz bağlamak faturayı
+                        // yanlış yere gönderir.
+                        padding: '0.7rem 0.75rem', minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.875rem',
                         borderBottom: '1px solid #f3f4f6',
                         backgroundColor: selectedCustomer?.id === c.id ? '#eff6ff' : 'white',
                       }}
                       onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f3f4f6')}
                       onMouseLeave={e => (e.currentTarget.style.backgroundColor = selectedCustomer?.id === c.id ? '#eff6ff' : 'white')}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: 8 }}>
                         <span style={{ fontWeight: '500' }}>{c.name}</span>
                         <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{c.phone}</span>
                       </div>
