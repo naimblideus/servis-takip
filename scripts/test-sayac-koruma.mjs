@@ -190,6 +190,68 @@ try {
     t('başka bayinin kira riski karışmıyor', d.aylikRiskTutari === 9999, d.aylikRiskTutari);
   }
 
+  // ── FATURA ŞOKU ───────────────────────────────────────────────────────
+  // Anomali "bu veri yanlış olabilir" der. Bu ondan farklı: veri DOĞRU ama
+  // fatura müşteriyi şaşırtacak. Kiralamada en sık tartışma bu — her ay
+  // ₺800 ödeyen müşteri bir ay ₺2.400 görünce ilk tepkisi "sistem yanlış"
+  // oluyor. Bayi önceden bilirse arar ve gerekirse paketi büyütür.
+  console.log('\nFATURA ŞOKU CİHAZ SATIRINDA İŞARETLENİYOR\n');
+  {
+    const ayBasi = (ayOnce) => { const t = new Date(); t.setMonth(t.getMonth() - ayOnce, 12); return t; };
+
+    // Ayda ~2.000 sayfa basan cihaz, sonra bu ay 6.000 sayfa
+    const sokCihaz = await cihazKur(tenant, musteri, 'KORUMA-SOK', [{ gun: 200, siyah: 0 }], 1500);
+    for (const [ayOnce, sayfa] of [[2, 2000], [1, 2000]]) {
+      await p.counterReading.create({
+        data: {
+          tenantId: tenant.id, deviceId: sokCihaz.id,
+          counterBlack: sayfa, counterColor: 0, deltaBlack: sayfa, deltaColor: 0,
+          calculatedCost: sayfa * 0.5, billed: true, source: 'CIHAZ_EPOSTA',
+          readingDate: ayBasi(ayOnce),
+        },
+      });
+    }
+    await p.counterReading.create({
+      data: {
+        tenantId: tenant.id, deviceId: sokCihaz.id,
+        counterBlack: 10000, counterColor: 0, deltaBlack: 6000, deltaColor: 0,
+        calculatedCost: 3000, billed: false, source: 'CIHAZ_EPOSTA',
+        readingDate: new Date(),
+      },
+    });
+
+    // Aynı hacmi koruyan cihaz — işaretlenmemeli
+    const sakinCihaz = await cihazKur(tenant, musteri, 'KORUMA-SAKIN', [{ gun: 200, siyah: 0 }], 1500);
+    for (const [ayOnce, sayfa] of [[2, 4000], [1, 4000]]) {
+      await p.counterReading.create({
+        data: {
+          tenantId: tenant.id, deviceId: sakinCihaz.id,
+          counterBlack: sayfa, counterColor: 0, deltaBlack: sayfa, deltaColor: 0,
+          calculatedCost: sayfa * 0.5, billed: true, source: 'CIHAZ_EPOSTA',
+          readingDate: ayBasi(ayOnce),
+        },
+      });
+    }
+    await p.counterReading.create({
+      data: {
+        tenantId: tenant.id, deviceId: sakinCihaz.id,
+        counterBlack: 12500, counterColor: 0, deltaBlack: 4500, deltaColor: 0,
+        calculatedCost: 2250, billed: false, source: 'CIHAZ_EPOSTA',
+        readingDate: new Date(),
+      },
+    });
+
+    const y = await fetch(`${KOK}/api/revenue-risk`, { headers: { cookie: cerez } });
+    const d = await y.json();
+    const sok = (d.items || []).find((i) => i.serialNo === 'KORUMA-SOK');
+    const sakin = (d.items || []).find((i) => i.serialNo === 'KORUMA-SAKIN');
+    t('kullanımı katlanan cihaz işaretleniyor', !!sok?.sok, sok);
+    t('kaç kat olduğu söyleniyor', sok?.sok?.kat >= 2.5 && sok?.sok?.kat <= 3.5, sok?.sok);
+    t('kıyas tabanı cihazın kendi geçmişi', sok?.sok?.normalSayfa === 2000, sok?.sok);
+    t('bu ayki sayfa da bildiriliyor', sok?.sok?.buAySayfa === 6000, sok?.sok);
+    t('hacmini koruyan cihaz İŞARETLENMİYOR (yanlış telefon açtırmaz)', sakin?.sok === null, sakin);
+  }
+
   // ── KANAL SAĞLIĞI ─────────────────────────────────────────────────────
   // Cihaz cihaz "sayacı gelmiyor" uyarısı, kanal durduğunda YANLIŞ SEBEBİ
   // gösteriyor: bayi 40 müşteriyi boşuna arar, oysa sorun köprüdedir.

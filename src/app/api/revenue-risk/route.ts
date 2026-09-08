@@ -59,6 +59,43 @@ export async function GET() {
     prevSums.set(r.deviceId, s);
   }
 
+  // ── FATURA ŞOKU ─────────────────────────────────────────────────────
+  // Anomali uyarısı "bu veri yanlış olabilir" diyor. Burada sorulan başka
+  // bir soru: veri DOĞRU ama fatura müşteriyi şaşırtacak mı? Kiralamada en
+  // sık yaşanan tartışma bu — müşteri her ay ₺800 öderken bir ay ₺2.400'lük
+  // fatura görüyor ve ilk tepkisi "sistem yanlış" oluyor. Halbuki gerçekten
+  // çok basmıştır. Bayi önceden bilirse ARAR: sebebini söyler, gerekirse
+  // paketi büyütür. Sonradan öğrenirse tahsilatla ve güvenle uğraşır.
+  //
+  // Kıyas cihazın KENDİ geçmiş dönemleri — sayfa üzerinden, para üzerinden
+  // değil: okumanın tutarına kira da karışabiliyor, sayfa temiz sinyal.
+  const SOK_KAT = 2;          // kendi ortalamasının bu katı
+  const SOK_TABAN_TUTAR = 400; // bunun altındaki fatura için kimse aranmaz
+  const ucAyOnce = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  const sokGecmisi = ids.length
+    ? await prisma.counterReading.findMany({
+        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: true, readingDate: { gte: ucAyOnce, lt: start } },
+        select: { deviceId: true, readingDate: true, deltaBlack: true, deltaColor: true },
+      })
+    : [];
+  // Cihaz → dönem → sayfa. Dönem başına toplayıp dönemlerin ORTALAMASINI
+  // alıyoruz; tek tek okumaların ortalaması, ayda üç kez okunan cihazı
+  // yapay olarak küçük gösterirdi.
+  const cihazDonem = new Map<string, Map<string, number>>();
+  for (const r of sokGecmisi) {
+    const dnm = `${r.readingDate.getFullYear()}-${r.readingDate.getMonth()}`;
+    const m = cihazDonem.get(r.deviceId) ?? new Map<string, number>();
+    m.set(dnm, (m.get(dnm) ?? 0) + r.deltaBlack + r.deltaColor);
+    cihazDonem.set(r.deviceId, m);
+  }
+  const normalSayfa = new Map<string, number>();
+  for (const [devId, m] of cihazDonem) {
+    if (m.size < 2) continue;                 // tek dönem "normal" tanımlamaz
+    const toplam = [...m.values()].reduce((a, b) => a + b, 0);
+    const ort = toplam / m.size;
+    if (ort > 0) normalSayfa.set(devId, ort);
+  }
+
   const items: any[] = [];
   let counterTotal = 0;
   let rentTotal = 0;
@@ -76,6 +113,16 @@ export async function GET() {
     counterTotal += counterAmount;
     rentTotal += rentAmount;
     if (d.customer) affectedCustomers.add(d.customer.id);
+    // Bu ay kaç sayfa basıldı? (aşım değil, HAM kullanım — kıyas onunla)
+    const buAySayfa = s.b + s.c;
+    const normal = normalSayfa.get(d.id) ?? null;
+    const sokKat = normal && normal > 0 && counterAmount >= SOK_TABAN_TUTAR
+      ? buAySayfa / normal
+      : null;
+    const sok = sokKat !== null && sokKat >= SOK_KAT
+      ? { kat: Math.round(sokKat * 10) / 10, normalSayfa: Math.round(normal!), buAySayfa }
+      : null;
+
     items.push({
       id: d.id, brand: d.brand, model: d.model, serialNo: d.serialNo, location: d.location,
       customer: d.customer,
@@ -83,6 +130,7 @@ export async function GET() {
       billBlack: ch.billB, billColor: ch.billC,
       rentAmount,
       total: round2(counterAmount + rentAmount),
+      sok,
     });
   }
 

@@ -1,12 +1,17 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 
 interface Item {
   id: string; brand: string; model: string; serialNo: string; location: string | null;
   customer: { id: string; name: string; phone: string; address: string | null } | null;
   counterAmount: number; billBlack: number; billColor: number; rentAmount: number; total: number;
+  // Veri DOĞRU ama fatura müşteriyi şaşırtacaksa dolu gelir. Anomaliden
+  // farkı bu: anomali "bu okuma yanlış olabilir" der, bu "okuma doğru ama
+  // müşteri bu rakamı beklemiyor" der. İkisi ayrı iş: biri kontrol, öteki
+  // telefon.
+  sok: { kat: number; normalSayfa: number; buAySayfa: number } | null;
 }
 interface Summary { counterTotal: number; rentTotal: number; grandTotal: number; deviceCount: number; customerCount: number; }
 // Faturaya girecek ama inandırıcı olmayan okumalar. Bu ekran "fatura kes"
@@ -52,6 +57,15 @@ export default function KacanGelirPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Aynı cihaz hem şüpheli hem "şok" olabilir. O durumda ŞÜPHE önce gelir:
+  // veri yanlışsa müşteriyi arayıp "çok basmışsınız" demek yanlış yönlendirme
+  // olur — bayi önce okumayı kontrol etmeli. Bu yüzden şüpheli listedeki
+  // cihazda şok rozeti basılmıyor.
+  const supheliCihazlar = useMemo(
+    () => new Set(supheli.okumalar.map((o) => o.deviceId)),
+    [supheli.okumalar],
+  );
 
   // Dönem verilirse O DÖNEM kesilir. Geçmiş ayı bu ayın faturasına eklemek
   // yerine kendi ayında kesmek şart: dahil paket dönem başına tanımlı, taşınan
@@ -200,6 +214,16 @@ export default function KacanGelirPage() {
                     {i.counterAmount > 0 && <span>📄 Sayaç aşımı: <b style={{ color: '#b45309' }}>{fmt(i.counterAmount)}</b> ({(i.billBlack).toLocaleString('tr-TR')} S/B{i.billColor > 0 ? ` · ${i.billColor.toLocaleString('tr-TR')} renkli` : ''})</span>}
                     {i.rentAmount > 0 && <span>🏷️ Kira: <b style={{ color: '#1d4ed8' }}>{fmt(i.rentAmount)}</b></span>}
                   </div>
+                  {i.sok && !supheliCihazlar.has(i.id) && (
+                    <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '.3rem .55rem', fontSize: '.74rem', color: '#9a3412', lineHeight: 1.4 }}>
+                      <span>📈</span>
+                      <span>
+                        Bu ay <b>{i.sok.kat} kat</b> basılmış ({i.sok.buAySayfa.toLocaleString('tr-TR')} sayfa,
+                        normalde ~{i.sok.normalSayfa.toLocaleString('tr-TR')}). Fatura müşteriyi şaşırtabilir —
+                        göndermeden önce arayın.
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ flexShrink: 0, textAlign: 'right' }}>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#b91c1c' }}>{fmt(i.total)}</div>
