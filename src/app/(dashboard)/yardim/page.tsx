@@ -18,6 +18,29 @@ const SECTIONS: Section[] = [
     tip: 'Adresi düzgün girersen müşteri kartındaki “Yol Tarifi” tek dokunuşla navigasyon başlatır.',
   },
   {
+    id: 'goc', icon: '📦', title: 'Başka programdan taşınma (sayaç geçmişi dahil)',
+    steps: [
+      'SIRA ÖNEMLİ: önce müşteri/cihaz listesi, SONRA sayaç geçmişi. Cihaz yoksa seri no eşleşmez, sayaç satırları atlanır.',
+      '1) Gelişmiş → Veri Aktarma → “Excel / CSV listesi” ile müşteri ve cihazları aktar.',
+      '2) Aynı ekranda “Sayaç geçmişi” sekmesi → eski programdan çıkardığın okuma dosyasını yükle.',
+      'Gereken kolonlar: Seri No · Tarih · Siyah Sayaç (Renkli varsa ekle). Önizleme hiçbir şey yazmaz, önce ona bak.',
+      'Aktarılan okumalar FATURALANMIŞ yazılır ve tutar üretmez — o sayfalar eski programda zaten faturalandı, müşteriye ikinci kez gitmesin.',
+      'Yalnız cihazın mevcut en eski okumasından ÖNCESİ alınır; yazılmış farklar geriye dönük değişmez.',
+    ],
+    tip: 'Sayaç geçmişini aktarmazsan taşındığın ayın sayfaları kaybolur: fark her zaman bir önceki okumaya göre hesaplanır, geçmiş yoksa ilk okumanın farkı sıfır çıkar.',
+  },
+  {
+    id: 'disa-aktar', icon: '⬇️', title: 'Listeni Excel olarak indirme',
+    steps: [
+      'Müşteriler · Cihazlar · Servis Fişleri · Muhasebe — dördünün de sayfa başında “⬇️ Excel (CSV)” var.',
+      'Müşteri dosyasında borç, fatura yolu (e-Fatura/e-Arşiv) ve eksik fatura bilgileri de yazar.',
+      'Cihaz dosyasında sayaç, kira, dahil sayfa ve birim fiyatlar var — sayıma ya da sigortaya bunu ver.',
+      'Muhasebedeki dosya “kim ne kadar borçlu” sorusunu kapatır; rakam ekrandakiyle aynıdır.',
+      'Dosyalar Türkçe Excel biçiminde açılır (noktalı virgül, ondalık virgül) — çift tıklayıp açabilirsin.',
+    ],
+    tip: 'Hiç okunmamış cihazın sayaç hücresi BOŞ gelir, sıfır değil. Sıfır yazsaydık o cihaz geri yüklendiğinde bir sonraki fatura aradaki sayfaları kaybederdi.',
+  },
+  {
     id: 'cihaz', icon: '🖨️', title: 'Cihaz ekleme + kiralama ayarları',
     steps: [
       'Müşteri detayı ya da Cihazlar → “＋ Yeni Cihaz”. Marka, model, seri no gir.',
