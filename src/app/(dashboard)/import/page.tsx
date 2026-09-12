@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ExcelImport from '@/components/ExcelImport';
+import SayacGecmisiImport from '@/components/SayacGecmisiImport';
 
 // ── Tipler ──
 interface ImportCounts {
@@ -58,7 +59,7 @@ export default function ImportPage() {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [source, setSource] = useState<'excel' | 'sql'>('excel');
+    const [source, setSource] = useState<'excel' | 'sayac' | 'sql'>('excel');
     const [step, setStep] = useState<ImportStep>('upload');
     const [file, setFile] = useState<File | null>(null);
     const [dragActive, setDragActive] = useState(false);
@@ -251,12 +252,14 @@ export default function ImportPage() {
                     <span className="text-3xl">📥</span>
                     Veri İçe Aktarma
                 </h1>
-                <p className="text-gray-500 mt-1">Mevcut verinizi sisteme taşıyın — Excel listesi ya da eski programın SQL yedeği</p>
+                <p className="text-gray-500 mt-1">Mevcut verinizi sisteme taşıyın — müşteri/cihaz listesi, sayaç geçmişi ya da eski programın SQL yedeği</p>
             </div>
 
             {/* Kaynak seçimi */}
             <div className="flex gap-2 mb-6 flex-wrap">
-                {([['excel', '📊 Excel / CSV listesi'], ['sql', '🗄️ SQL yedeği (eski program)']] as const).map(([k, label]) => (
+                {/* Sıra bilerek böyle: müşteri/cihaz aktarılmadan sayaç geçmişi
+                    eşleşmez — seri no ile bağlanıyor. */}
+                {([['excel', '📊 Excel / CSV listesi'], ['sayac', '🔢 Sayaç geçmişi'], ['sql', '🗄️ SQL yedeği (eski program)']] as const).map(([k, label]) => (
                     <button key={k} onClick={() => setSource(k)}
                         className={`px-4 py-2 rounded-full text-sm font-semibold border transition
                             ${source === k ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
@@ -266,6 +269,7 @@ export default function ImportPage() {
             </div>
 
             {source === 'excel' && <ExcelImport />}
+            {source === 'sayac' && <SayacGecmisiImport />}
 
             {/* ═══ ADIM 1: DOSYA YÜKLEME ═══ */}
             {source === 'sql' && step === 'upload' && (
