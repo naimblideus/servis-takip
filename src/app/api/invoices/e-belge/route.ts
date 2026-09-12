@@ -137,8 +137,14 @@ export async function GET(req: NextRequest) {
     }
 
     // ── LİSTE: bayi nereden başlasın ────────────────────────────────────
+    // ESKİ SİSTEMDE KESİLENLER BU LİSTEDE YOK. Göçte kayıt olarak
+    // aktarıldılar; tekrar gönderilirlerse müşteriye ikinci kez fatura
+    // gider. Listede görünselerdi bayi onları da hazırlamaya çalışırdı.
     const faturalar = await prisma.customerInvoice.findMany({
-      where: { tenantId, deletedAt: null, status: { not: 'CANCELLED' } },
+      where: {
+        tenantId, deletedAt: null, status: { not: 'CANCELLED' },
+        NOT: { eBelgeDurum: 'ESKI_SISTEM' },
+      },
       orderBy: { invoiceDate: 'desc' },
       take: 500,
       select: {

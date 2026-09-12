@@ -1071,6 +1071,10 @@ model AccountEntry {
   createdByUserId String? // Kaydı/satışı yapan kullanıcı (teknisyen) id
   createdByName   String? // İsim (denormalize — geçmiş kayıt için anlık kar)
   ticketId        String? // Servis fişinden otomatik cari kaydı ise bağlı fiş (idempotency)
+  // GÖÇTEN GELEN KAYIT İŞARETİ. Bayi aynı dosyayı iki kez yüklerse borç
+  // ikiye katlanmamalı; veritabanı bunu tutuyor, koda güvenmiyoruz.
+  // Örn. "acilis:<customerId>" — müşteri başına TEK açılış bakiyesi.
+  importKey       String?
   date            DateTime         @default(now())
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -1079,6 +1083,7 @@ model AccountEntry {
   tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, importKey])
   @@index([tenantId, customerId, date(sort: Desc)])
   @@index([tenantId, type])
   @@index([tenantId, ticketId])
