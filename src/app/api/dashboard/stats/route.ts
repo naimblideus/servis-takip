@@ -130,8 +130,26 @@ export async function GET() {
   }));
 
   const dayMs = 24 * 3600 * 1000;
+
+  // ── SÖZLEŞME KAYDI VARSA O KAZANIR ─────────────────────────────────
+  // Müşteri kartındaki tek "sözleşme bitiş tarihi" alanı basit yoldur;
+  // Sözleşmeler ekranındaki kayıt ise asıl belgedir (ihbar süresi, zam
+  // maddesi, kapsanan cihazlar). İkisi farklı tarih söylerse bayi hangisine
+  // inanacağını bilemez. Kayıt varsa onun bitişi kullanılıyor.
+  const aktifSozlesmeler = await prisma.contract.findMany({
+    where: { tenantId, status: 'AKTIF' },
+    select: { customerId: true, endDate: true },
+  });
+  const sozlesmeBitisi = new Map<string, Date>();
+  for (const k of aktifSozlesmeler) {
+    // Aynı müşteride birden çok sözleşme varsa EN GEÇ biteni: bayi o güne
+    // kadar bağlı, daha erken biten bir kalemi "her şey bitti" sanmasın.
+    const v = sozlesmeBitisi.get(k.customerId);
+    if (!v || k.endDate > v) sozlesmeBitisi.set(k.customerId, k.endDate);
+  }
+
   const contractAlerts = contractRaw.map((c) => {
-    const end = new Date(c.contractEndDate!);
+    const end = sozlesmeBitisi.get(c.id) ?? new Date(c.contractEndDate!);
     // Gün farkı (bugünün başlangıcına göre): negatif = süresi geçmiş
     const days = Math.ceil((end.getTime() - startOfDay.getTime()) / dayMs);
     return {
@@ -142,8 +160,14 @@ export async function GET() {
       days,
       expired: days < 0,
       deviceCount: c._count.devices,
+      // Sözleşme kaydından mı geldi — ekran "detayına git" diyebilsin.
+      sozlesmeKaydi: sozlesmeBitisi.has(c.id),
     };
-  });
+  })
+    // Sözleşme kaydı daha ileri bir tarih söylüyorsa uyarı penceresinden
+    // çıkmış olabilir: eski tarihe göre listeye girmiş ama artık erken.
+    .filter((a) => a.days <= CONTRACT_WARN_DAYS)
+    .sort((a, b) => a.days - b.days);
 
   // ── SAYACI GELMEYEN KİRALIK CİHAZ ──────────────────────────────────────
   // Bayinin bir numaralı derdi: "ayda 2-3 makinenin sayacı hiç gelmez, o ay

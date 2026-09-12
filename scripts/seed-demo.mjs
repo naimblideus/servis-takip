@@ -367,7 +367,63 @@ async function main() {
   const kullanici = await p.user.findFirst({ where: { tenantId: tenant.id }, select: { id: true } });
   const sayilar = await modulVerisi(tenant, kullanici.id, tumMusteriler, tumCihazlar);
 
+  // ── SÖZLEŞMELER ───────────────────────────────────────────────────
+  // Demo BİLEREK karışık: biri birebir uyumlu, biri fiyatı ayrışmış,
+  // biri ihbar penceresini kaçırmış. Hepsi uyumlu olsaydı ekran hiçbir
+  // şey anlatmaz, hepsi bozuk olsaydı inandırıcı olmazdı.
+  const gun = 86400000;
+  const gunOnce = (n) => new Date(Date.now() - n * gun);
+  const gunSonra = (n) => new Date(Date.now() + n * gun);
+  let sozlesmeSayisi = 0;
+
+  for (const [i, m] of tumMusteriler.slice(0, 3).entries()) {
+    const cihazlari = await p.device.findMany({
+      where: { tenantId: tenant.id, customerId: m.id, isRental: true },
+      select: {
+        id: true, monthlyRent: true, includedBlack: true, includedColor: true,
+        pricePerBlack: true, pricePerColor: true, overagePriceBlack: true, overagePriceColor: true,
+      },
+    });
+    if (!cihazlari.length) continue;
+
+    const sozlesme = await p.contract.create({
+      data: {
+        tenantId: tenant.id, customerId: m.id,
+        contractNo: `SZL-2026-${String(i + 1).padStart(3, '0')}`,
+        startDate: gunOnce(i === 2 ? 400 : 200),
+        // Üçüncüsünün bitişine 20 gün var ama ihbar süresi 30 gün:
+        // pencere kaçmış. Ekranın en çok işe yarayan uyarısı bu.
+        endDate: i === 2 ? gunSonra(20) : gunSonra(300),
+        noticeDays: 30,
+        autoRenew: true,
+        escalationMonths: 12,
+        escalationRate: 25,
+        // İlk ikisinde zam yeni yapılmış, üçüncüsünde zamanı geçmiş.
+        lastEscalationAt: i === 2 ? null : gunOnce(60),
+        notes: i === 1 ? 'Kira artışı yıllık ÜFE oranında' : null,
+      },
+    });
+    sozlesmeSayisi++;
+
+    for (const [j, d] of cihazlari.entries()) {
+      // İKİNCİ müşteride sözleşme sistemle AYRIŞMIŞ: kâğıtta kira daha
+      // yüksek ve dahil paket daha büyük. Ekran bunu ₺ olarak gösteriyor.
+      const ayrisik = i === 1 && j === 0;
+      await p.contractDevice.create({
+        data: {
+          tenantId: tenant.id, contractId: sozlesme.id, deviceId: d.id,
+          monthlyRent: ayrisik ? Number(d.monthlyRent) + 450 : d.monthlyRent,
+          includedBlack: ayrisik ? (d.includedBlack ?? 0) + 500 : d.includedBlack,
+          includedColor: d.includedColor,
+          pricePerBlack: d.pricePerBlack, pricePerColor: d.pricePerColor,
+          overagePriceBlack: d.overagePriceBlack, overagePriceColor: d.overagePriceColor,
+        },
+      });
+    }
+  }
+
   console.log(`  ${MUSTERILER.length} müşteri, ${cihazSayisi} cihaz, ${okumaSayisi} sayaç okuması`);
+  console.log(`  ${sozlesmeSayisi} sözleşme`);
   console.log(`  ${sayilar.parca} parça (${sayilar.kritik} kritik stok), ${sayilar.fis} servis fişi`);
   console.log(`  ${sayilar.fatura} fatura, ${sayilar.tahsilat} tahsilat, ${sayilar.gider} gider`);
   console.log(`\nGiriş: ${EPOSTA} / ${SIFRE}`);

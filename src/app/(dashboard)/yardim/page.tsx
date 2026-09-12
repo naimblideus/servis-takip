@@ -122,6 +122,18 @@ const SECTIONS: Section[] = [
     tip: 'Verim girilmemişse tahmin HİÇ üretilmez — uydurma sayı göstermektense boş bırakılır.',
   },
   {
+    id: 'sozlesme', icon: '📜', title: 'Sözleşmeler — kâğıtta yazanla sistemi karşılaştır',
+    steps: [
+      'Sol menü → Sözleşmeler → “＋ Yeni Sözleşme”. Müşteriyi seç, tarihleri gir, kapsanan cihazları işaretle.',
+      'Şartlar cihazın MEVCUT ayarından dolar. Sen yalnız kâğıttan FARKLI olanları düzeltirsin — sıfırdan doldurmazsın.',
+      'Fesih ihbar süresini gir: sözleşme bitmeden bu kadar gün önce haber verilmezse kendiliğinden uzar. Ekran o günü ayrıca gösterir.',
+      'Zam aralığını gir (örn. 12 ay). Zamanı gelince ekran söyler; “Zammı uygula” Toplu Zam ekranını o müşteriyle açar.',
+      'Ekranın üstündeki dört kart: uymayan fiyat · zam zamanı · bitiş/ihbar · sözleşmesiz makine. Tıklayınca listeyi süzer.',
+      'Fark varsa “Sisteme uygula” cihazın ayarını sözleşmedeki hâline getirir — tek tıkla, elle kopyalamadan.',
+    ],
+    tip: 'Ekran hem “eksik faturalıyorsun” hem “FAZLA faturalıyorsun” der. İkincisi de önemli: müşteri bir gün fark ederse parayı iade edersin. Sözleşme yanlış girildiyse cihazı değil SÖZLEŞMEYİ düzelt.',
+  },
+  {
     id: 'fatura', icon: '📄', title: 'Faturalama (ay sonu)',
     steps: [
       'Gelişmiş → Faturalar → “⚡ Bu Dönemi Faturala”.',

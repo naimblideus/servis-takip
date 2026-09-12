@@ -30,6 +30,11 @@ export default function TopluZamPage() {
     fetch('/api/customers').then((r) => r.json()).then((d: any) => {
       setCustomers(Array.isArray(d) ? d : d.customers || []);
     }).catch(() => {});
+    // Sözleşme ekranından "Zammı uygula" ile gelindiyse müşteri seçili
+    // açılsın: bayi listeden tekrar aramasın, yanlış müşteriye zam
+    // yapma ihtimali doğmasın.
+    const q = new URLSearchParams(window.location.search).get('musteri');
+    if (q) setCustomerId(q);
   }, []);
 
   const toggle = (f: Field) =>

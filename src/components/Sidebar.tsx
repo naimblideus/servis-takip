@@ -182,6 +182,22 @@ const menuItems = [
   },
   {
     /**
+     * SÖZLEŞMELER — dosya dolabı değil, fark bulucu.
+     * Sözleşmede yazan fiyatla sistemdeki fiyatı karşılaştırıp aradaki
+     * farkın aylık ₺ karşılığını veriyor; zam zamanını ve fesih ihbar
+     * penceresini hatırlatıyor. Para bulduğu için Gelişmiş altında DEĞİL,
+     * ana menüde duruyor.
+     */
+    href: '/sozlesmeler',
+    label: 'Sözleşmeler',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
+    /**
      * e-FATURA HAZIRLIĞI — hazırlık ekranı, gönderim ekranı DEĞİL.
      * Gönderim bir servis sağlayıcı sözleşmesi gerektiriyor; o gelene
      * kadar bayi eksiklerini buradan kapatıyor. Gelişmiş altında:
@@ -306,7 +322,7 @@ const menuItems = [
   },
 ];
 
-const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/invoices', '/e-fatura', '/collections', '/kacan-gelir', '/satis', '/import'];
+const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/sozlesmeler', '/invoices', '/e-fatura', '/collections', '/kacan-gelir', '/satis', '/import'];
 const SUPER_ADMIN_ONLY = ['/admin'];
 
 // Menü gösterim sırası (en çok kullanılan günlük işler üstte). Önceliği değiştirmek için
@@ -328,6 +344,7 @@ const MENU_ORDER = [
   '/etiket',       // Zebra Etiket — üstte
   '/accounting',   // Muhasebe — üstte
   '/collections',  // Tahsilat
+  '/sozlesmeler',  // Sözleşmeler — kira fiyatının kaynağı, Faturalar'dan önce
   '/invoices',     // Faturalar
   '/e-fatura',     // e-Fatura Hazırlığı — Faturalar'ın hemen yanında
   '/rota',

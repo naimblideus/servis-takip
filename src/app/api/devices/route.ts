@@ -9,12 +9,15 @@ function generatePublicCode() {
   return 'DEV-' + randomBytes(3).toString('hex').toUpperCase();
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const user = await oturumKullanicisi(session);
+  // Müşteri süzgeci: seçtiren ekranlar bütün cihazları çekip tarayıcıda
+  // elemesin. Süzgeç TENANT KOŞULUNA EK — tek başına kimlik değil.
+  const customerId = new URL(req.url).searchParams.get('customerId');
   const devices = await prisma.device.findMany({
-    where: { tenantId: user!.tenantId },
+    where: { tenantId: user!.tenantId, ...(customerId ? { customerId } : {}) },
     include: { customer: true },
     orderBy: { createdAt: 'desc' },
   });

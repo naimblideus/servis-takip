@@ -127,6 +127,8 @@ model Tenant {
   invoicePayments     InvoicePayment[]
   whatsappMessages    WhatsAppMessage[]
   portalRequests      PortalRequest[]
+  contracts           Contract[]
+  contractDevices     ContractDevice[]
   statusHistory       TicketStatusHistory[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
@@ -431,6 +433,7 @@ model Customer {
   payments         Payment[]
   whatsappMessages WhatsAppMessage[]
   portalRequests   PortalRequest[]
+  contracts        Contract[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, phone])
@@ -498,6 +501,7 @@ model Device {
   serviceTickets  ServiceTicket[]
   counterReadings CounterReading[]
   portalRequests  PortalRequest[]
+  contractDevices ContractDevice[]
 
   @@unique([tenantId, serialNo])
   @@unique([tenantId, barcode])
@@ -615,6 +619,98 @@ enum PaymentStatus {
   PARTIAL
   PAID
   REFUNDED
+}
+
+
+// ============================================
+// SÖZLEŞME
+// ============================================
+
+//
+// Kiralama sözleşmesi.
+//
+// Sözleşmeyi dosya olarak saklamak bir dosya dolabıdır; kimse açmaz.
+// Buradaki tablo sözleşmenin TİCARİ ŞARTLARINI tutuyor ki sistem onları
+// gerçekle KARŞILAŞTIRABİLSİN: "sözleşmede ayda ₺1.500 + 1.000 sayfa
+// dahil yazıyor, sistemde ₺1.200 + 500 kayıtlı, üç aydır eksik
+// faturalıyorsun". İşe yarayan kısım bu.
+//
+// Sözleşme METNİ burada YOK ve olmayacak: metin bayinin kendi hukuki
+// belgesi, biz onu yazmayız. Taranmış nüshanın bağlantısı tutuluyor.
+//
+model Contract {
+  id         String   @id @default(cuid())
+  tenantId   String
+  customerId String
+  contractNo String? // bayinin kendi numarası
+
+  startDate DateTime
+  endDate   DateTime
+  // FESİH İHBAR SÜRESİ. Sözleşme bitmeden bu kadar gün önce haber
+  // verilmezse kendiliğinden uzuyor — bayi pencereyi kaçırınca bir yıl
+  // daha eski fiyattan bağlı kalıyor. Tarihi bilmek yetmiyor, ihbar
+  // gününü bilmek gerekiyor.
+  noticeDays  Int     @default(0)
+  autoRenew   Boolean @default(false)
+  renewMonths Int     @default(12)
+
+  // ── ZAM MADDESİ ─────────────────────────────────────────────────────
+  // Enflasyonlu ortamda zammı unutmak sessiz gelir kaybı. Sözleşmede
+  // "12 ayda bir artış" yazıyorsa sistem zamanı geldiğinde söylüyor.
+  // escalationRate boşsa oran pazarlıkla belirlenir — uydurmuyoruz.
+  escalationMonths Int?
+  escalationRate   Decimal?  @db.Decimal(5, 2)
+  lastEscalationAt DateTime?
+
+  fileUrl String? // taranmış nüshanın bağlantısı (Drive/Dropbox)
+  notes   String?
+  status  String  @default("AKTIF") // AKTIF | BITTI | FESIH
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  devices  ContractDevice[]
+
+  @@index([tenantId, customerId])
+  @@index([tenantId, status, endDate])
+}
+
+//
+// Sözleşmenin kapsadığı cihaz ve O CİHAZ İÇİN yazan şartlar.
+//
+// Şartlar sözleşme başında değil CİHAZ başında: gerçek sözleşmeler çoğu
+// zaman birden çok makineyi ve makine başına farklı bedeli kapsıyor
+// ("üç makine, biri ₺1.500, ikisi ₺900"). Sözleşme başına tek rakam
+// tutsaydık karşılaştırma bu sözleşmelerde yanlış cevap verirdi.
+//
+model ContractDevice {
+  id         String @id @default(cuid())
+  tenantId   String
+  contractId String
+  deviceId   String
+
+  // Sözleşmede YAZAN şartlar — cihazın mevcut ayarlarıyla karşılaştırılır.
+  // null = sözleşmede bu kalem konuşulmamış, karşılaştırma yapılmıyor.
+  monthlyRent       Decimal? @db.Decimal(10, 2)
+  includedBlack     Int?
+  includedColor     Int?
+  pricePerBlack     Decimal? @db.Decimal(10, 4)
+  pricePerColor     Decimal? @db.Decimal(10, 4)
+  overagePriceBlack Decimal? @db.Decimal(10, 4)
+  overagePriceColor Decimal? @db.Decimal(10, 4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  // Bir cihaz aynı sözleşmede iki kez olamaz.
+  @@unique([contractId, deviceId])
+  @@index([tenantId, deviceId])
 }
 
 // ============================================
