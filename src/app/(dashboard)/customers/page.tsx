@@ -52,10 +52,20 @@ export default function CustomersPage() {
             {loading ? 'Yükleniyor...' : `${filtered.length} / ${customers.length} müşteri`}
           </p>
         </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {/* Liste ekranda kalırsa iş görmez: muhasebeciye gidecek,
+            sigortaya verilecek, elle sayılacak. İndirme ekrandakiyle
+            AYNI kaynaktan üretiliyor (api/disa-aktar). */}
+        <a href="/api/disa-aktar?tur=musteri" title="Müşteri listesini Excel olarak indir (borç ve fatura bilgileriyle)" style={{
+          backgroundColor: '#0f2253', color: 'white', padding: '0.625rem 1rem',
+          borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 500,
+          fontSize: '0.875rem', whiteSpace: 'nowrap',
+        }}>⬇️ Excel (CSV)</a>
         <Link href="/customers/new" style={{
           backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500',
         }}>+ Yeni Müşteri</Link>
+        </div>
       </div>
 
       {/* Arama Kutusu */}

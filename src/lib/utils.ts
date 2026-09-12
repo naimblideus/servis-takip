@@ -53,6 +53,9 @@ export function getPaymentStatusLabel(status: string): string {
     UNPAID: 'Ödenmedi',
     PARTIAL: 'Kısmi Ödeme',
     PAID: 'Ödendi',
+    // REFUNDED eksikti: etiketi olmayan durum ekrana ham İngilizce enum
+    // adıyla düşüyordu. Fiş çıktısında zaten 'İade' yazıyor.
+    REFUNDED: 'İade',
   };
   return labels[status] || status;
 }

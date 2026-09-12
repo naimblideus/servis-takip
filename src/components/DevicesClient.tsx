@@ -94,6 +94,14 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                         backgroundColor: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '0.625rem 1rem',
                         borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem',
                     }}>📅 Cihaz Yaşı</Link>
+                    {/* Liste ekranda kalırsa iş görmez: muhasebeciye gidecek, sigortaya
+                        verilecek, sayıma çıkacak. İndirme ekrandakiyle AYNI kaynaktan
+                        üretiliyor (api/disa-aktar). */}
+                    <a href="/api/disa-aktar?tur=cihaz" title="Cihaz listesini Excel olarak indir (sayaç, kira ve fiyatlarla)" style={{
+                      backgroundColor: '#0f2253', color: 'white', padding: '0.625rem 1rem',
+                      borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 500,
+                      fontSize: '0.875rem', whiteSpace: 'nowrap',
+                    }}>⬇️ Excel (CSV)</a>
                     <Link href="/devices/new" style={{
                         backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
                         borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500'

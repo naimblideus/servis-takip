@@ -111,7 +111,15 @@ export default async function TicketsPage({
             {hasFilter ? `Filtreli: ${tickets.length} fiş` : `Toplam ${total} fiş`}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {/* Liste ekranda kalırsa iş görmez: muhasebeciye gidecek,
+            sigortaya verilecek, elle sayılacak. İndirme ekrandakiyle
+            AYNI kaynaktan üretiliyor (api/disa-aktar). */}
+        <a href="/api/disa-aktar?tur=fis" title="Fiş listesini Excel olarak indir" style={{
+          backgroundColor: '#0f2253', color: 'white', padding: '0.625rem 1rem',
+          borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 500,
+          fontSize: '0.875rem', whiteSpace: 'nowrap',
+        }}>⬇️ Excel (CSV)</a>
         <Link href={printHref} title={hasFilter ? `${tickets.length} fişi toplu yazdır (mevcut filtreyle)` : 'Tüm fişleri toplu yazdır'} style={{
           backgroundColor: '#eef2ff', color: '#4338ca', padding: '0.625rem 1rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500', fontSize: '0.875rem',

@@ -587,6 +587,10 @@ export default function AccountingPage() {
           {activeTab==='accounting' && (
             <>
               <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>🖨️ Yazdır</button>
+              {/* Muhasebeciye giden dosya. Borç ekrandakiyle AYNI
+                  kaynaktan (lib/musteri-bakiye.ts) — iki yer iki farklı
+                  rakam gösterirse hangisine inanılacağı belli olmaz. */}
+              <a href="/api/disa-aktar?tur=cari" title="Kim ne kadar borçlu — Excel olarak indir" style={{padding:'0.625rem 1rem',backgroundColor:'#0f2253',color:'white',borderRadius:'0.5rem',textDecoration:'none',fontWeight:500,fontSize:'0.875rem',whiteSpace:'nowrap',display:'inline-flex',alignItems:'center'}}>⬇️ Excel (CSV)</a>
               <button onClick={backfillCari} disabled={backfilling} title="Teslim edilmemiş dahil tüm açık servis fişlerini cariye işler" style={{padding:'0.625rem 1rem',backgroundColor:'#eef2ff',color:'#4338ca',border:'1px solid #c7d2fe',borderRadius:'0.5rem',cursor:backfilling?'not-allowed':'pointer',fontWeight:'600',opacity:backfilling?0.6:1}}>{backfilling ? '⏳ Aktarılıyor…' : '🔄 Fişleri cariye aktar'}</button>
               {debtors.length > 0 && (
                 <button onClick={openBulkWA} style={{padding:'0.625rem 1rem',backgroundColor:'#dcfce7',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',display:'flex',alignItems:'center',gap:'0.4rem'}}>
