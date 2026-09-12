@@ -7,8 +7,10 @@ const target = process.argv[2];
 const user = process.env.NETGSM_USER, pass = process.env.NETGSM_PASS, header = process.env.NETGSM_HEADER;
 
 if (!user || !pass || !header) {
-  console.error('❌ NETGSM_USER / NETGSM_PASS / NETGSM_HEADER ortam değişkenleri gerekli.');
-  process.exit(1);
+  // Bu araç GERÇEK SMS gönderiyor; takımda kendiliğinden koşmaz.
+  // Ortam değişkeni yoksa hata değil, ATLAMA.
+  console.log('ATLANDI: NETGSM_USER / NETGSM_PASS / NETGSM_HEADER tanımlı değil (elle çalıştırılır, gerçek SMS gönderir).');
+  process.exit(0);
 }
 if (!target) {
   console.error('❌ Kullanım: node scripts/test-sms.mjs 5XXXXXXXXX');

@@ -60,7 +60,15 @@ export type BelgeFaturasi = {
 };
 
 export type Senaryo = 'TEMELFATURA' | 'EARSIVFATURA';
-export type BelgeDurumu = 'HAZIR' | 'GONDERILDI' | 'KABUL' | 'RED' | 'HATA';
+export type BelgeDurumu = 'HAZIR' | 'GONDERILDI' | 'KABUL' | 'RED' | 'HATA' | 'ESKI_SISTEM';
+
+/**
+ * Göçte aktarılan geçmiş fatura: eski sistemde ZATEN kesildi, bir daha
+ * gönderilmeyecek. e-Fatura Hazırlığı ekranı bu durumdakileri
+ * gönderilecekler listesinden çıkarıyor — görünselerdi bayi onları da
+ * hazırlamaya çalışır, gönderirse müşteriye ikinci kez fatura giderdi.
+ */
+export const ESKI_SISTEM: BelgeDurumu = 'ESKI_SISTEM';
 
 const yuvarla = (n: number) => Math.round(n * 100) / 100;
 

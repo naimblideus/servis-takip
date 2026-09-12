@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import {
   eBelgeUret, belgeEksikleri, belgeSenaryosu, gibNumarasiUret, saticiEksikleri,
-  type BelgeSaticisi,
+  ESKI_SISTEM, type BelgeSaticisi,
 } from '@/lib/fatura-belgesi';
 
 /**
@@ -140,10 +140,16 @@ export async function GET(req: NextRequest) {
     // ESKİ SİSTEMDE KESİLENLER BU LİSTEDE YOK. Göçte kayıt olarak
     // aktarıldılar; tekrar gönderilirlerse müşteriye ikinci kez fatura
     // gider. Listede görünselerdi bayi onları da hazırlamaya çalışırdı.
+    //
+    // NULL'I DA İSTİYORUZ, ve bu yüzden `NOT` DEĞİL `OR` kullanılıyor:
+    // SQL'de NOT(kolon = 'x') ifadesi kolon NULL iken TRUE değil NULL
+    // döner, yani o satırlar da elenir. Normal faturaların hepsinde
+    // eBelgeDurum NULL olduğu için `NOT` yazmak listeyi TAMAMEN
+    // boşaltıyordu — ekran sıfır fatura gösteriyordu.
     const faturalar = await prisma.customerInvoice.findMany({
       where: {
         tenantId, deletedAt: null, status: { not: 'CANCELLED' },
-        NOT: { eBelgeDurum: 'ESKI_SISTEM' },
+        OR: [{ eBelgeDurum: null }, { eBelgeDurum: { not: ESKI_SISTEM } }],
       },
       orderBy: { invoiceDate: 'desc' },
       take: 500,

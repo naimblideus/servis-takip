@@ -159,4 +159,5 @@ console.log(`${idler.length} cihaz ve kayıtları silindi`);
 
 await p.$disconnect();
 rmSync(g, { recursive: true, force: true });
+console.log(`\n${basarili ? 1 : 0} geçti, ${basarili ? 0 : 1} kaldı\n`);
 process.exit(basarili ? 0 : 1);

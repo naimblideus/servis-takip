@@ -113,7 +113,11 @@ try {
   {
     const d = await (await al()).json();
     t('satıcı bilgileri eksiksiz', d.saticiEksikleri.length === 0, d.saticiEksikleri);
-    t('iki fatura sayıldı', d.toplam === 2, d);
+    // ★ NULL TUZAĞI: normal faturanın eBelgeDurum'u NULL. Listede
+    // `NOT: { eBelgeDurum: 'ESKI_SISTEM' }` yazılırsa SQL üç-değerli
+    // mantığı yüzünden NULL satırlar da elenir ve ekran SIFIR fatura
+    // gösterir. Bu bir kez canlıya çıktı; testi adıyla duruyor.
+    t('★ durumu boş (normal) faturalar listede — NULL elenmemiş', d.toplam === 2, d);
     t('biri hazır', d.hazir === 1, d);
     t('biri eksik', d.eksik === 1, d);
     const h = d.faturalar.find((x) => x.invoiceNumber === 'EB-FAT-0001');

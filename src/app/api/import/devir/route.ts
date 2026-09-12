@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { parseCSV, detectDelimiter, trNumber, normalizePhone, basligiNormalle } from '@/lib/sheet-import';
 import { parseDate } from '@/lib/import-parser';
+import { ESKI_SISTEM } from '@/lib/fatura-belgesi';
 
 /**
  * POST /api/import/devir
@@ -33,9 +34,6 @@ import { parseDate } from '@/lib/import-parser';
  */
 
 const MAX_ROWS = 20000;
-
-/** Geçmiş faturanın e-belge durumu: eski sistemde kesildi, tekrar gönderilmez. */
-export const ESKI_SISTEM = 'ESKI_SISTEM';
 
 type Satir = {
   no: number;

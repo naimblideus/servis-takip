@@ -66,5 +66,7 @@ for (const [ad, body, eS, eB, eC, eG] of T) {
     console.log(`   beklenen: serial=${eS} siyah=${eB} renkli=${eC} güvenli=${eG}`);
   }
 }
-console.log(`\n${ok}/${T.length}`);
+// Tek biçim: tüm testler aynı özet satırını basıyor ki koşturucu
+// hiçbirini "biçimi farklı" diye atlamasın.
+console.log(`\n${ok} geçti, ${T.length - ok} kaldı\n`);
 process.exit(ok === T.length ? 0 : 1);

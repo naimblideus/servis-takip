@@ -20,14 +20,35 @@ type PriceDevice = {
   pricePerColor: unknown;
   includedBlack?: number | null;
   includedColor?: number | null;
+  overagePriceBlack?: unknown;
+  overagePriceColor?: unknown;
 };
 type PriceTenant = { pricePerBlack: unknown; pricePerColor: unknown };
 
-/** Cihazın efektif birim/aşım fiyatları: cihaz bazlı > tenant varsayılanı. */
+/** Cihazın efektif SAYFA fiyatları: cihaz bazlı > tenant varsayılanı. */
 export function effectivePrices(device: PriceDevice, tenant: PriceTenant) {
   const black = device.pricePerBlack != null ? Number(device.pricePerBlack) : Number(tenant.pricePerBlack);
   const color = device.pricePerColor != null ? Number(device.pricePerColor) : Number(tenant.pricePerColor);
   return { black, color };
+}
+
+/**
+ * AŞIM fiyatları: dahil paketi aşan sayfalar bu fiyattan faturalanır.
+ *   cihazın aşım fiyatı > cihazın sayfa fiyatı > bayi varsayılanı
+ *
+ * BU ALAN OKUNMUYORDU. Cihaz kartında ve Toplu Zam ekranında "Aşım (S/B)"
+ * diye ayarlanabiliyordu ama faturalama her zaman sayfa fiyatını
+ * kullanıyordu: "dahil 1.000 sayfa, aşımı ₺0,60" diye anlaşan bayi aşan
+ * sayfaları ₺0,42'den faturalıyordu ve bunu hiçbir ekran söylemiyordu.
+ * Alan boşken davranış AYNI (sayfa fiyatına düşüyor) — yani mevcut
+ * verinin faturası değişmiyor, alan doldurulunca çalışmaya başlıyor.
+ */
+export function overagePrices(device: PriceDevice, tenant: PriceTenant) {
+  const sayfa = effectivePrices(device, tenant);
+  return {
+    black: device.overagePriceBlack != null ? Number(device.overagePriceBlack) : sayfa.black,
+    color: device.overagePriceColor != null ? Number(device.overagePriceColor) : sayfa.color,
+  };
 }
 
 /**
@@ -44,7 +65,9 @@ export function counterOverage(
 ) {
   const inclB = device.includedBlack ?? 0;
   const inclC = device.includedColor ?? 0;
-  const { black, color } = effectivePrices(device, tenant);
+  // Aşan sayfalar AŞIM fiyatından: sözleşmede ayrı bir aşım bedeli
+  // konuşulduysa fatura onu kullanmalı.
+  const { black, color } = overagePrices(device, tenant);
   const billB = Math.max(0, (prevBlack + sumBlack) - inclB) - Math.max(0, prevBlack - inclB);
   const billC = Math.max(0, (prevColor + sumColor) - inclC) - Math.max(0, prevColor - inclC);
   return {
