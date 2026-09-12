@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { openPrintable } from '@/lib/print';
 
 const STATUS_LABELS: Record<string, string> = {
     NEW: 'Yeni',
@@ -49,10 +50,37 @@ export default function ReportsPage() {
     const maxRevenue = Math.max(...data.monthlyData.map(m => m.revenue), 1);
 
     return (
-        <div style={{ padding: '2rem', maxWidth: '1100px' }}>
-            <div style={{ marginBottom: '1.5rem' }}>
-                <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Raporlar</h1>
-                <p style={{ color: '#6b7280' }}>Genel istatistikler ve trendler</p>
+        <>
+        <style>{`
+            .rapor-sayfa { padding: 2rem; max-width: 1100px; }
+            /* Çubuk grafikler dar ekranda sıkışıp okunmaz hâle geliyordu;
+               kendi içinde kaysınlar, sayfa kaymasın. */
+            .grafik-kaydir { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .grafik-ic { min-width: 20rem; }
+            @media (max-width: 40rem) {
+                .rapor-sayfa { padding: 1.25rem 1rem 2rem; }
+            }
+        `}</style>
+        <div className="rapor-sayfa">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                <div style={{ minWidth: 0 }}>
+                    <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Raporlar</h1>
+                    <p style={{ color: '#6b7280' }}>Genel istatistikler ve trendler</p>
+                </div>
+                {/* Rapor ekranda kalırsa iş görmez: patrona gösterilecek,
+                    muhasebeciye gidecek, teklife eklenecek. Yazdırma kâğıt
+                    içindir, Excel indirme ise rakamla oynanacak yer içindir.
+                    İkisi de EKRANDAKİ veriyle aynı kaynaktan üretiliyor. */}
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button onClick={() => openPrintable('/reports/print')}
+                        style={{ minHeight: 40, padding: '0 0.9rem', background: 'white', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        🖨️ Yazdır
+                    </button>
+                    <a href="/api/reports?format=csv"
+                        style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '0 0.9rem', background: '#0f2253', color: 'white', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        ⬇️ Excel (CSV)
+                    </a>
+                </div>
             </div>
 
             {/* Veri girildikçe canlanan raporlar — döngünün geri ödeme tarafı */}
@@ -77,8 +105,12 @@ export default function ReportsPage() {
                 </a>
             </div>
 
-            {/* Toplam Kartlar */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+            {/* Toplam Kartlar
+                DÖRT SABİT SÜTUN TELEFONDA TAŞIYORDU: 375 px'te kart ızgarası
+                493 px istiyor, 311 px alıyordu — sayfa yana kayıyordu
+                (ölçüldü: 150 px). auto-fit ile sütun sayısını genişlik
+                belirliyor; masaüstünde yine dört sütun. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9.5rem, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
                     { label: 'Toplam Fiş', value: data.totals.tickets, icon: '📋', color: '#3b82f6' },
                     { label: 'Müşteriler', value: data.totals.customers, icon: '👥', color: '#8b5cf6' },
@@ -93,7 +125,7 @@ export default function ReportsPage() {
                 ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(17rem, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 {/* Durum Dağılımı */}
                 <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
                     <h2 style={{ fontWeight: '600', marginBottom: '1.25rem' }}>Durum Dağılımı</h2>
@@ -188,5 +220,6 @@ export default function ReportsPage() {
                 </div>
             </div>
         </div>
+        </>
     );
 }

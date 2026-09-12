@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { csvMetni, csvSayi, csvBasliklari, csvDosyaAdi } from '@/lib/csv';
+import { raporOzeti, DURUM_ADI, ONCELIK_ADI } from '@/lib/rapor-ozeti';
 
 export async function GET(req: Request) {
     const session = await auth();
@@ -10,83 +11,45 @@ export async function GET(req: Request) {
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const tenantId = user.tenantId;
-    const now = new Date();
+    // Hesap TEK YERDE: ekran, CSV ve yazdırma sayfası aynı fonksiyondan
+    // besleniyor. Ayrı sorgu yazmak, aynı raporun ekranda başka kâğıtta başka
+    // rakam göstermesi demekti.
+    const o = await raporOzeti(user.tenantId);
 
-    // Son 6 ay için ay bazlı veriler
-    const months = Array.from({ length: 6 }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        return {
-            year: d.getFullYear(),
-            month: d.getMonth(),
-            label: d.toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }),
-            start: new Date(d.getFullYear(), d.getMonth(), 1),
-            end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59),
-        };
-    }).reverse();
+    // ── CSV ──────────────────────────────────────────────────────────────
+    if (new URL(req.url).searchParams.get('format') === 'csv') {
+        const satirlar: unknown[][] = [];
+        // Tek dosyada üç blok. "Bölüm" sütunu ilk sırada ki bayi Excel'de
+        // süzerek istediği bloğu tek başına görebilsin.
+        satirlar.push(['Özet', 'Toplam fiş', o.toplamlar.fis, '']);
+        satirlar.push(['Özet', 'Müşteri', o.toplamlar.musteri, '']);
+        satirlar.push(['Özet', 'Cihaz', o.toplamlar.cihaz, '']);
+        // Bu satır TÜM fişlerin tutarı — tahsil edilmiş olsun olmasın.
+        // Aylık bloktaki ciro ise yalnız ödenmişleri sayar; başlıklar farkı söylüyor.
+        satirlar.push(['Özet', 'Toplam iş hacmi (₺)', '', csvSayi(o.toplamlar.ciro)]);
+        for (const m of o.aylik) satirlar.push(['Aylık', m.label, m.adet, csvSayi(m.ciro)]);
+        for (const d of o.durumlar) satirlar.push(['Durum', DURUM_ADI[d.durum] ?? d.durum, d.adet, '']);
+        for (const p of o.oncelikler) satirlar.push(['Öncelik', ONCELIK_ADI[p.oncelik] ?? p.oncelik, p.adet, '']);
 
-    const [
-        totalTickets,
-        totalCustomers,
-        totalDevices,
-        totalRevenue,
-        byStatus,
-        byPriority,
-        recentActivity,
-    ] = await Promise.all([
-        prisma.serviceTicket.count({ where: { tenantId } }),
-        prisma.customer.count({ where: { tenantId } }),
-        prisma.device.count({ where: { tenantId } }),
-        prisma.serviceTicket.aggregate({
-            where: { tenantId },
-            _sum: { totalCost: true },
-        }),
-        prisma.serviceTicket.groupBy({
-            by: ['status'],
-            where: { tenantId },
-            _count: true,
-        }),
-        prisma.serviceTicket.groupBy({
-            by: ['priority'],
-            where: { tenantId },
-            _count: true,
-        }),
-        // Son 30 günde oluşturulan fişler
-        prisma.serviceTicket.findMany({
-            where: {
-                tenantId,
-                createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) },
-            },
-            select: { createdAt: true, totalCost: true, status: true },
-            orderBy: { createdAt: 'asc' },
-        }),
-    ]);
+        const metin = csvMetni(
+            ['Bölüm', 'Kalem', 'Adet', 'Tutar (₺)'],
+            satirlar,
+        );
+        return new NextResponse(metin, {
+            headers: csvBasliklari(csvDosyaAdi('rapor-ozet', new Date().toISOString().slice(0, 10))),
+        });
+    }
 
-    // Ay bazlı fiş sayıları
-    const monthlyData = await Promise.all(
-        months.map(async (m) => {
-            const [count, revenue] = await Promise.all([
-                prisma.serviceTicket.count({
-                    where: { tenantId, createdAt: { gte: m.start, lte: m.end } },
-                }),
-                prisma.serviceTicket.aggregate({
-                    where: { tenantId, paymentStatus: 'PAID', updatedAt: { gte: m.start, lte: m.end } },
-                    _sum: { totalCost: true },
-                }),
-            ]);
-            return { label: m.label, count, revenue: Number(revenue._sum.totalCost || 0) };
-        })
-    );
-
+    // Ekranın beklediği alan adları korunuyor — arayüz değişmesin.
     return NextResponse.json({
         totals: {
-            tickets: totalTickets,
-            customers: totalCustomers,
-            devices: totalDevices,
-            revenue: Number(totalRevenue._sum.totalCost || 0),
+            tickets: o.toplamlar.fis,
+            customers: o.toplamlar.musteri,
+            devices: o.toplamlar.cihaz,
+            revenue: o.toplamlar.ciro,
         },
-        byStatus,
-        byPriority,
-        monthlyData,
+        byStatus: o.durumlar.map((d) => ({ status: d.durum, _count: d.adet })),
+        byPriority: o.oncelikler.map((p) => ({ priority: p.oncelik, _count: p.adet })),
+        monthlyData: o.aylik.map((m) => ({ label: m.label, count: m.adet, revenue: m.ciro })),
     });
 }

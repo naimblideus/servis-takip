@@ -51,6 +51,15 @@ export default function ModelGuvenilirlikPage() {
         Yeterli veri olmayan modellerde sayı üretilmez — sebebi yazılır.
       </p>
 
+      {/* Rapor ekranda kalırsa iş görmez. Bu tablo müşteriye giderken
+          veya alım kararı verilirken kullanılıyor — indirilebilmeli.
+          CSV ekrandakiyle AYNI uçtan, aynı sıradan üretiliyor. */}
+      <a href="/api/reports/model-reliability?format=csv"
+        style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '0 0.9rem', marginBottom: '1rem',
+          background: '#0f2253', color: 'white', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.85rem',
+          textDecoration: 'none', whiteSpace: 'nowrap' }}>
+        ⬇️ Excel (CSV)
+      </a>
       {yukleniyor ? (
         <div style={{ ...kutu, textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>Yükleniyor…</div>
       ) : (

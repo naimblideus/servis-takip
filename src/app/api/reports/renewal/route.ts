@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { deviceMetrics } from '@/lib/reliability';
+import { csvMetni, csvSayi, csvBasliklari, csvDosyaAdi } from '@/lib/csv';
 
 /**
  * YENİLEME FIRSATLARI — bayinin doğrudan parası.
@@ -81,6 +82,23 @@ export async function GET(req: NextRequest) {
     adaylar.sort((a, b) => b.skor - a.skor);
 
     const yasiBilinen = devices.filter((d) => d.ageMonths !== null).length;
+
+    // CSV: ekrandaki tabloyla aynı satırlar, aynı sırada (skora göre).
+    if (new URL(req.url).searchParams.get('format') === 'csv') {
+      const metin = csvMetni(
+        ['Marka / Model', 'Seri No', 'Müşteri', 'Yaş (ay)', 'Yaş kesin mi', 'Arıza', 'Planlı', 'Parça maliyeti (₺)', 'Kira geliri (₺)', 'Skor', 'Gerekçeler'],
+        adaylar.map((a) => [
+          a.baslik, a.serialNo, a.musteri,
+          a.yasAy ?? '', a.yasAy === null ? '' : (a.yasBelirsiz ? 'yalnız yıl' : 'evet'),
+          a.ariza, a.planli, csvSayi(a.parcaMaliyet), csvSayi(a.gelir), a.skor,
+          // Gerekçeler tek hücrede; ayıraç olarak " · " kullanıyoruz ki
+          // noktalı virgül sütun kaydırmasın (kütüphane zaten kaçırıyor).
+          a.sebepler.join(' · '),
+        ]),
+      );
+      return new NextResponse(metin, { headers: csvBasliklari(csvDosyaAdi('yenileme-firsatlari', String(months) + 'ay')) });
+    }
+
     return NextResponse.json({
       months,
       toplamCihaz: devices.length,
