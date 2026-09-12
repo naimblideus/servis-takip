@@ -7,6 +7,11 @@ const FIELD_LABEL: Record<string, string> = {
   phone: 'Telefon',
   address: 'Adres',
   taxNo: 'Vergi No',
+  // Fatura kimliği: defterdeki adla faturaya yazılan ad aynı şey değil.
+  legalName: 'Ticari unvan',
+  taxOffice: 'Vergi dairesi',
+  city: 'İl',
+  district: 'İlçe',
   brand: 'Marka',
   model: 'Model',
   serialNo: 'Seri No',

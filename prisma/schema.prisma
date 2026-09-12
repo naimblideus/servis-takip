@@ -376,6 +376,28 @@ model Customer {
   contractEndDate DateTime? // Kiralama sözleşmesi bitiş tarihi — yaklaşınca/geçince uyarı (sessiz gelir kaybı önlenir)
   consent         Boolean   @default(false) // GDPR/KVKK consent
 
+  // ── FATURA KİMLİĞİ ───────────────────────────────────────────────────
+  // Fatura, müşterinin günlük adıyla değil TESCİLLİ UNVANIYLA kesilir:
+  // "Ahmet Bey Fotokopi" bayinin defterindeki ad, "Çetin Kırtasiye Tic.
+  // Ltd. Şti." faturaya yazılan ad. İkisini tek alanda tutmak, faturayı
+  // ya okunmaz ya geçersiz yapıyordu; ayrıldı. Boşsa name kullanılır.
+  legalName String? // Ticari unvan (faturada yazan ad)
+  taxOffice String? // Vergi dairesi — VKN'li müşteride zorunlu
+  // İl/ilçe adresin içinde serbest metin olarak duruyordu. Fatura
+  // biçiminde bunlar AYRI alanlar (CityName / CitySubdivisionName);
+  // serbest metinden ayrıştırmak tahmin olurdu, sorup saklıyoruz.
+  city     String? // İl
+  district String? // İlçe
+
+  // e-Fatura mükellefi mi? Faturanın nereden gideceğini bu belirliyor:
+  // mükellefse e-Fatura (sistem üzerinden), değilse e-Arşiv (e-posta).
+  // null = HİÇ SORULMADI; false = sorulmuş, mükellef değil. Müşteri
+  // sonradan mükellef olabildiği için sorgu tarihini de tutuyoruz —
+  // "ne zaman baktık" bilinmeden "değil" cevabına güvenilmez.
+  eInvoiceUser      Boolean?  // null = bilinmiyor
+  eInvoiceCheckedAt DateTime? // en son ne zaman sorgulandı
+  eInvoiceAlias     String?   // GİB alıcı etiketi (mükellefse)
+
   // ── MÜŞTERİ PORTALI ──────────────────────────────────────────────────
   // Müşteri kendi cihazlarını, servis fişlerini ve bakiyesini görsün diye
   // özel bir bağlantı. ŞİFRE YOK: bayinin müşterisi (ofis, muhasebeci,

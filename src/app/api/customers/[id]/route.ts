@@ -24,6 +24,27 @@ export async function PATCH(
         if (body.phone !== undefined) updateData.phone = body.phone;
         if (body.address !== undefined) updateData.address = body.address || null;
         if (body.taxNo !== undefined) updateData.taxNo = body.taxNo || null;
+        if (body.email !== undefined) updateData.email = body.email || null;
+        // ── FATURA KİMLİĞİ ────────────────────────────────────────────
+        // Faturaya yazılan ad, vergi dairesi ve il/ilçe defterdeki
+        // bilgiden ayrı tutuluyor (bkz. lib/fatura-kimlik.ts).
+        if (body.legalName !== undefined) updateData.legalName = body.legalName || null;
+        if (body.taxOffice !== undefined) updateData.taxOffice = body.taxOffice || null;
+        if (body.city !== undefined) updateData.city = body.city || null;
+        if (body.district !== undefined) updateData.district = body.district || null;
+        // ÜÇ DEĞERLİ: '' = hiç sorulmadı, 'evet'/'hayir' = soruldu.
+        // Boşu false'a çevirseydik sorulmamışla mükellef-değil aynı şey
+        // olur, mükellef bir müşteriye yanlış belge kesilirdi.
+        if (body.eInvoiceUser !== undefined) {
+            const v = String(body.eInvoiceUser ?? '').trim();
+            if (v === 'evet' || v === 'hayir') {
+                updateData.eInvoiceUser = v === 'evet';
+                updateData.eInvoiceCheckedAt = new Date();
+            } else {
+                updateData.eInvoiceUser = null;
+                updateData.eInvoiceCheckedAt = null;
+            }
+        }
         // Sözleşme bitiş tarihi: "" -> null (temizle), "YYYY-MM-DD" -> tarih
         if (body.contractEndDate !== undefined) {
             const v = String(body.contractEndDate || '').trim();

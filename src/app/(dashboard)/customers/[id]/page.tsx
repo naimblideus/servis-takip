@@ -54,7 +54,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <Link href="/customers" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Müşteriler</Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{customer.name}</h1>
-          <CustomerEditPanel customer={{ id: customer.id, name: customer.name, phone: customer.phone, address: customer.address, taxNo: customer.taxNo, contractEndDate: customer.contractEndDate ? new Date(customer.contractEndDate).toISOString() : null }} />
+          <CustomerEditPanel customer={{
+            id: customer.id, name: customer.name, phone: customer.phone,
+            address: customer.address, taxNo: customer.taxNo, email: customer.email,
+            legalName: customer.legalName, taxOffice: customer.taxOffice,
+            city: customer.city, district: customer.district,
+            eInvoiceUser: customer.eInvoiceUser,
+            contractEndDate: customer.contractEndDate ? new Date(customer.contractEndDate).toISOString() : null,
+          }} />
         </div>
       </div>
 

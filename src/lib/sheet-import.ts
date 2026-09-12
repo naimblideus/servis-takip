@@ -56,6 +56,7 @@ export function parseCSV(raw: string, delimiter?: string): string[][] {
 // ── Kolon otomatik eşleme ───────────────────────────────────────────────
 export type FieldKey =
   | 'customerName' | 'phone' | 'address' | 'taxNo'
+  | 'legalName' | 'taxOffice' | 'city' | 'district'
   | 'brand' | 'model' | 'serialNo' | 'location'
   | 'counterBlack' | 'counterColor'
   | 'isRental' | 'monthlyRent' | 'pricePerBlack' | 'pricePerColor';
@@ -65,6 +66,10 @@ export const FIELD_LABEL: Record<FieldKey, string> = {
   phone: 'Telefon',
   address: 'Adres',
   taxNo: 'Vergi No',
+  legalName: 'Ticari unvan',
+  taxOffice: 'Vergi dairesi',
+  city: 'İl',
+  district: 'İlçe',
   brand: 'Marka',
   model: 'Model',
   serialNo: 'Seri No',
@@ -77,9 +82,42 @@ export const FIELD_LABEL: Record<FieldKey, string> = {
   pricePerColor: 'Sayfa fiyatı (Renkli)',
 };
 
+/**
+ * Başlık adını eşleştirmeye HAZIR hâle getirir: Türkçe küçük harf + Türkçe
+ * harfleri ASCII'ye katlama.
+ *
+ * NEDEN GEREKLİ (ölçüldü, tahmin değil): JavaScript'te /i bayrağı büyük
+ * İ'yi i'ye katlamıyor. Bu yüzden "SERİ NO" başlığı /seri/i ile HİÇ
+ * eşleşmiyordu — "SERI NO" eşleşiyor, "SERİ NO" eşleşmiyordu. Excel'den
+ * büyük harf başlıkla gelen dosyada seri no kolonu sessizce boş kalıyor,
+ * cihazların hiçbiri aktarılamıyordu. Aynı tuzak VERGİ NO, FİRMA, İSİM'de.
+ *
+ * Ters tuzak da var: tr-TR küçültme 'I' harfini 'ı' yapıyor, yani "FIRMA"
+ * → "fırma" olup /firma/ ile eşleşmiyor. O yüzden küçültmeden SONRA
+ * katlama şart — ikisi birlikte iki yönü de kapatıyor.
+ */
+export function basligiNormalle(h: string): string {
+  return (h || '')
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Başlık adından alan tahmini — Türkçe/İngilizce yaygın yazımlar */
 const PATTERNS: { key: FieldKey; re: RegExp }[] = [
-  { key: 'customerName', re: /(musteri|müşteri|firma|unvan|ünvan|cari|isim|ad soyad|adi|adı|customer|company)/i },
+  // SIRA KRİTİK: dar kalıp geniş kalıptan ÖNCE. "Vergi Dairesi" aşağıdaki
+  // taxNo kalıbına (/vergi/), "İlçe" city kalıbına (/il/), "Ünvan" ise
+  // customerName kalıbına yakalanırdı. İlk eşleşen kazandığı için dar
+  // olanlar yukarıda duruyor.
+  { key: 'taxOffice', re: /(vergi dairesi|vergi d\.|v\.d\.|^vd$)/i },
+  { key: 'district', re: /(ilce|district|semt)/i },
+  { key: 'city', re: /^(il|sehir|city|province)$/i },
+  // Bayi kolona "Ünvan" yazdıysa bu onun beyanı: orada tescilli unvan var.
+  // Tahmin etmiyoruz, yazdığını okuyoruz.
+  { key: 'legalName', re: /(unvan|ticari ad|tescilli|legal)/i },
+  { key: 'customerName', re: /(musteri|firma|cari|isim|ad soyad|adi|customer|company)/i },
   { key: 'phone', re: /(telefon|tel\b|gsm|cep|phone|mobil)/i },
   { key: 'address', re: /(adres|address)/i },
   { key: 'taxNo', re: /(vergi|vkn|tckn|tc no|tax)/i },
@@ -103,7 +141,7 @@ export function autoMap(headers: string[]): (FieldKey | null)[] {
     if (!clean) return null;
     for (const p of PATTERNS) {
       if (used.has(p.key)) continue;
-      if (p.re.test(clean)) { used.add(p.key); return p.key; }
+      if (p.re.test(basligiNormalle(clean))) { used.add(p.key); return p.key; }
     }
     return null;
   });

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       return i >= 0 ? (r[i] ?? '').trim() : '';
     };
 
-    const hasCustomer = idx('customerName') >= 0;
+    const hasCustomer = idx('customerName') >= 0 || idx('legalName') >= 0;
     const hasDevice = idx('serialNo') >= 0 || idx('model') >= 0 || idx('brand') >= 0;
     if (!hasCustomer && !hasDevice) {
       return NextResponse.json({
@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
     // ── Satırları çöz ──
     type Parsed = {
       row: number; customerName: string; phone: string; address: string; taxNo: string;
+      legalName: string; taxOffice: string; city: string; district: string;
       brand: string; model: string; serialNo: string; location: string;
       counterBlack: number | null; counterColor: number | null;
       isRental: boolean; monthlyRent: number | null; pricePerBlack: number | null; pricePerColor: number | null;
@@ -73,7 +74,13 @@ export async function POST(req: NextRequest) {
     const parsed: Parsed[] = dataRows.map((r, i) => {
       const p: Parsed = {
         row: i + 2, // Excel satır numarası (başlık 1. satır)
-        customerName: cut(get(r, 'customerName'), 160),
+        // Tek ad kolonu "Ünvan" ise defterdeki ad da o olur: aksi hâlde
+        // dosya dolu olduğu hâlde her satır "müşteri adı boş" derdi.
+        customerName: cut(get(r, 'customerName') || get(r, 'legalName'), 160),
+        legalName: cut(get(r, 'legalName'), 160),
+        taxOffice: cut(get(r, 'taxOffice'), 80),
+        city: cut(get(r, 'city'), 60),
+        district: cut(get(r, 'district'), 60),
         phone: normalizePhone(get(r, 'phone')),
         address: cut(get(r, 'address'), 400),
         taxNo: cut(get(r, 'taxNo'), 40),
@@ -180,9 +187,15 @@ export async function POST(req: NextRequest) {
             });
             if (existing) {
               customerId = existing.id;
+              // Yalnız DOLU gelen alanlar yazılıyor: eski dosyada boş olan
+              // bir kolon, sistemde zaten girilmiş bilgiyi silmemeli.
               const upd: any = {};
               if (p.address) upd.address = p.address;
               if (p.taxNo) upd.taxNo = p.taxNo;
+              if (p.legalName) upd.legalName = p.legalName;
+              if (p.taxOffice) upd.taxOffice = p.taxOffice;
+              if (p.city) upd.city = p.city;
+              if (p.district) upd.district = p.district;
               if (Object.keys(upd).length) {
                 await prisma.customer.update({ where: { id: existing.id }, data: upd });
                 customersUpdated++;
@@ -192,6 +205,8 @@ export async function POST(req: NextRequest) {
                 data: {
                   tenantId, name: p.customerName, phone: p.phone,
                   address: p.address || null, taxNo: p.taxNo || null,
+                  legalName: p.legalName || null, taxOffice: p.taxOffice || null,
+                  city: p.city || null, district: p.district || null,
                 },
               });
               customerId = c.id;

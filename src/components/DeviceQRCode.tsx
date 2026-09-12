@@ -79,9 +79,14 @@ export default function DeviceQRCode({ publicCode, deviceName }: Props) {
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                     backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 50,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    // Kip ekrandan uzunsa kaydırılabilsin: 'center' + taşma
+                    // = üstü erişilemez hâle gelir, o yüzden flex-start +
+                    // çocukta margin:auto (kısa içerikte yine ortalanır).
+                    display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                    overflowY: 'auto', padding: '1.5rem 1rem',
                 }} onClick={() => setOpen(false)}>
                     <div style={{
+                        margin: 'auto',
                         backgroundColor: 'white', borderRadius: '1rem', padding: '2rem',
                         width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
                         textAlign: 'center',
