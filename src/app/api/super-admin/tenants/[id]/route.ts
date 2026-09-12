@@ -30,6 +30,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             const digits = String(body.whatsappPhoneId ?? '').replace(/\D/g, '');
             body.whatsappPhoneId = digits || null;
         }
+        // GİB BELGE SIRASI DIŞARIDAN YAZILAMAZ. Geri alınırsa aynı
+        // numaradan iki belge çıkar ve ikisi de geçersiz olur; ileri
+        // alınırsa sırada boşluk kalır. Sayaç yalnız gönderim işleminde,
+        // gönderimle aynı işlem içinde artar.
+        delete body.eFaturaSeq;
+        delete body.eFaturaSeqYil;
+        // Ön ek tam 3 harf ve büyük: "nxs " ya da "NX1" kabul edilmez.
+        if (body.eFaturaOnEk !== undefined) {
+            const h = String(body.eFaturaOnEk ?? '').toLocaleUpperCase('tr-TR').replace(/[^A-Z]/g, '');
+            if (h && h.length !== 3) {
+                return NextResponse.json({ error: 'e-Fatura ön eki tam 3 harf olmalı (GİB\'e kayıtlı ön ek)' }, { status: 400 });
+            }
+            body.eFaturaOnEk = h || null;
+        }
+        if (body.eFaturaEtiket !== undefined) {
+            body.eFaturaEtiket = String(body.eFaturaEtiket ?? '').trim() || null;
+        }
+
         // Değişiklik ÖNCESİ hâli — denetimde "neyi neye çevirdi" için
         const oncesi = await prisma.tenant.findUnique({
             where: { id },

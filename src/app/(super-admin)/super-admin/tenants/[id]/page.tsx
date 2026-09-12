@@ -198,6 +198,12 @@ export default function TenantDetailPage() {
                             ['İşletme Adı', 'name'], ['Slug', 'slug'], ['E-posta', 'email'], ['Telefon', 'phone'],
                             ['Yetkili', 'ownerName'], ['Vergi No', 'taxNumber'], ['Vergi Dairesi', 'taxOffice'],
                             ['Adres', 'address'], ['İl', 'city'], ['İlçe', 'district'],
+                            // e-Fatura ön eki GİB'e kayıtlı 3 harftir ve belge
+                            // numarasının başına gelir (NXS2026000000001).
+                            // Sıra sayacı BİLEREK forma konmadı: elle
+                            // değiştirilirse aynı numaradan iki belge çıkar.
+                            ['e-Fatura Ön Eki (3 harf)', 'eFaturaOnEk'],
+                            ['e-Fatura Gönderici Etiketi', 'eFaturaEtiket'],
                         ].map(([label, key]) => (
                             <div key={key} className="bg-white/3 border border-white/10 rounded-xl p-3">
                                 <div className="text-xs text-gray-500 mb-1">{label}</div>

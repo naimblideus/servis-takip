@@ -129,6 +129,18 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    id: 'e-fatura', icon: '🧾', title: 'e-Fatura hazırlığı (eksikleri şimdi kapat)',
+    steps: [
+      'Gelişmiş → e-Fatura Hazırlığı. Bu ekran fatura GÖNDERMEZ; gönderim için ayrı bir e-Fatura servis sağlayıcısı sözleşmesi gerekir.',
+      'Ekran her faturanın hazır olup olmadığını söyler; hazır değilse tam olarak neyin eksik olduğunu yazar.',
+      'Önce kendi bilgilerin (kırmızı kutu) — vergi dairesi, il/ilçe, e-Fatura ön eki. Bunlar kapanmadan hiçbir fatura hazır olamaz.',
+      'Sonra "en çok tekrar eden eksikler" listesi: bir müşteriyi düzeltmek genelde birkaç faturayı birden hazır eder.',
+      'Alıcı eksikleri müşteri kartındaki "Fatura bilgileri" bölümünden kapatılır.',
+      'Bir faturanın üstüne tıklayınca gönderilecek belgenin içeriğini olduğu gibi görürsün — kalemler, KDV oranları, toplam.',
+    ],
+    tip: 'Faturaya müşterinin defterdeki adı değil TESCİLLİ UNVANI yazılır; ikisi farklıysa "Ticari unvan" alanını doldur. "e-Fatura mükellefi mi" sorusu boş bırakılırsa fatura hazır sayılmaz: faturanın hangi yoldan gideceğini o belirliyor.',
+  },
+  {
     id: 'tahsilat', icon: '💰', title: 'Muhasebe, tahsilat ve borç hatırlatma',
     steps: [
       'Muhasebe = cari hesap. Her fiş borç, her ödeme alacak olarak işlenir; bakiye otomatik hesaplanır.',

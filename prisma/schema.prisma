@@ -36,6 +36,16 @@ model Tenant {
   autoInvoiceEnabled Boolean @default(true) // Otomatik dönem faturalama açık mı
   invoiceDayOfMonth  Int     @default(1) // Cron kesim günü
   nextInvoiceSeq     Int     @default(1) // Fatura sıra sayacı (atomik artar)
+
+  // ── e-BELGE KİMLİĞİ (satıcı) ────────────────────────────────────────
+  // GİB fatura numarası ile bizim iç numaramız AYRI şeyler ve ayrı
+  // kalmalı: SF-FAT-2026-00001 bayinin kendi defteri, NXS2026000000001
+  // ise belge numarası. Ön ek 3 harf ve GİB'e kayıtlı olmak zorunda,
+  // sıra numarasında BOŞLUK olamaz — o yüzden ayrı sayaç.
+  eFaturaOnEk    String? // 3 harf, GİB'e kayıtlı (örn. NXS)
+  eFaturaSeq     Int     @default(0) // yıl içindeki son sıra
+  eFaturaSeqYil  Int? // sayacın ait olduğu yıl (yıl dönünce 1'den başlar)
+  eFaturaEtiket  String? // GİB gönderici birim etiketi
   reminderEnabled    Boolean @default(true) // Vade hatırlatma
 
   // Sektör
@@ -1210,6 +1220,19 @@ model CustomerInvoice {
   paidAt        DateTime?
   source        InvoiceSource @default(AUTO_MONTHLY)
   notes         String?
+
+  // ── e-BELGE ─────────────────────────────────────────────────────────
+  // Bu alanlar entegratörden BAĞIMSIZ: hangi özel entegratör seçilirse
+  // seçilsin aynı bilgiler isteniyor. Hepsi boş başlar; fatura kesmek
+  // e-belge göndermek DEĞİLDİR, ikisi ayrı adım.
+  ettn          String? @unique // belgenin evrensel tekil numarası (UUID)
+  gibNo         String? // NXS2026000000001 — 3 harf + yıl + 9 hane
+  senaryo       String? // TEMELFATURA (mükellef) | EARSIVFATURA (değil)
+  faturaTipi    String? // SATIS | IADE
+  eBelgeDurum   String? // HAZIR | GONDERILDI | KABUL | RED | HATA
+  eBelgeDurumAt DateTime?
+  eBelgeNot     String? // entegratör/GİB mesajı, red gerekçesi
+
   deletedAt     DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -1222,6 +1245,10 @@ model CustomerInvoice {
   tickets  ServiceTicket[]
 
   @@unique([tenantId, invoiceNumber])
+  // GİB numarası bayi içinde tekil: aynı numaradan iki belge çıkarsa
+  // ikisi de geçersiz olur.
+  @@unique([tenantId, gibNo])
+  @@index([tenantId, eBelgeDurum])
   @@index([tenantId, customerId, status])
   @@index([tenantId, status, dueDate])
   @@index([tenantId, period])
@@ -1240,6 +1267,11 @@ model InvoiceLine {
   quantity    Decimal         @default(1) @db.Decimal(10, 2)
   unitPrice   Decimal         @default(0) @db.Decimal(10, 4)
   lineTotal   Decimal         @default(0) @db.Decimal(10, 2)
+  // Kalem bazında KDV oranı. null = faturanın genel oranı kullanılır.
+  // Bugün hiçbir yer doldurmuyor (hepsi null) — yani mevcut hesap
+  // aynen duruyor. Alan, farklı oranlı kalem gerektiğinde faturanın
+  // bunu TEMSİL EDEBİLMESİ için var; e-belgede KDV oran oran ayrışır.
+  vatRate     Decimal?        @db.Decimal(5, 2)
   createdAt   DateTime        @default(now())
 
   // Relations

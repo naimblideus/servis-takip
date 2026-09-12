@@ -18,13 +18,47 @@ const SLUG = 'demo';
 const EPOSTA = 'demo@nextusservis.com';
 const SIFRE = process.env.DEMO_SIFRE || 'demo1234';
 
+// FATURA BİLGİLERİ BİLEREK KARIŞIK: dördü tam, ikisi eksik.
+// Gerçekte de öyle oluyor — bayi müşterilerini telefonla tanıyor,
+// vergi dairesini yalnız fatura kesmesi gerekenlerden almış oluyor.
+// Hepsi tam olsaydı e-Fatura Hazırlığı ekranı hiçbir şey anlatmazdı;
+// hiçbiri tam olmasaydı ekran da kullanılamazdı.
 const MUSTERILER = [
-  { name: 'Akdeniz Sigorta Acentesi', phone: '05321110001', address: 'Kavacık, Beykoz' },
-  { name: 'Yıldız Mali Müşavirlik',   phone: '05321110002', address: 'Ümraniye' },
-  { name: 'Beykoz Özel Poliklinik',   phone: '05321110003', address: 'Beykoz' },
-  { name: 'Marmara Nakliyat',         phone: '05321110004', address: 'Dudullu OSB' },
-  { name: 'Kuzey Mimarlık Ofisi',     phone: '05321110005', address: 'Çekmeköy' },
-  { name: 'Anadolu Eğitim Kurumları', phone: '05321110006', address: 'Ataşehir' },
+  {
+    name: 'Akdeniz Sigorta Acentesi', phone: '05321110001', address: 'Kavacık, Beykoz',
+    legalName: 'Akdeniz Sigorta Aracılık Hizmetleri Ltd. Şti.', taxNo: '1234567801',
+    taxOffice: 'Beykoz', city: 'İstanbul', district: 'Beykoz',
+    email: 'muhasebe@akdenizsigorta.example', eInvoiceUser: true,
+  },
+  {
+    name: 'Yıldız Mali Müşavirlik', phone: '05321110002', address: 'Ümraniye',
+    legalName: 'Yıldız Mali Müşavirlik ve Denetim A.Ş.', taxNo: '1234567802',
+    taxOffice: 'Ümraniye', city: 'İstanbul', district: 'Ümraniye',
+    email: 'info@yildizmusavirlik.example', eInvoiceUser: true,
+  },
+  {
+    name: 'Beykoz Özel Poliklinik', phone: '05321110003', address: 'Beykoz',
+    legalName: 'Beykoz Özel Sağlık Hizmetleri Ltd. Şti.', taxNo: '1234567803',
+    taxOffice: 'Beykoz', city: 'İstanbul', district: 'Beykoz',
+    email: 'satinalma@beykozpoliklinik.example', eInvoiceUser: true,
+  },
+  // e-Arşiv örneği: mükellef DEĞİL, faturası e-postayla gidiyor.
+  {
+    name: 'Marmara Nakliyat', phone: '05321110004', address: 'Dudullu OSB',
+    legalName: 'Marmara Nakliyat ve Lojistik Ltd. Şti.', taxNo: '1234567804',
+    taxOffice: 'Dudullu', city: 'İstanbul', district: 'Ümraniye',
+    email: 'muhasebe@marmaranakliyat.example', eInvoiceUser: false,
+  },
+  // Eksik: vergi bilgisi hiç alınmamış.
+  { name: 'Kuzey Mimarlık Ofisi', phone: '05321110005', address: 'Çekmeköy' },
+  // Eksik: vergi no var ama mükellef mi diye SORULMAMIŞ — belgenin
+  // hangi yoldan gideceği bilinmiyor, bu yüzden hazır sayılmıyor.
+  {
+    name: 'Anadolu Eğitim Kurumları', phone: '05321110006', address: 'Ataşehir',
+    legalName: 'Anadolu Eğitim Kurumları A.Ş.', taxNo: '1234567806',
+    taxOffice: 'Ataşehir', city: 'İstanbul', district: 'Ataşehir',
+    email: 'muhasebe@anadoluegitim.example',
+  },
 ];
 
 // Gerçek model adları kullanılıyor (marka güvenilirliği için anlamlı olsun),
@@ -62,6 +96,18 @@ async function main() {
       // Demo hesabı ÜRETİCİ VERİ PAYLAŞIMINA dahil edilmez — uydurma veri
       // gerçek güvenilirlik raporunu kirletmemeli.
       oemDataSharing: false,
+      // SATICI BİLGİLERİ: e-Fatura Hazırlığı ekranı bunlar olmadan
+      // "her şey tıkalı" gösteriyor ve hiçbir şey anlatmıyordu. Demoda
+      // bayi tarafı tam, eksikler MÜŞTERİ tarafında — gerçekte de öyle.
+      taxNumber: '1234567890',
+      taxOffice: 'Beşiktaş',
+      address: 'Barbaros Bulvarı No:15 Kat:3',
+      city: 'İstanbul',
+      district: 'Beşiktaş',
+      phone: '02121112233',
+      email: 'demo@nextusservis.com',
+      ownerName: 'Demo Kullanıcı',
+      eFaturaOnEk: 'DMO',
     },
   });
 
@@ -78,7 +124,16 @@ async function main() {
 
   for (const m of MUSTERILER) {
     const musteri = await p.customer.create({
-      data: { tenantId: tenant.id, name: m.name, phone: m.phone, address: m.address },
+      data: {
+        tenantId: tenant.id, name: m.name, phone: m.phone, address: m.address,
+        legalName: m.legalName ?? null, taxNo: m.taxNo ?? null,
+        taxOffice: m.taxOffice ?? null, city: m.city ?? null, district: m.district ?? null,
+        email: m.email ?? null,
+        // undefined ise null yazılıyor: "sorulmamış" durumu bilerek
+        // korunuyor, false'a çevirmek yanlış belge türü demek.
+        eInvoiceUser: m.eInvoiceUser ?? null,
+        eInvoiceCheckedAt: m.eInvoiceUser === undefined ? null : new Date(),
+      },
     });
     tumMusteriler.push(musteri);
 

@@ -58,7 +58,9 @@ export function faturaAdi(m: FaturaMusterisi): string {
  * null'ı "mükellef değil" saymıyoruz: sorulmamış bir müşteriye e-Arşiv
  * kesmek, mükellef çıkarsa yanlış belge kesmek demek.
  */
-export function faturaYolu(m: FaturaMusterisi): 'e-Fatura' | 'e-Arşiv' | null {
+// Yalnız eInvoiceUser okunuyor; tam müşteri istemek, elinde sadece bu alan
+// olan çağıranı sahte bir müşteri nesnesi uydurmaya zorluyordu.
+export function faturaYolu(m: { eInvoiceUser?: boolean | null }): 'e-Fatura' | 'e-Arşiv' | null {
   if (m.eInvoiceUser === true) return 'e-Fatura';
   if (m.eInvoiceUser === false) return 'e-Arşiv';
   return null;
@@ -104,21 +106,10 @@ export function faturaHazir(m: FaturaMusterisi): boolean {
   return faturaEksikleri(m).length === 0;
 }
 
-/**
- * GİB fatura numarası biçimi: 3 harf + 4 hane yıl + 9 hane sıra.
- * Örnek: NXS2026000000001
- *
- * Bizim iç numaramız (SF-FAT-2026-00001) bu biçimde DEĞİL; ikisi ayrı
- * şeyler ve ayrı kalmalı — iç numara bayinin kendi defteri, bu ise belge
- * numarası. Sıra numarası bayi bazında ilerliyor.
- */
-export function gibFaturaNo(onEk: string, yil: number, sira: number): string {
-  const e = onEk.toLocaleUpperCase('tr-TR').replace(/[^A-Z]/g, '').slice(0, 3);
-  if (e.length !== 3) throw new Error('Fatura ön eki tam 3 harf olmalı');
-  if (!Number.isInteger(yil) || yil < 2000 || yil > 2999) throw new Error('Yıl 4 haneli olmalı');
-  if (!Number.isInteger(sira) || sira < 1 || sira > 999999999) throw new Error('Sıra no 1–999999999 arası olmalı');
-  return `${e}${yil}${String(sira).padStart(9, '0')}`;
-}
+// GİB belge numarası burada DEĞİL, lib/fatura-belgesi.ts'te
+// (gibNumarasiUret): numara yıl dönümünde 1'den başlıyor ve bayinin son
+// sırasını bilmek gerekiyor — o bilgi belge tarafında. Burada ikinci bir
+// kopya durmasın diye kaldırıldı.
 
 /** Bir müşteri listesinde kaçının eksiği var — panel/göç sonrası özet için. */
 export function faturaHazirlikOzeti(musteriler: FaturaMusterisi[]) {

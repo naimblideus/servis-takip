@@ -181,6 +181,21 @@ const menuItems = [
     ),
   },
   {
+    /**
+     * e-FATURA HAZIRLIĞI — hazırlık ekranı, gönderim ekranı DEĞİL.
+     * Gönderim bir servis sağlayıcı sözleşmesi gerektiriyor; o gelene
+     * kadar bayi eksiklerini buradan kapatıyor. Gelişmiş altında:
+     * günlük iş değil, bir kez yapılıp bitirilen iş.
+     */
+    href: '/e-fatura',
+    label: 'e-Fatura Hazırlığı',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+      </svg>
+    ),
+  },
+  {
     href: '/sarf',
     label: 'Sarf Takibi',
     icon: (
@@ -291,7 +306,7 @@ const menuItems = [
   },
 ];
 
-const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/invoices', '/collections', '/kacan-gelir', '/satis', '/import'];
+const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/invoices', '/e-fatura', '/collections', '/kacan-gelir', '/satis', '/import'];
 const SUPER_ADMIN_ONLY = ['/admin'];
 
 // Menü gösterim sırası (en çok kullanılan günlük işler üstte). Önceliği değiştirmek için
@@ -314,6 +329,7 @@ const MENU_ORDER = [
   '/accounting',   // Muhasebe — üstte
   '/collections',  // Tahsilat
   '/invoices',     // Faturalar
+  '/e-fatura',     // e-Fatura Hazırlığı — Faturalar'ın hemen yanında
   '/rota',
   '/takip',
   '/toner-verimi', // Toner Verimi — Sarf Takibi'nin ön koşulu
@@ -334,7 +350,7 @@ const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i
 // basılır, Barkodla Satış ise tezgahtan parça satmayan bayide hiç açılmaz.
 // Sayaç Turu BİLEREK yukarıda kaldı — para döngüsünün merkezi; gizlenen iş
 // yapılmaz, yapılmayan sayaç faturalanmaz.
-const ADVANCED_SABIT = ['/rota', '/market', '/magaza', '/invoices', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/cihaz-karlilik', '/etiket', '/satis'];
+const ADVANCED_SABIT = ['/rota', '/market', '/magaza', '/invoices', '/e-fatura', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/cihaz-karlilik', '/etiket', '/satis'];
 
 export interface MenuDurum {
   whatsappKurulu: boolean;

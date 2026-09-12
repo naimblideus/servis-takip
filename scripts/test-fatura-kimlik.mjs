@@ -29,7 +29,7 @@ try {
 } catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
 const {
   vergiKimlikTuru, faturaAdi, faturaYolu, faturaEksikleri, faturaHazir,
-  gibFaturaNo, faturaHazirlikOzeti,
+  faturaHazirlikOzeti,
 } = await import(pathToFileURL(join(g, 'fatura-kimlik.js')).href);
 
 let gecti = 0, kaldi = 0;
@@ -130,19 +130,9 @@ console.log('\nVERGİ NO HATA MESAJI AYIRT EDİCİ\n');
   t('numara bozuksa hane sayısını söylüyor', bozuk.some((x) => /10 hane.*11 hane/.test(x)), bozuk);
 }
 
-console.log('\nGİB FATURA NUMARASI BİÇİMİ\n');
-{
-  t('3 harf + yıl + 9 hane', gibFaturaNo('NXS', 2026, 1) === 'NXS2026000000001', gibFaturaNo('NXS', 2026, 1));
-  t('16 karakter', gibFaturaNo('NXS', 2026, 999999999).length === 16);
-  t('küçük harf büyütülüyor', gibFaturaNo('nxs', 2026, 7) === 'NXS2026000000007');
-  const pat = (f) => { try { f(); return false; } catch { return true; } };
-  t('2 harflik ön ek reddediliyor', pat(() => gibFaturaNo('NX', 2026, 1)));
-  t('sıra 0 reddediliyor', pat(() => gibFaturaNo('NXS', 2026, 0)));
-  t('sıra 10 haneye taşarsa reddediliyor', pat(() => gibFaturaNo('NXS', 2026, 1000000000)));
-  t('2 haneli yıl reddediliyor', pat(() => gibFaturaNo('NXS', 26, 1)));
-  // İç numaramız (SF-FAT-2026-00001) ile bu ayrı şeyler — karışmasın.
-  t('iç numara biçiminde DEĞİL', !/-/.test(gibFaturaNo('NXS', 2026, 1)));
-}
+// GİB numara biçiminin testi test-fatura-belgesi.mjs'te (yıl dönüşü ve
+// sıra boşluğu dahil) — buradaki kopya kaldırıldı.
+
 
 console.log('\nGÖÇ SONRASI ÖZET — BAYİ NEREDEN BAŞLASIN\n');
 {
