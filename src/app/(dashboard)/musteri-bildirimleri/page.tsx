@@ -24,6 +24,10 @@ const sayi = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleSt
 export default function MusteriBildirimleriPage() {
   const [items, setItems] = useState<Talep[]>([]);
   const [bekleyen, setBekleyen] = useState(0);
+  // Sayı tek başına "acil mi" sorusunu cevaplamıyordu: "3 bekliyor"
+  // yazıyor ama üçü de dünkü mü, biri iki haftalık mı belli değildi.
+  const [geciken, setGeciken] = useState(0);
+  const [enEskiGun, setEnEskiGun] = useState<number | null>(null);
   const [durum, setDurum] = useState('BEKLIYOR');
   const [yukleniyor, setYukleniyor] = useState(true);
   const [islemde, setIslemde] = useState<string | null>(null);
@@ -33,7 +37,12 @@ export default function MusteriBildirimleriPage() {
     setYukleniyor(true);
     fetch(`/api/portal-talepleri?durum=${durum}`)
       .then((r) => r.json())
-      .then((d) => { setItems(d.items ?? []); setBekleyen(d.bekleyen ?? 0); })
+      .then((d) => {
+        setItems(d.items ?? []);
+        setBekleyen(d.bekleyen ?? 0);
+        setGeciken(d.geciken ?? 0);
+        setEnEskiGun(d.enEskiGun ?? null);
+      })
       .catch(() => {})
       .finally(() => setYukleniyor(false));
   }, [durum]);
@@ -74,6 +83,15 @@ export default function MusteriBildirimleriPage() {
           Müşterilerinizin kendi panellerinden gönderdiği arıza ve sayaç bildirimleri.
           {bekleyen > 0 && <> <b className="text-amber-700">{bekleyen} bekleyen</b>.</>}
         </p>
+        {/* Müşteri portaldan yazıp dönülmeyince telefonla arıyor ve bayi
+            "bize ulaşmadı" diyor — oysa kayıt ekranda duruyor. Gecikeni
+            ayrıca söylemek o telefonu önlüyor. */}
+        {geciken > 0 && (
+          <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            <b>{geciken} bildirime {enEskiGun} gündür dönülmedi.</b>{' '}
+            Müşteri cevap bekliyor; dönülmezse telefonla arayacak.
+          </div>
+        )}
       </div>
 
       <div className="mb-4 flex gap-2">
