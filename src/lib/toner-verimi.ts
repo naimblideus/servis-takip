@@ -52,11 +52,31 @@ export function verimGecerliMi(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n) && n >= VERIM_ALT && n <= VERIM_UST;
 }
 
-/** Gruplama anahtarı. Marka kanonik, model yalnız sadeleştirilmiş. */
+/**
+ * Gruplama anahtarı. Marka kanonik, model yalnız sadeleştirilmiş.
+ *
+ * ── TÜRKÇE BÜYÜKHARF TUZAĞI ───────────────────────────────────
+ * Burada `toLocaleUpperCase('tr')` vardı ve "im 350" → "İM 350",
+ * "IM 350" → "IM 350" veriyordu: AYNI MAKİNE İKİ AYRI GRUBA düşüyordu.
+ * Sonucu sessizdi — bir cihazda ölçülen toner verimi diğerine geçmiyor,
+ * "henüz ölçülmedi" yazıyordu. Bugünkü veride etkisi 0 (hepsi zaten
+ * büyük harf yazılmış) ama küçük harfle girilen ilk kayıtta bölünürdü.
+ *
+ * Çözüm depodaki kural: önce Türkçe harfleri ASCII'ye katla, SONRA
+ * yerelden bağımsız büyük harfe çevir. Model kodları zaten ASCII;
+ * katlama kod okunaklılığını bozmuyor.
+ */
 export function modelAnahtari(brandIn: unknown, modelIn: unknown): string {
   const { brand, model } = normalizeBrandModel(brandIn, modelIn);
   const sade = (s: string) =>
-    s.replace(/[\s._/-]+/g, ' ').trim().toLocaleUpperCase('tr');
+    s.replace(/[\s._/-]+/g, ' ').trim()
+      .replace(/ı/g, 'i').replace(/İ/g, 'I')
+      .replace(/ş/g, 's').replace(/Ş/g, 'S')
+      .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+      .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+      .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+      .replace(/ç/g, 'c').replace(/Ç/g, 'C')
+      .toUpperCase();
   return `${sade(brand) || '?'}|${sade(model) || '?'}`;
 }
 

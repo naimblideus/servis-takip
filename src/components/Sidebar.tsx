@@ -212,6 +212,22 @@ const menuItems = [
   },
   {
     /**
+     * TEKLİFLER — yeni müşteri kapısı.
+     * Sektörde teklif hâlâ çok sayfalı Excel'lerle kuruluyor. Burada fiyat,
+     * ölçülen sayfa maliyeti ve hedef marjdan çıkıyor. Gelişmiş altında
+     * DEĞİL: bulunamayan araç kullanılmıyor — bu depoda ölçüldü: 853
+     * cihazda verim boş, 305 portal kartı hiç açılmamıştı.
+     */
+    href: '/teklifler',
+    label: 'Teklifler',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h4M5 3h14a1 1 0 011 1v16l-4-2-4 2-4-2-4 2V4a1 1 0 011-1z" />
+      </svg>
+    ),
+  },
+  {
+    /**
      * e-FATURA HAZIRLIĞI — hazırlık ekranı, gönderim ekranı DEĞİL.
      * Gönderim bir servis sağlayıcı sözleşmesi gerektiriyor; o gelene
      * kadar bayi eksiklerini buradan kapatıyor. Gelişmiş altında:
@@ -336,7 +352,7 @@ const menuItems = [
   },
 ];
 
-const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/kdv', '/sozlesmeler', '/invoices', '/e-fatura', '/collections', '/kacan-gelir', '/satis', '/import'];
+const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/kdv', '/sozlesmeler', '/teklifler', '/invoices', '/e-fatura', '/collections', '/kacan-gelir', '/satis', '/import'];
 const SUPER_ADMIN_ONLY = ['/admin'];
 
 // Menü gösterim sırası (en çok kullanılan günlük işler üstte). Önceliği değiştirmek için
@@ -360,6 +376,7 @@ const MENU_ORDER = [
   '/collections',  // Tahsilat
   '/kdv',          // KDV Özeti — Muhasebe'nin hemen yanında
   '/sozlesmeler',  // Sözleşmeler — kira fiyatının kaynağı, Faturalar'dan önce
+  '/teklifler',    // Teklifler — yeni müşteri fiyatı, Sözleşmeler'in yanında
   '/invoices',     // Faturalar
   '/e-fatura',     // e-Fatura Hazırlığı — Faturalar'ın hemen yanında
   '/rota',

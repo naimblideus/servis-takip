@@ -128,6 +128,8 @@ model Tenant {
   tonerChanges        TonerChange[]
   parts               Part[]
   partPurchases       PartPurchase[]
+  teklifler           Teklif[]
+  teklifSatirlari     TeklifSatiri[]
   ticketParts         TicketPart[]
   payments            Payment[]
   attachments         Attachment[]
@@ -453,6 +455,7 @@ model Customer {
   whatsappMessages WhatsAppMessage[]
   portalRequests   PortalRequest[]
   contracts        Contract[]
+  teklifler        Teklif[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, phone])
@@ -849,6 +852,76 @@ model TonerChange {
 
   @@index([tenantId, deviceId, channel, changedAt])
   @@index([tenantId, changedAt])
+}
+
+// TEKLİF — aday müşterinin filosunu değerlendirip fiyat çıkarmak.
+//
+// NEDEN VAR: Sektörde teklif hâlâ çok sayfalı Excel'lerle kuruluyor —
+// liderlerde bile. Oysa teklifin doğru kurulması için gereken iki sayı bu
+// sistemde ölçülü duruyor: sayfa başı gerçek toner maliyeti (ölçülen
+// verimden) ve bayinin hedef marjı. Teklif o iki sayıdan çıkıyor, pazarlık
+// hissinden değil.
+//
+// MÜŞTERİYE BAĞLI DEĞİL: aday henüz müşteri olmayabilir. Müşteriyse
+// customerId doluyor ve geçmiş oradan okunuyor.
+model Teklif {
+  id         String  @id @default(cuid())
+  tenantId   String
+  teklifNo   String
+  musteriAdi String
+  customerId String?
+  yetkili    String?
+  telefon    String?
+  eposta     String?
+
+  // TASLAK | GONDERILDI | KAZANILDI | KAYBEDILDI
+  durum         String   @default("TASLAK")
+  gecerlilikGun Int      @default(30)
+  // Bu teklife özel hedef marj (boşsa bayinin genel hedefi kullanılıyor).
+  hedefMarj     Decimal? @db.Decimal(5, 4)
+  notlar        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  satirlar TeklifSatiri[]
+
+  @@unique([tenantId, teklifNo])
+  @@index([tenantId, durum, createdAt])
+}
+
+// Teklifteki tek bir makine.
+//
+// Aylık sayfa ADEDİ zorunlu: onsuz ne müşterinin mevcut sayfa maliyeti
+// çıkar ne de bizim teklifimiz. Teklifin tamamı bu sayının üstünde duruyor.
+model TeklifSatiri {
+  id       String @id @default(cuid())
+  tenantId String
+  teklifId String
+
+  marka            String
+  model            String
+  adet             Int    @default(1)
+  aylikSayfaSb     Int
+  aylikSayfaRenkli Int    @default(0)
+
+  // Müşterinin ŞU AN bu makine için aylık ödediği toplam. Bilinmiyorsa
+  // null — tasarruf hesaplanmıyor, uydurulmuyor.
+  mevcutAylikTutar Decimal? @db.Decimal(10, 2)
+
+  // Bizim teklifimiz. Boş bırakılırsa hedef marja göre hesaplanan değer
+  // kullanılıyor; bayi elle yazarsa onunki geçerli.
+  onerilenKira        Decimal? @db.Decimal(10, 2)
+  onerilenSayfaSb     Decimal? @db.Decimal(10, 4)
+  onerilenSayfaRenkli Decimal? @db.Decimal(10, 4)
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teklif Teklif @relation(fields: [teklifId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, teklifId])
 }
 
 // PARÇA ALIŞI — stoğun NEREDEN, KAÇA geldiği.
