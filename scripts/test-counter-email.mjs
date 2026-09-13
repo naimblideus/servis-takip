@@ -53,6 +53,31 @@ const T = [
   ['9 haneden uzun sayı → sayaç sayılmamalı',
     'Serial ABC12345 Total: 12345678901 Black: 777',
     'ABC12345', 777, null, true],
+
+  // ── TEK SATIR YERLEŞİM ────────────────────────────────────────────────
+  // Cihazlar etiketi ve değeri çoğu zaman yan yana basar. Kuyruk sabit 40
+  // karakter olduğu sürece öbür sayacın değeri de pencereye giriyor ve
+  // "en büyük" kuralı yanlış sayacı seçiyordu: renkli baskısı siyahtan fazla
+  // olan müşteride siyah sayaca 40.000 yazılıyordu. Sonucu üç katmanlı —
+  // renkli sayfalar siyah tarifesinden faturalanır, gerçek siyah sayaç
+  // kaybolur, ertesi ay gerçek okuma gelince "sayaç geriledi" alarmı çalar.
+  ['tek satır: renkli değer siyaha yazılmamalı',
+    'Serial ABC12345 Black: 5.000   Full Color: 40.000',
+    'ABC12345', 5000, 40000, true],
+  ['tek satır: ters sırada da karışmamalı',
+    'Serial ABC12345 Full Color: 5.000   Black: 40.000',
+    'ABC12345', 40000, 5000, true],
+
+  // ── ETİKET TUZAKLARI ──────────────────────────────────────────────────
+  ['renkli cihazda "Total" siyah sanılmamalı',
+    'Serial ABC12345\nTotal 100000\nBlack 70000\nFull Color 30000',
+    'ABC12345', 70000, 30000, true],
+  ['toner yüzdesi sayaç değildir',
+    'Serial ABC12345 Printed Pages Black: 145230 Toner black: 53%',
+    'ABC12345', 145230, null, true],
+  ['tarama sayacı faturalanmamalı',
+    'Serial ABC12345\nScanned Pages\nTotal: 900000\nPrinted Pages\nTotal: 145230',
+    'ABC12345', 145230, null, true],
 ];
 
 let ok = 0;

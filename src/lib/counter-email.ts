@@ -128,6 +128,9 @@ export function findSerial(text: string, knownSerials: string[]): string | null 
 const SIYAH_OZEL = ['siyah', 'black', 'mono', 'monochrome', 'monokrom', 'b&w', 'b/w', 'bw', 's/b', 'blackwhite'];
 const SIYAH_GENEL = ['toplam', 'total'];
 const RENKLI = ['renkli', 'color', 'colour', 'fullcolor', 'fullcolour'];
+// Bölge sınırı olarak YALNIZ ÖZEL kelimeler kullanılır (aşağıda `kesen`).
+// SIYAH_GENEL buraya giremez: 'total' hangi sayacın yanındaysa ona aittir —
+// "Color Total: 22.410" tek bir renkli sayaçtır, sınır değil.
 
 // Bölüm başlıkları. Kyocera raporunda "Scanned Pages" altında da "Total" var
 // ve tarama sayısı yazdırmayı geçebiliyor — en büyüğü alan mantık TARAMAYI
@@ -186,19 +189,49 @@ export function parseCounters(text: string): CounterParse {
     return enYakin(BOLUM_TARAMA) > enYakin(BOLUM_DIGER);
   };
 
-  const pick = (keys: string[], disallowPrefix: string[] = []): { value: number | null; label?: string } => {
+  const pick = (
+    keys: string[],
+    disallowPrefix: string[] = [],
+    kesen: string[] = [],
+  ): { value: number | null; label?: string } => {
     let best: number | null = null;
     let bestLabel: string | undefined;
     for (const k of keys) {
       const re = new RegExp(esc(k), 'g');
       let m: RegExpExecArray | null;
       while ((m = re.exec(t)) !== null) {
+        // ÖNEK DENETİMİ: "Color Total" gibi BİRLEŞİK etikette ikinci kelime
+        // öbür sayaca ait değildir, atlanır. Ama araya bir DEĞER girmişse o
+        // etiket çoktan kapanmıştır: "Full Color: 5.000   Black: 40.000"
+        // satırında 'black' gerçekten siyahtır. Düz `includes` bu ikisini
+        // ayıramıyordu ve böyle raporlarda siyah sayaç hiç okunmuyordu —
+        // e-posta her ay sessizce inceleme kuyruğuna düşüyordu.
+        // Ayıraç: yasak kelime ile eşleşme arasında rakam var mı.
         const onek = t.slice(Math.max(0, m.index - 15), m.index);
-        if (disallowPrefix.some((p) => onek.includes(p))) continue;
+        const onekYasakli = disallowPrefix.some((p) => {
+          const i = onek.lastIndexOf(p);
+          return i >= 0 && !/\d/.test(onek.slice(i + p.length));
+        });
+        if (onekYasakli) continue;
         if (taramaBolumunde(m.index)) continue;
 
         // Aynı satırda, anahtardan sonraki en fazla 40 karakter
-        const kuyruk = t.slice(m.index + k.length, m.index + k.length + 40).split('\n')[0];
+        const ham = t.slice(m.index + k.length, m.index + k.length + 40).split('\n')[0];
+
+        // ÖBÜR SAYACIN ETİKETİ BÖLGEYİ BİTİRİR.
+        // Cihazlar etiketi ve değeri çoğu zaman yan yana basar:
+        //     Black: 5.000   Full Color: 40.000
+        // Kuyruk sabit 40 karakter olduğunda renkli değer de bu pencereye
+        // giriyordu ve "en büyük" kuralı siyaha 40.000 yazıyordu: renkli
+        // sayfalar siyah tarifesinden faturalanır, gerçek siyah sayaç kaybolur,
+        // ertesi ay da "sayaç geriledi" alarmı çalar. Satır sonu yetmiyor,
+        // sınır öbür sayacın KELİMESİ. Kendi tarafının kelimeleri kesmez:
+        // "Black Total: 145.230" tek bir sayacın iki kelimesidir.
+        const kes = kesen.reduce((en, e) => {
+          const i = ham.indexOf(e);
+          return i >= 0 && i < en ? i : en;
+        }, ham.length);
+        const kuyruk = ham.slice(0, kes);
         const sayiRe = /\d[\d.,\s]*/g;
         let s: RegExpExecArray | null;
         while ((s = sayiRe.exec(kuyruk)) !== null) {
@@ -217,11 +250,16 @@ export function parseCounters(text: string): CounterParse {
     return { value: best, label: bestLabel };
   };
 
-  const c = pick(RENKLI);
+  // Üçüncü değişken = bu sayacın bölgesini bitiren kelimeler: ÖBÜR tarafın
+  // ÖZEL sözlüğü. Genel kelime ('total') sınır olamaz, çünkü hangi sayacın
+  // yanındaysa ona aittir. disallowPrefix ile aynı listeyi de paylaşmıyorlar:
+  // önek denetimi renkli tarafta yanlış çalışırdı — "Siyah: 100 Renkli: 200"
+  // satırında renkli eşleşmesi sessizce elenirdi.
+  const c = pick(RENKLI, [], SIYAH_OZEL);
   // Önce cihazın "siyah" dediği sayaç; yoksa genel toplam. Sırayı bozma —
   // gerekçesi SIYAH_OZEL/SIYAH_GENEL tanımlarının başında.
-  const ozel = pick(SIYAH_OZEL, RENKLI);
-  const b = ozel.value !== null ? ozel : pick(SIYAH_GENEL, RENKLI);
+  const ozel = pick(SIYAH_OZEL, RENKLI, RENKLI);
+  const b = ozel.value !== null ? ozel : pick(SIYAH_GENEL, RENKLI, RENKLI);
   return { black: b.value, color: c.value, blackLabel: b.label, colorLabel: c.label };
 }
 
