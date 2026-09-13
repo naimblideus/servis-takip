@@ -23,23 +23,32 @@ CREATE INDEX "TonerChange_tenantId_changedAt_idx" ON "TonerChange"("tenantId", "
 ALTER TABLE "TonerChange" ADD CONSTRAINT "TonerChange_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "TonerChange" ADD CONSTRAINT "TonerChange_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "Device"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- GEÇMİŞİ TAŞI: elde yalnız SON değişim var. Onu başlangıç referansı olarak
+-- GEÇMİŞİ TAŞI (İDEMPOTENT — göç uygulayıcı her açılışta tüm dosyaları
+-- baştan koşturuyor; korumasız INSERT her deploy'da satır çoğaltırdı): elde yalnız SON değişim var. Onu başlangıç referansı olarak
 -- yazıyoruz; gözlenen verim null kalıyor (öncesi bilinmiyor, uydurulmuyor).
 -- Bir sonraki değişimde ilk gerçek ölçüm çıkacak.
 INSERT INTO "TonerChange" ("id", "tenantId", "deviceId", "channel", "counterValue", "changedAt", "observedYield", "source", "note")
 SELECT
-    'tc_b_' || "id",
-    "tenantId", "id", 'BLACK', "tonerResetBlack",
-    COALESCE("tonerChangedAt", "updatedAt"),
+    'tc_b_' || d."id",
+    d."tenantId", d."id", 'BLACK', d."tonerResetBlack",
+    COALESCE(d."tonerChangedAt", d."updatedAt"),
     NULL, 'GOC', 'Eski kayıttan taşındı'
-FROM "Device"
-WHERE "tonerResetBlack" IS NOT NULL;
+FROM "Device" d
+WHERE d."tonerResetBlack" IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM "TonerChange" t WHERE t."deviceId" = d."id" AND t."channel" = 'BLACK'
+  )
+ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "TonerChange" ("id", "tenantId", "deviceId", "channel", "counterValue", "changedAt", "observedYield", "source", "note")
 SELECT
-    'tc_c_' || "id",
-    "tenantId", "id", 'COLOR', "tonerResetColor",
-    COALESCE("tonerChangedAt", "updatedAt"),
+    'tc_c_' || d."id",
+    d."tenantId", d."id", 'COLOR', d."tonerResetColor",
+    COALESCE(d."tonerChangedAt", d."updatedAt"),
     NULL, 'GOC', 'Eski kayıttan taşındı'
-FROM "Device"
-WHERE "tonerResetColor" IS NOT NULL;
+FROM "Device" d
+WHERE d."tonerResetColor" IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM "TonerChange" t WHERE t."deviceId" = d."id" AND t."channel" = 'COLOR'
+  )
+ON CONFLICT ("id") DO NOTHING;

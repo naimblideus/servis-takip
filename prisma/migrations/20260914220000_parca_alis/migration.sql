@@ -34,7 +34,11 @@ ALTER TABLE "Part" ADD COLUMN "avgCost" DECIMAL(10,2);
 -- Elde alış kaydı yok; bilinen tek şey son alış fiyatı. Onu başlangıç
 -- ortalaması sayıyoruz — sıfır olanlara DOKUNMUYORUZ, çünkü sıfır bir
 -- maliyet değil "girilmemiş" demek ve raporda öyle görünmesi gerekiyor.
-UPDATE "Part" SET "avgCost" = "buyPrice" WHERE "buyPrice" > 0;
+-- İDEMPOTENT OLMAK ZORUNDA: göç uygulayıcı her açılışta tüm dosyaları
+-- baştan koşturuyor. "avgCost IS NULL" koşulu olmasaydı bu satır her
+-- deploy'da hesaplanmış ağırlıklı ortalamayı son alış fiyatıyla ezer ve
+-- bütün maliyet verisi sessizce bozulurdu.
+UPDATE "Part" SET "avgCost" = "buyPrice" WHERE "avgCost" IS NULL AND "buyPrice" > 0;
 
 -- Kullanım anındaki maliyet. Eski satırlarda NULL kalıyor: o fişin o
 -- günkü maliyetini bilmiyoruz ve bugünkü fiyatı geçmişe yazmak, geçmiş
