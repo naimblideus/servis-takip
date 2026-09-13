@@ -16,6 +16,13 @@ const STATUS: Record<string, { label: string; bg: string; color: string; border:
 
 export interface InvoiceDocData {
   invoiceNumber: string;
+  // ── e-BELGE KİMLİĞİ ─────────────────────────────────────────────
+  // Elektronik belgenin insan tarafından okunabilir kopyası bu iki
+  // numarayı taşımak zorunda; taşımayan çıktı belgeyi temsil etmez.
+  // Gönderilmemiş faturada boş kalıyorlar ve hiç basılmıyorlar.
+  gibNo?: string | null;
+  ettn?: string | null;
+  senaryo?: string | null;
   period: string;
   invoiceDate: string | Date;
   dueDate: string | Date;
@@ -146,6 +153,16 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
               <div className="doc-label">Fatura</div>
               <div className="doc-title">{fmt(totalAmount)}</div>
               <div className="doc-no">{invoice.invoiceNumber}</div>
+              {invoice.gibNo && (
+                <div className="doc-no" style={{ fontSize: '0.68rem', opacity: 0.85 }}>
+                  {invoice.senaryo === 'EARSIVFATURA' ? 'e-Arşiv' : 'e-Fatura'}: {invoice.gibNo}
+                </div>
+              )}
+              {invoice.ettn && (
+                <div className="doc-no" style={{ fontSize: '0.6rem', opacity: 0.7, letterSpacing: 0 }}>
+                  ETTN {invoice.ettn}
+                </div>
+              )}
             </div>
           </div>
 

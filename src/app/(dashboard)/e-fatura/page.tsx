@@ -29,15 +29,34 @@ type Ozet = {
 const tl = (n: number) => `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const gg = (s: string) => new Date(s).toLocaleDateString('tr-TR');
 
+/**
+ * Gönderim durumunun rozet karşılığı. Gönderilmiş belge YEŞİL değil MAVİ:
+ * yeşil bu ekranda "hazır" demek ve ikisi karışırsa bayi gönderilmiş
+ * faturayı tekrar göndermeye kalkar.
+ */
+// Tekrar gönderilebilir durumlar — lib/e-belge-gonderim.ts ile aynı liste.
+const GONDERILEBILIR: (string | null)[] = [null, 'HAZIR', 'HATA'];
+// Eski (kağıt/başka sistem) faturalar bu ekranın konusu değil.
+const ESKI = 'ESKI_SISTEM';
+
+const ROZET = {
+  GONDERILIYOR: { etiket: 'gönderiliyor…', zemin: '#e0e7ff', yazi: '#3730a3' },
+  GONDERILDI: { etiket: '✓ gönderildi', zemin: '#dbeafe', yazi: '#1e40af' },
+  KABUL: { etiket: '✓ kabul edildi', zemin: '#dbeafe', yazi: '#1e40af' },
+  RED: { etiket: '✗ RED', zemin: '#fef2f2', yazi: '#991b1b' },
+  HATA: { etiket: '✗ hata', zemin: '#fef2f2', yazi: '#991b1b' },
+};
+
 export default function EFaturaPage() {
   const [veri, setVeri] = useState<Ozet | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hata, setHata] = useState<string | null>(null);
-  const [sadeceEksik, setSadeceEksik] = useState(false);
+  const [suzgec, setSuzgec] = useState<'hepsi' | 'bekleyen' | 'gonderildi' | 'eksik'>('hepsi');
   const [acik, setAcik] = useState<string | null>(null);
   const [belge, setBelge] = useState<any>(null);
   const [ayar, setAyar] = useState<any>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
+  const [topluSonuc, setTopluSonuc] = useState<any>(null);
 
   useEffect(() => {
     // Sağlayıcı ayarı ekranın en üstünde gösteriliyor: bayi "niye
@@ -89,6 +108,37 @@ export default function EFaturaPage() {
     setGonderiliyor(false);
   };
 
+  /**
+   * TOPLU GÖNDERİM — ay sonunda 40-50 kira faturası var; tek tek
+   * göndermek bu özelliği kullanılamaz yapıyordu.
+   *
+   * Onay metni KAÇ fatura ve test mi canlı mı olduğunu yazıyor. Bir
+   * faturanın hatası diğerlerini durdurmuyor ama hiçbiri sessiz
+   * değil: her sonuç tek tek gösteriliyor.
+   */
+  const topluGonder = async () => {
+    const hazirlar = veri!.faturalar.filter((f) => f.hazir && GONDERILEBILIR.includes(f.durum));
+    if (!hazirlar.length) { alert('Gönderilmeye hazır, henüz gönderilmemiş fatura yok.'); return; }
+    const mesaj = ayar?.testModu
+      ? `${hazirlar.length} fatura TEST olarak gönderilecek.\n\nBu belgeler GİB\u2019e ULAŞMAZ ve müşterilere fatura GİTMEZ. Devam edilsin mi?`
+      : `${hazirlar.length} fatura CANLI gönderilecek — GERİ ALINAMAZ.\n\nHer biri müşterisine ulaşır. Devam edilsin mi?`;
+    if (!confirm(mesaj)) return;
+
+    setGonderiliyor(true); setTopluSonuc(null);
+    try {
+      const r = await fetch('/api/invoices/e-belge/toplu', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: hazirlar.map((f) => f.id) }),
+      });
+      const d = await r.json();
+      if (!r.ok) { alert(d.error || 'Gönderilemedi'); }
+      else setTopluSonuc(d);
+      const y = await fetch('/api/invoices/e-belge');
+      setVeri(await y.json());
+    } catch { alert('Sunucuya bağlanılamadı'); }
+    setGonderiliyor(false);
+  };
+
   const belgeyiAc = async (id: string) => {
     if (acik === id) { setAcik(null); setBelge(null); return; }
     setAcik(id); setBelge(null);
@@ -100,8 +150,16 @@ export default function EFaturaPage() {
   if (hata) return <div style={{ padding: '2rem', color: '#b91c1c' }}>{hata}</div>;
   if (!veri) return null;
 
-  const liste = sadeceEksik ? veri.faturalar.filter((f) => !f.hazir) : veri.faturalar;
-  const oran = veri.toplam ? Math.round((veri.hazir / veri.toplam) * 100) : 0;
+  // Üç ayrı yığın: gönderilmiş, gönderilmeyi bekleyen, bilgisi eksik.
+  // HATA almış fatura BEKLEYEN sayılıyor — tekrar gönderilebiliyor ve
+  // ay sonunda unutulmaması gereken tam olarak o.
+  const gonderilmis = veri.faturalar.filter((f) => f.durum && f.durum !== ESKI && !GONDERILEBILIR.includes(f.durum));
+  const bekleyen = veri.faturalar.filter((f) => f.hazir && GONDERILEBILIR.includes(f.durum));
+  const eksikler = veri.faturalar.filter((f) => !f.hazir);
+  const liste = suzgec === 'bekleyen' ? bekleyen
+    : suzgec === 'gonderildi' ? gonderilmis
+    : suzgec === 'eksik' ? eksikler
+    : veri.faturalar;
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1100 }}>
@@ -161,9 +219,9 @@ export default function EFaturaPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9.5rem, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         {[
           ['Fatura', veri.toplam, '#374151'],
-          ['Hazır', veri.hazir, '#15803d'],
-          ['Eksik', veri.eksik, veri.eksik ? '#b45309' : '#9ca3af'],
-          ['Hazır oranı', `%${oran}`, oran === 100 ? '#15803d' : '#374151'],
+          ['Gönderildi', gonderilmis.length, gonderilmis.length ? '#1e40af' : '#9ca3af'],
+          ['Gönderilmeyi bekleyen', bekleyen.length, bekleyen.length ? '#15803d' : '#9ca3af'],
+          ['Bilgisi eksik', veri.eksik, veri.eksik ? '#b45309' : '#9ca3af'],
         ].map(([l, v, c]: any) => (
           <div key={l} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '0.9rem' }}>
             <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{l}</div>
@@ -191,22 +249,82 @@ export default function EFaturaPage() {
         </div>
       )}
 
+      {/* TOPLU GÖNDERİM — ay sonunun asıl işi. Kaç faturanın
+          gönderileceği düğmenin üstünde yazıyor. */}
+      {(() => {
+        const hazirlar = veri.faturalar.filter((f) => f.hazir && GONDERILEBILIR.includes(f.durum));
+        if (!hazirlar.length || !ayar?.saglayici) return null;
+        return (
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+            <button onClick={topluGonder} disabled={gonderiliyor}
+              style={{
+                padding: '0.6rem 1.1rem', borderRadius: '0.5rem', border: 'none', fontWeight: 700,
+                fontSize: '0.88rem', cursor: 'pointer', color: 'white',
+                background: ayar.testModu ? '#b45309' : '#0f2253',
+              }}>
+              {gonderiliyor ? 'Gönderiliyor…' : `${hazirlar.length} hazır faturayı ${ayar.testModu ? 'TEST olarak ' : ''}gönder`}
+            </button>
+            <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+              Sırayla gönderilir; biri hata verirse diğerleri devam eder ve her sonuç tek tek gösterilir.
+            </span>
+          </div>
+        );
+      })()}
+
+      {/* TOPLU XML — ay sonunda muhasebeye/entegratör portalına giden
+          dosyaların hepsi tek arşivde. Tek tek indirmek 40 fatura
+          demek ve bayi o yüzden eski programda kalır. */}
+      {gonderilmis.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+          <a href={`/api/invoices/e-belge/ubl?ids=${gonderilmis.map((f) => f.id).join(',')}`}
+            style={{ padding: '0.55rem 1rem', borderRadius: '0.5rem', border: '1px solid #0f2253', background: 'white', color: '#0f2253', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>
+            {gonderilmis.length} belgenin UBL XML&apos;ini indir (ZIP)
+          </a>
+          <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+            Entegratör portalına toplu yüklemek ya da muhasebeciye vermek için.
+          </span>
+        </div>
+      )}
+
+      {topluSonuc && (
+        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.25rem' }}>
+          <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.5rem' }}>
+            Gönderim sonucu: {topluSonuc.gonderilen} gönderildi
+            {topluSonuc.basarisiz > 0 && <span style={{ color: '#b91c1c' }}>, {topluSonuc.basarisiz} başarısız</span>}
+          </h2>
+          <div style={{ display: 'grid', gap: '0.25rem', fontSize: '0.8rem', maxHeight: '16rem', overflowY: 'auto' }}>
+            {topluSonuc.sonuclar.map((x: any) => (
+              <div key={x.id} style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', color: x.ok ? '#166534' : '#991b1b' }}>
+                <span style={{ fontWeight: 700, minWidth: '1.2rem' }}>{x.ok ? '✓' : '✗'}</span>
+                <span style={{ fontFamily: 'monospace' }}>{x.invoiceNumber}</span>
+                <span style={{ minWidth: '9rem' }}>{x.musteri}</span>
+                {x.gibNo && <span style={{ fontFamily: 'monospace', color: '#6b7280' }}>{x.gibNo}</span>}
+                {x.hata && <span>{x.hata}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-        {[['Tümü', false], ['Yalnız eksikler', true]].map(([l, v]: any) => (
-          <button key={l} onClick={() => setSadeceEksik(v)}
+        {([['Tümü', 'hepsi', veri.toplam], ['Bekleyen', 'bekleyen', bekleyen.length], ['Gönderilen', 'gonderildi', gonderilmis.length], ['Eksik', 'eksik', veri.eksik]] as const).map(([l, v, n]) => (
+          <button key={l} onClick={() => setSuzgec(v)}
             style={{
               padding: '0.4rem 0.9rem', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
-              border: '1px solid ' + (sadeceEksik === v ? '#0f2253' : '#d1d5db'),
-              background: sadeceEksik === v ? '#0f2253' : 'white',
-              color: sadeceEksik === v ? 'white' : '#374151',
-            }}>{l}</button>
+              border: '1px solid ' + (suzgec === v ? '#0f2253' : '#d1d5db'),
+              background: suzgec === v ? '#0f2253' : 'white',
+              color: suzgec === v ? 'white' : '#374151',
+            }}>{l} ({n})</button>
         ))}
       </div>
 
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', overflow: 'hidden' }}>
         {liste.length === 0 && (
           <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.9rem' }}>
-            {sadeceEksik ? 'Eksiği olan fatura yok — hepsi hazır.' : 'Henüz fatura yok.'}
+            {suzgec === 'eksik' ? 'Eksiği olan fatura yok — hepsinin bilgisi tam.'
+              : suzgec === 'bekleyen' ? 'Gönderilmeyi bekleyen fatura yok.'
+              : suzgec === 'gonderildi' ? 'Henüz gönderilmiş fatura yok.'
+              : 'Henüz fatura yok.'}
           </div>
         )}
         {liste.map((f) => (
@@ -215,12 +333,26 @@ export default function EFaturaPage() {
               width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
               padding: '0.8rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
             }}>
-              <span style={{
-                fontSize: '0.7rem', fontWeight: 700, borderRadius: '999px', padding: '0.15rem 0.5rem',
-                background: f.hazir ? '#dcfce7' : '#fef3c7', color: f.hazir ? '#166534' : '#92400e',
-                whiteSpace: 'nowrap',
-              }}>{f.hazir ? 'hazır' : `${f.eksikSayisi} eksik`}</span>
-              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#6b7280' }}>{f.invoiceNumber}</span>
+              {/* ROZET — gönderim durumu varsa hazırlık bilgisinin YERİNE
+                  geçer. Gönderilmiş fatura listede "hazır" yazmaya devam
+                  ederse bayi onu tekrar göndermeye çalışır. */}
+              {(() => {
+                const d = f.durum && f.durum !== 'ESKI_SISTEM' ? f.durum : null;
+                const g = ROZET[d as keyof typeof ROZET];
+                const etiket = g ? g.etiket : f.hazir ? 'hazır' : `${f.eksikSayisi} eksik`;
+                const zemin = g ? g.zemin : f.hazir ? '#dcfce7' : '#fef3c7';
+                const yazi = g ? g.yazi : f.hazir ? '#166534' : '#92400e';
+                return (
+                  <span style={{
+                    fontSize: '0.7rem', fontWeight: 700, borderRadius: '999px', padding: '0.15rem 0.5rem',
+                    background: zemin, color: yazi, whiteSpace: 'nowrap',
+                  }}>{etiket}</span>
+                );
+              })()}
+              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#6b7280' }}>
+                {f.invoiceNumber}
+                {f.gibNo && <><br /><span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{f.gibNo}</span></>}
+              </span>
               <span style={{ flex: 1, minWidth: '8rem', fontWeight: 600, color: '#111827' }}>{f.musteri}</span>
               <span style={{ fontSize: '0.78rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{gg(f.tarih)}</span>
               <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{tl(f.tutar)}</span>
@@ -240,12 +372,22 @@ export default function EFaturaPage() {
                     <b>{belge.gonderimDurumu.durum}</b>
                     {belge.gonderimDurumu.gibNo && <> · <span style={{ fontFamily: 'monospace' }}>{belge.gonderimDurumu.gibNo}</span></>}
                     {belge.gonderimDurumu.not && <div>{belge.gonderimDurumu.not}</div>}
-                    {belge.gonderimDurumu.durum === 'GONDERILDI' && (
-                      <button onClick={() => gonder(f.id, belge, 'durum')} disabled={gonderiliyor}
-                        style={{ marginTop: '0.4rem', padding: '0.25rem 0.7rem', fontSize: '0.76rem', fontWeight: 600, borderRadius: '0.4rem', border: '1px solid #d1d5db', background: 'white', cursor: 'pointer' }}>
-                        Durumu sor (kabul/red)
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                      {belge.gonderimDurumu.durum === 'GONDERILDI' && (
+                        <button onClick={() => gonder(f.id, belge, 'durum')} disabled={gonderiliyor}
+                          style={{ padding: '0.25rem 0.7rem', fontSize: '0.76rem', fontWeight: 600, borderRadius: '0.4rem', border: '1px solid #d1d5db', background: 'white', cursor: 'pointer' }}>
+                          Durumu sor (kabul/red)
+                        </button>
+                      )}
+                      {/* UBL XML — entegratör portalına yüklenecek asıl dosya.
+                          Bağlantı kurulmamış bayinin faturayı kesme yolu bu. */}
+                      {belge.gonderimDurumu.gibNo && (
+                        <a href={`/api/invoices/e-belge/ubl?id=${f.id}`}
+                          style={{ padding: '0.25rem 0.7rem', fontSize: '0.76rem', fontWeight: 600, borderRadius: '0.4rem', border: '1px solid #d1d5db', background: 'white', color: '#111827', textDecoration: 'none' }}>
+                          UBL XML indir
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
                 {belge && belge.eksikler?.length > 0 && (

@@ -5,6 +5,7 @@ import {
 } from '@/lib/fatura-belgesi';
 import { entegratorBul } from '@/lib/entegrator';
 import { sirCoz } from '@/lib/sir';
+import { ublUret, ublDosyaAdi } from '@/lib/ubl';
 
 /**
  * e-BELGE GÖNDERİMİ.
@@ -78,7 +79,7 @@ export async function eBelgeGonder(tenantId: string, invoiceId: string): Promise
     };
   }
   const parola = sirCoz(tenant.eFaturaParola);
-  if (!tenant.eFaturaKullanici || parola === null) {
+  if (entegrator.kimlikGerekir && (!tenant.eFaturaKullanici || parola === null)) {
     return {
       ok: false, durum: null, gibNo: null, ettn: null,
       hata: 'Sağlayıcı kullanıcı adı/parolası okunamadı. Ayarlar → e-Fatura\'dan yeniden girin.',
@@ -208,7 +209,7 @@ export async function eBelgeGonder(tenantId: string, invoiceId: string): Promise
   let sonuc;
   try {
     sonuc = await entegrator.gonder(belge, {
-      kullanici: tenant.eFaturaKullanici, parola, test: tenant.eFaturaTestModu,
+      kullanici: tenant.eFaturaKullanici ?? '', parola: parola ?? '', test: tenant.eFaturaTestModu,
     });
   } catch (e) {
     // Beklenmeyen hata da TEKRAR DENENEBİLİR sayılıyor: ağ kopması yüzünden
@@ -264,14 +265,16 @@ export async function eBelgeDurumGuncelle(tenantId: string, invoiceId: string): 
 
   const entegrator = entegratorBul(tenant.eFaturaSaglayici);
   const parola = sirCoz(tenant.eFaturaParola);
-  if (!entegrator || !tenant.eFaturaKullanici || parola === null) {
+  // Kimlik yalnız GEREKİYORSA aranıyor: elden gönderimde hiçbir servise
+  // bağlanılmıyor ve olmayan bir hesabın bilgisi istenemez.
+  if (!entegrator || (entegrator.kimlikGerekir && (!tenant.eFaturaKullanici || parola === null))) {
     return { ok: false, durum: f.eBelgeDurum as BelgeDurumu, gibNo: f.gibNo, ettn: f.ettn, hata: 'Sağlayıcı ayarları eksik' };
   }
 
   let cevap;
   try {
     cevap = await entegrator.durumSor(f.ettn, {
-      kullanici: tenant.eFaturaKullanici, parola, test: tenant.eFaturaTestModu,
+      kullanici: tenant.eFaturaKullanici ?? '', parola: parola ?? '', test: tenant.eFaturaTestModu,
     });
   } catch (e) {
     return { ok: false, durum: 'GONDERILDI', gibNo: f.gibNo, ettn: f.ettn, hata: e instanceof Error ? e.message : String(e) };
@@ -286,4 +289,63 @@ export async function eBelgeDurumGuncelle(tenantId: string, invoiceId: string): 
     data: { eBelgeDurum: cevap.durum, eBelgeDurumAt: new Date(), eBelgeNot: cevap.not ?? null },
   });
   return { ok: true, durum: cevap.durum, gibNo: f.gibNo, ettn: f.ettn };
+}
+
+// ── UBL ÇIKTISI ──────────────────────────────────────────────────────────
+
+export type UblCevabi =
+  | { ok: true; xml: string; dosyaAdi: string }
+  | { ok: false; hata: string };
+
+/**
+ * Numarası verilmiş faturanın UBL-TR XML'i.
+ *
+ * NUMARA ATAMIYOR. Numarası olmayan fatura için XML üretseydik ya sahte
+ * numaralı (dolayısıyla geçersiz) bir belge çıkardı ya da her indirişte bir
+ * numara yakardık. İkisi de sırayı bozar. Numara yalnız gönderimde
+ * (elden gönderim dahil) atanıyor.
+ */
+export async function eBelgeUbl(tenantId: string, invoiceId: string): Promise<UblCevabi> {
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: SATICI_ALANLARI });
+  if (!tenant) return { ok: false, hata: 'Bayi bulunamadı' };
+  const satici = saticiyaCevir(tenant);
+
+  const f = await prisma.customerInvoice.findFirst({
+    where: { id: invoiceId, tenantId, deletedAt: null },
+    select: {
+      id: true, invoiceNumber: true, invoiceDate: true, notes: true,
+      subtotal: true, vatRate: true, vatAmount: true, totalAmount: true,
+      ettn: true, gibNo: true, eBelgeDurum: true, eBelgeDurumAt: true,
+      customer: { select: ALICI_ALANLARI },
+      lines: {
+        orderBy: { createdAt: 'asc' },
+        select: { description: true, quantity: true, unitPrice: true, lineTotal: true, vatRate: true },
+      },
+    },
+  });
+  if (!f) return { ok: false, hata: 'Fatura bulunamadı' };
+  if (!f.ettn || !f.gibNo) {
+    return { ok: false, hata: 'Bu faturaya henüz belge numarası verilmedi. Önce gönderin — numara gönderimde atanıyor.' };
+  }
+
+  const satirlar = f.lines.map((l) => ({
+    aciklama: l.description, miktar: Number(l.quantity),
+    birimFiyat: Number(l.unitPrice), tutar: Number(l.lineTotal),
+    kdvOrani: l.vatRate === null ? null : Number(l.vatRate),
+  }));
+  const fatura = {
+    invoiceNumber: f.invoiceNumber, invoiceDate: f.invoiceDate, notes: f.notes,
+    subtotal: Number(f.subtotal), vatRate: Number(f.vatRate),
+    vatAmount: Number(f.vatAmount), totalAmount: Number(f.totalAmount),
+  };
+
+  try {
+    const belge = eBelgeUret({ satici, alici: f.customer, fatura, satirlar, ettn: f.ettn, gibNo: f.gibNo });
+    // Belgenin düzenlenme SAATİ = numaranın verildiği an. Uydurma değil,
+    // kayıtlı; bu yüzden aynı fatura her indirişte aynı XML'i veriyor.
+    const saat = f.eBelgeDurumAt ? f.eBelgeDurumAt.toTimeString().slice(0, 8) : null;
+    return { ok: true, xml: ublUret(belge, { saat }), dosyaAdi: ublDosyaAdi(belge) };
+  } catch (e) {
+    return { ok: false, hata: e instanceof Error ? e.message : String(e) };
+  }
 }

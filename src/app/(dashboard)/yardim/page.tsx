@@ -146,14 +146,20 @@ const SECTIONS: Section[] = [
   {
     id: 'e-fatura', icon: '🧾', title: 'e-Fatura hazırlığı (eksikleri şimdi kapat)',
     steps: [
-      'Gelişmiş → e-Fatura Hazırlığı. Bu ekran fatura GÖNDERMEZ; gönderim için ayrı bir e-Fatura servis sağlayıcısı sözleşmesi gerekir.',
+      'Önce Ayarlar → e-Fatura: sağlayıcı ve 3 harfli belge ön eki. “Elden gönderim”i seçersen kullanıcı adı/parola gerekmez; sistem belgeye numarasını verir, UBL XML dosyasını üretir, sen o dosyayı kendi entegratör portalına yükleyip faturayı kesersin. Entegratör sözleşmesi beklemeden çalışır.',
+      'Parola girersen şifreli saklanır ve bir daha gösterilmez.',
+      'TEST MODU varsayılan AÇIK: gönderdiğin belge GİB\'e ulaşmaz, müşteriye fatura gitmez. Rahatça dene.',
+      'Gelişmiş → e-Fatura Hazırlığı: her faturanın hazır olup olmadığı, hazır değilse tam olarak neyin eksik olduğu yazar.',
       'Ekran her faturanın hazır olup olmadığını söyler; hazır değilse tam olarak neyin eksik olduğunu yazar.',
       'Önce kendi bilgilerin (kırmızı kutu) — vergi dairesi, il/ilçe, e-Fatura ön eki. Bunlar kapanmadan hiçbir fatura hazır olamaz.',
       'Sonra "en çok tekrar eden eksikler" listesi: bir müşteriyi düzeltmek genelde birkaç faturayı birden hazır eder.',
       'Alıcı eksikleri müşteri kartındaki "Fatura bilgileri" bölümünden kapatılır.',
       'Bir faturanın üstüne tıklayınca gönderilecek belgenin içeriğini olduğu gibi görürsün — kalemler, KDV oranları, toplam.',
+      'Tek fatura için “Gönder”, ay sonu için “N hazır faturayı gönder”. Toplu gönderimde biri hata verirse diğerleri devam eder ve her sonuç tek tek gösterilir.',
+      'Gönderdikten sonra “Durumu sor” ile kabul/red öğrenilir: TEMELFATURA 8 gün içinde reddedilebilir. Elden gönderimde durum sorulamaz — kendi portalından bakarsın.',
+      'Numarası verilen her belgenin UBL XML dosyası indirilebilir; “N belgenin UBL XML’ini indir (ZIP)” ile ay sonunun hepsi tek arşivde iner. Muhasebeciye vermek ya da portala toplu yüklemek için birebir aynı dosya.',
     ],
-    tip: 'Faturaya müşterinin defterdeki adı değil TESCİLLİ UNVANI yazılır; ikisi farklıysa "Ticari unvan" alanını doldur. "e-Fatura mükellefi mi" sorusu boş bırakılırsa fatura hazır sayılmaz: faturanın hangi yoldan gideceğini o belirliyor.',
+    tip: 'Faturaya müşterinin defterdeki adı değil TESCİLLİ UNVANI yazılır; ikisi farklıysa "Ticari unvan" alanını doldur. "e-Fatura mükellefi mi" sorusu boş bırakılırsa fatura hazır sayılmaz: faturanın hangi yoldan gideceğini o belirliyor. GÖNDERİM GERİ ALINAMAZ — test modunu kapatmadan önce birkaç faturayı test olarak gönderip çıktısına bak. Belge numarası sırasında boşluk olamaz; sistem gönderim başarısız olsa bile numarayı o faturada tutar ve tekrar denemede aynısını kullanır.',
   },
   {
     id: 'kdv', icon: '🧮', title: 'KDV özeti — ay sonunda ne ödeyeceksin',

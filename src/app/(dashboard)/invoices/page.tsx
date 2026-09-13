@@ -231,7 +231,24 @@ export default function InvoicesPage() {
                 const st = STATUS[i.status] || STATUS.OPEN;
                 return (
                   <tr key={i.id} onClick={() => setDetail(i)} className="hover:bg-gray-50 cursor-pointer">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{i.invoiceNumber}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-700">
+                      {i.invoiceNumber}
+                      {/* e-BELGE DURUMU. Ay sonunda bayi bu listede duruyor;
+                          hangisinin gönderildiğini görmek için ayrı ekrana
+                          gitmek zorunda kalmasın. */}
+                      {(i as any).eBelgeDurum && (i as any).eBelgeDurum !== 'ESKI_SISTEM' && (
+                        <div className={`mt-0.5 text-[10px] font-semibold ${
+                          ['KABUL', 'GONDERILDI'].includes((i as any).eBelgeDurum) ? 'text-green-700'
+                            : ['RED', 'HATA'].includes((i as any).eBelgeDurum) ? 'text-red-700' : 'text-amber-700'
+                        }`}>
+                          {(i as any).eBelgeDurum === 'GONDERILDI' ? 'e-belge gönderildi'
+                            : (i as any).eBelgeDurum === 'KABUL' ? 'e-belge kabul'
+                            : (i as any).eBelgeDurum === 'RED' ? 'e-belge RED'
+                            : (i as any).eBelgeDurum === 'HATA' ? 'e-belge hata'
+                            : (i as any).eBelgeDurum === 'GONDERILIYOR' ? 'gönderiliyor…' : ''}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">{i.customer?.name || '—'}</td>
                     <td className="px-4 py-3 text-gray-500">{i.period}</td>
                     <td className="px-4 py-3 text-right font-medium">{fmt(i.totalAmount)}</td>

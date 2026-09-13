@@ -31,6 +31,12 @@ export type DurumSonucu =
 
 export interface Entegrator {
   readonly ad: string;
+  /**
+   * Kullanıcı adı/parola gerekiyor mu. Elden gönderimde hiçbir servise
+   * bağlanılmadığı için gerekmiyor; zorunlu tutsaydık bayi olmayan bir
+   * hesabın bilgilerini uydurmak zorunda kalırdı.
+   */
+  readonly kimlikGerekir: boolean;
   gonder(belge: EBelge, kimlik: EntegratorKimligi): Promise<GonderimSonucu>;
   durumSor(ettn: string, kimlik: EntegratorKimligi): Promise<DurumSonucu>;
 }
@@ -49,6 +55,8 @@ export interface Entegrator {
  */
 export class TestEntegrator implements Entegrator {
   readonly ad = 'TEST';
+  // Gerçek gönderimin provası: kimlik girme adımı da denensin.
+  readonly kimlikGerekir = true;
 
   async gonder(belge: EBelge): Promise<GonderimSonucu> {
     const son = belge.alici.kimlikNo.slice(-1);
@@ -71,8 +79,43 @@ export class TestEntegrator implements Entegrator {
   }
 }
 
+/**
+ * ELDEN GÖNDERİM — entegratör bağlantısı YOKken yasal faturayı kesmenin
+ * yolu.
+ *
+ * Bayi her hâlükârda bir entegratörle ya da GİB portalıyla çalışıyor
+ * (yasal zorunluluk). Eksik olan tek şey O SERVİSE OTOMATİK BAĞLANMAK.
+ * Bu sağlayıcı seçildiğinde sistem belgeye numarasını veriyor, UBL
+ * XML'ini üretiyor ve bayi o dosyayı kendi portalına yüklüyor. Fatura
+ * yasal olarak kesilmiş oluyor, kayıt burada duruyor.
+ *
+ * Hiçbir şey GÖNDERMEDİĞİ için bayiye "gönderildi" demiyor: notu
+ * "XML'i entegratör portalına yükleyin" diyor ve ekranda da böyle
+ * yazıyor. Yüklenmediği hâlde yüklenmiş sanılırsa fatura hiç kesilmemiş
+ * olur — bu yüzden dil burada çok net.
+ */
+export class EldenEntegrator implements Entegrator {
+  readonly ad = 'ELDEN';
+  readonly kimlikGerekir = false;
+
+  async gonder(belge: EBelge): Promise<GonderimSonucu> {
+    return {
+      ok: true,
+      referans: belge.gibNo,
+      not: 'Belge numarası verildi. XML dosyasını indirip entegratör portalınıza YÜKLEYİN — sistem kendi başına göndermez.',
+    };
+  }
+
+  async durumSor(): Promise<DurumSonucu> {
+    // Bağlı olmadığımız bir servisin durumunu bilemeyiz; tahmin etmek
+    // yerine bilmediğimizi söylüyoruz.
+    return { ok: false, hata: 'Elden gönderimde durum sorulamaz — entegratör portalınızdan bakın.' };
+  }
+}
+
 const KAYITLI: Record<string, () => Entegrator> = {
   TEST: () => new TestEntegrator(),
+  ELDEN: () => new EldenEntegrator(),
 };
 
 /** Tanımlı sağlayıcılar — ayarlar ekranı bu listeden seçtiriyor. */

@@ -5,9 +5,9 @@ import { eBelgeGonder, eBelgeDurumGuncelle } from '@/lib/e-belge-gonderim';
 /**
  * POST /api/invoices/e-belge/gonder  { id, islem?: 'gonder' | 'durum' }
  *
- * Fatura göndermek GERİ ALINAMAZ bir iş: yalnız yönetici, ve her zaman
- * tek fatura (toplu gönderim bilerek yok — bir hatayı 50 faturaya birden
- * yapmanın yolu olmamalı).
+ * Fatura göndermek GERİ ALINAMAZ bir iş: yalnız yönetici. Bu uç tek
+ * fatura gönderiyor; ay sonunun toplu gönderimi ayrı uçta (toplu/) ve
+ * orada onay metni kaç faturanın, test mi canlı mı gideceğini yazıyor.
  */
 export async function POST(req: NextRequest) {
   try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }

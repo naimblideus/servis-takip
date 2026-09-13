@@ -17,6 +17,12 @@ import { useEffect, useState } from 'react';
  * girer.
  */
 
+/** Seçim listesinde kod değil bayinin anlayacağı ad görünsün. */
+const SAGLAYICI_ADI: Record<string, string> = {
+  ELDEN: 'Elden gönderim (XML indir, portala yükle)',
+  TEST: 'Test (hiçbir yere gitmez)',
+};
+
 export default function EFaturaAyarPage() {
   const [d, setD] = useState<any>(null);
   const [f, setF] = useState<any>({ saglayici: '', kullanici: '', parola: '', onEk: '', etiket: '', testModu: true });
@@ -84,12 +90,14 @@ export default function EFaturaAyarPage() {
           <label style={lbl}>Sağlayıcı</label>
           <select style={inp} value={f.saglayici} onChange={(e) => setF({ ...f, saglayici: e.target.value })}>
             <option value="">Seçilmemiş — gönderim kapalı</option>
-            {(d.saglayicilar || []).map((x: string) => <option key={x} value={x}>{x}</option>)}
+            {(d.saglayicilar || []).map((x: string) => <option key={x} value={x}>{SAGLAYICI_ADI[x] || x}</option>)}
           </select>
-          <p style={{ fontSize: '0.73rem', color: '#9ca3af', margin: '0.3rem 0 0' }}>
-            <b>TEST</b> gerçek bir servise bağlanmaz; gönderim hattını denemek içindir.
-            Gerçek sağlayıcı, sözleşme yapıldığında buraya eklenir.
-          </p>
+          <div style={{ fontSize: '0.73rem', color: '#6b7280', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
+            <div><b>Elden gönderim</b> — entegratör bağlantısı olmadan çalışır. Sistem belgeye numarasını verir,
+            UBL XML dosyasını üretir; siz o dosyayı kendi entegratör portalınıza yükleyip faturayı kesersiniz.
+            Kullanıcı adı/parola gerekmez.</div>
+            <div style={{ marginTop: '0.2rem' }}><b>Test</b> — hiçbir yere bağlanmaz, gönderim hattını denemek içindir.</div>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))', gap: '0.7rem', marginBottom: '0.9rem' }}>

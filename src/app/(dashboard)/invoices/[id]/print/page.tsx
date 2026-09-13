@@ -25,6 +25,10 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
 
   const doc: InvoiceDocData = {
     invoiceNumber: invoice.invoiceNumber,
+    // Gönderilmemiş faturada bunlar boş — çıktıda hiç basılmıyorlar.
+    gibNo: (invoice as any).gibNo ?? null,
+    ettn: (invoice as any).ettn ?? null,
+    senaryo: (invoice as any).senaryo ?? null,
     period: invoice.period,
     invoiceDate: invoice.invoiceDate,
     dueDate: invoice.dueDate,
