@@ -77,9 +77,28 @@ export interface VerimGrubu {
    */
   mevcutSb: number | null;
   mevcutRenkli: number | null;
+  /**
+   * SAHADA ÖLÇÜLEN verim — iki toner değişimi arasında basılan sayfa.
+   * Bu bir öneri değil GÖZLEM: bayi tek tuşla uygulayabiliyor ve
+   * uygulamasa bile tahmin motoru zaten bunu kullanıyor.
+   */
+  olculenSb: number | null;
+  olculenRenkli: number | null;
+  gozlemSb: number;
+  gozlemRenkli: number;
 }
 
-export async function verimGruplari(tenantId: string): Promise<VerimGrubu[]> {
+/**
+ * Model bazında verim tablosu.
+ *
+ * `olculenler` DIŞARIDAN veriliyor (verim-ogrenme.ts üretiyor): bu dosya
+ * onu kendisi çağırsaydı iki modül birbirini içe aktarırdı ve o döngü
+ * bir gün "sabit tanımsız" diye patlardı.
+ */
+export async function verimGruplari(
+  tenantId: string,
+  olculenler?: Map<string, { deger: number; gozlem: number }>,
+): Promise<VerimGrubu[]> {
   const cihazlar = await prisma.device.findMany({
     where: { tenantId },
     select: {
@@ -97,6 +116,7 @@ export async function verimGruplari(tenantId: string): Promise<VerimGrubu[]> {
       g = {
         anahtar, marka: brand || '—', model: model || '—',
         cihaz: 0, verimli: 0, sayacli: 0, mevcutSb: null, mevcutRenkli: null,
+        olculenSb: null, olculenRenkli: null, gozlemSb: 0, gozlemRenkli: 0,
       };
       harita.set(anahtar, g);
     }
@@ -107,6 +127,21 @@ export async function verimGruplari(tenantId: string): Promise<VerimGrubu[]> {
     }
     if (d.tonerYieldColor && d.tonerYieldColor > 0) g.mevcutRenkli ??= d.tonerYieldColor;
     if (d.counterBlack && d.counterBlack > 0) g.sayacli++;
+  }
+
+  // ── SAHADA ÖLÇÜLEN ────────────────────────────────────────────────
+  // Bu ekran kurulduğunda tek yol elle girmekti ve ölçüldü: 854
+  // cihazın 853'ünde alan boş kaldı. Artık toner değişimleri
+  // saklanıyor ve verim kendiliğinden çıkıyor; ekran bunu gösteriyor
+  // ki bayi "zaten biliniyormuş" desin ve yazmak zorunda kalmasın.
+  for (const [k, v] of olculenler ?? []) {
+    const ayrac = k.lastIndexOf('|');
+    const anahtar = k.slice(0, ayrac);
+    const kanal = k.slice(ayrac + 1);
+    const g = harita.get(anahtar);
+    if (!g) continue;
+    if (kanal === 'BLACK') { g.olculenSb = v.deger; g.gozlemSb = v.gozlem; }
+    else { g.olculenRenkli = v.deger; g.gozlemRenkli = v.gozlem; }
   }
 
   // Çok cihazlı model önce: bayi üstten başlayıp istediği yerde dursun.

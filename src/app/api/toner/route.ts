@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { dailyRate, forecastChannel, soonestDaysLeft, type TonerReadingPoint } from '@/lib/toner';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { bayiMagazasi, musteriMagazaLinki } from '@/lib/magaza-baglanti';
+import { verimleriOgren, populasyonVerimleri, verimSec } from '@/lib/verim-ogrenme';
+import { modelAnahtari } from '@/lib/toner-verimi';
 
 // GET /api/toner — toner takibi açık cihazların tükenme tahmini (proaktif sevkiyat listesi).
 export async function GET() {
@@ -12,12 +14,14 @@ export async function GET() {
   const user = await oturumKullanicisi(session);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-  // Toner takibi tanımlı cihazlar (S/B veya renkli verim girilmiş)
+  // ── HANGİ CİHAZLAR ───────────────────────────────────────────────
+  // Eskiden yalnız verimi ELLE GİRİLMİŞ cihazlar listeleniyordu ve
+  // ölçüldüğünde 854 cihazın 853'ü dışarıda kalıyordu: özellik
+  // kimsenin dolduramayacağı bir alan yüzünden kapalıydı. Artık hepsi
+  // çekiliyor ve verimi ÖLÇÜLMÜŞ olanlar da listeye giriyor; hiçbir
+  // kaynaktan verim çıkmayan cihaz yine listeye girmiyor (uydurma yok).
   const devices = await prisma.device.findMany({
-    where: {
-      tenantId: user.tenantId,
-      OR: [{ tonerYieldBlack: { not: null } }, { tonerYieldColor: { not: null } }],
-    },
+    where: { tenantId: user.tenantId },
     include: {
       customer: {
         select: {
@@ -31,6 +35,10 @@ export async function GET() {
 
   // Bayinin mağazası var mı? Yoksa 'sipariş bağlantısı' düğmesi hiç gösterilmez.
   const magaza = await bayiMagazasi(user.tenantId);
+
+  // Ölçülmüş verimler: bu bayinin kendi kayıtları + popülasyon.
+  const ogrenilen = await verimleriOgren(user.tenantId);
+  const populasyon = await populasyonVerimleri();
 
   const ids = devices.map((d) => d.id);
   // Son 120 günün okumaları — hız hesabı için (tek sorgu, JS'te grupla)
@@ -51,15 +59,30 @@ export async function GET() {
 
   const items = devices.map((d) => {
     const pts = byDevice.get(d.id) || [];
+    const mAnahtar = modelAnahtari(d.brand, d.model);
+    // Verim SORULMUYOR, ÖLÇÜLÜYOR. Sıra: elle girilen → bu cihazın
+    // kendi geçmişi → aynı modelin diğer cihazları → popülasyon.
+    const verimSb = verimSec({
+      elle: d.tonerYieldBlack,
+      cihaz: ogrenilen.cihaz.get(`${d.id}|BLACK`),
+      model: ogrenilen.model.get(`${mAnahtar}|BLACK`),
+      populasyon: populasyon.get(`${mAnahtar}|BLACK`),
+    });
+    const verimRenkli = verimSec({
+      elle: d.tonerYieldColor,
+      cihaz: ogrenilen.cihaz.get(`${d.id}|COLOR`),
+      model: ogrenilen.model.get(`${mAnahtar}|COLOR`),
+      populasyon: populasyon.get(`${mAnahtar}|COLOR`),
+    });
     const black = forecastChannel({
-      yieldPages: d.tonerYieldBlack ?? null,
+      yieldPages: verimSb.deger,
       reset: d.tonerResetBlack ?? null,
       current: d.counterBlack ?? null,
       rate: dailyRate(pts, 'black'),
       channel: 'black',
     });
     const color = forecastChannel({
-      yieldPages: d.tonerYieldColor ?? null,
+      yieldPages: verimRenkli.deger,
       reset: d.tonerResetColor ?? null,
       current: d.counterColor ?? null,
       rate: dailyRate(pts, 'color'),
@@ -85,6 +108,10 @@ export async function GET() {
       magazaLink,
       tonerChangedAt: d.tonerChangedAt ? d.tonerChangedAt.toISOString() : null,
       black, color, soonestDaysLeft: soonest, needsSetup,
+      // Verimin NEREDEN geldiği ekranda yazıyor: ölçülmüş bir sayıyla
+      // elle girilmiş bir sayı aynı güvende değil ve bayi hangisine
+      // baktığını bilmeli.
+      verimSb, verimRenkli,
     };
   });
 
@@ -97,6 +124,22 @@ export async function GET() {
     return ax - bx;
   });
 
-  const urgent = items.filter((i) => i.soonestDaysLeft != null && (i.soonestDaysLeft as number) <= 14).length;
-  return NextResponse.json({ items, trackedCount: devices.length, urgent });
+  // Verimi hiçbir kaynaktan bilinmeyen cihaz listede görünmüyor: o
+  // cihaz için söylenecek bir şey yok ve boş satır listeyi kullanılmaz
+  // yapardı. Kaç tane olduğu ayrıca bildiriliyor.
+  const takipli = items.filter((i) => i.black || i.color);
+  const olculen = takipli.filter(
+    (i) => i.verimSb.kaynak && i.verimSb.kaynak !== 'ELLE'
+      || i.verimRenkli.kaynak && i.verimRenkli.kaynak !== 'ELLE',
+  ).length;
+  const urgent = takipli.filter((i) => i.soonestDaysLeft != null && (i.soonestDaysLeft as number) <= 14).length;
+  return NextResponse.json({
+    items: takipli,
+    trackedCount: takipli.length,
+    // Verimi hiç bilinmeyen cihaz sayısı — ekranda "ikinci toner
+    // değişiminde kendiliğinden açılacak" diye gösteriliyor.
+    bilinmeyen: items.length - takipli.length,
+    olculen,
+    urgent,
+  });
 }

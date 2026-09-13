@@ -49,6 +49,40 @@ export default function TicketPartsPanel({ ticketId }: Props) {
     // Barkod okuyucu (HID) geri bildirimi
     const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
+    // ── TONER DEĞİŞİMİ ────────────────────────────────────────────────
+    // Fişe toner eklemek, toner DEĞİŞTİ demektir. Sistem bunu kendisi
+    // kaydediyor ve iki değişim arasındaki sayfa farkından o modelin
+    // gerçek verimini öğreniyor. Rengi addan çıkmıyorsa teknisyene tek
+    // dokunuşluk soru soruluyor — yanlış kanala yazmaktansa sormak.
+    const [tonerSoru, setTonerSoru] = useState<{ ticketPartId: string; partAdi: string } | null>(null);
+    const [tonerBilgi, setTonerBilgi] = useState<string | null>(null);
+
+    const tonerCevabi = (d: any) => {
+        if (d?.tonerSorusu) { setTonerSoru(d.tonerSorusu); setTonerBilgi(null); return; }
+        if (d?.tonerKaydi) {
+            setTonerSoru(null);
+            const k = d.tonerKaydi.kanal === 'COLOR' ? 'Renkli' : 'S/B';
+            setTonerBilgi(d.tonerKaydi.olculenVerim
+                ? `${k} toner değişimi kaydedildi — bu cihazda ${d.tonerKaydi.olculenVerim.toLocaleString('tr-TR')} sayfa ölçüldü.`
+                : `${k} toner değişimi kaydedildi. Verim, bir sonraki değişimde ölçülecek.`);
+        }
+    };
+
+    const kanalCevapla = async (kanal: string) => {
+        if (!tonerSoru) return;
+        const r = await fetch(`/api/tickets/${ticketId}/parts`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketPartId: tonerSoru.ticketPartId, kanal }),
+        });
+        const d = await r.json();
+        if (!r.ok) { alert(d.error || 'Kaydedilemedi'); return; }
+        setTonerSoru(null);
+        const k = kanal === 'COLOR' ? 'Renkli' : 'S/B';
+        setTonerBilgi(d.olculenVerim
+            ? `${k} toner değişimi kaydedildi — bu cihazda ${d.olculenVerim.toLocaleString('tr-TR')} sayfa ölçüldü.`
+            : `${k} toner değişimi kaydedildi. Verim, bir sonraki değişimde ölçülecek.`);
+    };
+
     const load = async () => {
         const [tpRes, pRes] = await Promise.all([
             fetch(`/api/tickets/${ticketId}/parts`),
@@ -78,6 +112,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                 body: JSON.stringify({ barcode: code, quantity: 1 }),
             });
             if (res.ok) {
+                tonerCevabi(await res.json().catch(() => null));
                 await load();
                 const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);
                 if (tpRes.ok) { const parts = await tpRes.json(); await syncTotalCost(parts); }
@@ -138,6 +173,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             body: JSON.stringify({ partId: selectedPart.id, quantity: parseInt(quantity) }),
         });
         if (res.ok) {
+            tonerCevabi(await res.json().catch(() => null));
             setSelectedPart(null);
             setSearchText('');
             setQuantity('1');
@@ -236,6 +272,43 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                     <span style={{ fontSize: '0.85rem' }}>▮▮▯▮</span> Barkod okuyucu hazır
                 </span>
             </div>
+
+            {/* ═══ TONER DEĞİŞİMİ — tek dokunuşluk soru ═══ */}
+            {tonerSoru && (
+                <div style={{
+                    backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.5rem',
+                    padding: '0.75rem 1rem', marginBottom: '0.75rem',
+                }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e3a8a', marginBottom: '0.5rem' }}>
+                        {tonerSoru.partAdi} takıldı — hangi toner?
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => kanalCevapla('BLACK')} style={{
+                            padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: 'none',
+                            background: '#111827', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                        }}>S/B</button>
+                        <button type="button" onClick={() => kanalCevapla('COLOR')} style={{
+                            padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: 'none',
+                            background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                        }}>Renkli</button>
+                        <button type="button" onClick={() => setTonerSoru(null)} style={{
+                            padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: '1px solid #d1d5db',
+                            background: 'white', color: '#374151', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+                        }}>Toner değişmedi</button>
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.4rem' }}>
+                        Bu cevap tonerin ne kadar dayandığını ölçmek için; parça zaten fişe eklendi.
+                    </div>
+                </div>
+            )}
+            {tonerBilgi && (
+                <div style={{
+                    backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857',
+                    borderRadius: '0.5rem', padding: '0.6rem 0.9rem', marginBottom: '0.75rem', fontSize: '0.82rem',
+                }}>
+                    ✓ {tonerBilgi}
+                </div>
+            )}
 
             {/* ═══ Barkod okuma geri bildirimi ═══ */}
             {scanMsg && (

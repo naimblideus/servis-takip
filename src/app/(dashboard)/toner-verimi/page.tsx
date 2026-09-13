@@ -12,6 +12,10 @@ interface Grup {
   sayacli: number;
   mevcutSb: number | null;
   mevcutRenkli: number | null;
+  olculenSb: number | null;
+  olculenRenkli: number | null;
+  gozlemSb: number;
+  gozlemRenkli: number;
 }
 
 /**
@@ -36,7 +40,7 @@ interface Grup {
  */
 export default function TonerVerimiSayfasi() {
   const [gruplar, setGruplar] = useState<Grup[]>([]);
-  const [ozet, setOzet] = useState<{ model: number; cihaz: number; verimli: number; eksik: number } | null>(null);
+  const [ozet, setOzet] = useState<{ model: number; cihaz: number; verimli: number; eksik: number; olculenModel?: number } | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [ara, setAra] = useState('');
   const [sadeceEksik, setSadeceEksik] = useState(true);
@@ -181,6 +185,37 @@ export default function TonerVerimiSayfasi() {
                       buraya kadar {kumulatif[i]} cihaz açılır
                     </span>
                   </div>
+                  {/* SAHADA ÖLÇÜLEN — bu bir öneri değil gözlem. Tahmin
+                      motoru zaten bunu kullanıyor; düğme sadece değeri
+                      cihaz kartına da yazıyor (sabitliyor). */}
+                  {(g.olculenSb || g.olculenRenkli) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-emerald-700">
+                      <span className="font-medium">Sahada ölçüldü:</span>
+                      {g.olculenSb && (
+                        <span className="tabular-nums">
+                          S/B {g.olculenSb.toLocaleString('tr-TR')} ({g.gozlemSb} toner)
+                        </span>
+                      )}
+                      {g.olculenRenkli && (
+                        <span className="tabular-nums">
+                          Renkli {g.olculenRenkli.toLocaleString('tr-TR')} ({g.gozlemRenkli} toner)
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setGirdi((st) => ({
+                          ...st,
+                          [g.anahtar]: {
+                            sb: g.olculenSb ? String(g.olculenSb) : (st[g.anahtar]?.sb ?? ''),
+                            renkli: g.olculenRenkli ? String(g.olculenRenkli) : (st[g.anahtar]?.renkli ?? ''),
+                          },
+                        }))}
+                        className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 font-medium hover:bg-emerald-100"
+                      >
+                        forma yaz
+                      </button>
+                    </div>
+                  )}
                   {mesaj[g.anahtar] && (
                     <div className="mt-1 text-xs font-medium text-green-700">{mesaj[g.anahtar]}</div>
                   )}
@@ -222,6 +257,13 @@ export default function TonerVerimiSayfasi() {
         Verim, toner kutusunun üstünde yazan sayfa sayısıdır (&ldquo;%5 doluluk&rdquo;).
         Sistem tahmin yürütmez — girdiğiniz sayı kullanılır. Zaten dolu olan
         cihazlara dokunulmaz.
+      </p>
+      <p className="mt-2 text-xs text-gray-500">
+        <b>Bu tabloyu doldurmak artık şart değil.</b> Fişe toner eklendikçe sistem
+        iki değişim arasında kaç sayfa basıldığını ölçüyor ve o modelin gerçek
+        verimini kendisi öğreniyor — kutunun üstündeki sayı değil, sizin
+        müşterinizde çıkan sayı. Yukarıdaki alanlar yalnız <i>bildiğiniz bir
+        değeri sabitlemek</i> için: elle girilen sayı ölçümü ezer.
       </p>
     </div>
   );

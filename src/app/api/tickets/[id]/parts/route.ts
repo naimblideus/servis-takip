@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { kanalKarari, degisimKaydet, tonerMu, type Kanal } from '@/lib/verim-ogrenme';
 
 // GET: Bu fişin parçalarını listele
 export async function GET(
@@ -99,9 +100,81 @@ export async function POST(
             }),
         ]);
 
-        return NextResponse.json(ticketPart);
+        // ── TONER DEĞİŞİMİ ─────────────────────────────────────────
+        // Teknisyen fişe toner eklediğinde toner ZATEN değişmiştir.
+        // Bunu ayrıca cihaz kartından işaretlemesini beklemek, hiç
+        // işaretlenmemesi demekti — ve verim ölçümü hiç başlamıyordu.
+        //
+        // Kanal TAHMİN EDİLMİYOR. Ad renk söylemiyorsa ve cihaz renkli
+        // basabiliyorsa soru ekrana dönüyor: yanlış kanala yazılan bir
+        // değişim o kanalın verimini kalıcı olarak bozar.
+        let tonerKaydi: any = null;
+        let tonerSorusu: any = null;
+        if (tonerMu(part)) {
+            const device = await prisma.device.findFirst({
+                where: { id: ticket.deviceId, tenantId: user.tenantId },
+                select: { id: true, counterBlack: true, counterColor: true, tonerYieldColor: true },
+            });
+            if (device) {
+                const { kanal } = kanalKarari(part, device);
+                if (kanal) {
+                    const r = await degisimKaydet({
+                        tenantId: user.tenantId, deviceId: device.id, channel: kanal,
+                        counterValue: (kanal === 'BLACK' ? device.counterBlack : device.counterColor) ?? 0,
+                        partId: part.id, source: 'FIS', note: part.name,
+                    });
+                    tonerKaydi = { kanal, olculenVerim: r.observedYield };
+                } else {
+                    tonerSorusu = { ticketPartId: ticketPart.id, partAdi: part.name };
+                }
+            }
+        }
+
+        return NextResponse.json({ ...ticketPart, tonerKaydi, tonerSorusu });
     } catch (e: any) {
         console.error('TICKET PART ERROR:', e.message);
+        return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+}
+
+// PATCH: "Bu toner hangi kanaldı?" sorusunun cevabı.
+// Teknisyen sahada tek dokunuşla S/B ya da Renkli der; verim ölçümü
+// o anda başlar. Cevaplanmazsa hiçbir şey yazılmıyor — belirsiz kayıt,
+// kayıt olmamasından kötü.
+export async function PATCH(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id: ticketId } = await params;
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    try {
+        const user = await oturumKullanicisi(session);
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+        const { ticketPartId, kanal } = await req.json();
+        if (kanal !== 'BLACK' && kanal !== 'COLOR') {
+            return NextResponse.json({ error: 'Kanal S/B ya da Renkli olmalı' }, { status: 400 });
+        }
+        const tp = await prisma.ticketPart.findFirst({
+            where: { id: ticketPartId, ticketId, tenantId: user.tenantId },
+            include: { part: true, ticket: { select: { deviceId: true } } },
+        });
+        if (!tp) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+
+        const device = await prisma.device.findFirst({
+            where: { id: tp.ticket.deviceId, tenantId: user.tenantId },
+            select: { id: true, counterBlack: true, counterColor: true },
+        });
+        if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+
+        const r = await degisimKaydet({
+            tenantId: user.tenantId, deviceId: device.id, channel: kanal as Kanal,
+            counterValue: (kanal === 'BLACK' ? device.counterBlack : device.counterColor) ?? 0,
+            partId: tp.partId, source: 'FIS', note: tp.part.name,
+        });
+        return NextResponse.json({ ok: true, kanal, olculenVerim: r.observedYield });
+    } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
 }

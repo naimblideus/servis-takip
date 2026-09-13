@@ -14,6 +14,10 @@ interface Item {
   tonerChangedAt: string | null;
   black: Forecast | null; color: Forecast | null;
   soonestDaysLeft: number | null; needsSetup: boolean;
+  // Verimin nereden geldiği — ölçülmüş bir sayıyla elle girilmiş bir
+  // sayı aynı güvende değil ve bayi hangisine baktığını bilmeli.
+  verimSb?: { deger: number | null; kaynak: string | null; gozlem: number; aciklama: string };
+  verimRenkli?: { deger: number | null; kaynak: string | null; gozlem: number; aciklama: string };
   /** Nextus Mağaza sipariş bağlantısı — mağaza kurulu ve müşteri paneli açıksa dolu. */
   magazaLink?: string | null;
 }
@@ -58,10 +62,26 @@ function siparisMesaji(i: Item): string {
   return gun + link;
 }
 
+/**
+ * Verimin NEREDEN geldiği. Gizlenmiyor: "2.000 sayfa" yazan bir satırın
+ * elle girilmiş bir tahmin mi yoksa altı kartuşta ölçülmüş bir gözlem mi
+ * olduğu, bayinin o tahmine ne kadar güveneceğini belirliyor.
+ */
+function VerimKaynagi({ v, ad }: { v?: Item['verimSb']; ad: string }) {
+  if (!v || !v.deger || v.kaynak === 'ELLE') return null;
+  return (
+    <div style={{ fontSize: '0.74rem', color: '#047857', marginTop: 2 }}>
+      {ad} verimi {v.deger.toLocaleString('tr-TR')} sayfa · {v.aciklama.toLocaleLowerCase('tr')}
+    </div>
+  );
+}
+
 export default function SarfPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [tracked, setTracked] = useState(0);
   const [urgent, setUrgent] = useState(0);
+  const [olculen, setOlculen] = useState(0);
+  const [bilinmeyen, setBilinmeyen] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,6 +89,8 @@ export default function SarfPage() {
       setItems(Array.isArray(d.items) ? d.items : []);
       setTracked(d.trackedCount || 0);
       setUrgent(d.urgent || 0);
+      setOlculen(d.olculen || 0);
+      setBilinmeyen(d.bilinmeyen || 0);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -82,6 +104,15 @@ export default function SarfPage() {
         </p>
       </div>
 
+      {/* ── VERİM ARTIK SORULMUYOR, ÖLÇÜLÜYOR ──────────────────────────
+          İki toner değişimi arasında basılan sayfa, o cihazın gerçek
+          verimi. Bayi hiçbir şey yazmadan, toner değiştirdikçe doluyor. */}
+      {olculen > 0 && (
+        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857', borderRadius: 10, padding: '0.6rem 0.9rem', marginTop: '0.9rem', fontSize: '0.84rem' }}>
+          <b>{olculen} cihazın verimi sahada ölçüldü</b> — kimse elle girmedi. Toner değiştikçe ölçüm kendiliğinden düzeliyor.
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10, margin: '1rem 0' }}>
         <div style={{ flex: 1, background: 'white', border: '1px solid #fecaca', borderRadius: 10, padding: '0.7rem 1rem' }}>
           <div style={{ fontSize: '0.72rem', color: '#b91c1c', fontWeight: 700 }}>YAKINDA BİTECEK (≤14 gün)</div>
@@ -90,6 +121,11 @@ export default function SarfPage() {
         <div style={{ flex: 1, background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0.7rem 1rem' }}>
           <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700 }}>TAKİPTEKİ CİHAZ</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{tracked}</div>
+        </div>
+        <div style={{ flex: 1, background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0.7rem 1rem' }}>
+          <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700 }}>VERİMİ HENÜZ BİLİNMEYEN</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: bilinmeyen ? '#b45309' : '#9ca3af' }}>{bilinmeyen}</div>
+          <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>ikinci toner değişiminde açılır</div>
         </div>
       </div>
 
@@ -136,6 +172,8 @@ export default function SarfPage() {
                     </div>
                     <ChannelLine f={i.black} name="⚫ Siyah" />
                     <ChannelLine f={i.color} name="🟣 Renkli" />
+                    <VerimKaynagi v={i.verimSb} ad="S/B" />
+                    <VerimKaynagi v={i.verimRenkli} ad="Renkli" />
                   </div>
                   <Link href={`/devices/${i.id}`} style={{ flexShrink: 0, padding: '0.5rem 0.9rem', background: '#0ea5e9', color: 'white', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>Cihaz →</Link>
                 </div>

@@ -42,10 +42,10 @@ model Tenant {
   // kalmalı: SF-FAT-2026-00001 bayinin kendi defteri, NXS2026000000001
   // ise belge numarası. Ön ek 3 harf ve GİB'e kayıtlı olmak zorunda,
   // sıra numarasında BOŞLUK olamaz — o yüzden ayrı sayaç.
-  eFaturaOnEk    String? // 3 harf, GİB'e kayıtlı (örn. NXS)
-  eFaturaSeq     Int     @default(0) // yıl içindeki son sıra
-  eFaturaSeqYil  Int? // sayacın ait olduğu yıl (yıl dönünce 1'den başlar)
-  eFaturaEtiket  String? // GİB gönderici birim etiketi
+  eFaturaOnEk      String? // 3 harf, GİB'e kayıtlı (örn. NXS)
+  eFaturaSeq       Int     @default(0) // yıl içindeki son sıra
+  eFaturaSeqYil    Int? // sayacın ait olduğu yıl (yıl dönünce 1'den başlar)
+  eFaturaEtiket    String? // GİB gönderici birim etiketi
   // ── ENTEGRATÖR ──────────────────────────────────────────────────────
   // Hangi özel entegratörle çalışıldığı. Parola ŞİFRELİ saklanıyor
   // (lib/sir.ts); şifreleme anahtarı yoksa hiç kaydedilmiyor, düz metne
@@ -56,7 +56,7 @@ model Tenant {
   // Test modunda gönderilen belge GİB'e ULAŞMAZ. Varsayılan true:
   // yanlışlıkla gerçek fatura göndermek geri alınamaz.
   eFaturaTestModu  Boolean @default(true)
-  reminderEnabled    Boolean @default(true) // Vade hatırlatma
+  reminderEnabled  Boolean @default(true) // Vade hatırlatma
 
   // Sektör
   businessType String @default("general")
@@ -118,6 +118,7 @@ model Tenant {
   devices             Device[]
   serviceTickets      ServiceTicket[]
   counterReadings     CounterReading[]
+  tonerChanges        TonerChange[]
   parts               Part[]
   ticketParts         TicketPart[]
   payments            Payment[]
@@ -408,17 +409,17 @@ model Customer {
   // İl/ilçe adresin içinde serbest metin olarak duruyordu. Fatura
   // biçiminde bunlar AYRI alanlar (CityName / CitySubdivisionName);
   // serbest metinden ayrıştırmak tahmin olurdu, sorup saklıyoruz.
-  city     String? // İl
-  district String? // İlçe
+  city      String? // İl
+  district  String? // İlçe
 
   // e-Fatura mükellefi mi? Faturanın nereden gideceğini bu belirliyor:
   // mükellefse e-Fatura (sistem üzerinden), değilse e-Arşiv (e-posta).
   // null = HİÇ SORULMADI; false = sorulmuş, mükellef değil. Müşteri
   // sonradan mükellef olabildiği için sorgu tarihini de tutuyoruz —
   // "ne zaman baktık" bilinmeden "değil" cevabına güvenilmez.
-  eInvoiceUser      Boolean?  // null = bilinmiyor
+  eInvoiceUser      Boolean? // null = bilinmiyor
   eInvoiceCheckedAt DateTime? // en son ne zaman sorgulandı
-  eInvoiceAlias     String?   // GİB alıcı etiketi (mükellefse)
+  eInvoiceAlias     String? // GİB alıcı etiketi (mükellefse)
 
   // ── MÜŞTERİ PORTALI ──────────────────────────────────────────────────
   // Müşteri kendi cihazlarını, servis fişlerini ve bakiyesini görsün diye
@@ -519,6 +520,7 @@ model Device {
   customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   serviceTickets  ServiceTicket[]
   counterReadings CounterReading[]
+  tonerChanges    TonerChange[]
   portalRequests  PortalRequest[]
   contractDevices ContractDevice[]
 
@@ -642,7 +644,6 @@ enum PaymentStatus {
   REFUNDED
 }
 
-
 // ============================================
 // SÖZLEŞME
 // ============================================
@@ -660,20 +661,20 @@ enum PaymentStatus {
 // belgesi, biz onu yazmayız. Taranmış nüshanın bağlantısı tutuluyor.
 //
 model Contract {
-  id         String   @id @default(cuid())
+  id         String  @id @default(cuid())
   tenantId   String
   customerId String
   contractNo String? // bayinin kendi numarası
 
-  startDate DateTime
-  endDate   DateTime
+  startDate   DateTime
+  endDate     DateTime
   // FESİH İHBAR SÜRESİ. Sözleşme bitmeden bu kadar gün önce haber
   // verilmezse kendiliğinden uzuyor — bayi pencereyi kaçırınca bir yıl
   // daha eski fiyattan bağlı kalıyor. Tarihi bilmek yetmiyor, ihbar
   // gününü bilmek gerekiyor.
-  noticeDays  Int     @default(0)
-  autoRenew   Boolean @default(false)
-  renewMonths Int     @default(12)
+  noticeDays  Int      @default(0)
+  autoRenew   Boolean  @default(false)
+  renewMonths Int      @default(12)
 
   // ── ZAM MADDESİ ─────────────────────────────────────────────────────
   // Enflasyonlu ortamda zammı unutmak sessiz gelir kaybı. Sözleşmede
@@ -802,6 +803,35 @@ model Part {
   @@index([tenantId, stockQty])
   @@index([tenantId, barcode])
   @@index([oemBrand, oemCode])
+}
+
+// TONER DEĞİŞİM GEÇMİŞİ — verimi SORMAK yerine ÖLÇMEK için.
+//
+// Device.tonerResetBlack yalnız SON değişimi tutuyor; yeni değişim
+// yazılınca bir önceki siliniyordu. Oysa iki değişim arasında basılan
+// sayfa, o modelin GERÇEK verimidir — kutunun üstündeki sayı değil,
+// sahada ölçüleni. Tarih silindiği için bu gözlem her seferinde
+// kayboluyordu ve bayiden 854 cihaz için verim girmesi bekleniyordu.
+model TonerChange {
+  id            String   @id @default(cuid())
+  tenantId      String
+  deviceId      String
+  channel       String // BLACK | COLOR
+  counterValue     Int // Değişim anındaki sayaç
+  changedAt     DateTime
+  // Bir önceki değişimden bu yana basılan sayfa = o kartuşun gerçek
+  // verimi. İlk değişimde referans yok, bu yüzden null.
+  observedYield Int?
+  partId        String? // Takılan kartuş (maliyet ve marka için)
+  source        String // ELLE | FIS | GOC
+  note          String?
+  createdAt     DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, deviceId, channel, changedAt])
+  @@index([tenantId, changedAt])
 }
 
 model TicketPart {
@@ -1227,14 +1257,14 @@ model Expense {
   // yazıyor, ikinci bir hesap yapmıyor. vatAmount onun İÇİNDEN ayrılan
   // kısım. Böylece eski kayıtlar (vatAmount null) bozulmadan duruyor ve
   // hiçbir toplam değişmiyor.
-  vatRate     Decimal? @db.Decimal(5, 2)
-  vatAmount   Decimal? @db.Decimal(10, 2)
+  vatRate    Decimal? @db.Decimal(5, 2)
+  vatAmount  Decimal? @db.Decimal(10, 2)
   // Fatura no + satıcı VKN: muhasebeciye giden listede aranan iki alan.
-  invoiceNo   String?
-  payeeTaxNo  String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  invoiceNo  String?
+  payeeTaxNo String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1362,7 +1392,7 @@ model CustomerInvoice {
   // Bu alanlar entegratörden BAĞIMSIZ: hangi özel entegratör seçilirse
   // seçilsin aynı bilgiler isteniyor. Hepsi boş başlar; fatura kesmek
   // e-belge göndermek DEĞİLDİR, ikisi ayrı adım.
-  ettn          String? @unique // belgenin evrensel tekil numarası (UUID)
+  ettn          String?   @unique // belgenin evrensel tekil numarası (UUID)
   gibNo         String? // NXS2026000000001 — 3 harf + yıl + 9 hane
   senaryo       String? // TEMELFATURA (mükellef) | EARSIVFATURA (değil)
   faturaTipi    String? // SATIS | IADE
@@ -1370,9 +1400,9 @@ model CustomerInvoice {
   eBelgeDurumAt DateTime?
   eBelgeNot     String? // entegratör/GİB mesajı, red gerekçesi
 
-  deletedAt     DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   // Relations
   tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { verimGruplari, verimUygula } from '@/lib/toner-verimi';
+import { verimleriOgren } from '@/lib/verim-ogrenme';
 import { writeAudit, istekIp } from '@/lib/audit';
 
 /**
@@ -13,14 +14,22 @@ import { writeAudit, istekIp } from '@/lib/audit';
 export async function GET() {
   try {
     const { tenantId } = await requireTenantUser();
-    const gruplar = await verimGruplari(tenantId);
+    // Sahada ölçülmüş verimler burada üretilip tabloya veriliyor.
+    // toner-verimi.ts bunu kendisi çağırsaydı iki modül birbirini içe
+    // aktarırdı ve o döngü bir gün sebebi bulunamayan bir hata olurdu.
+    const ogrenilen = await verimleriOgren(tenantId);
+    const gruplar = await verimGruplari(tenantId, ogrenilen.model);
 
     const cihaz = gruplar.reduce((a, g) => a + g.cihaz, 0);
     const verimli = gruplar.reduce((a, g) => a + g.verimli, 0);
 
     return NextResponse.json({
       gruplar,
-      ozet: { model: gruplar.length, cihaz, verimli, eksik: cihaz - verimli },
+      ozet: {
+        model: gruplar.length, cihaz, verimli, eksik: cihaz - verimli,
+        // Kaç modelin verimi ELLE GİRİLMEDEN, sahadan öğrenildi.
+        olculenModel: gruplar.filter((g) => g.olculenSb || g.olculenRenkli).length,
+      },
     });
   } catch (e) {
     return authErrorResponse(e);
