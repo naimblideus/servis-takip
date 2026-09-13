@@ -89,10 +89,18 @@ export default function SozlesmelerPage() {
             Sözleşmede yazan ile sistemde olan aynı mı — fark varsa kaç lira.
           </p>
         </div>
-        <button onClick={() => setFormAcik(true)}
-          style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.625rem 1.25rem', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
-          + Yeni Sözleşme
-        </button>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {/* KÂRLILIK — yenileme görüşmesine bu rakamla oturulur. Ayrı menü
+              satırı açmıyoruz; bayi zaten sözleşmeye bakarken burada. */}
+          <a href="/sozlesmeler/karlilik"
+            style={{ background: 'white', color: '#0f2253', border: '1px solid #0f2253', padding: '0.625rem 1.1rem', borderRadius: '0.5rem', fontWeight: 600, textDecoration: 'none' }}>
+            Kârlılık ve fiyat kararı →
+          </a>
+          <button onClick={() => setFormAcik(true)}
+            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.625rem 1.25rem', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
+            + Yeni Sözleşme
+          </button>
+        </div>
       </div>
 
       {/* ── PARA ÖNCE ────────────────────────────────────────────────────

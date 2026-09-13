@@ -56,6 +56,13 @@ model Tenant {
   // Test modunda gönderilen belge GİB'e ULAŞMAZ. Varsayılan true:
   // yanlışlıkla gerçek fatura göndermek geri alınamaz.
   eFaturaTestModu  Boolean @default(true)
+  // ZİYARET BAŞI MALİYET. Sözleşme kârlılığında işçiliği hesaba katmanın
+  // tek dürüst yolu: saat ücretini biz uyduramayız, bayi kendi maliyetini
+  // bilir. Boşsa işçilik hesaba KATILMIYOR ve ekranda "işçilik hariç"
+  // yazıyor — sessizce sıfır saymak marjı olduğundan yüksek gösterirdi.
+  ziyaretMaliyeti  Decimal? @db.Decimal(10, 2)
+  // Kârlılık ekranının hedef marjı (0-1 arası oran). Boşsa 0,25.
+  hedefMarj        Decimal? @db.Decimal(5, 4)
   reminderEnabled  Boolean @default(true) // Vade hatırlatma
 
   // Sektör
