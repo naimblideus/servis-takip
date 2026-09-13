@@ -24,6 +24,21 @@ const GUN = 86400000;
 /** Hız için bakılan geçmiş. Kısa tutmak mevsimsel dalgayı dışarıda bırakır. */
 const GECMIS_GUN = 180;
 
+/**
+ * "YYYY-AA-GG" metnini YEREL gece yarısına çevirir.
+ *
+ * new Date('2026-10-03') UTC gece yarısı demek; depodaki diğer tarihler
+ * (müşteri sözleşme bitişi, devir tarihi) yerel gece yarısı yazılıyor.
+ * İkisi karışınca "kaç gün kaldı" saat dilimi kadar kayıyor — UTC+3'te
+ * 20 gün 21 görünüyordu. Tek biçim: yerel.
+ */
+function yerelTarih(v: unknown): Date | null {
+  if (v === null || v === undefined || v === '') return null;
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(String(v));
+  return isNaN(d.getTime()) ? null : d;
+}
 const s = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
 export async function GET(req: NextRequest) {
@@ -207,8 +222,8 @@ export async function POST(req: NextRequest) {
     });
     if (!musteri) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
 
-    const bas = b.startDate ? new Date(b.startDate) : null;
-    const bit = b.endDate ? new Date(b.endDate) : null;
+    const bas = yerelTarih(b.startDate);
+    const bit = yerelTarih(b.endDate);
     if (!bas || isNaN(bas.getTime())) return NextResponse.json({ error: 'Başlangıç tarihi gerekli' }, { status: 400 });
     if (!bit || isNaN(bit.getTime())) return NextResponse.json({ error: 'Bitiş tarihi gerekli' }, { status: 400 });
     if (bit <= bas) return NextResponse.json({ error: 'Bitiş tarihi başlangıçtan sonra olmalı' }, { status: 400 });
@@ -232,7 +247,7 @@ export async function POST(req: NextRequest) {
         escalationMonths: b.escalationMonths ? Number(b.escalationMonths) : null,
         escalationRate: b.escalationRate !== undefined && b.escalationRate !== null && b.escalationRate !== ''
           ? Number(b.escalationRate) : null,
-        lastEscalationAt: b.lastEscalationAt ? new Date(b.lastEscalationAt) : null,
+        lastEscalationAt: yerelTarih(b.lastEscalationAt),
         fileUrl: (b.fileUrl || '').trim() || null,
         notes: (b.notes || '').trim() || null,
         status: 'AKTIF',

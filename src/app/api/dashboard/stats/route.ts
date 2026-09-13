@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
+import { gunFarki } from '@/lib/sozlesme';
 
 // Duran iş eşiği: durumu bu kadar gündür değişmemiş açık fişler "duruyor" sayılır.
 const STUCK_DAYS = 3;
@@ -150,8 +151,11 @@ export async function GET() {
 
   const contractAlerts = contractRaw.map((c) => {
     const end = sozlesmeBitisi.get(c.id) ?? new Date(c.contractEndDate!);
-    // Gün farkı (bugünün başlangıcına göre): negatif = süresi geçmiş
-    const days = Math.ceil((end.getTime() - startOfDay.getTime()) / dayMs);
+    // TEK KURAL: gün farkı lib/sozlesme.ts'teki gunFarki() ile. Burada
+    // ayrı bir Math.ceil vardı ve saat/saat dilimi yüzünden Sözleşmeler
+    // ekranından BİR GÜN farklı sayıyordu — aynı sözleşme için iki ekran
+    // iki cevap veriyordu.
+    const days = gunFarki(startOfDay, end);
     return {
       id: c.id,
       name: c.name,

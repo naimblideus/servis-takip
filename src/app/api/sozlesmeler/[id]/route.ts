@@ -11,6 +11,21 @@ import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/ap
  */
 
 const GUN = 86400000;
+/**
+ * "YYYY-AA-GG" metnini YEREL gece yarısına çevirir.
+ *
+ * new Date('2026-10-03') UTC gece yarısı demek; depodaki diğer tarihler
+ * (müşteri sözleşme bitişi, devir tarihi) yerel gece yarısı yazılıyor.
+ * İkisi karışınca "kaç gün kaldı" saat dilimi kadar kayıyor — UTC+3'te
+ * 20 gün 21 görünüyordu. Tek biçim: yerel.
+ */
+function yerelTarih(v: unknown): Date | null {
+  if (v === null || v === undefined || v === '') return null;
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(String(v));
+  return isNaN(d.getTime()) ? null : d;
+}
 const sayi = (v: unknown) =>
   v === null || v === undefined || v === '' ? null : Number(v);
 
@@ -106,13 +121,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // ── SÖZLEŞMENİN KENDİSİ ─────────────────────────────────────────────
     const d: any = {};
     if (b.contractNo !== undefined) d.contractNo = (b.contractNo || '').trim() || null;
-    if (b.startDate !== undefined) d.startDate = new Date(b.startDate);
-    if (b.endDate !== undefined) d.endDate = new Date(b.endDate);
+    if (b.startDate !== undefined) d.startDate = yerelTarih(b.startDate);
+    if (b.endDate !== undefined) d.endDate = yerelTarih(b.endDate);
     if (b.autoRenew !== undefined) d.autoRenew = !!b.autoRenew;
     if (b.renewMonths !== undefined) d.renewMonths = Number(b.renewMonths) || 12;
     if (b.escalationMonths !== undefined) d.escalationMonths = sayi(b.escalationMonths);
     if (b.escalationRate !== undefined) d.escalationRate = sayi(b.escalationRate);
-    if (b.lastEscalationAt !== undefined) d.lastEscalationAt = b.lastEscalationAt ? new Date(b.lastEscalationAt) : null;
+    if (b.lastEscalationAt !== undefined) d.lastEscalationAt = yerelTarih(b.lastEscalationAt);
     if (b.fileUrl !== undefined) d.fileUrl = (b.fileUrl || '').trim() || null;
     if (b.notes !== undefined) d.notes = (b.notes || '').trim() || null;
     if (b.status !== undefined) {
