@@ -112,14 +112,15 @@ const SECTIONS: Section[] = [
   },
   {
     id: 'toner', icon: '🧴', title: 'Toner Verimi — tonerin ne zaman biteceğini bil',
-    intro: 'Bir tonerin kaç sayfa bastığını MODELE bir kez yazarsın; o modeldeki bütün cihazlara uygulanır.',
+    intro: 'Verimi artık YAZMANA GEREK YOK — sistem ölçüyor. Fişe toner eklediğin her seferde, bir önceki değişimden bu yana kaç sayfa basıldığını hesaplıyor. O sayı, o modelin sahadaki gerçek verimi.',
     steps: [
-      'Sol menü → Toner Verimi → “Yalnız eksik olanlar” ile verimi tanımsız modelleri gör.',
-      'Verim, toner kutusunun üstünde yazan sayfa sayısıdır (“%5 doluluk” değeri). Sistem tahmin yürütmez — girdiğin sayı kullanılır.',
-      'Toner değişince cihaz kartından “Toner Değişti” de; sayaç o andan sayılmaya başlar.',
-      'Cihaz kartında “%30 kaldı · 1.795 / 6.000 sf” gibi görünür; bitmeden yola çıkarsın.',
+      'Teknisyen fişe toneri ekler. Parça adı rengi söylemiyorsa ve cihaz renkli basıyorsa ekranda tek dokunuşluk soru çıkar: S/B mi, Renkli mi. Başka bir iş yok.',
+      'İKİNCİ toner değişiminde ölçüm çıkar: “7.200 sayfa ölçüldü”. O andan itibaren tükenme tahmini o cihazda çalışır.',
+      'Aynı modelin iki ayrı cihazından ölçüm gelince, o modeldeki HİÇ toneri değişmemiş cihazlar da açılır.',
+      'Sarf Takibi ekranında her satırın altında sayının nereden geldiği yazar: “Bu cihazda ölçüldü (3 toner)” / “Aynı modelde ölçüldü (6 toner)”.',
+      'Toner Verimi ekranında ölçülen değerler yeşil görünür; “forma yaz” ile sabitleyebilirsin. Elle girdiğin sayı ölçümü her zaman yener.',
     ],
-    tip: 'Verim girilmemişse tahmin HİÇ üretilmez — uydurma sayı göstermektense boş bırakılır.',
+    tip: 'Ölçüm yoksa tahmin HİÇ üretilmez — uydurma verim, “toneriniz bitmek üzere” deyip yanılmak demek. Ölçüm hataları da eleniyor: 100 sayfanın altı (toner boşalmadan değişmiş) ve 200.000’in üstü (sayaç sıfırlanmış) sayılmıyor, ve ortalama değil ORTANCA kullanılıyor — sıkışma yüzünden erken değişen tek bir kartuş rakamı bozmasın.',
   },
   {
     id: 'sozlesme', icon: '📜', title: 'Sözleşmeler — kâğıtta yazanla sistemi karşılaştır',
@@ -132,6 +133,41 @@ const SECTIONS: Section[] = [
       'Fark varsa “Sisteme uygula” cihazın ayarını sözleşmedeki hâline getirir — tek tıkla, elle kopyalamadan.',
     ],
     tip: 'Ekran hem “eksik faturalıyorsun” hem “FAZLA faturalıyorsun” der. İkincisi de önemli: müşteri bir gün fark ederse parayı iade edersin. Sözleşme yanlış girildiyse cihazı değil SÖZLEŞMEYİ düzelt.',
+  },
+  {
+    id: 'karlilik', icon: '📈', title: 'Sözleşme kârlılığı — yenileme görüşmesine rakamla otur',
+    intro: 'Hangi sözleşme ne kazandırıyor, ve hedef marj için fiyat ne olmalı. “Zam lazım” demekle “bu sözleşme %8 marjla çalışıyor, %25 için kira ₺1.500 değil ₺2.180 olmalı” demek aynı şey değil.',
+    steps: [
+      'Sol menü → Sözleşmeler → “Kârlılık ve fiyat kararı”.',
+      'Ekranın üstüne iki şey gir: ziyaret başı maliyetin ve hedef marjın. İkisi de senin bildiğin sayılar; biz uydurmuyoruz.',
+      'Liste en düşük marj başta sıralanır — ilk bakacağın yer orası.',
+      'Her satırda aylık gelir, aylık maliyet ve marj yazar. Hedefin altındaysa “%25 marj için kira ₺X → ₺Y” cümlesi çıkar; müşteriye söyleyeceğin rakam odur.',
+      'Sayfa başı toner maliyetin müşteriden aldığın sayfa fiyatını aşıyorsa kırmızı uyarı çıkar: her basılan sayfada para kaybediyorsun ve hacim arttıkça zarar da artıyor.',
+    ],
+    tip: 'Ziyaret maliyetini girmezsen işçilik hesaba KATILMAZ ve ekran bunu yazar — saat ücretini uydurmaktansa eksik ama dürüst bir marj göstermeyi seçtik. Aynı şekilde hiç maliyet kaydı olmayan sözleşme %100 marj gösterir; o kârlılık değil kayıt eksikliğidir ve satırda öyle yazar.',
+  },
+  {
+    id: 'alis', icon: '🧾', title: 'Parça alışı — aynı toneri üç yerden farklı fiyata alıyorsan',
+    intro: 'Stok listesindeki “alış fiyatı” tek bir sayı ve elindekinin gerçek maliyetini vermiyor. Her alışı ayrı kaydedersen sistem ağırlıklı ortalamayı kendisi tutuyor.',
+    steps: [
+      'Sol menü → Stok → “Alış Gir”. Parçayı seç, adet ve birim alış fiyatını yaz, tedarikçiyi gir.',
+      'Kaydedince stok artar ve ortalama maliyet güncellenir: “₺480 → ₺500” diye gösterir.',
+      'Aynı parçayı kimden kaça aldığın alt alta listelenir, en ucuz üstte. “Hep buradan alıyorum” cümlesinin doğru olup olmadığı ancak yan yana konunca görünür.',
+      'Fişe parça eklendiğinde O GÜNÜN maliyeti fişin içine yazılır. Sonraki alışlar geçmiş kârlılığı değiştirmez.',
+    ],
+    tip: 'Ortalama şöyle hesaplanır: (eski stok × eski ortalama + adet × birim alış) ÷ (eski stok + adet). Parça KULLANMAK ortalamayı değiştirmez. Alış fiyatı hiç girilmemiş parça sıfır maliyetli sayılmaz — “Maliyeti Girilmemiş” kartında sayısı yazar, çünkü sıfır maliyet kârlılığı olduğundan yüksek gösterir.',
+  },
+  {
+    id: 'teklif', icon: '📝', title: 'Teklif — aday müşteriye fiyat çıkarma',
+    intro: 'Aday müşterinin makinelerini ve ŞU AN ödediğini gir; sistem onun sayfa başı maliyetini çıkarsın, seninkini ölçümden hesaplasın, hedef marjına göre fiyat önersin.',
+    steps: [
+      'Sol menü → Teklifler → “＋ Yeni Teklif”. Firma adını yaz, teklif açılır.',
+      'Her makine için: marka, model, adet, aylık sayfa ve müşterinin o makineye şu an ödediği tutar. “Kaydet ve hesapla”.',
+      'Ölçülmüş modelde fiyat kendiliğinden çıkar. Ölçülmemişse satır “bu modelin sayfa maliyeti henüz ölçülmedi” der ve fiyatı sen yazarsın.',
+      '“Müşteri çıktısı” düğmesi ayrı bir sayfa açar: orada maliyet de marj da YOK, olduğu gibi müşteriye verilebilir.',
+      'Teklifi Gönderildi/Kazanıldı/Kaybedildi olarak işaretle; liste hangi kapının açık kaldığını gösterir.',
+    ],
+    tip: 'Bir makinede bile müşterinin bugünkü ödemesi girilmemişse TOPLAM TASARRUF rakamı hiç gösterilmez — eksik veriden çıkan bir tasarruf vaadi, tutamayacağın bir sözdür. Ayrıca hesap yalnız SARF maliyetini kapsar; müşteri çıktısında “servis işçiliği dahil” yazdığı için servis payını fiyata sen eklemelisin.',
   },
   {
     id: 'fatura', icon: '📄', title: 'Faturalama (ay sonu)',
