@@ -57,6 +57,12 @@ export default function TicketPartsPanel({ ticketId }: Props) {
     const [tonerSoru, setTonerSoru] = useState<{ ticketPartId: string; partAdi: string } | null>(null);
     const [tonerBilgi, setTonerBilgi] = useState<string | null>(null);
 
+    // ── BU MODELDE EN ÇOK KULLANILANLAR ──────────────────────────────
+    // Ölçüldü: 8.188 parça kullanımının %41'i her modelin ilk 3
+    // parçasında. Teknisyen makinenin başında, telefonuyla, elleri
+    // kirli — aradığı parça belliyse aratmamak lazım.
+    const [oneri, setOneri] = useState<any[]>([]);
+
     const tonerCevabi = (d: any) => {
         if (d?.tonerSorusu) { setTonerSoru(d.tonerSorusu); setTonerBilgi(null); return; }
         if (d?.tonerKaydi) {
@@ -92,6 +98,15 @@ export default function TicketPartsPanel({ ticketId }: Props) {
         if (pRes.ok) setAllParts(await pRes.json());
         setLoading(false);
     };
+
+    // Öneriler ayrı yükleniyor: gecikirse ya da boş dönerse parça
+    // ekleme akışı beklemesin.
+    useEffect(() => {
+        fetch(`/api/tickets/${ticketId}/parts/oneri`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => setOneri(Array.isArray(d?.parcalar) ? d.parcalar : []))
+            .catch(() => {});
+    }, [ticketId]);
 
     useEffect(() => { load(); }, []);
 
@@ -162,6 +177,26 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ totalCost: newTotal }),
         });
+    };
+
+    /** Tek dokunuşla ekle — arama, seçme, adet yazma adımları atlanıyor. */
+    const hizliEkle = async (partId: string) => {
+        setSaving(true);
+        const res = await fetch(`/api/tickets/${ticketId}/parts`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ partId, quantity: 1 }),
+        });
+        if (res.ok) {
+            tonerCevabi(await res.json().catch(() => null));
+            await load();
+            const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);
+            if (tpRes.ok) { const parts = await tpRes.json(); await syncTotalCost(parts); }
+            router.refresh();
+        } else {
+            const d = await res.json().catch(() => ({}));
+            alert('Hata: ' + (d.error || 'Eklenemedi'));
+        }
+        setSaving(false);
     };
 
     const addPart = async () => {
@@ -272,6 +307,38 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                     <span style={{ fontSize: '0.85rem' }}>▮▮▯▮</span> Barkod okuyucu hazır
                 </span>
             </div>
+
+            {/* ═══ BU MODELDE EN ÇOK KULLANILANLAR ═══
+                Katalog ya da uyumluluk tablosu DEĞİL: bayinin kendi
+                geçmişinde bu modele ne taktığı. Uydurma uyumluluk,
+                yanlış parça önermek olurdu. */}
+            {oneri.length > 0 && (
+                <div style={{ marginBottom: '0.9rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.4rem' }}>
+                        Bu modelde en çok kullanılanlar
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {oneri.map((o) => {
+                            const yok = o.stockQty < 1;
+                            return (
+                                <button key={o.id} type="button" disabled={saving || yok}
+                                    onClick={() => hizliEkle(o.id)}
+                                    title={yok ? `${o.name} — stokta yok` : `${o.name} · ${o.kullanim} kez kullanıldı · stok ${o.stockQty}`}
+                                    style={{
+                                        padding: '0.45rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.82rem',
+                                        fontWeight: 600, cursor: yok ? 'not-allowed' : 'pointer', textAlign: 'left',
+                                        border: '1px solid ' + (yok ? '#e5e7eb' : '#bfdbfe'),
+                                        background: yok ? '#f9fafb' : '#eff6ff',
+                                        color: yok ? '#9ca3af' : '#1e3a8a',
+                                        maxWidth: '15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                    + {o.name}{yok ? ' (stokta yok)' : ` · stok ${o.stockQty}`}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* ═══ TONER DEĞİŞİMİ — tek dokunuşluk soru ═══ */}
             {tonerSoru && (

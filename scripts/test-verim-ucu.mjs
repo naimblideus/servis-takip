@@ -204,6 +204,49 @@ try {
     t('soru sorulmuyor', !govde.tonerSorusu, govde);
   }
 
+  console.log('\n★ MODELE GÖRE PARÇA ÖNERİSİ — geçmişten, katalogdan değil\n');
+  {
+    // Ölçüldü: 8.188 parça kullanımının %41'i her modelin ilk 3 parçasında.
+    // Teknisyen aradığını aratmamalı.
+    const o = await cihazKur({ serialNo: 'VRM-O' });
+    const fis1 = await fisAc(o.id);
+    const oneriAl = async (fisId) =>
+      (await (await fetch(`${KOK}/api/tickets/${fisId}/parts/oneri`, { headers: { cookie: cerez } })).json());
+
+    // TEK KULLANIMLIK parça önerilmemeli: bir kez takılmış olması "bu
+    // modelde bu takılır" demek değil ve yanlış parça önermek, hiç
+    // önermemekten kötü.
+    const tekSeferlik = await parcaKur('Nadir Dişli Seti', 'Dişli Grubu');
+    await parcaEkle((await fisAc(o.id)).id, tekSeferlik.id);
+    const ilk = await oneriAl(fis1.id);
+    t('★ tek kullanımlık parça ÖNERİLMİYOR',
+      !(ilk.parcalar || []).some((x) => x.id === tekSeferlik.id), ilk.parcalar);
+
+    // Aynı modelde aynı parçayı üç kez kullan.
+    const fuser = await parcaKur('Kyocera FK-1150 Fırın Ünitesi', 'Fırın Grubu');
+    for (let i = 0; i < 3; i++) {
+      const c = await cihazKur({ serialNo: `VRM-O${i}` });
+      await parcaEkle((await fisAc(c.id)).id, fuser.id);
+    }
+    const d = await oneriAl(fis1.id);
+    const bulunan = (d.parcalar || []).find((x) => x.id === fuser.id);
+    t('★ üç kullanımdan sonra öneriliyor', !!bulunan, d.parcalar);
+    t('kaç kez kullanıldığı yazıyor', bulunan?.kullanim === 3, bulunan);
+    t('stok durumu da dönüyor', typeof bulunan?.stockQty === 'number', bulunan);
+    t('satış fiyatı dönüyor (tek dokunuşla eklensin)', bulunan?.sellPrice === 100, bulunan);
+    t('kaç cihazdan öğrenildiği yazıyor', d.cihazSayisi >= 4, d.cihazSayisi);
+
+    // Başka modelin geçmişi bu modele SIZMAMALI.
+    const baska = await p.device.create({
+      data: {
+        tenantId: tenant.id, customerId: musteri.id, brand: 'Canon', model: 'iR2520',
+        serialNo: 'VRM-CANON', publicCode: `VRM-C-${Date.now()}`, qrTokenHash: 'x', counterBlack: 0,
+      },
+    });
+    const cd = await oneriAl((await fisAc(baska.id)).id);
+    t('★ başka modelin geçmişi sızmıyor', !(cd.parcalar || []).some((x) => x.id === fuser.id), cd.parcalar);
+  }
+
   console.log('\n★ TONER OLMAYAN PARÇA DEĞİŞİM SAYILMIYOR\n');
   {
     const d = await cihazKur({ serialNo: 'VRM-D' });
