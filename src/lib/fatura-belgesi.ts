@@ -60,7 +60,21 @@ export type BelgeFaturasi = {
 };
 
 export type Senaryo = 'TEMELFATURA' | 'EARSIVFATURA';
-export type BelgeDurumu = 'HAZIR' | 'GONDERILDI' | 'KABUL' | 'RED' | 'HATA' | 'ESKI_SISTEM';
+/**
+ * Belgenin gönderim durumu.
+ *
+ * GONDERILIYOR ara durumu ÇİFT FATURAYI önlüyor: gönderim başlarken
+ * yazılıyor, eş zamanlı ikinci bir istek onu görüp geri dönüyor.
+ * KABUL ve RED nihai — o belgeye bir daha dokunulmuyor.
+ */
+export type BelgeDurumu =
+  | 'HAZIR'
+  | 'GONDERILIYOR'
+  | 'GONDERILDI'
+  | 'KABUL'
+  | 'RED'
+  | 'HATA'
+  | 'ESKI_SISTEM';
 
 /**
  * Göçte aktarılan geçmiş fatura: eski sistemde ZATEN kesildi, bir daha

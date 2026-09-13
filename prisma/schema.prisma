@@ -46,6 +46,16 @@ model Tenant {
   eFaturaSeq     Int     @default(0) // yıl içindeki son sıra
   eFaturaSeqYil  Int? // sayacın ait olduğu yıl (yıl dönünce 1'den başlar)
   eFaturaEtiket  String? // GİB gönderici birim etiketi
+  // ── ENTEGRATÖR ──────────────────────────────────────────────────────
+  // Hangi özel entegratörle çalışıldığı. Parola ŞİFRELİ saklanıyor
+  // (lib/sir.ts); şifreleme anahtarı yoksa hiç kaydedilmiyor, düz metne
+  // DÜŞMÜYOR — düz parola yedeklere ve loglara sızar.
+  eFaturaSaglayici String? // TEST | (sözleşme yapılınca gerçek sağlayıcı)
+  eFaturaKullanici String?
+  eFaturaParola    String? // AES-256-GCM ile şifreli
+  // Test modunda gönderilen belge GİB'e ULAŞMAZ. Varsayılan true:
+  // yanlışlıkla gerçek fatura göndermek geri alınamaz.
+  eFaturaTestModu  Boolean @default(true)
   reminderEnabled    Boolean @default(true) // Vade hatırlatma
 
   // Sektör

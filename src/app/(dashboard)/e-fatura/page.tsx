@@ -9,8 +9,9 @@ import { useEffect, useState } from 'react';
  * eksiklerini kapatsın, entegratör geldiğinde gönderim tek adım olsun.
  * Hangi özel entegratör seçilirse seçilsin istenen alanlar aynı.
  *
- * Ekran bir şeyi GÖNDERMİYOR ve numara YAKMIYOR — GİB belge sırasında
- * boşluk olamaz, numara ancak gerçek gönderim anında atanabilir.
+ * ÖNİZLEME numara YAKMIYOR: GİB belge sırasında boşluk olamaz, numara
+ * ancak GERÇEK gönderim anında atanıyor. Gönderim buradan yapılıyor ve
+ * geri alınamaz — onay metni test/canlı ayrımını açıkça yazıyor.
  */
 
 type Fatura = {
@@ -35,8 +36,13 @@ export default function EFaturaPage() {
   const [sadeceEksik, setSadeceEksik] = useState(false);
   const [acik, setAcik] = useState<string | null>(null);
   const [belge, setBelge] = useState<any>(null);
+  const [ayar, setAyar] = useState<any>(null);
+  const [gonderiliyor, setGonderiliyor] = useState(false);
 
   useEffect(() => {
+    // Sağlayıcı ayarı ekranın en üstünde gösteriliyor: bayi "niye
+    // gönderemiyorum" diye faturada değil ayarlarda arasın.
+    fetch('/api/settings/e-fatura').then((r) => r.json()).then(setAyar).catch(() => {});
     fetch('/api/invoices/e-belge')
       .then(async (r) => {
         const d = await r.json();
@@ -46,6 +52,42 @@ export default function EFaturaPage() {
       .catch((e) => setHata(e.message))
       .finally(() => setYukleniyor(false));
   }, []);
+
+  /**
+   * GÖNDER — geri alınamaz. Onay metni test/canlı ayrımını ve
+   * gönderilecek belge numarasını olduğu gibi yazıyor; "emin misiniz"
+   * diye sormak bayiye hiçbir şey söylemez.
+   */
+  const gonder = async (id: string, b: any, islem?: 'durum') => {
+    if (islem !== 'durum') {
+      const no = b?.numaraOnizleme || '(gönderimde atanacak)';
+      const kim = b?.belge?.alici?.unvan || b?.musteri || 'müşteri';
+      const mesaj = ayar?.testModu
+        ? `TEST gönderimi yapılacak.\n\n${kim} · ${no}\n\nBu belge GİB\u2019e ULAŞMAZ ve müşteriye fatura GİTMEZ. Devam edilsin mi?`
+        : `CANLI e-Fatura gönderilecek — GERİ ALINAMAZ.\n\n${kim} · ${no}\n\nBelge müşteriye ulaşır. Devam edilsin mi?`;
+      if (!confirm(mesaj)) return;
+    }
+    setGonderiliyor(true);
+    try {
+      const r = await fetch('/api/invoices/e-belge/gonder', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, islem }),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        alert(`Gönderilemedi:\n\n${d.hata || 'bilinmeyen hata'}` + (d.eksikler?.length ? `\n\n· ${d.eksikler.join('\n· ')}` : ''));
+      }
+      // Başarılı da olsa başarısız da olsa listeyi ve belgeyi tazele:
+      // durum ve numara değişmiş olabilir.
+      const y = await fetch('/api/invoices/e-belge');
+      setVeri(await y.json());
+      const y2 = await fetch(`/api/invoices/e-belge?id=${id}`);
+      setBelge(await y2.json());
+    } catch {
+      alert('Sunucuya bağlanılamadı');
+    }
+    setGonderiliyor(false);
+  };
 
   const belgeyiAc = async (id: string) => {
     if (acik === id) { setAcik(null); setBelge(null); return; }
@@ -65,19 +107,44 @@ export default function EFaturaPage() {
     <div style={{ padding: '2rem', maxWidth: 1100 }}>
       <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>e-Fatura Hazırlığı</h1>
       <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-        Faturaların elektronik belge olarak gönderilmeye hazır mı — eksikleri şimdi kapat.
+        Faturaların elektronik belge olarak hazır mı, ve gönderim durumu ne.
       </p>
 
-      {/* Ne YAPMADIĞINI da söylüyoruz: bayi "gönderdim" sanmasın. */}
-      <div style={{
-        background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.75rem',
-        padding: '0.85rem 1rem', marginBottom: '1.5rem', fontSize: '0.85rem', color: '#1e40af',
-      }}>
-        Bu ekran fatura <b>göndermez</b>. Gönderim için bir e-Fatura servis sağlayıcısı
-        (özel entegratör) sözleşmesi gerekiyor. Buradaki eksikleri kapatmak, sağlayıcı
-        bağlandığında gönderimin ilk denemede geçmesini sağlar — istenen bilgiler
-        hangi sağlayıcıda olursa olsun aynı.
-      </div>
+
+      {/* SAĞLAYICI DURUMU — gönderim buna bağlı. Ayar yoksa hiçbir
+          fatura gönderilemez ve sebebi burada yazıyor. */}
+      {ayar && (
+        <div style={{
+          background: ayar.saglayici ? (ayar.testModu ? '#fffbeb' : '#f0fdf4') : '#f9fafb',
+          border: '1px solid ' + (ayar.saglayici ? (ayar.testModu ? '#fde68a' : '#bbf7d0') : '#e5e7eb'),
+          borderRadius: '0.75rem', padding: '0.85rem 1rem', marginBottom: '1.25rem',
+          fontSize: '0.84rem',
+        }}>
+          {!ayar.saglayici ? (
+            <>
+              <b>e-Fatura sağlayıcısı seçilmemiş.</b> Gönderim için bir servis sağlayıcı
+              (özel entegratör) sözleşmesi ve ayarları gerekiyor.{' '}
+              <a href="/settings/e-fatura" style={{ color: '#2563eb' }}>Ayarlara git →</a>
+            </>
+          ) : ayar.testModu ? (
+            <>
+              <b>TEST MODU açık ({ayar.saglayici}).</b> Gönderilen belge GİB&apos;e ULAŞMAZ ve
+              müşteriye fatura GİTMEZ. Gerçek gönderim için Ayarlar&apos;dan test modunu kapat.{' '}
+              <a href="/settings/e-fatura" style={{ color: '#2563eb' }}>Ayarlar →</a>
+            </>
+          ) : (
+            <>
+              <b>Canlı gönderim açık ({ayar.saglayici}).</b> Gönderdiğin belge müşteriye ULAŞIR
+              ve geri alınamaz.
+            </>
+          )}
+          {ayar.parolaOkunamiyor && (
+            <div style={{ marginTop: '0.35rem', color: '#991b1b' }}>
+              Kayıtlı parola okunamıyor (şifreleme anahtarı değişmiş olabilir) — yeniden girin.
+            </div>
+          )}
+        </div>
+      )}
 
       {veri.saticiEksikleri.length > 0 && (
         <div style={{
@@ -163,6 +230,24 @@ export default function EFaturaPage() {
             {acik === f.id && (
               <div style={{ padding: '0 1rem 1rem', fontSize: '0.83rem' }}>
                 {!belge && <p style={{ color: '#6b7280' }}>Hazırlanıyor…</p>}
+                {/* GÖNDERİM DURUMU — gönderilmişse numarası ve sonucu. */}
+                {belge?.gonderimDurumu?.durum && belge.gonderimDurumu.durum !== 'ESKI_SISTEM' && (
+                  <div style={{
+                    background: belge.gonderimDurumu.durum === 'HATA' || belge.gonderimDurumu.durum === 'RED' ? '#fef2f2' : '#f0fdf4',
+                    border: '1px solid ' + (belge.gonderimDurumu.durum === 'HATA' || belge.gonderimDurumu.durum === 'RED' ? '#fecaca' : '#bbf7d0'),
+                    borderRadius: '0.5rem', padding: '0.6rem 0.75rem', marginBottom: '0.7rem', fontSize: '0.8rem',
+                  }}>
+                    <b>{belge.gonderimDurumu.durum}</b>
+                    {belge.gonderimDurumu.gibNo && <> · <span style={{ fontFamily: 'monospace' }}>{belge.gonderimDurumu.gibNo}</span></>}
+                    {belge.gonderimDurumu.not && <div>{belge.gonderimDurumu.not}</div>}
+                    {belge.gonderimDurumu.durum === 'GONDERILDI' && (
+                      <button onClick={() => gonder(f.id, belge, 'durum')} disabled={gonderiliyor}
+                        style={{ marginTop: '0.4rem', padding: '0.25rem 0.7rem', fontSize: '0.76rem', fontWeight: 600, borderRadius: '0.4rem', border: '1px solid #d1d5db', background: 'white', cursor: 'pointer' }}>
+                        Durumu sor (kabul/red)
+                      </button>
+                    )}
+                  </div>
+                )}
                 {belge && belge.eksikler?.length > 0 && (
                   <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.5rem', padding: '0.7rem', color: '#92400e' }}>
                     <b>Eksikler:</b>
@@ -210,6 +295,25 @@ export default function EFaturaPage() {
                       <span>Matrah: {tl(belge.belge.toplamlar.matrah)}</span>
                       <span>KDV: {tl(belge.belge.toplamlar.kdv)}</span>
                       <span style={{ color: '#0f2253' }}>Toplam: {tl(belge.belge.toplamlar.genelToplam)}</span>
+                    </div>
+
+                    {/* GÖNDER — geri alınamaz. Onay metni test/canlı ayrımını
+                        ve gönderilecek numarayı olduğu gibi yazıyor. */}
+                    <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.5rem' }}>
+                      <button
+                        onClick={() => gonder(f.id, belge)}
+                        disabled={gonderiliyor || !ayar?.saglayici}
+                        style={{
+                          padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', fontWeight: 700,
+                          fontSize: '0.85rem', cursor: ayar?.saglayici ? 'pointer' : 'not-allowed',
+                          background: ayar?.saglayici ? (ayar.testModu ? '#b45309' : '#0f2253') : '#d1d5db',
+                          color: 'white',
+                        }}>
+                        {gonderiliyor ? 'Gönderiliyor…' : ayar?.testModu ? 'Test gönderimi' : 'Gönder'}
+                      </button>
+                      {!ayar?.saglayici && (
+                        <span style={{ fontSize: '0.76rem', color: '#9ca3af' }}>Önce sağlayıcı ayarlarını yap.</span>
+                      )}
                     </div>
                   </div>
                 )}
