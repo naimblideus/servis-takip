@@ -203,6 +203,7 @@ export function kapsananAy(
 import { prisma } from '@/lib/prisma';
 import { verimleriOgren, type VerimOzeti } from '@/lib/verim-ogrenme';
 import { modelAnahtari } from '@/lib/toner-verimi';
+import { kullanimMaliyeti } from '@/lib/stok-maliyet';
 
 export const VARSAYILAN_HEDEF_MARJ = 0.25;
 
@@ -304,9 +305,9 @@ export async function sozlesmeKarliliklari(
   const parcalar = await prisma.ticketPart.findMany({
     where: { tenantId, ticket: { deviceId: { in: cihazIdleri }, deletedAt: null, createdAt: { gte: pencereBasi } } },
     select: {
-      quantity: true,
+      quantity: true, unitCost: true,
       ticket: { select: { deviceId: true, createdAt: true } },
-      part: { select: { buyPrice: true } },
+      part: { select: { buyPrice: true, avgCost: true } },
     },
   });
   const maliyetHaritasi = new Map<string, { tutar: number; tarih: Date }[]>();
@@ -314,12 +315,17 @@ export async function sozlesmeKarliliklari(
   for (const p of parcalar) {
     const did = p.ticket?.deviceId;
     if (!did) continue;
-    const alis = Number(p.part?.buyPrice || 0);
-    // Alış fiyatı girilmemiş parça sessizce SIFIR maliyet sayılmıyor;
-    // sayılıyor ve uyarı olarak bildiriliyor. Aksi hâlde marj şişerdi.
-    if (!(alis > 0)) eksikFiyatHaritasi.set(did, (eksikFiyatHaritasi.get(did) || 0) + 1);
+    // Maliyet KULLANIM ANINDAN: dondurulmuş unitCost varsa o, yoksa
+    // parçanın bugünkü ağırlıklı ortalaması.
+    const m = kullanimMaliyeti(
+      { unitCost: p.unitCost === null ? null : Number(p.unitCost), quantity: p.quantity },
+      { avgCost: p.part?.avgCost === null ? null : Number(p.part?.avgCost), buyPrice: Number(p.part?.buyPrice || 0) },
+    );
+    // Maliyeti hiç bilinmeyen parça sessizce SIFIR sayılmıyor; sayılıyor ve
+    // uyarı olarak bildiriliyor. Aksi hâlde marj şişerdi.
+    if (m.bilinmiyor) eksikFiyatHaritasi.set(did, (eksikFiyatHaritasi.get(did) || 0) + 1);
     const dizi = maliyetHaritasi.get(did) ?? maliyetHaritasi.set(did, []).get(did)!;
-    dizi.push({ tutar: alis * p.quantity, tarih: p.ticket!.createdAt });
+    dizi.push({ tutar: m.tutar, tarih: p.ticket!.createdAt });
   }
 
   // ── ZİYARET SAYISI ── işçilik için (maliyeti bayi giriyor)

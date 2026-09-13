@@ -218,7 +218,14 @@ export default function InventoryPage() {
     const lbl: React.CSSProperties = { display: 'block', fontSize: '0.8rem', fontWeight: '500', color: '#6b7280', marginBottom: '0.25rem' };
 
     const lowStock = parts.filter(p => p.stockQty <= p.minStock);
-    const totalValue = parts.reduce((s, p) => s + p.stockQty * Number(p.buyPrice), 0);
+    // STOK DEĞERİ ağırlıklı ortalama maliyetten. Son alış fiyatıyla
+    // hesaplamak, fiyatı yeni yükselmiş bir parçanın eski stoğunu da yeni
+    // fiyatla değerlemek olurdu — elinde olmayan bir kâr/zarar yaratır.
+    const maliyetOf = (p: any) => Number(p.avgCost ?? 0) || Number(p.buyPrice ?? 0);
+    const totalValue = parts.reduce((s, p) => s + p.stockQty * maliyetOf(p), 0);
+    // Maliyeti hiç bilinmeyen parça: stok değeri olduğundan düşük ve
+    // kârlılık olduğundan yüksek görünüyor. Sayısı gizlenmiyor.
+    const maliyetsiz = parts.filter((p) => !maliyetOf(p)).length;
 
     if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>Yükleniyor...</div>;
 
@@ -245,6 +252,13 @@ export default function InventoryPage() {
                         backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.625rem 1rem',
                         borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
                     }}>🏷️ Etiket Yazdır</a>
+                    {/* ALIŞ GİRİŞİ — maliyetin tek doğru kaynağı. Listedeki
+                        "alış" alanını elle düzeltmek o parçanın geçmişini
+                        eziyordu; burada her alış ayrı kayıt. */}
+                    <a href="/inventory/alis" style={{
+                        backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '0.625rem 1rem',
+                        borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+                    }}>Alış Gir</a>
                     <button onClick={() => setShowForm(!showForm)} style={{
                         backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
                         borderRadius: '0.5rem', border: 'none', fontWeight: '500', cursor: 'pointer', fontSize: '0.875rem',
@@ -276,6 +290,7 @@ export default function InventoryPage() {
                     { label: 'Toplam Kalem', value: parts.length, color: '#6b7280', icon: '📦', onClick: () => setStockFilter('all') },
                     { label: 'Kritik Stok', value: lowStock.length, color: lowStock.length > 0 ? '#ef4444' : '#10b981', icon: '⚠️', onClick: () => setStockFilter('critical') },
                     { label: 'Stok Değeri', value: `₺${totalValue.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`, color: '#10b981', icon: '💰', onClick: () => setStockFilter('all') },
+                    { label: 'Maliyeti Girilmemiş', value: String(maliyetsiz), color: maliyetsiz ? '#b45309' : '#9ca3af', icon: '?', onClick: () => setStockFilter('all') },
                 ].map(c => (
                     <div key={c.label} onClick={c.onClick} style={{
                         backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)',

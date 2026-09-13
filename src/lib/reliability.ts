@@ -14,6 +14,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import { FAULT_CATEGORIES } from '@/lib/fault-categories';
+import { kullanimMaliyeti } from '@/lib/stok-maliyet';
 
 /** Gerçek arıza sayılan kategori kodları (bakım/kurulum hariç). */
 export const FAILURE_CODES = FAULT_CATEGORIES.filter((c) => c.isFailure).map((c) => c.code);
@@ -87,16 +88,27 @@ export async function deviceMetrics(tenantId: string, opts: WindowOpts = {}): Pr
     m.set(t.deviceId, (m.get(t.deviceId) || 0) + 1);
   }
 
-  // Parça maliyeti — ALIŞ fiyatı
+  // Parça maliyeti — KULLANIM ANINDAKİ alış maliyeti.
+  // Eskiden parçanın GÜNCEL buyPrice'ı okunuyordu; o alan her yeni alışta
+  // değiştiği için geçmiş fişlerin maliyeti sessizce değişiyordu. Artık
+  // önce dondurulmuş unitCost, yoksa parçanın bugünkü maliyeti.
   const parts = await prisma.ticketPart.findMany({
     where: { tenantId, ticket: { deviceId: { in: ids }, deletedAt: null, createdAt: { gte: since } } },
-    select: { quantity: true, ticket: { select: { deviceId: true } }, part: { select: { buyPrice: true } } },
+    select: {
+      quantity: true, unitCost: true,
+      ticket: { select: { deviceId: true } },
+      part: { select: { buyPrice: true, avgCost: true } },
+    },
   });
   const cost = new Map<string, number>();
   for (const p of parts) {
     const did = p.ticket?.deviceId;
     if (!did) continue;
-    cost.set(did, (cost.get(did) || 0) + Number(p.part?.buyPrice || 0) * p.quantity);
+    const m = kullanimMaliyeti(
+      { unitCost: p.unitCost === null ? null : Number(p.unitCost), quantity: p.quantity },
+      { avgCost: p.part?.avgCost === null ? null : Number(p.part?.avgCost), buyPrice: Number(p.part?.buyPrice || 0) },
+    );
+    cost.set(did, (cost.get(did) || 0) + m.tutar);
   }
 
   // Gelir — fatura satırları

@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { kanalKarari, degisimKaydet, tonerMu, type Kanal } from '@/lib/verim-ogrenme';
+import { parcaMaliyeti } from '@/lib/stok-maliyet';
 
 // GET: Bu fişin parçalarını listele
 export async function GET(
@@ -73,6 +74,13 @@ export async function POST(
         // Kullanılacak birim fiyat: override varsa onu kullan, yoksa stok satış fiyatı
         const finalUnitPrice = overridePrice !== undefined ? overridePrice : Number(part.sellPrice);
 
+        // MALİYET KULLANIM ANINDA DONDURULUYOR. Raporlar bugüne kadar
+        // parçanın GÜNCEL alış fiyatını okuyordu; o fiyat her yeni alışta
+        // değiştiği için altı ay önceki bir fişin maliyeti bugün başka
+        // çıkıyordu. Toner fiyatı bir yılda ikiye katlanınca geçmiş
+        // kârlılık kendiliğinden bozuluyordu.
+        const maliyet = parcaMaliyeti({ avgCost: part.avgCost as any, buyPrice: part.buyPrice as any });
+
         // Transaction: fişe parça ekle + stoktan düş
         const [ticketPart] = await prisma.$transaction([
             prisma.ticketPart.create({
@@ -82,6 +90,7 @@ export async function POST(
                     partId: part.id,
                     quantity,
                     unitPrice: finalUnitPrice,
+                    unitCost: maliyet.deger,
                 },
             }),
             // Stoktan düş

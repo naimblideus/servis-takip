@@ -25,7 +25,7 @@ const g = mkdtempSync(join(tmpdir(), 'st-kar-'));
 try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/sozlesme-karlilik.ts'),
+    join(KOK, 'src/lib/sozlesme-karlilik.ts'), join(KOK, 'src/lib/stok-maliyet.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
     '--moduleResolution', 'bundler', '--skipLibCheck',
   ], { stdio: 'pipe' });
@@ -36,7 +36,10 @@ try {
   writeFileSync(yol, readFileSync(yol, 'utf8')
     .split("'@/lib/prisma'").join("'./sahte.js'")
     .split("'@/lib/verim-ogrenme'").join("'./sahte.js'")
-    .split("'@/lib/toner-verimi'").join("'./sahte.js'"), 'utf8');
+    .split("'@/lib/toner-verimi'").join("'./sahte.js'")
+    .split("'@/lib/stok-maliyet'").join("'./stok-maliyet.js'"), 'utf8');
+  const sm = join(g, 'stok-maliyet.js');
+  writeFileSync(sm, readFileSync(sm, 'utf8').split("'@/lib/prisma'").join("'./sahte.js'"), 'utf8');
   writeFileSync(join(g, 'sahte.js'),
     'export const prisma = {};\nexport const verimleriOgren = async () => ({ cihaz: new Map(), model: new Map() });\nexport const modelAnahtari = (a, b) => `${a}|${b}`;\n', 'utf8');
 }
