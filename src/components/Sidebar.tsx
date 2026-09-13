@@ -182,6 +182,20 @@ const menuItems = [
   },
   {
     /**
+     * KDV ÖZETİ — bayinin her ay başka bir ön muhasebe programı açma
+     * sebebi tek bir soruydu: "bu ay ne kadar KDV ödeyeceğim?". Cevabı
+     * burada verdiğimiz an o programa girilecek rakam kalmıyor.
+     */
+    href: '/kdv',
+    label: 'KDV Özeti',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V5a2 2 0 012-2z" />
+      </svg>
+    ),
+  },
+  {
+    /**
      * SÖZLEŞMELER — dosya dolabı değil, fark bulucu.
      * Sözleşmede yazan fiyatla sistemdeki fiyatı karşılaştırıp aradaki
      * farkın aylık ₺ karşılığını veriyor; zam zamanını ve fesih ihbar
@@ -322,7 +336,7 @@ const menuItems = [
   },
 ];
 
-const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/sozlesmeler', '/invoices', '/e-fatura', '/collections', '/kacan-gelir', '/satis', '/import'];
+const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/kdv', '/sozlesmeler', '/invoices', '/e-fatura', '/collections', '/kacan-gelir', '/satis', '/import'];
 const SUPER_ADMIN_ONLY = ['/admin'];
 
 // Menü gösterim sırası (en çok kullanılan günlük işler üstte). Önceliği değiştirmek için
@@ -344,6 +358,7 @@ const MENU_ORDER = [
   '/etiket',       // Zebra Etiket — üstte
   '/accounting',   // Muhasebe — üstte
   '/collections',  // Tahsilat
+  '/kdv',          // KDV Özeti — Muhasebe'nin hemen yanında
   '/sozlesmeler',  // Sözleşmeler — kira fiyatının kaynağı, Faturalar'dan önce
   '/invoices',     // Faturalar
   '/e-fatura',     // e-Fatura Hazırlığı — Faturalar'ın hemen yanında

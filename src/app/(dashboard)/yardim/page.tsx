@@ -156,6 +156,17 @@ const SECTIONS: Section[] = [
     tip: 'Faturaya müşterinin defterdeki adı değil TESCİLLİ UNVANI yazılır; ikisi farklıysa "Ticari unvan" alanını doldur. "e-Fatura mükellefi mi" sorusu boş bırakılırsa fatura hazır sayılmaz: faturanın hangi yoldan gideceğini o belirliyor.',
   },
   {
+    id: 'kdv', icon: '🧮', title: 'KDV özeti — ay sonunda ne ödeyeceksin',
+    steps: [
+      'Sol menü → KDV Özeti. Dönemi ok tuşlarıyla değiştirirsin.',
+      'Satış KDV\'si kestiğin faturalardan, alış KDV\'si girdiğin giderlerden gelir. Aradaki fark ödeyeceğin tutardır.',
+      'Gider girerken KDV oranını yaz — tutarı fişteki KDV DAHİL rakam olarak gir, KDV\'yi sistem ayırır.',
+      'Oran yazmazsan o gider özete GİRMEZ ve ekran bunu sana söyler: "şu kadar giderin KDV\'si girilmemiş".',
+      'Alış satıştan fazlaysa ödenecek çıkmaz, DEVREDEN KDV çıkar.',
+    ],
+    tip: 'Bu bir beyanname değil, muhasebecine vereceğin rakam: tevkifat, istisna ve devreden mahsubu kapsam dışı. Satış tarafı FATURA TARİHİNE göre hesaplanır — tahsil etmemiş olsan da o ayın KDV\'sine girer. Göçte aktardığın eski sistem faturaları bu rakama girmez; onlar eski programda beyan edildi.',
+  },
+  {
     id: 'tahsilat', icon: '💰', title: 'Muhasebe, tahsilat ve borç hatırlatma',
     steps: [
       'Muhasebe = cari hesap. Her fiş borç, her ödeme alacak olarak işlenir; bakiye otomatik hesaplanır.',

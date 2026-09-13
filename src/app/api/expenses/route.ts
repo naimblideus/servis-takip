@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi, yoneticiDegilse } from '@/lib/api-auth';
+import { kdvAyir } from '@/lib/kdv';
 
 // GET /api/expenses — Gider listesi
 export async function GET(req: Request) {
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
     const yetki = yoneticiDegilse(user);
     if (yetki) return yetki;
     const body = await req.json();
-    const { category, description, amount, date, payee, method, notes } = body;
+    const { category, description, amount, date, payee, method, notes, vatRate, vatAmount, invoiceNo, payeeTaxNo } = body;
     if (!description || !amount) {
       return NextResponse.json({ error: 'description ve amount zorunlu' }, { status: 400 });
     }
@@ -67,6 +68,15 @@ export async function POST(req: Request) {
         category: category || 'GENEL',
         description,
         amount: parseFloat(amount),
+        // KDV: amount KDV DAHİL toplam. Oran verilmişse tutar ondan
+        // ayrılıyor; oran da yoksa KDV UYDURULMUYOR ve kayıt KDV özetinin
+        // dışında kalıyor (özet kaç tanesinin dışarıda kaldığını söylüyor).
+        vatRate: vatRate === undefined || vatRate === null || vatRate === '' ? null : parseFloat(vatRate),
+        vatAmount: vatAmount !== undefined && vatAmount !== null && vatAmount !== ''
+          ? parseFloat(vatAmount)
+          : kdvAyir(parseFloat(amount), vatRate === '' ? null : vatRate),
+        invoiceNo: (invoiceNo || '').trim() || null,
+        payeeTaxNo: (payeeTaxNo || '').trim() || null,
         date: date ? new Date(date) : new Date(),
         payee: payee || null,
         method: method || 'CASH',
