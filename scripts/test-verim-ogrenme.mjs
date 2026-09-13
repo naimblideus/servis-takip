@@ -137,6 +137,21 @@ console.log('\n★ ORTALAMA DEĞİL ORTANCA — tek uç gözlem bozmamalı\n');
   t('boş gözlemden özet çıkmıyor', ozetle([]) === null);
 }
 
+console.log('\n★ POPÜLASYON RIZASIZ TOPLANMIYOR\n');
+{
+  // Depodaki kural: "bayinin verisini başkasına açmak izin ister; izin
+  // varsayılan olamaz." Bir bayinin ölçümünü BAŞKA bayiye göstermek de
+  // aynı şey. Kaynakta rıza süzgeci ve k-anonimlik eşiği duruyor mu?
+  const kaynak = readFileSync(join(KOK, 'src/lib/verim-ogrenme.ts'), 'utf8');
+  const govde = kaynak.slice(kaynak.indexOf('export async function populasyonVerimleri'));
+  t('★ rıza bayrağı sorgulanıyor', /oemDataSharing:\s*true/.test(govde));
+  t('★ silinmiş/pasif bayi havuza girmiyor',
+    /deletedAt:\s*null/.test(govde) && /isActive:\s*true/.test(govde));
+  t('★ k-anonimlik eşiği uygulanıyor', /MIN_TENANTS_FOR_OEM/.test(govde));
+  t('rızalı bayi eşiğin altındaysa boş dönülüyor',
+    /rizaliBayiler\.length < MIN_TENANTS_FOR_OEM/.test(govde));
+}
+
 console.log('\n★ VERİM SEÇİMİ — kaynak GİZLENMİYOR\n');
 {
   const ozet = (d, n) => ({ deger: d, gozlem: n, enAz: d, enCok: d });

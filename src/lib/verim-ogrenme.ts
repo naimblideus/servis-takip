@@ -154,7 +154,7 @@ export async function verimleriOgren(tenantId: string): Promise<OgrenilenVerim> 
 }
 
 /**
- * POPÜLASYON — tüm bayilerin kayıtlarından model bazında verim.
+ * POPÜLASYON — VERİ PAYLAŞIMINA RIZA VEREN bayilerin kayıtlarından.
  *
  * Tek bayide 6 ay sürecek öğrenme, filoyu birleştirince günler alıyor. Ama
  * bir hücre ancak EN AZ {MIN_TENANTS_FOR_OEM} FARKLI BAYİDEN besleniyorsa
@@ -165,7 +165,23 @@ export async function verimleriOgren(tenantId: string): Promise<OgrenilenVerim> 
  * "marka+model+kanal → kaç sayfa".
  */
 export async function populasyonVerimleri(): Promise<Map<string, VerimOzeti>> {
+  // ── RIZA ŞART ──────────────────────────────────────────────
+  // Bu depoda üretici veri ürünü için kural zaten yazılmış: "bayinin
+  // verisini başkasına açmak sözleşmesel izin ister; izin varsayılan
+  // olamaz." Bir bayinin ölçtüğü verimi BAŞKA bir bayiye göstermek de
+  // aynı şey — topluluklaştırılmış olması izni gereksiz kılmıyor.
+  //
+  // Bu fonksiyon ilk yazıldığında rızayı sormuyordu. Artık yalnız
+  // `oemDataSharing` açık, aktif ve silinmemiş bayiler havuza giriyor —
+  // ve aynı bayiler havuzdan faydalanmaya da o rızayla hak kazanıyor.
+  const rizaliBayiler = await prisma.tenant.findMany({
+    where: { deletedAt: null, isActive: true, oemDataSharing: true },
+    select: { id: true },
+  });
+  if (rizaliBayiler.length < MIN_TENANTS_FOR_OEM) return new Map();
+
   const kayitlar = await prisma.tonerChange.findMany({
+    where: { tenantId: { in: rizaliBayiler.map((t) => t.id) } },
     select: {
       tenantId: true, deviceId: true, channel: true, counterValue: true, changedAt: true,
       device: { select: { brand: true, model: true } },
