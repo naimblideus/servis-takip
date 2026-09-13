@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { garantiDurumu, tekrarAriza, ucretliMi, TEKRAR_ARIZA_GUN } from '@/lib/garanti';
 
 /**
  * Cihazın son 12 aylık arıza geçmişi — kategoriye göre özet.
@@ -12,6 +13,11 @@ import { oturumKullanicisi } from '@/lib/api-auth';
  *
  * Cihaz seçilince BİR kez çekilir; kategori değiştikçe yeniden istek atılmaz
  * (anında görünsün, akışı yavaşlatmasın).
+ *
+ * ── GARANTİ VE TEKRAR ARIZA DA BURADA ───────────────────────────────────
+ * İkisi de cihaz seçildiği ANDA lazım ve ikisi de aynı soruyu besliyor:
+ * "bu iş ücretli mi, ve daha önce aynı şey olmuş muydu?". Ayrı uç açmak
+ * aynı anda ikinci bir istek demekti; bu uç zaten o anda çağrılıyor.
  */
 const WINDOW_DAYS = 365;
 
@@ -30,7 +36,10 @@ export async function GET(
     // IDOR koruması: cihaz bu tenant'a ait olmalı
     const device = await prisma.device.findFirst({
       where: { id, tenantId: user.tenantId },
-      select: { id: true, installedAt: true },
+      select: {
+        id: true, installedAt: true,
+        warrantyStart: true, warrantyEnd: true, warrantyNote: true,
+      },
     });
     if (!device) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
 
@@ -42,7 +51,10 @@ export async function GET(
         deletedAt: null,
         createdAt: { gte: since },
       },
-      select: { faultCategory: true, createdAt: true },
+      select: {
+        id: true, ticketNumber: true, issueText: true, status: true,
+        faultCategory: true, createdAt: true, statusUpdatedAt: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -62,6 +74,15 @@ export async function GET(
       categorized: tickets.filter((t) => t.faultCategory).length,
       byCategory,
       installedAt: device.installedAt,
+      // Garanti TAHMİN EDİLMİYOR: tarih girilmemişse "bilinmiyor" döner
+      // ve ücret kararı (ucretli) null kalır — bayi kendisi baksın.
+      garanti: (() => {
+        const gd = garantiDurumu(device);
+        return { ...gd, ucretli: ucretliMi(gd.durum) };
+      })(),
+      // Aynı cihaz kısa sürede tekrar arızalandıysa ilk onarım tutmamıştır.
+      // Veri ve indeks zaten vardı; kimse bakmıyordu.
+      tekrarAriza: tekrarAriza(tickets, new Date(), TEKRAR_ARIZA_GUN),
     });
   } catch (e: any) {
     console.error('FAULT HISTORY ERROR:', e.message);

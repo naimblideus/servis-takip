@@ -17,6 +17,9 @@ interface Props {
         pricePerColor?: number | null;
         includedBlack?: number;
         includedColor?: number;
+        warrantyStart?: string | null;
+        warrantyEnd?: string | null;
+        warrantyNote?: string | null;
     };
 }
 
@@ -36,6 +39,9 @@ export default function DeviceEditPanel({ device }: Props) {
         pricePerColor: device.pricePerColor != null ? String(device.pricePerColor) : '',
         includedBlack: String(device.includedBlack || 0),
         includedColor: String(device.includedColor || 0),
+        warrantyStart: device.warrantyStart ? device.warrantyStart.slice(0, 10) : '',
+        warrantyEnd: device.warrantyEnd ? device.warrantyEnd.slice(0, 10) : '',
+        warrantyNote: device.warrantyNote || '',
     });
 
     const save = async () => {
@@ -125,6 +131,32 @@ export default function DeviceEditPanel({ device }: Props) {
                         <div style={{ marginBottom: '1rem' }}>
                             <label style={lbl}>Konum</label>
                             <input style={inp} value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Muhasebe, Ofis..." />
+                        </div>
+
+                        {/* GARANTİ — fiş açılırken "bu iş ücretli mi" sorusunun
+                            tek kaynağı. Kurulum tarihinden TÜRETİLMİYOR: ikinci el
+                            makine, devir alınan park ve uzatılmış garanti üçünde de
+                            ayrışıyor; tahmin edilen garanti ya müşteriye kapsamdaki
+                            işi faturalatır ya bayiye kapsam dışı işi bedava yaptırır. */}
+                        <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Garanti</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(8rem, 1fr))', gap: '0.6rem' }}>
+                                <div>
+                                    <label style={lbl}>Başlangıç</label>
+                                    <input type="date" style={inp} value={form.warrantyStart} onChange={e => setForm({ ...form, warrantyStart: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label style={lbl}>Bitiş</label>
+                                    <input type="date" style={inp} value={form.warrantyEnd} onChange={e => setForm({ ...form, warrantyEnd: e.target.value })} />
+                                </div>
+                            </div>
+                            <div style={{ marginTop: '0.6rem' }}>
+                                <label style={lbl}>Kapsam notu</label>
+                                <input style={inp} value={form.warrantyNote} onChange={e => setForm({ ...form, warrantyNote: e.target.value })} placeholder="parça hariç, işçilik dahil" />
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.4rem' }}>
+                                Boş bırakılırsa fiş açarken &quot;garanti bilinmiyor&quot; yazar — tahmin edilmez.
+                            </div>
                         </div>
 
                         {/* Kiralık Cihaz */}

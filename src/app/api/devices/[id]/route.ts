@@ -4,6 +4,15 @@ import { prisma } from '@/lib/prisma';
 import { normalizeBrandModel } from '@/lib/device-brands';
 import { oturumKullanicisi } from '@/lib/api-auth';
 
+/** "YYYY-AA-GG" → YEREL gece yarısı. UTC olarak okunursa gün sayısı kayar. */
+function yerelTarih(v: unknown): Date | null {
+  if (v === null || v === undefined || v === '') return null;
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(String(v));
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export async function PATCH(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -40,6 +49,11 @@ export async function PATCH(
         if (body.location !== undefined) updateData.location = body.location || null;
         // Cihaz yaşı — mevcut cihazlarda sonradan doldurulabilsin diye düzenlemede de açık
         if (body.installedAt !== undefined) updateData.installedAt = body.installedAt ? new Date(body.installedAt) : null;
+        // GARANTİ: kurulum tarihinden TÜRETİLMİYOR (ikinci el makine,
+        // devir alınan park, uzatılmış garanti — üçünde de ayrışıyor).
+        if (body.warrantyStart !== undefined) updateData.warrantyStart = yerelTarih(body.warrantyStart);
+        if (body.warrantyEnd !== undefined) updateData.warrantyEnd = yerelTarih(body.warrantyEnd);
+        if (body.warrantyNote !== undefined) updateData.warrantyNote = (body.warrantyNote || '').trim() || null;
         if (body.manufacturedAt !== undefined) updateData.manufacturedAt = body.manufacturedAt ? new Date(body.manufacturedAt) : null;
         if (body.customerId !== undefined) updateData.customerId = body.customerId;
         if (body.isRental !== undefined) updateData.isRental = body.isRental;

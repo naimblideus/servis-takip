@@ -45,6 +45,10 @@ export async function POST(req: Request) {
         location: body.location || null,
         // Cihaz yaşı — geriye dönük telafi edilemez, bu yüzden ilk kayıtta yakalanır
         installedAt: body.installedAt ? new Date(body.installedAt) : null,
+        // Garanti kurulumdan türetilmiyor — girilmediyse boş kalır.
+        warrantyStart: body.warrantyStart ? new Date(body.warrantyStart) : null,
+        warrantyEnd: body.warrantyEnd ? new Date(body.warrantyEnd) : null,
+        warrantyNote: (body.warrantyNote || '').trim() || null,
         manufacturedAt: body.manufacturedAt ? new Date(body.manufacturedAt) : null,
         isRental: body.isRental || false,
         monthlyRent: body.isRental ? (parseFloat(body.monthlyRent) || 0) : 0,

@@ -7,6 +7,7 @@ import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 import FaultCategoryPicker from '@/components/FaultCategoryPicker';
 import TicketProgress from '@/components/TicketProgress';
 import FaultInsight, { type FaultHistory } from '@/components/FaultInsight';
+import CihazUyarilari from '@/components/CihazUyarilari';
 import SaveSuccess from '@/components/SaveSuccess';
 
 interface Customer { id: string; name: string; phone: string; address: string | null; }
@@ -702,6 +703,15 @@ export default function NewTicketPage() {
         {/* ═══ 3. Arıza Bilgileri ═══ */}
         {form.deviceId && (
           <>
+            {/* Garanti ve tekrar arıza, arıza bilgilerinden ÖNCE: ikisi de
+                "bu işi nasıl yapacağım" sorusunu değiştiriyor. Formu
+                doldurduktan sonra görmek geç olur. */}
+            <CihazUyarilari
+              garanti={(faultHistory as any)?.garanti}
+              tekrar={(faultHistory as any)?.tekrarAriza}
+              deviceId={form.deviceId}
+            />
+
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
               <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>🔧 Arıza Bilgileri</h2>
 

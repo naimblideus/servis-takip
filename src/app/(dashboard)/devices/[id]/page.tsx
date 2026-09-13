@@ -102,6 +102,9 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
               pricePerColor: (device as any).pricePerColor !== null ? Number((device as any).pricePerColor) : null,
               includedBlack: inclBlack,
               includedColor: inclColor,
+              warrantyStart: (device as any).warrantyStart ? new Date((device as any).warrantyStart).toISOString() : null,
+              warrantyEnd: (device as any).warrantyEnd ? new Date((device as any).warrantyEnd).toISOString() : null,
+              warrantyNote: (device as any).warrantyNote ?? null,
             }} />
           </div>
         </div>

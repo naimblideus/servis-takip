@@ -367,6 +367,29 @@ async function main() {
   const kullanici = await p.user.findFirst({ where: { tenantId: tenant.id }, select: { id: true } });
   const sayilar = await modulVerisi(tenant, kullanici.id, tumMusteriler, tumCihazlar);
 
+  // ── GARANTİ ───────────────────────────────────────────────────────
+  // BİLEREK karışık: bir kısmı kapsamda, biri bitmek üzere, biri bitmiş,
+  // bir kısmı BOŞ. Hepsi dolu olsaydı "bilinmiyor" hâli hiç görünmezdi;
+  // oysa gerçek bayide cihazların çoğunda garanti tarihi girilmemiş olur.
+  {
+    const hepsi = await p.device.findMany({ where: { tenantId: tenant.id }, select: { id: true } });
+    for (const [i, d] of hepsi.entries()) {
+      if (i % 3 === 2) continue; // üçte biri boş kalsın
+      const kalan = i === 0 ? 12 : i === 1 ? -40 : 120 + i * 20;
+      await p.device.update({
+        where: { id: d.id },
+        data: {
+          // Başlangıç bitişten 2 yıl geri: uzun kalan sürede bile GEÇMİŞTE
+          // kalsın. İlk yazışımda ileri tarihe düşüyordu ve kurulu cihazlar
+          // "garanti başlamadı" görünüyordu — ürün doğruydu, veri saçmaydı.
+          warrantyStart: new Date(Date.now() + (kalan - 730) * 86400000),
+          warrantyEnd: new Date(Date.now() + kalan * 86400000),
+          warrantyNote: i === 0 ? 'Parça hariç, işçilik dahil' : null,
+        },
+      });
+    }
+  }
+
   // ── SÖZLEŞMELER ───────────────────────────────────────────────────
   // Demo BİLEREK karışık: biri birebir uyumlu, biri fiyatı ayrışmış,
   // biri ihbar penceresini kaçırmış. Hepsi uyumlu olsaydı ekran hiçbir
