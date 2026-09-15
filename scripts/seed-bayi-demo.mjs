@@ -153,7 +153,18 @@ async function main() {
   const tenant = await p.tenant.create({
     data: {
       name: 'Marmara Büro Sistemleri', slug: SLUG,
-      plan: 'professional', isActive: true, maxUsers: 10,
+      // ── BÜTÜN ÖZELLİKLER AÇIK ──────────────────────────────────────
+      // Demo bir paket satmak için değil ÜRÜNÜ GÖSTERMEK için. Kapalı
+      // bir modül, karşıdaki bayinin göremediği bir özellik demek;
+      // görmediği şeyi de sormuyor. Plan Kurumsal ve modül listesi
+      // açıkça yazılı: plan varsayılanı ileride değişse bile demoda
+      // hiçbir ekran kaybolmasın.
+      plan: 'enterprise', isActive: true, maxUsers: 25,
+      modules: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP'],
+      marketEnabled: true,
+      // WhatsApp menüde ancak Meta numarası bağlıysa görünüyor.
+      // Demoda kanal kurulmuş sayılıyor; gelen mesaj kuyruğu aşağıda.
+      whatsappPhoneId: 'DEMO-WA-1015550100',
       pricePerBlack: 0.42, pricePerColor: 1.75,
       taxNumber: '2110340100', taxOffice: 'Ümraniye',
       address: 'Alemdağ Cad. No:112 Kat:2', city: 'İstanbul', district: 'Ümraniye',
@@ -450,6 +461,9 @@ async function main() {
             unitPrice: pr.satis, unitCost: pr.maliyet ?? null, createdAt: tarih,
           },
         });
+        // Takılan toner stoktan DÜŞER. İlk kurulumda bu satır yoktu:
+        // 227 toner fişe yazılmış ama raftan hiç eksilmemiş görünüyordu.
+        await p.part.update({ where: { id: pr.id }, data: { stockQty: { decrement: 1 } } });
         tonerFisi++;
 
         await p.tonerChange.create({
@@ -474,6 +488,59 @@ async function main() {
   }
   console.log(`  ${degisim} toner değişimi (${tonerFisi} fiş) → ${gozlem} verim gözlemi (kimse elle girmedi)`);
 
+  // ── SAYAÇ E-POSTASI KUYRUĞU ───────────────────────────────────────────
+  // Cihazların kendi gönderdiği sayaç raporları. Kuyruk BİLEREK karışık:
+  // çoğu eşleşip okumaya dönüşmüş, biri hiç eşleşmemiş (seri tanınmıyor),
+  // biri de okunamamış. Hepsi eşleşseydi ekran hiçbir şey anlatmazdı;
+  // hiçbiri eşleşmeseydi kanal çalışmıyor sanılırdı.
+  {
+    const epostali = cihazlar.slice(0, 12);
+    for (let i = 0; i < epostali.length; i++) {
+      const c = epostali[i];
+      const gun = rnd(1, 20);
+      await p.counterEmail.create({
+        data: {
+          tenantId: tenant.id, deviceId: c.id,
+          fromAddress: `${c.brand.toLowerCase()}-${c.serialNo.toLowerCase()}@cihaz.marmaraburo.example`,
+          subject: `Counter Report / Sayac Raporu — ${c.serialNo}`,
+          rawText: [
+            `Device: ${c.brand} ${c.model}`,
+            `Serial Number: ${c.serialNo}`,
+            `Total Black: ${c.counterBlack}`,
+            c.counterColor ? `Total Color: ${c.counterColor}` : 'Total Color: 0',
+            `Report Date: ${gunOnce(gun).toLocaleDateString('tr-TR')}`,
+          ].join('\n'),
+          serial: c.serialNo,
+          parsedBlack: c.counterBlack, parsedColor: c.counterColor ?? 0,
+          status: 'ISLENDI', receivedAt: gunOnce(gun),
+        },
+      });
+    }
+    // Seri tanınmadı: bu satır bayinin TEK TIKLA cihazla eşleştirmesini
+    // bekliyor. Eşleşmezse o cihazın sayacı her ay sessizce kaybolur.
+    await p.counterEmail.create({
+      data: {
+        tenantId: tenant.id,
+        fromAddress: 'noreply@kyoceradocumentsolutions.example',
+        subject: 'Counter Report — KM-A4821X',
+        rawText: 'Device: Kyocera ECOSYS M2540dn\nSerial Number: KM-A4821X\nTotal Black: 48210\nTotal Color: 0',
+        serial: 'KM-A4821X', parsedBlack: 48210, parsedColor: 0,
+        status: 'BEKLIYOR', receivedAt: gunOnce(2),
+      },
+    });
+    // Okunamayan biçim: ek ZIP içinde gelmiş, metin çıkarılamamış.
+    await p.counterEmail.create({
+      data: {
+        tenantId: tenant.id,
+        fromAddress: 'reports@canon-oip.example',
+        subject: 'Meter Read Report (attachment)',
+        rawText: 'Rapor ek dosyada (ZIP). Metin gövdesinde sayaç yok.',
+        status: 'HATA', hata: 'Sayaç değeri bulunamadı — rapor ek dosyada geliyor.',
+        receivedAt: gunOnce(5),
+      },
+    });
+  }
+
   // ── SERVİS FİŞLERİ ────────────────────────────────────────────────────
   let fisNo = 0, fisSayisi = 0;
   for (const c of cihazlar) {
@@ -483,8 +550,12 @@ async function main() {
     const kac = rnd(1, 4);
     for (let i = 0; i < kac; i++) {
       const a = secim(ARIZALAR);
-      const tarih = gunOnce(rnd(3, 350));
       const kapali = rnd(0, 100) < 78;
+      // AÇIK FİŞ ESKİ OLAMAZ. İlk kurulumda bütün fişler yıla yayılıyordu
+      // ve panoda "300 gün" bekleyen açık fişler çıkıyordu — hiçbir bayi
+      // fişi on ay açık bırakmaz, demo ihmal edilmiş bir işletme gibi
+      // görünüyordu. Kapanmışlar yıla yayılı, açıklar bu ayın işi.
+      const tarih = kapali ? gunOnce(rnd(12, 350)) : gunOnce(rnd(0, 11));
       const iscilik = secim([0, 0, 450, 600, 750]);
 
       const fis = await p.serviceTicket.create({
@@ -537,6 +608,64 @@ async function main() {
     }
   }
   console.log(`  ${fisSayisi} arıza fişi (+ ${tonerFisi} toner fişi)`);
+
+  // ── STOK DENKLEŞTİRME ─────────────────────────────────────────────────
+  // Yıl boyunca tüketilen parça, açılış alışlarından fazla olabiliyor ve
+  // stok EKSİYE düşüyordu. Eksi stok gerçek hayatta olmaz: bayi biterken
+  // yeniden alır. Tüketim belli olduktan sonra eksik kalan miktar üç ayrı
+  // alışa bölünerek yıla yayılıyor — tedarikçi karşılaştırması da bundan
+  // besleniyor.
+  //
+  // Ortalama maliyet bu alışlarla yeniden hesaplanıyor ama FİŞLERE
+  // DONDURULMUŞ maliyetlere DOKUNULMUYOR: o fişin o günkü maliyeti neyse
+  // odur, sonraki alışlar geçmişi değiştirmez.
+  {
+    const TEDARIKCILER = ['Anadolu Bilgisayar', 'Kadıköy Ofis', 'Acil Tedarik'];
+    let ekAlis = 0;
+    const hepsi = await p.part.findMany({
+      where: { tenantId: tenant.id },
+      select: { id: true, name: true, stockQty: true, avgCost: true, buyPrice: true, minStock: true },
+    });
+    for (const parca of hepsi) {
+      const hedefKalan = parca.minStock + rnd(1, 6);
+      const eksik = hedefKalan - parca.stockQty;
+      if (eksik <= 0) continue;
+
+      // Üç parti: yılın başı, ortası, sonu. Miktarlar eşit bölünüyor,
+      // artan son partiye ekleniyor.
+      const parti = [Math.floor(eksik / 3), Math.floor(eksik / 3), eksik - 2 * Math.floor(eksik / 3)]
+        .filter((n) => n > 0);
+      let stok = Math.max(0, parca.stockQty);
+      let ortalama = parca.avgCost === null ? null : Number(parca.avgCost);
+      const temel = Number(parca.buyPrice) || Number(parca.avgCost) || 0;
+      let gun = 300;
+      for (let i = 0; i < parti.length; i++) {
+        const adet = parti[i];
+        // Fiyat yıl içinde oynuyor — sabit fiyat, ortalama maliyetin
+        // neden gerekli olduğunu gösteremezdi.
+        const birim = Math.round(temel * (1 + (rnd(-8, 14) / 100)));
+        ortalama = stok > 0 && ortalama
+          ? Math.round(((stok * ortalama + adet * birim) / (stok + adet)) * 100) / 100
+          : birim;
+        stok += adet;
+        await p.partPurchase.create({
+          data: {
+            tenantId: tenant.id, partId: parca.id, quantity: adet, unitCost: birim,
+            supplier: TEDARIKCILER[(i + parti.length) % TEDARIKCILER.length],
+            invoiceNo: `A-2026${String(rnd(1000, 9999))}`,
+            purchasedAt: gunOnce(gun), avgAfter: ortalama,
+          },
+        });
+        ekAlis++;
+        gun -= Math.floor(260 / parti.length);
+      }
+      await p.part.update({
+        where: { id: parca.id },
+        data: { stockQty: hedefKalan, avgCost: ortalama },
+      });
+    }
+    console.log(`  stok denkleştirildi: ${ekAlis} ek alış, eksi stok kalmadı`);
+  }
 
   // ── SÖZLEŞMELER ───────────────────────────────────────────────────────
   // Her müşteriye bir sözleşme. Biri BİLEREK eski fiyatta (Kuzey Nakliyat)
@@ -661,6 +790,53 @@ async function main() {
   }
   console.log(`  ${faturaSayisi} fatura (12 ay) + tahsilatlar`);
 
+  // ── BU HAFTANIN TAHSİLATLARI ──────────────────────────────────────────
+  // Açık faturaların birkaçı son günlerde ödeniyor. Olmasaydı pano
+  // "bugünkü tahsilat ₺0" derdi ve işletme durmuş gibi görünürdü.
+  {
+    const acik = await p.customerInvoice.findMany({
+      where: { tenantId: tenant.id, status: 'OPEN' },
+      orderBy: { invoiceDate: 'asc' }, take: 3,
+      select: { id: true, customerId: true, invoiceNumber: true, totalAmount: true },
+    });
+    for (let i = 0; i < acik.length; i++) {
+      const f = acik[i];
+      const tutar = Number(f.totalAmount);
+      const t = gunOnce(i);
+      const odeme = await p.payment.create({
+        data: {
+          tenantId: tenant.id, customerId: f.customerId, amount: tutar,
+          method: secim(['TRANSFER', 'CASH']), paymentDate: t, reconciled: true,
+          notes: 'Tahsilat',
+        },
+      });
+      await p.invoicePayment.create({
+        data: { tenantId: tenant.id, invoiceId: f.id, paymentId: odeme.id, amount: tutar, allocatedAt: t },
+      });
+      await p.financialTransaction.create({
+        data: {
+          tenantId: tenant.id, customerId: f.customerId, invoiceId: f.id,
+          type: 'INCOME', category: 'COUNTER_FEE', amount: tutar,
+          method: odeme.method, description: `Tahsilat — ${f.invoiceNumber}`, date: t,
+        },
+      });
+      await p.customerInvoice.update({
+        where: { id: f.id },
+        data: { status: 'PAID', paidAmount: tutar, paidAt: t },
+      });
+    }
+    console.log(`  ${acik.length} tahsilat bu hafta yapıldı (pano boş kalmasın)`);
+  }
+
+  // ── SON FATURALANAN DÖNEM ─────────────────────────────────────────────
+  // Cihazın hangi döneme kadar faturalandığı yazılmazsa aynı ay iki kez
+  // faturalanabilir. Son fatura GEÇEN AYIN; bu ay bilerek açık bırakıldı
+  // ki demoda ay sonu faturalaması gerçekten çalıştırılabilsin.
+  {
+    const sonDonem = donem(ayBasi(1));
+    await p.device.updateMany({ where: { tenantId: tenant.id }, data: { lastInvoicedPeriod: sonDonem } });
+  }
+
   // ── GİDERLER ──────────────────────────────────────────────────────────
   for (let ay = 12; ay >= 1; ay--) {
     const d = ayBasi(ay);
@@ -677,6 +853,98 @@ async function main() {
         data: {
           tenantId: tenant.id, type: 'EXPENSE', category: kod, amount: miktar,
           method: 'TRANSFER', description: `${donem(d)} — ${ad}`, date: tarih,
+        },
+      });
+    }
+  }
+
+  // ── MÜŞTERİ PANELİ TALEPLERİ ──────────────────────────────────────────
+  // Müşteri kendi panelinden arıza bildiriyor ya da sayaç giriyor. Üçü
+  // BEKLİYOR: bu ekranın işi o kuyruğu boşaltmak, boş kuyruk anlatmıyor.
+  {
+    const portalli = musteriler.slice(0, 6);
+    const bildirimler = [
+      { tur: 'ARIZA', durum: 'BEKLIYOR', aciklama: 'Sabahtan beri kağıt sıkışıyor, arka kapaktan çıkarıyoruz ama tekrarlıyor.' },
+      { tur: 'SAYAC', durum: 'BEKLIYOR', aciklama: null },
+      { tur: 'ARIZA', durum: 'BEKLIYOR', aciklama: 'Renkli çıktıda sararma var, sunum bastıramıyoruz.' },
+      { tur: 'ARIZA', durum: 'ISLENDI', aciklama: 'Tarayıcı ağa bağlanmıyor.', notu: 'IP çakışması giderildi, fiş açıldı.' },
+      { tur: 'SAYAC', durum: 'ISLENDI', aciklama: null, notu: 'Okuma kaydedildi.' },
+      { tur: 'ARIZA', durum: 'REDDEDILDI', aciklama: 'Kağıt bitti uyarısı geliyor.', notu: 'Kağıt takviyesi müşteride — arıza değil.' },
+    ];
+    for (let i = 0; i < bildirimler.length; i++) {
+      const b = bildirimler[i];
+      const m = portalli[i % portalli.length];
+      const kendi = cihazlar.filter((c) => c.customerId === m.id);
+      const c = kendi[0];
+      if (!c) continue;
+      const t = gunOnce(b.durum === 'BEKLIYOR' ? rnd(1, 5) : rnd(20, 90));
+      await p.portalRequest.create({
+        data: {
+          tenantId: tenant.id, customerId: m.id, deviceId: c.id,
+          tur: b.tur, aciklama: b.aciklama, durum: b.durum, notu: b.notu ?? null,
+          sayacBlack: b.tur === 'SAYAC' ? c.counterBlack + rnd(50, 400) : null,
+          sayacColor: b.tur === 'SAYAC' ? (c.counterColor || null) : null,
+          createdAt: t, islenenAt: b.durum === 'BEKLIYOR' ? null : t,
+        },
+      });
+    }
+  }
+
+  // ── WHATSAPP KUYRUĞU ──────────────────────────────────────────────────
+  // Müşteri WhatsApp'tan yazıyor ya da sayaç fotoğrafı gönderiyor. Biri
+  // TANINMAYAN NUMARADAN: "sisteme ekle" akışı oradan çıkıyor.
+  {
+    const mesajlar = [
+      { m: 0, text: 'Merhaba, makine kağıt çekmiyor. Bugün bakabilir misiniz?', ariza: true, handled: false },
+      { m: 1, text: 'Sayaç fotoğrafını gönderiyorum.', foto: true, handled: false },
+      { m: 2, text: 'Toner bitmek üzere, yenisini yollayabilir misiniz?', ariza: true, handled: false },
+      { m: 3, text: 'Teşekkürler, sorun çözüldü.', handled: true },
+    ];
+    for (let i = 0; i < mesajlar.length; i++) {
+      const x = mesajlar[i];
+      const m = musteriler[x.m];
+      await p.whatsAppMessage.create({
+        data: {
+          tenantId: tenant.id, customerId: m.id,
+          waMessageId: `wamid.DEMO${Date.now()}${i}`,
+          fromPhone: `9${m.phone.replace(/\D/g, '')}`,
+          contactName: m.name,
+          text: x.text,
+          mediaId: x.foto ? 'DEMO-MEDIA-1' : null, mediaType: x.foto ? 'image' : null,
+          receivedAt: gunOnce(rnd(1, 8)),
+          handled: x.handled, isFaultReport: !!x.ariza,
+        },
+      });
+    }
+    // Tanınmayan numara: sistemde müşterisi yok.
+    await p.whatsAppMessage.create({
+      data: {
+        tenantId: tenant.id, customerId: null,
+        waMessageId: `wamid.DEMO${Date.now()}X`,
+        fromPhone: '905367778899', contactName: 'Burak Şen',
+        text: 'Merhaba, fotokopi kiralama fiyatlarınızı öğrenebilir miyim?',
+        receivedAt: gunOnce(1), handled: false,
+      },
+    });
+  }
+
+  // ── BAYİ PAZARI İLANLARI ──────────────────────────────────────────────
+  // Bayiler arası parça/makine alışverişi. Demoda bu bayinin KENDİ
+  // ilanları var; pazar ekranı boş açılmasın.
+  {
+    const ilanlar = [
+      { kind: 'PART', title: 'Kyocera TK-1170 Toner (orijinal)', brand: 'Kyocera', model: 'TK-1170', condition: 'SIFIR', category: 'Toner', price: 1150, quantity: 6, unit: 'adet' },
+      { kind: 'MACHINE', title: 'Canon imageRUNNER 2425 — sözleşmeden çıkan', brand: 'Canon', model: 'imageRUNNER 2425', condition: 'IKINCI_EL', category: 'Fotokopi', price: 28500, quantity: 1, unit: 'adet' },
+      { kind: 'PART', title: 'Fuser Film Kılıfı (HP/Canon uyumlu)', brand: 'HP', model: '2035/LBP', condition: 'SIFIR', category: 'Yedek Parça', price: 520, quantity: 9, unit: 'adet' },
+      { kind: 'MACHINE', title: 'Kyocera ECOSYS M2540dn — düşük sayaç', brand: 'Kyocera', model: 'ECOSYS M2540dn', condition: 'IKINCI_EL', category: 'Yazıcı', price: 12900, quantity: 2, unit: 'adet' },
+    ];
+    for (const x of ilanlar) {
+      await p.marketListing.create({
+        data: {
+          sellerTenantId: tenant.id, ...x,
+          description: 'Marmara Büro Sistemleri stoğundan. Fatura kesilir, kargo alıcıya aittir.',
+          city: 'İstanbul', status: 'ACTIVE',
+          createdAt: gunOnce(rnd(3, 60)),
         },
       });
     }
@@ -715,6 +983,9 @@ async function main() {
   console.log(`  ${musteriler.length} müşteri · ${cihazlar.length} makine · ${okuma} sayaç okuması`);
   console.log(`  ${fisSayisi + tonerFisi} servis fişi · ${faturaSayisi} fatura · ${sozNo} sözleşme`);
   console.log(`  ${gozlem} toner verimi SAHADA ÖLÇÜLDÜ (elle girilen: 0)`);
+  console.log('');
+  console.log('  Bütün modüller AÇIK: Faturalar · Rota · Takip · Kaçan Gelir ·');
+  console.log('  Raporlar · Bayi Pazarı · Müşteri Paneli · Mağaza · WhatsApp');
   console.log('');
 }
 
