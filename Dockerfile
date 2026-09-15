@@ -78,6 +78,15 @@ COPY --chown=nextjs:nodejs apply-migrations.js ./apply-migrations.js
 # Demo bayi (tenant) oluşturma scripti — elle çalıştırılır (docker exec node create-demo-tenants.js)
 COPY --chown=nextjs:nodejs create-demo-tenants.js ./create-demo-tenants.js
 
+# ICP DEMO HESABI — elle çalıştırılır:  node scripts/seed-bayi-demo.mjs
+#
+# NEDEN AYRICA KOPYALANIYOR: bu imaj `scripts/` klasörünü almıyor (içinde
+# 50'den fazla test dosyası var, üretimde işleri yok). Kopyalanmadığı için
+# demo hesabı CANLIDA HİÇ OLUŞTURULAMIYORDU — komut yerelde çalışıyor,
+# sunucuda "dosya yok" diyordu ve giriş bilgileri çalışmıyor sanılıyordu.
+# Yalnız bu tek dosya alınıyor.
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-bayi-demo.mjs ./scripts/seed-bayi-demo.mjs
+
 # Zamanlanmış görev çalıştırıcı — Coolify "Scheduled Tasks" çağırır:
 #   node run-cron.mjs faturalar   (ayın 1'i)   |   node run-cron.mjs hatirlatma  (her gün)
 COPY --chown=nextjs:nodejs run-cron.mjs ./run-cron.mjs
