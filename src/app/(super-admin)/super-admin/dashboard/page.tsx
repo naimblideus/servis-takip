@@ -120,6 +120,21 @@ export default function SuperAdminDashboard() {
                                 {nobetci.kontroller.length} kontrol · günde bir otomatik taranır
                             </span>
                         </div>
+                        {/* HANGİ VERİTABANI — her şey yolundayken bile görünür.
+                            "Veritabanı bağlı mı, doğru olanı mı?" sorusu bugüne
+                            kadar ancak sunucu terminaline girilerek cevaplanıyordu.
+                            Sorun yokken de görünmesi gerekiyor: sessiz arıza tam da
+                            hiçbir şey kırmadan yanlış veritabanına bağlı kalmaktır.
+                            Parola yazılmaz. */}
+                        {(() => {
+                            const db = nobetci.kontroller.find(k => k.ad === 'Veritabanı');
+                            // Sorunluysa zaten aşağıdaki listede nedeniyle çıkıyor.
+                            return db && db.seviye === 'iyi' ? (
+                                <div className="mt-2 text-[11px] text-gray-400 font-mono break-all">
+                                    Veritabanı — {db.mesaj}
+                                </div>
+                            ) : null;
+                        })()}
                         {nobetci.seviye !== 'iyi' && (
                             <ul className="mt-3 space-y-2">
                                 {nobetci.kontroller.filter(k => k.seviye !== 'iyi').map(k => (

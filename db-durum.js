@@ -46,6 +46,33 @@ async function dene(ad, f) {
   console.log('\n═══ VERİTABANI DURUM RAPORU ═══');
   console.log('    ' + new Date().toLocaleString('tr-TR'));
 
+  // ── 0. NEREYE BAĞLANIYOR ──────────────────────────────────────────────
+  // "Veritabanı var ama bağlı değil" durumunun tek kesin cevabı burada.
+  // PAROLA ASLA BASILMAZ — çıktı olduğu gibi paylaşılabilsin diye.
+  baslik('0. HEDEF (DATABASE_URL)');
+  if (!process.env.DATABASE_URL) {
+    not(HATA, 'DATABASE_URL TANIMLI DEĞİL — uygulama hiçbir veritabanına bağlı değil.');
+  } else {
+    try {
+      const u = new URL(process.env.DATABASE_URL);
+      console.log(`          sunucu : ${u.hostname}:${u.port || '5432'}`);
+      console.log(`          veritabanı : ${u.pathname.slice(1) || '(belirtilmemiş)'}`);
+      console.log(`          kullanıcı  : ${u.username || '(yok)'}`);
+      console.log('          parola     : ' + (u.password ? '(var, basılmadı)' : '(YOK)'));
+      // localhost/127.0.0.1, konteynerin KENDİ içini gösterir. Coolify'da
+      // veritabanı ayrı bir kaynak olduğu için adres onun SERVİS ADI
+      // olmalı (ör. "servis-takip-db"). localhost görüyorsanız uygulama
+      // yanlış yere bakıyor demektir.
+      if (['localhost', '127.0.0.1', '::1'].includes(u.hostname)) {
+        not(UYARI, 'adres localhost — konteynerin kendi içi. Coolify panelinde veritabanı AYRI bir kaynak ise burada onun servis adı yazmalı.');
+      } else {
+        not(OK, `hedef: ${u.hostname}`);
+      }
+    } catch {
+      not(HATA, 'DATABASE_URL okunamadı — biçimi bozuk.');
+    }
+  }
+
   // ── 1. BAĞLANTI ───────────────────────────────────────────────────────
   baslik('1. BAĞLANTI');
   const t0 = Date.now();
@@ -228,6 +255,15 @@ async function dene(ad, f) {
              (SELECT count(*)::int FROM "CustomerInvoice") AS fatura`);
     console.log(`          ${s.bayi} bayi · ${s.kullanici} kullanıcı · ${s.musteri} müşteri · ${s.cihaz} cihaz`);
     console.log(`          ${s.fis} fiş · ${s.okuma} sayaç okuması · ${s.fatura} fatura`);
+    // BOŞ VERİTABANI = şema kurulmuş ama içinde hiç kayıt yok. Tablolar
+    // yerinde olduğu için uygulama hata vermez, ekranlar boş açılır ve
+    // "veri kayboldu" sanılır. Gerçek veri BAŞKA bir veritabanındadır:
+    // bağlantıyı değiştirmeden önce eskisinin nerede olduğu bulunmalı.
+    if (s.bayi === 0 && s.kullanici === 0) {
+      not(HATA, 'BU VERİTABANI BOŞ — tablolar var ama hiç kayıt yok. Uygulama muhtemelen YANLIŞ veritabanına bağlı; gerçek veri başka bir yerde duruyor olabilir. Bağlantıyı değiştirmeden önce eskisini bulun.');
+    } else if (s.bayi > 0 && s.kullanici === 0) {
+      not(HATA, 'Bayi var ama HİÇ KULLANICI YOK — kimse giriş yapamaz.');
+    }
     const sonHareket = await p.$queryRawUnsafe(
       `SELECT max("createdAt") AS s FROM "ServiceTicket"`);
     if (sonHareket[0] && sonHareket[0].s) {

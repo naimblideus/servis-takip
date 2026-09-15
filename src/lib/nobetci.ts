@@ -9,6 +9,7 @@
  * Her kontrol kendi başına başarısız olabilir; biri patlarsa diğerleri çalışır.
  */
 import { prisma } from '@/lib/prisma';
+import { hedefOzeti, parolayiGizle } from '@/lib/db-hedef';
 
 export type Seviye = 'iyi' | 'uyari' | 'kritik';
 
@@ -22,16 +23,53 @@ export interface Kontrol {
 
 const gunOnce = (n: number) => new Date(Date.now() - n * 86_400_000);
 
-/** Veritabanı açık mı, ne kadar yavaş? */
+/**
+ * Veritabanı açık mı, ne kadar yavaş — ve HANGİ veritabanı?
+ *
+ * "Bağlanabiliyorum" tek başına yetmiyor. İki sessiz arıza daha var:
+ *
+ *   BOŞ VERİTABANI — göçler çalışmış, tablolar yerinde, ama içinde tek kayıt
+ *   yok. Uygulama hata vermez; ekranlar boş açılır ve veri kaybolmuş sanılır.
+ *   Gerçek sebep genelde budur: DATABASE_URL başka bir veritabanını gösterir,
+ *   asıl veri eski veritabanında durmaktadır.
+ *
+ *   YEREL ADRES — üretimde localhost, konteynerin KENDİ içidir. Veritabanı
+ *   ayrı bir kaynaksa adres o kaynağın servis adı olmalıdır.
+ */
 async function kVeritabani(): Promise<Kontrol> {
+  const hedef = hedefOzeti(process.env.DATABASE_URL);
+  const nerede = hedef ? ` · ${hedef.veritabani} @ ${hedef.sunucu}` : '';
   const t0 = Date.now();
   try {
     await prisma.$queryRaw`SELECT 1`;
     const ms = Date.now() - t0;
-    if (ms > 2000) return { ad: 'Veritabanı', seviye: 'uyari', mesaj: `Yanıt ${ms} ms — yavaş`, nedeni: 'Sunucu yükü ya da disk. Coolify kaynak grafiğine bakın.' };
-    return { ad: 'Veritabanı', seviye: 'iyi', mesaj: `${ms} ms` };
+    const bayi = await prisma.tenant.count();
+
+    if (bayi === 0) {
+      return {
+        ad: 'Veritabanı', seviye: 'kritik',
+        mesaj: `Bağlı ama BOŞ — hiç bayi yok${nerede}`,
+        nedeni: 'Tablolar var, veri yok. DATABASE_URL büyük ihtimalle yanlış veritabanını gösteriyor. Bağlantıyı değiştirmeden ÖNCE verinin durduğu veritabanını bulun; yanlış sırada yapılırsa veri kaybolmuş görünür.',
+      };
+    }
+    if (ms > 2000) {
+      return { ad: 'Veritabanı', seviye: 'uyari', mesaj: `Yanıt ${ms} ms — yavaş${nerede}`, nedeni: 'Sunucu yükü ya da disk. Coolify kaynak grafiğine bakın.' };
+    }
+    // Geliştirme makinesinde localhost normaldir; uyarı sadece üretimde.
+    if (hedef?.yerel && process.env.NODE_ENV === 'production') {
+      return {
+        ad: 'Veritabanı', seviye: 'uyari',
+        mesaj: `${ms} ms · ${bayi} bayi${nerede}`,
+        nedeni: 'Adres localhost — konteynerin kendi içi. Veritabanı Coolify panelinde ayrı bir kaynak ise DATABASE_URL o kaynağın servis adını göstermeli.',
+      };
+    }
+    return { ad: 'Veritabanı', seviye: 'iyi', mesaj: `${ms} ms · ${bayi} bayi${nerede}` };
   } catch (e: any) {
-    return { ad: 'Veritabanı', seviye: 'kritik', mesaj: `Bağlanılamıyor: ${e?.message ?? 'bilinmeyen'}`, nedeni: 'Postgres kapalı ya da DATABASE_URL yanlış.' };
+    return {
+      ad: 'Veritabanı', seviye: 'kritik',
+      mesaj: `Bağlanılamıyor${nerede}: ${parolayiGizle(String(e?.message ?? 'bilinmeyen'))}`,
+      nedeni: 'Postgres kapalı ya da DATABASE_URL yanlış.',
+    };
   }
 }
 
