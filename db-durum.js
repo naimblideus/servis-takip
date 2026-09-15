@@ -42,7 +42,76 @@ async function dene(ad, f) {
   }
 }
 
+/**
+ * TAŞIMA DOĞRULAMASI — `node db-durum.js --ozet`
+ *
+ * Veritabanı taşırken asıl soru "bağlandı mı" değil, "HER ŞEY GELDİ Mİ".
+ * Göz kararı bakmak bunu cevaplamıyor: 1752 fişin 1750'si gelmişse ekranlar
+ * normal görünür, eksik iki fiş ancak aylar sonra fark edilir.
+ *
+ * Bu mod public şemadaki HER tablonun TAM satır sayısını tek tek yazar
+ * (tahmin değil — reltuples yaklaşıktır, burada işe yaramaz). Eski ve yeni
+ * veritabanında çalıştırılıp çıktılar karşılaştırılır; tek satır fark varsa
+ * gözle görülür.
+ *
+ * Kasten sade tutuldu: tarih, süre, boyut yazılmaz — onlar iki çalıştırmada
+ * farklı çıkar ve karşılaştırmayı gürültüye boğardı.
+ */
+async function ozetModu() {
+  const hedef = hedefOzeti();
+  console.log(`# ${hedef ? `${hedef.veritabani} @ ${hedef.sunucu}` : 'hedef okunamadı'}`);
+  const tablolar = await p.$queryRawUnsafe(
+    `SELECT table_name AS ad FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+      ORDER BY table_name`,
+  );
+  let toplam = 0;
+  for (const t of tablolar) {
+    // Ad veritabanı kataloğundan geliyor ama yine de tırnak kaçışı yapılıyor:
+    // güvenli kaynaktan geldiği için kaçışı atlamak, kaynağın bir gün
+    // değişmesiyle sessizce açığa dönüşür.
+    const ad = String(t.ad).replace(/"/g, '""');
+    const [{ n }] = await p.$queryRawUnsafe(`SELECT COUNT(*)::int AS n FROM "${ad}"`);
+    toplam += n;
+    console.log(`${t.ad}=${n}`);
+  }
+  console.log(`# ${tablolar.length} tablo · ${toplam} satır`);
+}
+
+/** DATABASE_URL'in hedefi — parola alanı HİÇ okunmuyor. */
+function hedefOzeti() {
+  if (!process.env.DATABASE_URL) return null;
+  try {
+    const u = new URL(process.env.DATABASE_URL);
+    const host = u.hostname.replace(/^\[/, '').replace(/\]$/, '');
+    if (!host) return null;
+    return {
+      sunucu: `${host}:${u.port || '5432'}`,
+      veritabani: decodeURIComponent(u.pathname.replace(/^\//, '')) || '?',
+      kullanici: (() => { try { return decodeURIComponent(u.username); } catch { return u.username; } })() || '?',
+      yerel: ['localhost', '127.0.0.1', '::1'].includes(host),
+    };
+  } catch {
+    return null;
+  }
+}
+
 (async () => {
+  if (process.argv.includes('--ozet')) {
+    try {
+      await ozetModu();
+      await p.$disconnect().catch(() => {});
+      process.exit(0);
+    } catch (e) {
+      const kalip = /^(Invalid `|Please make sure|\d+\s|\^|→)/;
+      const satirlar = String((e && e.message) || e).split('\n').map((x) => x.trim()).filter(Boolean);
+      const sebep = satirlar.find((x) => !kalip.test(x)) || satirlar[0] || 'bilinmeyen hata';
+      console.log('# OKUNAMADI: ' + sebep.replace(/(:\/\/[^:@\s/]+):[^@\s/]*@/g, '$1:***@').slice(0, 160));
+      await p.$disconnect().catch(() => {});
+      process.exit(1);
+    }
+  }
+
   console.log('\n═══ VERİTABANI DURUM RAPORU ═══');
   console.log('    ' + new Date().toLocaleString('tr-TR'));
 
