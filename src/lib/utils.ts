@@ -78,3 +78,22 @@ export function generateTicketNumber(): string {
 export function cn(...classes: string[]): string {
   return classes.filter(Boolean).join(' ');
 }
+/**
+ * Bugünün tarihi, `YYYY-AA-GG`, YEREL takvime göre.
+ *
+ * ── NEDEN GEREKLİ ────────────────────────────────────────────────────────
+ * `new Date().toISOString().slice(0, 10)` UTC tarihini verir. Türkiye
+ * UTC+3 olduğu için gece 00:00–03:00 arasında bu ifade DÜNÜ döndürür.
+ * Tarih kutusuna varsayılan olarak konduğunda ya da kaydedilen bir tarihi
+ * ürettiğinde sonuç sessizce bir gün geriye kayar: gece 1'de girilen alış
+ * bir önceki güne yazılır, uygulanan zam bir gün erken görünür.
+ *
+ * Hata yalnız günün üç saatinde ortaya çıktığı için gündüz yapılan hiçbir
+ * denemede görünmüyor — bu oturumda da bir testin gece kırmızıya
+ * dönmesiyle yakalandı.
+ */
+export function bugununTarihi(d: Date = new Date()): string {
+  const ay = String(d.getMonth() + 1).padStart(2, '0');
+  const gun = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${ay}-${gun}`;
+}

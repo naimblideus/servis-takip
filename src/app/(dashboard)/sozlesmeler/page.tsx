@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { bugununTarihi } from '@/lib/utils';
 
 /**
  * SÖZLEŞMELER
@@ -241,7 +242,8 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
   const zamYapildi = async () => {
     if (!confirm('Zam yapıldı olarak işaretlensin mi? Sonraki hatırlatma bugünden itibaren sayılacak.\n\n(Fiyatları değiştirmez — onu Toplu Zam ekranından yaparsın.)')) return;
     setMesgul(true);
-    await patch(k.id, { lastEscalationAt: new Date().toISOString().slice(0, 10) });
+    // Yerel takvim — UTC'den türetilirse zam bir gün erken görünür.
+    await patch(k.id, { lastEscalationAt: bugununTarihi() });
     setMesgul(false);
   };
 

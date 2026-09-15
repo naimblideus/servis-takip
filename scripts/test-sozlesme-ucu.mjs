@@ -36,7 +36,10 @@ const SLUG = 'test-sozlesme-ucu';
 const GUN = 86400000;
 const gunOnce = (n) => new Date(Date.now() - n * GUN);
 const gunSonra = (n) => new Date(Date.now() + n * GUN);
-const iso = (d) => d.toISOString().slice(0, 10);
+// YEREL tarih. toISOString() UTC verir ve UTC+3'te gece 00:00-03:00
+// arasında bir gün geri kayar; ürün yerel gece yarısını kullandığı için
+// test o saatlerde kendiliğinden kırmızıya dönüyordu (ürün doğruydu).
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 async function giris(eposta) {
   const c = await fetch(`${KOK}/api/auth/csrf`);

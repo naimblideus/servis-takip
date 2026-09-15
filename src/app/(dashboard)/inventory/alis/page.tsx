@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { bugununTarihi } from '@/lib/utils';
 
 /**
  * PARÇA ALIŞI — stoğun nereden, kaça geldiği.
@@ -22,7 +23,9 @@ type Tedarikci = { tedarikci: string; alisSayisi: number; toplamAdet: number; or
 
 const tl = (n: number) => `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const gg = (s: string) => new Date(s).toLocaleDateString('tr-TR');
-const bugun = () => new Date().toISOString().slice(0, 10);
+// Yerel takvim: UTC'den türetilirse gece 00:00-03:00 arasında DÜNÜ verir
+// ve alış bir gün önceye yazılır (bkz. bugununTarihi).
+const bugun = () => bugununTarihi();
 
 export default function ParcaAlisPage() {
   const [parcalar, setParcalar] = useState<Parca[]>([]);

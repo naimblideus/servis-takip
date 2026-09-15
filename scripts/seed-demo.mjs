@@ -585,6 +585,18 @@ async function modulVerisi(tenant, kullaniciId, musteriler, cihazlar) {
     fisler.push(fis);
   }
 
+  // ── STOK EKSİYE DÜŞMESİN ────────────────────────────────────────────────
+  // Fişlere takılan parçalar stoktan düşüyor ve açılış miktarı tükenince
+  // stok EKSİYE iniyordu. Ölçüldü: landing'den "Demoyu Dene" ile giren aday
+  // müşteri "-2 adet" yazan bir stok listesi görüyordu. Eksi stok gerçek
+  // hayatta olmaz; sıfıra çekiliyor ve o parça "tükendi" olarak kalıyor —
+  // Kritik Stok kartının anlatmak istediği şey de zaten bu.
+  const eksiye = await p.part.updateMany({
+    where: { tenantId: tenant.id, stockQty: { lt: 0 } },
+    data: { stockQty: 0 },
+  });
+  if (eksiye.count) console.log(`  (stok düzeltildi: ${eksiye.count} parça eksiden sıfıra çekildi)`);
+
   // ── YENİLEME ADAYI GARANTİSİ ────────────────────────────────────────────
   // Rapor bir cihazı ancak YAŞI 5 yılı geçmiş VE son 12 ayda 3+ arıza almışsa
   // aday sayıyor. Rastgele dağılımda bu ikisi aynı cihazda denk gelmiyordu:

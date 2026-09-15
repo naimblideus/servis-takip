@@ -78,6 +78,12 @@ COPY --chown=nextjs:nodejs apply-migrations.js ./apply-migrations.js
 # Demo bayi (tenant) oluşturma scripti — elle çalıştırılır (docker exec node create-demo-tenants.js)
 COPY --chown=nextjs:nodejs create-demo-tenants.js ./create-demo-tenants.js
 
+# VERİTABANI DURUM RAPORU — elle çalıştırılır:  node db-durum.js
+# Salt okunur. "/api/saglik" yalnız "açık mı" der; bu araç bağlantı havuzunu,
+# yarım kalmış göçleri, eksik kolonu, şişmeyi, kilidi ve veri bütünlüğünü
+# ölçer. "Veritabanı düzgün çalışmıyor" hissini ölçüme çeviren şey bu.
+COPY --chown=nextjs:nodejs db-durum.js ./db-durum.js
+
 # ICP DEMO HESABI — elle çalıştırılır:  node scripts/seed-bayi-demo.mjs
 #
 # NEDEN AYRICA KOPYALANIYOR: bu imaj `scripts/` klasörünü almıyor (içinde
