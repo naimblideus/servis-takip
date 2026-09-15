@@ -31,10 +31,15 @@ import bcrypt from 'bcryptjs';
 
 const p = new PrismaClient();
 
-const SLUG = 'marmara-buro';
-const PATRON = 'patron@marmaraburo.com';
-const TEKNISYEN = 'teknisyen@marmaraburo.com';
-const SIFRE = process.env.BAYI_DEMO_SIFRE || 'marmara2026';
+// ── GİRİŞ BİLGİLERİ ──────────────────────────────────────────────────────
+// Kısa ve akılda kalır tutuldu: demoyu telefonla tarif edebilmek gerekiyor.
+// E-posta bayi bazında benzersiz (@@unique([tenantId, email])), yani aynı
+// adres başka bir bayide de olabilir; giriş kodu şifresi tutan adayı
+// arayarak çözüyor. Yine de çakışmasın diye kullanılmayan adresler seçildi.
+const SLUG = 'demo-bayi';
+const PATRON = 'demo@demo.com';
+const TEKNISYEN = 'tekniker@demo.com';
+const SIFRE = process.env.BAYI_DEMO_SIFRE || 'demo1234';
 
 const BUGUN = new Date();
 const gunOnce = (n) => new Date(BUGUN.getTime() - n * 86400000);
@@ -152,7 +157,7 @@ async function main() {
   // ── BAYİ ──────────────────────────────────────────────────────────────
   const tenant = await p.tenant.create({
     data: {
-      name: 'Marmara Büro Sistemleri', slug: SLUG,
+      name: 'Demo Büro Sistemleri', slug: SLUG,
       // ── BÜTÜN ÖZELLİKLER AÇIK ──────────────────────────────────────
       // Demo bir paket satmak için değil ÜRÜNÜ GÖSTERMEK için. Kapalı
       // bir modül, karşıdaki bayinin göremediği bir özellik demek;
@@ -168,7 +173,7 @@ async function main() {
       pricePerBlack: 0.42, pricePerColor: 1.75,
       taxNumber: '2110340100', taxOffice: 'Ümraniye',
       address: 'Alemdağ Cad. No:112 Kat:2', city: 'İstanbul', district: 'Ümraniye',
-      phone: '02165550100', email: 'info@marmaraburo.example',
+      phone: '02165550100', email: 'info@demoburo.example',
       ownerName: 'Serkan Yalçın',
       paymentTermDays: 15,
       // ── KÂRLILIK HESABININ İKİ GİRDİSİ ──
@@ -330,6 +335,7 @@ async function main() {
 
   // ── SAYAÇ GEÇMİŞİ (6 ay) ──────────────────────────────────────────────
   let okuma = 0;
+  const sessizCihazlar = new Set(cihazlar.slice(3, 6).map((c) => c.id));
   for (const c of cihazlar) {
     let sb = c.counterBlack - c.aylikSb * 12;
     let renkli = c.counterColor - c.aylikRenkli * 12;
@@ -337,7 +343,13 @@ async function main() {
     if (renkli < 0) renkli = 0;
     let oncekiSb = sb, oncekiRenkli = renkli;
 
+    // ÜÇ CİHAZIN SAYACI İKİ AYDIR GELMİYOR. "Sayacı gelmeyen cihaz" kartı
+    // bu ürünün en sessiz para kaybını yakalıyor: okunmayan sayaç
+    // faturalanmıyor ve kimse fark etmiyor. Kart sıfır gösterseydi
+    // anlatılamazdı.
+    const sessiz = sessizCihazlar.has(c.id);
     for (let ay = 12; ay >= 1; ay--) {
+      if (sessiz && ay <= 2) break;
       sb += c.aylikSb + rnd(-300, 300);
       renkli += c.aylikRenkli + (c.aylikRenkli ? rnd(-120, 120) : 0);
       const tarih = new Date(ayBasi(ay).getFullYear(), ayBasi(ay).getMonth(), rnd(26, 28));
@@ -380,6 +392,7 @@ async function main() {
   // Sayaç Turu ekranının işi bu. Hepsi okunmuş olsaydı ekran boş kalırdı.
   let bekleyen = 0;
   for (const c of cihazlar) {
+    if (sessizCihazlar.has(c.id)) { bekleyen++; continue; }
     if (rnd(0, 100) < 55) {
       const t2 = gunOnce(rnd(1, 6));
       await p.counterReading.create({
@@ -395,7 +408,7 @@ async function main() {
       });
     } else bekleyen++;
   }
-  console.log(`  bu ayın okuması: ${bekleyen} makine bekliyor`);
+  console.log(`  bu ayın okuması: ${bekleyen} makine bekliyor · ${sessizCihazlar.size} makinenin sayacı 2 aydır gelmiyor`);
 
   // ── TONER DEĞİŞİMLERİ → VERİM SAHADA ÖLÇÜLÜYOR ────────────────────────
   // Her cihaza üç değişim yazılıyor: ilki referans, sonraki ikisi GÖZLEM.
@@ -501,7 +514,7 @@ async function main() {
       await p.counterEmail.create({
         data: {
           tenantId: tenant.id, deviceId: c.id,
-          fromAddress: `${c.brand.toLowerCase()}-${c.serialNo.toLowerCase()}@cihaz.marmaraburo.example`,
+          fromAddress: `${c.brand.toLowerCase()}-${c.serialNo.toLowerCase()}@cihaz.demoburo.example`,
           subject: `Counter Report / Sayac Raporu — ${c.serialNo}`,
           rawText: [
             `Device: ${c.brand} ${c.model}`,
@@ -626,8 +639,13 @@ async function main() {
       where: { tenantId: tenant.id },
       select: { id: true, name: true, stockQty: true, avgCost: true, buyPrice: true, minStock: true },
     });
+    // Üç parça BİLEREK kritik seviyede bırakılıyor: "Kritik Stok" kartı
+    // sıfır gösterseydi o uyarının ne işe yaradığı anlaşılmazdı.
+    const kritikler = new Set(hepsi.slice(0, 3).map((x) => x.id));
     for (const parca of hepsi) {
-      const hedefKalan = parca.minStock + rnd(1, 6);
+      const hedefKalan = kritikler.has(parca.id)
+        ? Math.max(0, parca.minStock - rnd(0, 2))
+        : parca.minStock + rnd(1, 6);
       const eksik = hedefKalan - parca.stockQty;
       if (eksik <= 0) continue;
 
@@ -942,7 +960,7 @@ async function main() {
       await p.marketListing.create({
         data: {
           sellerTenantId: tenant.id, ...x,
-          description: 'Marmara Büro Sistemleri stoğundan. Fatura kesilir, kargo alıcıya aittir.',
+          description: 'Demo Büro Sistemleri stoğundan. Fatura kesilir, kargo alıcıya aittir.',
           city: 'İstanbul', status: 'ACTIVE',
           createdAt: gunOnce(rnd(3, 60)),
         },
@@ -973,7 +991,7 @@ async function main() {
   // ── ÖZET ──────────────────────────────────────────────────────────────
   const say = async (f) => f;
   console.log('\n═══ HAZIR ═══\n');
-  console.log(`  Bayi      : Marmara Büro Sistemleri`);
+  console.log(`  Bayi      : Demo Büro Sistemleri`);
   console.log(`  Adres     : /  (giriş sayfasından)`);
   console.log('');
   console.log(`  YÖNETİCİ  : ${PATRON}`);
