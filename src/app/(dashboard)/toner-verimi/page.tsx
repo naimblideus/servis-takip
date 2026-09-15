@@ -40,7 +40,7 @@ interface Grup {
  */
 export default function TonerVerimiSayfasi() {
   const [gruplar, setGruplar] = useState<Grup[]>([]);
-  const [ozet, setOzet] = useState<{ model: number; cihaz: number; verimli: number; eksik: number; olculenModel?: number } | null>(null);
+  const [ozet, setOzet] = useState<{ model: number; cihaz: number; verimli: number; kapsanan?: number; eksik: number; olculenModel?: number } | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [ara, setAra] = useState('');
   const [sadeceEksik, setSadeceEksik] = useState(true);
@@ -72,7 +72,8 @@ export default function TonerVerimiSayfasi() {
   const gosterilen = useMemo(() => {
     const q = ara.trim().toLocaleLowerCase('tr');
     return gruplar.filter((g) => {
-      if (sadeceEksik && g.verimli >= g.cihaz) return false;
+      // Ölçülmüş model EKSİK DEĞİL: elle bir şey yazılmasına gerek yok.
+      if (sadeceEksik && (g.olculenSb || g.olculenRenkli || g.verimli >= g.cihaz)) return false;
       if (!q) return true;
       return (g.marka + ' ' + g.model).toLocaleLowerCase('tr').includes(q);
     });
@@ -86,7 +87,7 @@ export default function TonerVerimiSayfasi() {
    */
   const kumulatif = useMemo(() => {
     let t = 0;
-    return gosterilen.map((g) => (t += g.cihaz - g.verimli));
+    return gosterilen.map((g) => (t += (g.olculenSb || g.olculenRenkli) ? 0 : g.cihaz - g.verimli));
   }, [gosterilen]);
 
   async function uygula(g: Grup) {
@@ -131,8 +132,8 @@ export default function TonerVerimiSayfasi() {
       {ozet && (
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           {[
-            { ad: 'Verimi tanımlı cihaz', n: ozet.verimli },
-            { ad: 'Verimi eksik cihaz', n: ozet.eksik, vurgu: ozet.eksik > 0 },
+            { ad: 'Verimi bilinen cihaz', n: ozet.kapsanan ?? ozet.verimli },
+            { ad: 'Verimi hiç bilinmeyen', n: ozet.eksik, vurgu: ozet.eksik > 0 },
             { ad: 'Farklı model', n: ozet.model },
           ].map((k) => (
             <div key={k.ad} className="rounded-lg border bg-white p-4">
@@ -162,7 +163,7 @@ export default function TonerVerimiSayfasi() {
         <p className="mt-6 text-sm text-gray-500">Yükleniyor…</p>
       ) : gosterilen.length === 0 ? (
         <p className="mt-6 rounded-lg border bg-white p-10 text-center text-sm text-gray-500">
-          {sadeceEksik ? 'Eksik model kalmadı — bütün cihazlarda verim tanımlı.' : 'Model bulunamadı.'}
+          {sadeceEksik ? 'Eksik model kalmadı — hepsinin verimi ya ölçüldü ya elle girildi.' : 'Model bulunamadı.'}
         </p>
       ) : (
         <ul className="mt-4 divide-y rounded-lg border bg-white">

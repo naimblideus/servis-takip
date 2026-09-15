@@ -22,11 +22,20 @@ export async function GET() {
 
     const cihaz = gruplar.reduce((a, g) => a + g.cihaz, 0);
     const verimli = gruplar.reduce((a, g) => a + g.verimli, 0);
+    // ── KAPSANAN ≠ ELLE GİRİLEN ──────────────────────────────────────
+    // Bu özet yalnız ELLE girilmiş verimi sayıyordu ve ölçüm motoru
+    // geldikten sonra yanlış oldu: sistem 41 cihazın verimini sahadan
+    // ölçtüğü hâlde ekran "41 cihazda verim eksik" diyordu. Ölçülmüş bir
+    // model, o modeldeki bütün cihazları kapsıyor.
+    const kapsanan = gruplar.reduce(
+      (a, g) => a + (g.olculenSb || g.olculenRenkli ? g.cihaz : g.verimli), 0,
+    );
 
     return NextResponse.json({
       gruplar,
       ozet: {
-        model: gruplar.length, cihaz, verimli, eksik: cihaz - verimli,
+        model: gruplar.length, cihaz, verimli,
+        kapsanan, eksik: cihaz - kapsanan,
         // Kaç modelin verimi ELLE GİRİLMEDEN, sahadan öğrenildi.
         olculenModel: gruplar.filter((g) => g.olculenSb || g.olculenRenkli).length,
       },
