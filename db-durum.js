@@ -81,8 +81,21 @@ async function dene(ad, f) {
     const ms = Date.now() - t0;
     not(ms < 200 ? OK : UYARI, `bağlantı ${ms} ms` + (ms >= 200 ? ' — yavaş; ağ ya da yük sorunu olabilir' : ''));
   } catch (e) {
-    not(HATA, 'BAĞLANILAMIYOR: ' + String(e.message).split('\n')[0].slice(0, 120));
-    console.log('\nBaşka hiçbir şey ölçülemez. DATABASE_URL ve veritabanı servisini kontrol edin.\n');
+    // Prisma hata metinleri BOŞ SATIRLA başlıyor; ilk satırı almak burada
+    // "BAĞLANILAMIYOR: " deyip sebebi yutuyordu — hem de tam sebebin en çok
+    // gerektiği anda. İlk DOLU satır alınıyor.
+    // Ayrıca ilk dolu satır da yetmiyor: o satır Prisma'nın kalıbı
+    // ("Invalid `prisma...` invocation:"). Asıl sebep ("sunucuya
+    // ulaşılamıyor" / "parola geçersiz" / "böyle bir veritabanı yok")
+    // kalıp satırları elendikten SONRA gelen ilk satırdır.
+    const kalip = /^(Invalid `|Please make sure|\d+\s|\^|→)/;
+    const satirlar = String((e && e.message) || e).split('\n').map((x) => x.trim()).filter(Boolean);
+    const sebep = satirlar.find((x) => !kalip.test(x)) || satirlar[0] || 'bilinmeyen hata';
+    // Hata metninde bağlantı dizesi geçebiliyor — ekran paylaşılabilsin diye maskele.
+    const guvenli = sebep.replace(/(:\/\/[^:@\s/]+):[^@\s/]*@/g, '$1:***@');
+    not(HATA, 'BAĞLANILAMIYOR: ' + guvenli.slice(0, 160));
+    console.log('\nBaşka hiçbir şey ölçülemez. Yukarıdaki "0. HEDEF" satırlarına bakın:');
+    console.log('adres doğru veritabanını gösteriyor mu, o servis ayakta mı?\n');
     await p.$disconnect().catch(() => {});
     process.exit(1);
   }
