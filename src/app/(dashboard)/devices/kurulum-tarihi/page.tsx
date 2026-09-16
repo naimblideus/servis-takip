@@ -15,6 +15,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Row {
   id: string; brand: string; model: string; serialNo: string;
@@ -28,6 +30,8 @@ interface Kesif {
 }
 
 export default function KurulumTarihiPage() {
+  const t = useT();
+  const b = useBicim();
   const [rows, setRows] = useState<Row[]>([]);
   const [sayac, setSayac] = useState({ toplam: 0, dolu: 0, bilinmeyen: 0, kalan: 0 });
   const [yukleniyor, setYukleniyor] = useState(true);
@@ -58,7 +62,7 @@ export default function KurulumTarihiPage() {
       body: JSON.stringify({ ids, ...payload }),
     });
     const d = await r.json();
-    if (!r.ok) { alert(d.error || 'Kaydedilemedi'); return; }
+    if (!r.ok) { alert(d.error || t.cihazYasi.kaydedilemedi); return; }
     setSayac({ toplam: d.toplam, dolu: d.dolu, bilinmeyen: d.bilinmeyen, kalan: d.kalan });
     setRows(prev => prev.filter(x => !ids.includes(x.id)));
     if (d.kesifler?.length) setKesifler(prev => [...d.kesifler, ...prev]);
@@ -82,19 +86,19 @@ export default function KurulumTarihiPage() {
 
   return (
     <div style={{ maxWidth: '58rem' }}>
-      <Link href="/devices" style={{ fontSize: '0.85rem', color: '#6b7280', textDecoration: 'none' }}>← Cihazlar</Link>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.4rem 0 0.25rem' }}>Cihaz Yaşı</h1>
+      <Link href="/devices" style={{ fontSize: '0.85rem', color: '#6b7280', textDecoration: 'none' }}>{t.cihazYasi.geri}</Link>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.4rem 0 0.25rem' }}>{t.cihazYasi.baslik}</h1>
       <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: 0, marginBottom: '1rem' }}>
-        Sadece <b>yılı</b> seçin — gün gerekmiyor. Yaş bilindiğinde hangi cihazın değişme
-        zamanı geldiği ortaya çıkar. <b>Bilmiyorsanız «Bilmiyorum» deyin</b>, bir daha sorulmaz.
+        {t.cihazYasi.altOn} <b>{t.cihazYasi.altVurgu}</b> {t.cihazYasi.altOrta}{' '}
+        <b>{t.cihazYasi.altVurgu2}</b>{t.cihazYasi.altSon}
       </p>
 
       {/* Kapsam */}
       <div style={kutu}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '1.3rem', fontWeight: 700, color: pct >= 80 ? '#15803d' : '#111827' }}>%{pct}</span>
-          <span style={{ fontSize: '0.9rem', color: '#374151' }}>{sayac.dolu} / {sayac.toplam} cihazın yaşı biliniyor</span>
-          {sayac.kalan > 0 && <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>· {sayac.kalan} soru kaldı</span>}
+          <span style={{ fontSize: '1.3rem', fontWeight: 700, color: pct >= 80 ? '#15803d' : '#111827' }}>{b.yuzde(pct)}</span>
+          <span style={{ fontSize: '0.9rem', color: '#374151' }}>{doldur(t.cihazYasi.kapsam, { dolu: sayac.dolu, toplam: sayac.toplam })}</span>
+          {sayac.kalan > 0 && <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>{doldur(t.cihazYasi.soruKaldi, { n: sayac.kalan })}</span>}
         </div>
         <div style={{ marginTop: '0.55rem', height: '8px', borderRadius: '9999px', backgroundColor: '#f3f4f6', overflow: 'hidden' }}>
           <div style={{
@@ -105,9 +109,7 @@ export default function KurulumTarihiPage() {
         </div>
         {/* Eşik ödülü: rozet değil, gerçek rapor */}
         <div style={{ marginTop: '0.6rem', fontSize: '0.8rem', color: pct >= 80 ? '#15803d' : '#6b7280' }}>
-          {pct >= 80
-            ? '✓ Yenileme Fırsat Listesi açık — hangi cihazlar zarar ettiriyor görebilirsiniz'
-            : `%80'e ulaşınca «Yenileme Fırsat Listesi» açılır — bakım maliyeti kirasını aşan cihazları gösterir`}
+          {pct >= 80 ? t.cihazYasi.esikAcik : t.cihazYasi.esikKapali}
         </div>
       </div>
 
@@ -115,13 +117,14 @@ export default function KurulumTarihiPage() {
       {kesifler.length > 0 && (
         <div style={{ ...kutu, backgroundColor: '#fffbeb', border: '1px solid #fcd34d' }}>
           <div style={{ fontWeight: 700, color: '#92400e', marginBottom: '0.5rem', fontSize: '0.92rem' }}>
-            💰 Bu oturumda {kesifler.length} yenileme fırsatı bulundu
+            {doldur(t.cihazYasi.kesifBaslik, { n: kesifler.length })}
           </div>
           <div style={{ display: 'grid', gap: '0.4rem' }}>
             {kesifler.slice(0, 6).map(k => (
               <div key={k.deviceId} className="sa-slide" style={{ fontSize: '0.85rem', color: '#78350f' }}>
-                <b>{k.baslik}</b>{k.musteri ? ` · ${k.musteri}` : ''} — {Math.floor(k.yasAy / 12)} yaşında,
-                son 12 ayda <b>{k.arizaSayisi} arıza</b>. Yenileme konuşulabilir.
+                <b>{k.baslik}</b>{k.musteri ? ` · ${k.musteri}` : ''}{t.cihazYasi.kesifOn}
+                {doldur(t.cihazYasi.kesifYas, { n: Math.floor(k.yasAy / 12) })}{t.cihazYasi.kesifOrta}
+                <b>{doldur(t.cihazYasi.kesifAriza, { n: k.arizaSayisi })}</b>{t.cihazYasi.kesifSon}
               </div>
             ))}
           </div>
@@ -130,23 +133,23 @@ export default function KurulumTarihiPage() {
 
       {/* Parti */}
       {yukleniyor ? (
-        <div style={{ ...kutu, textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>Yükleniyor…</div>
+        <div style={{ ...kutu, textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>{t.genel.yukleniyor}</div>
       ) : partiBitti ? (
         <div style={{ ...kutu, textAlign: 'center', padding: '2.2rem' }} className="sa-pop">
           <div style={{ fontSize: '1.8rem', marginBottom: '0.3rem' }}>✓</div>
-          <div style={{ fontWeight: 700, color: '#15803d', marginBottom: '0.3rem' }}>Bu parti bitti — {partiBiten} cihaz</div>
+          <div style={{ fontWeight: 700, color: '#15803d', marginBottom: '0.3rem' }}>{doldur(t.cihazYasi.partiBitti, { n: partiBiten })}</div>
           <div style={{ fontSize: '0.86rem', color: '#6b7280', marginBottom: '1rem' }}>
-            {sayac.kalan > 0 ? `${sayac.kalan} cihaz kaldı. Devam etmek isterseniz yeni parti hazır.` : 'Tüm cihazlar tamamlandı.'}
+            {sayac.kalan > 0 ? doldur(t.cihazYasi.partiKalan, { n: sayac.kalan }) : t.cihazYasi.hepsiTamam}
           </div>
           {sayac.kalan > 0 && (
-            <button type="button" className="btn-primary" onClick={yukle}>Sıradaki 20 cihaz</button>
+            <button type="button" className="btn-primary" onClick={yukle}>{t.cihazYasi.sonrakiParti}</button>
           )}
         </div>
       ) : (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.83rem', color: '#6b7280' }}>
-            <span>Bu partide <b>{rows.length}</b> cihaz kaldı</span>
-            <span>{partiBiten} / {partiBaslangic} tamam</span>
+            <span>{t.cihazYasi.partideKalanOn} <b>{rows.length}</b> {t.cihazYasi.partideKalanSon}</span>
+            <span>{doldur(t.cihazYasi.partiIlerleme, { biten: partiBiten, toplam: partiBaslangic })}</span>
           </div>
 
           <div style={{ display: 'grid', gap: '0.6rem' }}>
@@ -166,7 +169,7 @@ export default function KurulumTarihiPage() {
                       onClick={() => kaydet([r.id], { unknown: true })}
                       style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: '0.45rem',
                         padding: '0.3rem 0.7rem', color: '#6b7280', cursor: 'pointer', fontSize: '0.8rem', height: 'fit-content' }}>
-                      Bilmiyorum
+                      {t.cihazYasi.bilmiyorum}
                     </button>
                   </div>
 
@@ -175,8 +178,8 @@ export default function KurulumTarihiPage() {
                     <div style={{ fontSize: '0.78rem', color: '#0e7490', backgroundColor: '#ecfeff',
                       border: '1px solid #a5f3fc', borderRadius: '0.4rem', padding: '0.3rem 0.55rem',
                       display: 'inline-block', marginBottom: '0.5rem' }}>
-                      En geç {sinir.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}'de kuruluydu
-                      <span style={{ opacity: 0.75 }}> (ilk servis kaydı)</span>
+                      {doldur(t.cihazYasi.enGecKurulum, { t: b.ayYil(sinir) })}
+                      <span style={{ opacity: 0.75 }}>{t.cihazYasi.ilkServisKaydi}</span>
                     </div>
                   )}
 
@@ -193,7 +196,7 @@ export default function KurulumTarihiPage() {
                     {!eskiYillar && (
                       <button type="button" onClick={() => setEskiYillar(true)}
                         style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '0.8rem' }}>
-                        daha eski…
+                        {t.cihazYasi.dahaEski}
                       </button>
                     )}
                   </div>
@@ -201,8 +204,7 @@ export default function KurulumTarihiPage() {
                   {/* Aynı müşterinin diğer cihazları genelde aynı partide kurulmuştur */}
                   {r.musterideBekleyen > 1 && (
                     <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
-                      Bu müşterinin <b>{r.musterideBekleyen}</b> cihazı bekliyor — yılı seçince
-                      hepsine uygulamak için:{' '}
+                      {t.cihazYasi.grupOn} <b>{r.musterideBekleyen}</b> {t.cihazYasi.grupOrta}{' '}
                       {yillar.filter(y => y <= sinirYil).slice(0, 5).map(y => (
                         <button key={y} type="button"
                           onClick={() => {

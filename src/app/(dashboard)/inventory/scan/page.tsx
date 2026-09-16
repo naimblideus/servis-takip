@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 import CameraScanner from '@/components/CameraScanner';
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Part {
   id: string;
@@ -34,6 +36,7 @@ interface LogEntry {
  * okutmakla tutuluyor; form doldurmakla tutulmuyor.
  */
 export default function StockScanPage() {
+  const t = useT();
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'in' | 'out'>('in'); // in=giriş(+), out=çıkış(−)
@@ -65,14 +68,14 @@ export default function StockScanPage() {
     if (!code || busy) return;
     const found = partsRef.current.find((p) => (p.barcode || '') === code || p.sku === code);
     if (!found) {
-      prependLog({ ok: false, text: `Bulunamadı: ${code}`, detail: 'Bu barkod/SKU kayıtlı değil', delta: 0 });
+      prependLog({ ok: false, text: doldur(t.okutma.bulunamadi, { kod: code }), detail: t.okutma.bulunamadiAlt, delta: 0 });
       return;
     }
     const m = modeRef.current;
     const n = qtyRef.current;
     const delta = m === 'in' ? n : -n;
     if (m === 'out' && found.stockQty - n < 0) {
-      prependLog({ ok: false, text: found.name, detail: `Stok yetersiz (mevcut: ${found.stockQty}, çıkış: ${n})`, delta: 0 });
+      prependLog({ ok: false, text: found.name, detail: doldur(t.okutma.stokYetersiz, { mevcut: found.stockQty, cikis: n }), delta: 0 });
       return;
     }
     setBusy(true);
@@ -94,10 +97,10 @@ export default function StockScanPage() {
         });
       } else {
         const d = await res.json().catch(() => ({}));
-        prependLog({ ok: false, text: found.name, detail: d.error || 'Güncellenemedi', delta: 0 });
+        prependLog({ ok: false, text: found.name, detail: d.error || t.okutma.guncellenemedi, delta: 0 });
       }
     } catch {
-      prependLog({ ok: false, text: found.name, detail: 'Bağlantı hatası', delta: 0 });
+      prependLog({ ok: false, text: found.name, detail: t.genel.baglantiHatasi, delta: 0 });
     }
     setBusy(false);
   };
@@ -113,14 +116,14 @@ export default function StockScanPage() {
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Hızlı stok giriş / çıkış</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t.okutma.baslik}</h1>
           <p className="mt-1 max-w-2xl text-sm text-gray-600">
-            Modu seçin, sonra parçaları <b>okutun</b> (ya da kodu yazıp Enter&apos;a basın).
-            Her okutmada stok kendiliğinden {giris ? 'artar' : 'azalır'}.
+            {t.okutma.altOn} <b>{t.okutma.altVurgu}</b> {t.okutma.altOrta}{' '}
+            {giris ? t.okutma.altArtar : t.okutma.altAzalir}
           </p>
         </div>
         <Link href="/inventory" className="rounded border px-3 py-2 text-sm hover:bg-gray-50">
-          Stok listesi
+          {t.okutma.stokListesi}
         </Link>
       </div>
 
@@ -129,15 +132,15 @@ export default function StockScanPage() {
         <div className="inline-flex rounded-lg border bg-white p-1">
           <button type="button" onClick={() => setMode('in')}
             className={`rounded-md px-4 py-2 text-sm font-semibold ${giris ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-            Giriş +
+            {t.okutma.girisMod}
           </button>
           <button type="button" onClick={() => setMode('out')}
             className={`rounded-md px-4 py-2 text-sm font-semibold ${!giris ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-            Çıkış −
+            {t.okutma.cikisMod}
           </button>
         </div>
         <label className="flex items-center gap-2 text-sm text-gray-600">
-          Adet / okutma
+          {t.okutma.adetOkutma}
           <input type="number" min={1} value={qty}
             onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
             className="w-20 rounded border px-2 py-1.5 text-center text-sm font-semibold tabular-nums" />
@@ -148,10 +151,10 @@ export default function StockScanPage() {
           <form> YOK: Enter doğrudan yakalanıyor, sayfa yenilenmiyor. */}
       <div className={`mt-4 rounded-lg border p-5 text-center ${giris ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
         <div className={`text-sm font-semibold ${giris ? 'text-emerald-800' : 'text-red-800'}`}>
-          {giris ? 'Giriş modu' : 'Çıkış modu'} — okutmaya hazır
+          {giris ? t.okutma.girisHazir : t.okutma.cikisHazir}
         </div>
         <input value={manual} onChange={(e) => setManual(e.target.value)}
-          placeholder="Barkod / SKU okutun veya yazıp Enter"
+          placeholder={t.okutma.okutYer}
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return;
             e.preventDefault();
@@ -173,8 +176,7 @@ export default function StockScanPage() {
         {/* İpucu metni renkli kutunun İÇİNDE: gri ton burada soluk kalıp
             okunmuyor. Kutunun kendi renginin koyu tonu kullanılıyor. */}
         <p className={`mt-3 text-xs ${giris ? 'text-emerald-800/80' : 'text-red-800/80'}`}>
-          USB okuyucu açık alana okuttuğunda kendiliğinden işlenir. Telefondaysanız
-          <b> Kamerayla Tara</b> ile okutun.
+          {t.okutma.ipucuOn} <b>{t.okutma.ipucuVurgu}</b>{t.okutma.ipucuSon}
         </p>
       </div>
 
@@ -182,19 +184,19 @@ export default function StockScanPage() {
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border bg-white p-4">
           <div className="text-2xl font-bold tabular-nums text-emerald-700">{girisSayisi}</div>
-          <div className="text-sm text-gray-600">Bu oturumda giriş</div>
+          <div className="text-sm text-gray-600">{t.okutma.oturumGiris}</div>
         </div>
         <div className="rounded-lg border bg-white p-4">
           <div className="text-2xl font-bold tabular-nums text-red-700">{cikisSayisi}</div>
-          <div className="text-sm text-gray-600">Bu oturumda çıkış</div>
+          <div className="text-sm text-gray-600">{t.okutma.oturumCikis}</div>
         </div>
       </div>
 
       {/* ── SON İŞLEMLER ────────────────────────────────────────────── */}
       <div className="mt-4 overflow-hidden rounded-lg border bg-white">
-        <div className="border-b px-4 py-2.5 text-sm font-semibold text-gray-700">Son işlemler</div>
+        <div className="border-b px-4 py-2.5 text-sm font-semibold text-gray-700">{t.okutma.sonIslemler}</div>
         {log.length === 0 ? (
-          <p className="p-8 text-center text-sm text-gray-500">Henüz okutma yapılmadı.</p>
+          <p className="p-8 text-center text-sm text-gray-500">{t.okutma.okutmaYok}</p>
         ) : (
           <ul className="max-h-[46vh] divide-y overflow-y-auto">
             {log.map((e, i) => (

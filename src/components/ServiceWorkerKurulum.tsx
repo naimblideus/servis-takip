@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/lib/i18n/client';
 
 /**
  * SERVICE WORKER KAYDI + YENİ SÜRÜM BİLDİRİMİ
@@ -22,6 +23,7 @@ import { useEffect, useState } from 'react';
  * Yalnız üretimde kaydedilir; geliştirmede varsa da kaldırılır.
  */
 export default function ServiceWorkerKurulum() {
+  const t = useT();
   const [yeniSurum, setYeniSurum] = useState<ServiceWorker | null>(null);
   const [gizlendi, setGizlendi] = useState(false);
 
@@ -97,7 +99,7 @@ export default function ServiceWorkerKurulum() {
         fontSize: '0.88rem',
       }}
     >
-      <span>Yeni sürüm hazır.</span>
+      <span>{t.surum.hazir}</span>
       <button
         type="button"
         onClick={() => yeniSurum.postMessage('HEMEN_GUNCELLE')}
@@ -108,12 +110,12 @@ export default function ServiceWorkerKurulum() {
           borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
         }}
       >
-        Güncelle
+        {t.surum.guncelle}
       </button>
       <button
         type="button"
         onClick={() => setGizlendi(true)}
-        aria-label="Bildirimi kapat"
+        aria-label={t.surum.kapat}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           minHeight: '2.25rem', minWidth: '2.25rem',

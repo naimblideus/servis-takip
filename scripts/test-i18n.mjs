@@ -99,6 +99,8 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   'ikiAdim.adim1Vurgu',
   // 'SN' seri numarasinin iki dilde de kullanilan kisaltmasi.
   'etiket.seri',
+  // Urun adi — cevrilmez.
+  'dokum.firmaVarsayilan',
   'barkodEtiket.seri',
   // Sutun basligi 'Model' — iki dilde de ayni kelime.
   'teklif.sutunModel',

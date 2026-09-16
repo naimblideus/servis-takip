@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import DokumPrintButton from '@/components/DokumPrintButton';
 import { oturumKullanicisi } from '@/lib/api-auth';
-
-const nf = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('tr-TR'));
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
+import { bicimYap, INTL_LOCALE } from '@/lib/bicim';
 
 export default async function CihazDokumuPage({
     params,
@@ -23,6 +24,12 @@ export default async function CihazDokumuPage({
     if (!user) redirect('/login');
 
     // TENANT-scoped (başka bayinin müşterisi yazdırılamaz)
+    // Kâğıdı MÜŞTERİ imzalıyor: dil bayiden geliyor, ekranı açan
+    // kullanıcıdan değil.
+    const { bayiDili, bayiSz: sz } = await sunucuBicimi(user);
+    const b = bicimYap(bayiDili);
+    const nf = (n: number | null | undefined) => (n == null ? '—' : b.sayi(n));
+
     const customer = await prisma.customer.findFirst({
         where: { id, tenantId: user.tenantId },
         select: { id: true, name: true, phone: true, address: true },
@@ -50,7 +57,7 @@ export default async function CihazDokumuPage({
     const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
 
     // Kat/oda sırasına diz; konumu olmayanlar sona
-    const coll = new Intl.Collator('tr', { numeric: true, sensitivity: 'base' });
+    const coll = new Intl.Collator(INTL_LOCALE[bayiDili], { numeric: true, sensitivity: 'base' });
     const sorted = [...devices].sort((a, b) => {
         const la = a.location || '', lb = b.location || '';
         if (!la && lb) return 1;
@@ -62,7 +69,7 @@ export default async function CihazDokumuPage({
     // Konuma göre grupla
     const groups: { loc: string; items: typeof sorted }[] = [];
     for (const d of sorted) {
-        const loc = d.location || 'Konum belirtilmemiş';
+        const loc = d.location || sz.dokum.konumBelirtilmemis;
         const g = groups[groups.length - 1];
         if (g && g.loc === loc) g.items.push(d);
         else groups.push({ loc, items: [d] });
@@ -149,13 +156,13 @@ export default async function CihazDokumuPage({
 
             <DokumPrintButton customerId={customer.id} blank={blank} count={devices.length} />
 
-            <div className="pw">
+            <div className="pw" lang={bayiDili}>
                 <div className="card">
                     <div className="head">
                         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                             {tenant?.logo && <img src={tenant.logo} alt="" className="logo" />}
                             <div>
-                                <div className="company">{tenant?.name || 'Nextus Servis'}</div>
+                                <div className="company">{tenant?.name || sz.dokum.firmaVarsayilan}</div>
                                 <div className="company-sub">
                                     {tenant?.phone && <>📞 {tenant.phone}<br /></>}
                                     {tenant?.address}
@@ -163,30 +170,30 @@ export default async function CihazDokumuPage({
                             </div>
                         </div>
                         <div>
-                            <div className="title">{blank ? 'Sayaç Föyü' : 'Cihaz Dökümü'}</div>
+                            <div className="title">{blank ? sz.dokum.baslikFoy : sz.dokum.baslikDokum}</div>
                             <div className="meta">
-                                {devices.length} cihaz{rentalCount > 0 && ` · ${rentalCount} kiralık`}<br />
-                                {new Date().toLocaleDateString('tr-TR')}
+                                {doldur(sz.dokum.cihazAdet, { n: devices.length })}
+                                {rentalCount > 0 && doldur(sz.dokum.kiralikEk, { n: rentalCount })}<br />
+                                {b.tarih(new Date())}
                             </div>
                         </div>
                     </div>
 
                     <div className="cust">
-                        <b>Müşteri:</b> {customer.name}
+                        <b>{sz.dokum.musteri}</b> {customer.name}
                         {customer.phone && <> · 📞 {customer.phone}</>}
                         {customer.address && <><br /><span style={{ color: '#6b7280' }}>{customer.address}</span></>}
                     </div>
 
                     {noLocation > 0 && (
                         <div className="warn no-print">
-                            ⚠️ {noLocation} cihazda konum (kat/oda) girilmemiş — listenin sonunda toplandı.
-                            Cihaz kartından konum eklersen döküm kat sırasına dizilir.
+                            {doldur(sz.dokum.konumsuzUyari, { n: noLocation })}
                         </div>
                     )}
 
                     {devices.length === 0 ? (
                         <div style={{ padding: '40px 20px', textAlign: 'center', color: '#6b7280', background: '#f9fafb', borderRadius: 8, border: '1px dashed #d1d5db' }}>
-                            Bu müşteride kayıtlı cihaz yok.
+                            {sz.dokum.cihazYok}
                         </div>
                     ) : (
                         <>
@@ -198,12 +205,12 @@ export default async function CihazDokumuPage({
                                         <thead>
                                             <tr>
                                                 <th className="c-no">#</th>
-                                                <th className="c-dev">Cihaz</th>
-                                                <th className="c-ser">Seri No</th>
-                                                <th className="c-kind">Tür</th>
-                                                <th className="c-cnt">⚫ Sayaç</th>
-                                                <th className="c-cnt">🟣 Sayaç</th>
-                                                <th className="c-date">{blank ? 'Tarih' : 'Son Okuma'}</th>
+                                                <th className="c-dev">{sz.dokum.sutunCihaz}</th>
+                                                <th className="c-ser">{sz.dokum.sutunSeri}</th>
+                                                <th className="c-kind">{sz.dokum.sutunTur}</th>
+                                                <th className="c-cnt">{sz.dokum.sutunSiyah}</th>
+                                                <th className="c-cnt">{sz.dokum.sutunRenkli}</th>
+                                                <th className="c-date">{blank ? sz.dokum.sutunTarih : sz.dokum.sutunSonOkuma}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -221,7 +228,7 @@ export default async function CihazDokumuPage({
                                                             <span className="pill" style={{
                                                                 background: d.isRental ? '#EAEDFB' : '#F2F4F8',
                                                                 color: d.isRental ? '#2E3A8C' : '#5B6479',
-                                                            }}>{d.isRental ? 'Kiralık' : 'Müşteri'}</span>
+                                                            }}>{d.isRental ? sz.dokum.turKiralik : sz.dokum.turMusteri}</span>
                                                         </td>
                                                         <td className="c-cnt mono">
                                                             {blank ? <div className="blank-box" /> : nf(d.counterBlack)}
@@ -230,7 +237,7 @@ export default async function CihazDokumuPage({
                                                             {blank ? <div className="blank-box" /> : nf(d.counterColor)}
                                                         </td>
                                                         <td className="c-date mono" style={{ color: '#6b7280' }}>
-                                                            {blank ? <div className="blank-box" /> : (lr ? new Date(lr).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—')}
+                                                            {blank ? <div className="blank-box" /> : (lr ? b.kisaTarih(lr) : '—')}
                                                         </td>
                                                     </tr>
                                                 );
@@ -243,22 +250,22 @@ export default async function CihazDokumuPage({
 
                             <div className="foot">
                                 <div className="totals">
-                                    Toplam <b>{devices.length}</b> cihaz
-                                    {rentalCount > 0 && <> · <b>{rentalCount}</b> kiralık</>}
+                                    {sz.dokum.toplamOn} <b>{devices.length}</b> {sz.dokum.toplamSon}
+                                    {rentalCount > 0 && <> · <b>{rentalCount}</b> {sz.dokum.kiralikSon}</>}
                                     <br />
-                                    <span style={{ fontSize: 10 }}>{groups.length} farklı konum</span>
+                                    <span style={{ fontSize: 10 }}>{doldur(sz.dokum.konumAdet, { n: groups.length })}</span>
                                 </div>
                             </div>
 
                             <div className="sig-wrap">
-                                <div className="sig"><div className="sig-a" /><div className="sig-l">Teslim Eden (Yetkili)</div></div>
-                                <div className="sig"><div className="sig-a" /><div className="sig-l">Teslim Alan (Müşteri)</div></div>
+                                <div className="sig"><div className="sig-a" /><div className="sig-l">{sz.dokum.imzaTeslimEden}</div></div>
+                                <div className="sig"><div className="sig-a" /><div className="sig-l">{sz.dokum.imzaTeslimAlan}</div></div>
                             </div>
                         </>
                     )}
 
                     <div className="note">
-                        {tenant?.name || 'Nextus Servis'} · {blank ? 'Sayaç föyü' : 'Cihaz dökümü'} · {new Date().toLocaleDateString('tr-TR')}
+                        {tenant?.name || sz.dokum.firmaVarsayilan} · {blank ? sz.dokum.baslikFoy : sz.dokum.baslikDokum} · {b.tarih(new Date())}
                     </div>
                 </div>
             </div>
