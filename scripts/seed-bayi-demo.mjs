@@ -333,10 +333,42 @@ async function main() {
   }
   console.log(`  ${musteriler.length} müşteri · ${cihazlar.length} cihaz`);
 
-  // ── SAYAÇ GEÇMİŞİ (6 ay) ──────────────────────────────────────────────
+  // ── SAYAÇ KANALI CİHAZIN ÖZELLİĞİDİR, OKUMANIN DEĞİL ──────────────────
+  // Önce her okumaya rastgele bir kaynak atanıyordu. Gerçekte kanal okumanın
+  // değil CİHAZIN özelliği: bir makine e-posta göndermek üzere kurulduysa her
+  // ay gönderir, kurulmadıysa hiç göndermez. Rastgele atama demoyu bozuyordu:
+  // 41 cihazın 27'si "durdu" görünüyor, "243 günde bir gönderiyordu" gibi
+  // gerçek hayatta olmayan aralıklar çıkıyordu.
+  //
+  // Dağılım kasten üç parçalı, çünkü ekranın anlattığı hikâye bu:
+  //   %60 kurulu ve çalışıyor   — kanalın işe yaradığını gösterir
+  //   %10 kuruluydu ve SUSTU    — asıl para kaybı; ürünün yakaladığı şey bu
+  //   %30 hiç kurulmadı         — bayinin önündeki kazanç fırsatı
+  const KANAL_OTOMATIK = 'OTOMATIK', KANAL_DURAN = 'DURAN', KANAL_ELLE = 'ELLE';
+  // Susan cihaz kaçıncı aydan sonra göndermeyi kesti (12 = en eski ay).
+  const DURMA_AYI = 5;
+  const kanallar = new Map();
+  cihazlar.forEach((c, i) => {
+    const d = i % 10;
+    kanallar.set(c.id, d < 6 ? KANAL_OTOMATIK : d === 6 ? KANAL_DURAN : KANAL_ELLE);
+  });
+  /** O ay o cihaz sayacı hangi yoldan bildirdi? */
+  const kaynakSec = (kanal, ay) => {
+    if (kanal === KANAL_OTOMATIK) return 'CIHAZ_EPOSTA';
+    if (kanal === KANAL_DURAN) {
+      // Sustuktan sonra okumalar kesilmiyor — teknisyen tura çıkınca elle
+      // okuyor. Bayi bu yüzden farkı GÖREMİYOR: sayaç geliyor, ama artık
+      // cihazdan değil. Ekranın yakaladığı sessiz arıza tam olarak bu.
+      return ay > DURMA_AYI ? 'CIHAZ_EPOSTA' : secim(['ELLE', 'FOTOGRAF']);
+    }
+    return secim(['ELLE', 'ELLE', 'PORTAL', 'FOTOGRAF']);
+  };
+
+  // ── SAYAÇ GEÇMİŞİ (12 ay) ─────────────────────────────────────────────
   let okuma = 0;
   const sessizCihazlar = new Set(cihazlar.slice(3, 6).map((c) => c.id));
   for (const c of cihazlar) {
+    const kanal = kanallar.get(c.id);
     let sb = c.counterBlack - c.aylikSb * 12;
     let renkli = c.counterColor - c.aylikRenkli * 12;
     if (sb < 0) sb = 500;
@@ -366,7 +398,7 @@ async function main() {
           // Kaynak KANITIN GÜCÜNÜ söylüyor: cihazın kendi e-postası,
           // müşterinin portaldan girdiği ve teknisyenin elle yazdığı aynı
           // ağırlıkta değil. Demoda üçü de var.
-          source: secim(['ELLE', 'ELLE', 'CIHAZ_EPOSTA', 'PORTAL', 'FOTOGRAF']),
+          source: kaynakSec(kanal, ay),
           billed: true, createdAt: tarih,
         },
       });
@@ -402,7 +434,9 @@ async function main() {
           deltaBlack: Math.max(0, c.counterBlack - (c.sonFaturalananSb ?? 0)),
           deltaColor: Math.max(0, c.counterColor - (c.sonFaturalananRenkli ?? 0)),
           monthlyRent: Number(c.monthlyRent),
-          source: secim(['ELLE', 'CIHAZ_EPOSTA', 'PORTAL']),
+          // Bu ay da cihazın KENDİ kanalı geçerli — burada rastgele seçmek,
+          // yukarıda kurulan tutarlılığı son ayda bozardı.
+          source: kaynakSec(kanallar.get(c.id), 1),
           billed: false, createdAt: t2,
         },
       });
