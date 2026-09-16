@@ -1,20 +1,28 @@
 #!/bin/sh
 # set -e KALDIRILDI: migration hataları sunucuyu durdurmasın
 
-echo "=== [1/5] Resolving potentially mismatched migrations ==="
-node node_modules/prisma/build/index.js migrate resolve \
-  --applied "20260505001300_add_account_entry_printer_stock" 2>&1 || true
+# PRISMA CLI ADIMLARI KALDIRILDI (2026-09-16)
+#
+# Burada eskiden `migrate resolve` ve `migrate deploy` çalışıyordu. Çalışma
+# imajında prisma MOTORU yok (sadece @prisma/client), bu yüzden ikisi de her
+# açılışta başarısız oluyordu — biliniyordu ve "best-effort" diye geçiliyordu.
+#
+# Ama zararsız değillerdi: `migrate deploy` başarısız olmadan ÖNCE
+# _prisma_migrations tablosuna finished_at'i BOŞ bir satır yazıyor. O satır
+# kalıcı olarak "yarım kalmış göç" demek. Sonucu iki tane:
+#   1. Sağlık raporu her deploy'dan sonra gerçek olmayan bir arıza gösteriyor
+#      ve bir süre sonra kimse raporun kırmızısına inanmıyor.
+#   2. İleride prisma CLI'nin çalıştığı bir ortamda `migrate deploy`, yarım
+#      kayıt yüzünden HİÇBİR göçü uygulamayı reddeder.
+#
+# Asıl işi zaten aşağıdaki dinamik uygulayıcı yapıyor.
 
-echo "=== [2/5] Running migrate deploy (best-effort) ==="
-node node_modules/prisma/build/index.js migrate deploy 2>&1 || \
-  echo "!!! migrate deploy başarısız — dinamik uygulayıcı (adım 3) devrede ==="
-
-echo "=== [3/5] TÜM migration'ları dinamik + idempotent uygula (KALICI ÇÖZÜM) ==="
+echo "=== [1/3] TÜM migration'ları dinamik + idempotent uygula ==="
 # prisma CLI/engine olmasa bile @prisma/client ile tüm prisma/migrations/*/migration.sql
 # dosyalarını uygular. Yeni migration eklenince otomatik yakalanır -> bir daha eksik-kolon krizi olmaz.
 node apply-migrations.js 2>&1 || echo "!!! apply-migrations sorun yaşadı (non-fatal)"
 
-echo "=== [4/5] Admin BOOTSTRAP — yalnızca HİÇ kullanıcı yoksa; mevcut şifreye DOKUNMAZ ==="
+echo "=== [2/3] Admin BOOTSTRAP — yalnızca HİÇ kullanıcı yoksa; mevcut şifreye DOKUNMAZ ==="
 # GÜVENLİK (2026-08-06): Burada eskiden her açılışta admin@demo.com şifresi kod içine
 # gömülü sabit bir değere GERİ YAZILIYORDU. Depo herkese açık olduğu için bu, üretim
 # admin şifresinin kamuya açık olması ve her deploy'da kendini yeniden kurması demekti.
@@ -61,5 +69,5 @@ async function bootstrapAdmin() {
 bootstrapAdmin();
 " 2>&1
 
-echo "=== [5/5] Starting Next.js server ==="
+echo "=== [3/3] Starting Next.js server ==="
 exec node server.js
