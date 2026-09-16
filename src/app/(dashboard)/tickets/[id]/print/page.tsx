@@ -3,10 +3,8 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PrintButton from '@/components/PrintButton';
 import { oturumKullanicisi } from '@/lib/api-auth';
-
-const PAYMENT_LABELS: Record<string, string> = {
-    UNPAID: 'Ödenmedi', PARTIAL: 'Kısmi Ödeme', PAID: 'Ödendi', REFUNDED: 'İade',
-};
+import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 
 export default async function TicketPrintPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -67,6 +65,13 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
 
     const counterBlackVal = latestReading?.counterBlack ?? ticket.device.counterBlack ?? null;
     const counterColorVal = latestReading?.counterColor ?? ticket.device.counterColor ?? null;
+
+    // Kâğıt MÜŞTERİYE veriliyor: dil ve para birimi BAYİDEN geliyor, oturumdan
+    // değil (aynı kural fatura ve makbuzda da geçerli — bkz. components/docs).
+    const dil: Dil = dilMi(ticket.tenant.locale) ? ticket.tenant.locale : VARSAYILAN_DIL;
+    const sz = sozluk(dil);
+    const b = bicimYap(dil, ticket.tenant.currency);
+    const S = sz.belge.fis;
 
     return (
         <>
@@ -311,10 +316,10 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                             </div>
                         </div>
                         <div className="header-right">
-                            <div className="ticket-label">Servis Fişi</div>
+                            <div className="ticket-label">{S.etiket}</div>
                             <div className="ticket-number">{ticket.ticketNumber}</div>
                             <div className="ticket-date">
-                                {new Date(ticket.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                {b.tarih(ticket.createdAt)}
                             </div>
                         </div>
                     </div>
@@ -323,49 +328,49 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                     <div className="status-bar">
                         {counterBlackVal !== null && (
                             <div className="status-bar-item">
-                                <span className="status-bar-label">⚫ Siyah Sayaç:</span>
+                                <span className="status-bar-label">{S.siyahSayac}</span>
                                 <span className="status-val" style={{ fontFamily: 'monospace', fontSize: '14px', color: '#111827' }}>
                                     {oncekiOkuma && (
                                         <span style={{ color: '#9ca3af', fontWeight: 500 }}>
-                                            {oncekiOkuma.counterBlack.toLocaleString('tr-TR')} →{' '}
+                                            {b.sayi(oncekiOkuma.counterBlack)} →{' '}
                                         </span>
                                     )}
-                                    {counterBlackVal.toLocaleString('tr-TR')}
+                                    {b.sayi(counterBlackVal)}
                                 </span>
                             </div>
                         )}
                         {counterColorVal !== null && (
                             <div className="status-bar-item">
-                                <span className="status-bar-label">🟣 Renkli Sayaç:</span>
+                                <span className="status-bar-label">{S.renkliSayac}</span>
                                 <span className="status-val" style={{ fontFamily: 'monospace', fontSize: '14px', color: '#7c3aed' }}>
                                     {oncekiOkuma && (
                                         <span style={{ color: '#9ca3af', fontWeight: 500 }}>
-                                            {oncekiOkuma.counterColor.toLocaleString('tr-TR')} →{' '}
+                                            {b.sayi(oncekiOkuma.counterColor)} →{' '}
                                         </span>
                                     )}
-                                    {counterColorVal.toLocaleString('tr-TR')}
+                                    {b.sayi(counterColorVal)}
                                 </span>
                             </div>
                         )}
                         {guncelOkuma && (
                             <div className="status-bar-item">
-                                <span className="status-bar-label">Okuma:</span>
+                                <span className="status-bar-label">{S.okuma}</span>
                                 <span className="status-val" style={{ fontSize: '12px' }}>
-                                    {new Date(guncelOkuma.readingDate).toLocaleDateString('tr-TR')}
+                                    {b.tarih(guncelOkuma.readingDate)}
                                 </span>
                             </div>
                         )}
                         <div className="status-bar-item">
-                            <span className="status-bar-label">Teknisyen:</span>
+                            <span className="status-bar-label">{S.teknisyen}</span>
                             <span className="status-val">{ticket.assignedUser?.name || '—'}</span>
                         </div>
                         <div className="status-bar-item">
-                            <span className="status-bar-label">Ödeme:</span>
+                            <span className="status-bar-label">{S.odemeKisa}</span>
                             <span className="status-pill" style={{
                                 background: isPaid ? '#d1fae5' : '#fee2e2',
                                 color: isPaid ? '#065f46' : '#b91c1c',
                             }}>
-                                {PAYMENT_LABELS[ticket.paymentStatus]}
+                                {(S.odemeDurum as Record<string, string>)[ticket.paymentStatus] ?? ticket.paymentStatus}
                             </span>
                         </div>
                     </div>
@@ -376,38 +381,38 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                         {/* Müşteri & Cihaz */}
                         <div className="info-grid">
                             <div className="info-card">
-                                <div className="info-card-header">👤 Müşteri Bilgileri</div>
+                                <div className="info-card-header">{S.musteriBilgileri}</div>
                                 <div className="info-card-body">
                                     <div className="info-row">
-                                        <span className="info-key">Ad Soyad</span>
+                                        <span className="info-key">{S.adSoyad}</span>
                                         <span className="info-val">{ticket.device.customer.name}</span>
                                     </div>
                                     <div className="info-row">
-                                        <span className="info-key">Telefon</span>
+                                        <span className="info-key">{sz.fisDetay.telefon}</span>
                                         <span className="info-val">{ticket.device.customer.phone}</span>
                                     </div>
                                     {ticket.device.customer.address && (
                                         <div className="info-row">
-                                            <span className="info-key">Adres</span>
+                                            <span className="info-key">{sz.fisYeni.adres}</span>
                                             <span className="info-val" style={{ fontSize: '12px' }}>{ticket.device.customer.address}</span>
                                         </div>
                                     )}
                                 </div>
                             </div>
                             <div className="info-card">
-                                <div className="info-card-header">🖨️ Cihaz Bilgileri</div>
+                                <div className="info-card-header">{S.cihazBilgileri}</div>
                                 <div className="info-card-body">
                                     <div className="info-row">
-                                        <span className="info-key">Cihaz</span>
+                                        <span className="info-key">{sz.genel.cihaz}</span>
                                         <span className="info-val">{ticket.device.brand} {ticket.device.model}</span>
                                     </div>
                                     <div className="info-row">
-                                        <span className="info-key">Seri No</span>
+                                        <span className="info-key">{sz.fisDetay.seriNo}</span>
                                         <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '12px' }}>{ticket.device.serialNo}</span>
                                     </div>
                                     {ticket.device.location && (
                                         <div className="info-row">
-                                            <span className="info-key">Konum</span>
+                                            <span className="info-key">{sz.fisDetay.konum}</span>
                                             <span className="info-val">{ticket.device.location}</span>
                                         </div>
                                     )}
@@ -416,31 +421,31 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                                         dayanağı, kâğıtta görünmeli. Önceki okuma yoksa (ilk
                                         okuma) yalnız güncel basılır — sıfır YAZILMAZ. */}
                                     <div className="info-row">
-                                        <span className="info-key">Sayaç</span>
+                                        <span className="info-key">{S.sayac}</span>
                                         <span className="info-val" style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: '700' }}>
                                             {oncekiOkuma && (
                                                 <span style={{ color: '#9ca3af', fontWeight: 500 }}>
-                                                    {oncekiOkuma.counterBlack.toLocaleString('tr-TR')} →{' '}
+                                                    {b.sayi(oncekiOkuma.counterBlack)} →{' '}
                                                 </span>
                                             )}
-                                            ⚫ {counterBlackVal != null ? counterBlackVal.toLocaleString('tr-TR') : '—'}
+                                            ⚫ {b.sayi(counterBlackVal)}
                                             <span style={{ color: '#d1d5db', margin: '0 6px' }}>|</span>
                                             {oncekiOkuma && (
                                                 <span style={{ color: '#9ca3af', fontWeight: 500 }}>
-                                                    {oncekiOkuma.counterColor.toLocaleString('tr-TR')} →{' '}
+                                                    {b.sayi(oncekiOkuma.counterColor)} →{' '}
                                                 </span>
                                             )}
-                                            🟣 {counterColorVal != null ? counterColorVal.toLocaleString('tr-TR') : '—'}
+                                            🟣 {b.sayi(counterColorVal)}
                                         </span>
                                     </div>
                                     {oncekiOkuma && guncelOkuma && (
                                         <div className="info-row">
-                                            <span className="info-key">Çekilen</span>
+                                            <span className="info-key">{S.cekilen}</span>
                                             <span className="info-val" style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: '700', color: '#059669' }}>
-                                                ⚫ {Math.max(0, guncelOkuma.counterBlack - oncekiOkuma.counterBlack).toLocaleString('tr-TR')}
+                                                ⚫ {b.sayi(Math.max(0, guncelOkuma.counterBlack - oncekiOkuma.counterBlack))}
                                                 <span style={{ color: '#d1d5db', margin: '0 6px' }}>|</span>
-                                                🟣 {Math.max(0, guncelOkuma.counterColor - oncekiOkuma.counterColor).toLocaleString('tr-TR')}
-                                                <span style={{ color: '#9ca3af', fontWeight: 500, marginLeft: 6 }}>sayfa</span>
+                                                🟣 {b.sayi(Math.max(0, guncelOkuma.counterColor - oncekiOkuma.counterColor))}
+                                                <span style={{ color: '#9ca3af', fontWeight: 500, marginLeft: 6 }}>{S.sayfa}</span>
                                             </span>
                                         </div>
                                     )}
@@ -450,24 +455,24 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
 
                         {/* Servis Bilgileri */}
                         <div className="service-section">
-                            <div className="section-title">🔧 Servis Bilgileri</div>
+                            <div className="section-title">{S.servisBilgileri}</div>
                             <div className="service-grid">
                                 {ticket.issueText && (
                                     <div>
-                                        <div className="text-box-label">Arıza / Talep</div>
+                                        <div className="text-box-label">{S.arizaTalep}</div>
                                         <div className="text-box">{ticket.issueText}</div>
                                     </div>
                                 )}
                                 {ticket.actionText && (
                                     <div>
-                                        <div className="text-box-label">Yapılan İşlem</div>
+                                        <div className="text-box-label">{sz.fisDetay.yapilanIslem}</div>
                                         <div className="text-box green">{ticket.actionText}</div>
                                     </div>
                                 )}
                             </div>
                             {ticket.notes && (
                                 <div style={{ marginTop: 8 }}>
-                                    <div className="text-box-label">Notlar</div>
+                                    <div className="text-box-label">{sz.fisDetay.notlar}</div>
                                     <div className="text-box yellow">{ticket.notes}</div>
                                 </div>
                             )}
@@ -476,15 +481,15 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                         {/* Kullanılan Parçalar */}
                         {ticket.ticketParts.length > 0 && (
                             <div className="service-section">
-                                <div className="section-title">🔩 Kullanılan Parçalar</div>
+                                <div className="section-title">{S.parcalar}</div>
                                 <table className="parts-table">
                                     <thead>
                                         <tr>
                                             <th>SKU</th>
-                                            <th>Parça Adı</th>
-                                            <th style={{ textAlign: 'center' }}>Adet</th>
-                                            <th style={{ textAlign: 'right' }}>Birim</th>
-                                            <th style={{ textAlign: 'right' }}>Toplam</th>
+                                            <th>{S.parcaAdi}</th>
+                                            <th style={{ textAlign: 'center' }}>{sz.parcalar.sutun.adet}</th>
+                                            <th style={{ textAlign: 'right' }}>{S.birim}</th>
+                                            <th style={{ textAlign: 'right' }}>{sz.genel.toplam}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -493,13 +498,13 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                                                 <td style={{ fontFamily: 'monospace', color: '#6b7280', fontSize: '11px' }}>{tp.part.sku}</td>
                                                 <td style={{ fontWeight: 600 }}>{tp.part.name}</td>
                                                 <td style={{ textAlign: 'center' }}>{tp.quantity}</td>
-                                                <td style={{ textAlign: 'right' }}>₺{Number(tp.unitPrice).toFixed(2)}</td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700, color: '#374151' }}>₺{(Number(tp.unitPrice) * tp.quantity).toFixed(2)}</td>
+                                                <td style={{ textAlign: 'right' }}>{b.para(Number(tp.unitPrice))}</td>
+                                                <td style={{ textAlign: 'right', fontWeight: 700, color: '#374151' }}>{b.para(Number(tp.unitPrice) * tp.quantity)}</td>
                                             </tr>
                                         ))}
                                         <tr className="parts-total">
-                                            <td colSpan={4} style={{ textAlign: 'right', fontSize: '11px', color: '#6b7280' }}>Parçalar Toplamı</td>
-                                            <td style={{ textAlign: 'right', color: '#059669', fontSize: '14px' }}>₺{partTotal.toFixed(2)}</td>
+                                            <td colSpan={4} style={{ textAlign: 'right', fontSize: '11px', color: '#6b7280' }}>{S.parcalarToplami}</td>
+                                            <td style={{ textAlign: 'right', color: '#059669', fontSize: '14px' }}>{b.para(partTotal)}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -509,25 +514,25 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                         {/* Ödeme Özeti */}
                         <div className="payment-row">
                             <div className="pay-box">
-                                <div className="pay-label">Toplam</div>
-                                <div className="pay-value" style={{ color: '#374151' }}>₺{Number(ticket.totalCost).toFixed(2)}</div>
+                                <div className="pay-label">{sz.genel.toplam}</div>
+                                <div className="pay-value" style={{ color: '#374151' }}>{b.para(Number(ticket.totalCost))}</div>
                             </div>
                             <div className="pay-box" style={{ borderColor: '#86efac', background: '#f0fdf4' }}>
-                                <div className="pay-label">Ödenen</div>
-                                <div className="pay-value" style={{ color: '#059669' }}>₺{paidTotal.toFixed(2)}</div>
+                                <div className="pay-label">{S.odenen}</div>
+                                <div className="pay-value" style={{ color: '#059669' }}>{b.para(paidTotal)}</div>
                             </div>
                             <div className="pay-box" style={{
                                 borderColor: isPaid ? '#86efac' : '#fca5a5',
                                 background: isPaid ? '#f0fdf4' : '#fef2f2',
                             }}>
-                                <div className="pay-label">Kalan</div>
-                                <div className="pay-value" style={{ color: isPaid ? '#059669' : '#dc2626' }}>₺{remaining.toFixed(2)}</div>
+                                <div className="pay-label">{S.kalan}</div>
+                                <div className="pay-value" style={{ color: isPaid ? '#059669' : '#dc2626' }}>{b.para(remaining)}</div>
                             </div>
                         </div>
 
                         {/* İmza */}
                         <div className="signature-grid">
-                            {['Müşteri İmzası', 'Teknisyen İmzası'].map(label => (
+                            {[S.musteriImzasi, S.teknisyenImzasi].map(label => (
                                 <div key={label} className="sig-box">
                                     <div className="sig-area" />
                                     <div className="sig-label">{label}</div>
@@ -538,7 +543,7 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
 
                     {/* Footer */}
                     <div className="footer">
-                        Bu belge {ticket.tenant.name} servis merkezi tarafından {new Date(ticket.createdAt).toLocaleDateString('tr-TR')} tarihinde düzenlenmiştir.
+                        {doldur(S.altbilgi, { firma: ticket.tenant.name, tarih: b.tarih(ticket.createdAt) })}
                     </div>
                 </div>
             </div>

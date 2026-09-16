@@ -1,4 +1,6 @@
 // WhatsApp / paylaşım yardımcıları (mobil-öncelikli; ana yapıyı bozmaz, ek aksiyon).
+import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 
 /** Türk telefonunu wa.me formatına çevir: 0532... -> 90532...; +90/90 korunur; rakam-dışı atılır. */
 /**
@@ -64,12 +66,24 @@ export function mapsUrl(address: string | null | undefined): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((address || '').trim())}`;
 }
 
+/**
+ * ── MÜŞTERİYE GİDEN METİN BAYİNİN DİLİNDE ────────────────────────────────
+ * Aşağıdaki üreticiler `dil`/`birim` alır. Vermeyen eski çağrı Türkçe/₺ ile
+ * çalışmaya devam eder; yeni çağrılar bayinin dilini geçer.
+ */
+interface MesajDili { dil?: Dil; birim?: string | null }
+
+const mesajSozlugu = (p: MesajDili) => sozluk(p.dil).musteriMesaji;
+const mesajBicim = (p: MesajDili) => bicimYap(dilMi(p.dil) ? p.dil : VARSAYILAN_DIL, p.birim);
+const selam = (p: MesajDili & { customerName?: string }) => {
+  const m = mesajSozlugu(p);
+  return p.customerName ? doldur(m.sayin, { ad: p.customerName }) : m.merhaba;
+};
+
 /** Vadesi geçmiş bakiye hatırlatma mesajı (müşteriye). */
-export function reminderMessage(p: { tenantName?: string; customerName?: string; debt: number }): string {
-  const lines = [
-    p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,',
-    `${fmtTL(p.debt)} tutarında vadesi geçmiş bakiyeniz görünmektedir. Ödemeniz için teşekkür ederiz.`,
-  ];
+export function reminderMessage(p: MesajDili & { tenantName?: string; customerName?: string; debt: number }): string {
+  const m = mesajSozlugu(p);
+  const lines = [selam(p), doldur(m.borcHatirlatma, { n: mesajBicim(p).para(p.debt) })];
   if (p.tenantName) lines.push('', p.tenantName);
   return lines.join('\n');
 }
@@ -82,57 +96,62 @@ export const NOTIFY_STATUSES = ['IN_SERVICE', 'WAITING_FOR_PART', 'READY', 'DELI
  * İş bitmişse (READY/DELIVERED) yapılan işlem ve tutar da eklenir — müşteri
  * "ne yapıldı, ne ödeyeceğim" diye aramak zorunda kalmasın.
  */
-export function statusMessage(status: string, p: {
+export function statusMessage(status: string, p: MesajDili & {
   tenantName?: string; customerName?: string; deviceName?: string; ticketNumber?: string;
   actionText?: string; totalCost?: number;
 }): string {
-  const head = p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,';
+  const m = mesajSozlugu(p);
+  const b = mesajBicim(p);
+  // Cihaz adı SONU BOŞLUKLU giriyor ya da hiç girmiyor; cümledeki yerini
+  // sözlük belirliyor (İngilizcede "your <marka> device", Türkçede
+  // "<marka> cihazınız").
   const dev = p.deviceName ? `${p.deviceName} ` : '';
-  let body: string;
-  switch (status) {
-    case 'IN_SERVICE': body = `${dev}cihazınız servise alınmıştır, en kısa sürede ilgilenilecektir.`; break;
-    case 'WAITING_FOR_PART': body = `${dev}cihazınız için parça temin ediliyor; süreç biraz uzayabilir, bilginize.`; break;
-    case 'READY': body = `${dev}cihazınızdaki arıza giderildi, teslim alabilirsiniz.`; break;
-    case 'DELIVERED': body = `${dev}cihazınızdaki arıza giderildi ve teslim edilmiştir. Teşekkür ederiz.`; break;
-    default: body = `${dev}cihazınızın servis durumu güncellendi.`;
-  }
-  const lines = [head, body + (p.ticketNumber ? ` (Fiş: ${p.ticketNumber})` : '')];
+  const kalip = (m.durum as Record<string, string>)[status] ?? m.durum.DIGER;
+  const body = doldur(kalip, { cihaz: dev });
+  const lines = [selam(p), body + (p.ticketNumber ? doldur(m.fisNo, { n: p.ticketNumber }) : '')];
 
   // İş bittiyse detay ekle — boş alan varsa satırı hiç koyma (yarım mesaj gitmesin)
   if (status === 'READY' || status === 'DELIVERED') {
     const action = (p.actionText || '').trim();
-    if (action) lines.push('', `Yapılan işlem: ${action}`);
-    if (Number(p.totalCost) > 0) lines.push(`${action ? '' : '\n'}Tutar: ${fmtTL(Number(p.totalCost))}`);
+    if (action) lines.push('', doldur(m.yapilanIslem, { n: action }));
+    if (Number(p.totalCost) > 0) lines.push(`${action ? '' : '\n'}${doldur(m.tutar, { n: b.para(Number(p.totalCost)) })}`);
   }
 
   if (p.tenantName) lines.push('', p.tenantName);
   return lines.join('\n');
 }
 
-const fmtTL = (n: number) => '₺' + Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtD = (s: string | Date) => new Date(s).toLocaleDateString('tr-TR');
-
 /** Fatura WhatsApp mesajı (müşteriye). */
-export function invoiceMessage(p: {
+export function invoiceMessage(p: MesajDili & {
   tenantName?: string; customerName?: string; invoiceNumber: string; period?: string;
   totalAmount: number; openAmount: number; dueDate: string | Date;
 }): string {
+  const m = mesajSozlugu(p);
+  const b = mesajBicim(p);
   const lines = [
-    p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,',
-    `${p.invoiceNumber} numaralı faturanız${p.period ? ` (${p.period})` : ''}:`,
-    `Tutar: ${fmtTL(p.totalAmount)}`,
+    selam(p),
+    doldur(m.faturaBaslik, {
+      no: p.invoiceNumber,
+      donem: p.period ? doldur(m.faturaDonem, { n: p.period }) : '',
+    }),
+    doldur(m.faturaTutar, { n: b.para(p.totalAmount) }),
   ];
-  if (p.openAmount > 0) lines.push(`Kalan: ${fmtTL(p.openAmount)} — Son ödeme: ${fmtD(p.dueDate)}`);
-  else lines.push('Ödenmiştir, teşekkür ederiz.');
+  if (p.openAmount > 0) lines.push(doldur(m.faturaKalan, { kalan: b.para(p.openAmount), vade: b.tarih(p.dueDate) }));
+  else lines.push(m.faturaOdendi);
   if (p.tenantName) lines.push('', p.tenantName);
   return lines.join('\n');
 }
 
 /** Tahsilat makbuzu WhatsApp mesajı (müşteriye). */
-export function paymentMessage(p: { tenantName?: string; customerName?: string; amount: number; date?: string | Date }): string {
+export function paymentMessage(p: MesajDili & { tenantName?: string; customerName?: string; amount: number; date?: string | Date }): string {
+  const m = mesajSozlugu(p);
+  const b = mesajBicim(p);
   const lines = [
-    p.customerName ? `Sayın ${p.customerName},` : 'Merhaba,',
-    `${fmtTL(p.amount)} tutarındaki ödemeniz${p.date ? ` (${fmtD(p.date)})` : ''} alınmıştır. Teşekkür ederiz.`,
+    selam(p),
+    doldur(m.odemeAlindi, {
+      tutar: b.para(p.amount),
+      tarih: p.date ? doldur(m.odemeTarih, { n: b.tarih(p.date) }) : '',
+    }),
   ];
   if (p.tenantName) lines.push('', p.tenantName);
   return lines.join('\n');

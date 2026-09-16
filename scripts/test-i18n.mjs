@@ -90,7 +90,9 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   const AYNI_OLABILIR = new Set(['dil.tr', 'dil.en', 'menu./dashboard', 'menu./whatsapp', 'giris.epostaYer',
   'genel.excelIndir', 'durum.oncelik.NORMAL', 'fisDetay.whatsapp', 'ariza.INSTALLATION',
   'cihazHizli.markaYer', 'cihazHizli.modelYer', 'fisYeni.model', 'fisPanel.notYer',
-  'stok.markaYer', 'stok.model', 'stok.modelYer', 'faturalar.link']);
+  'stok.markaYer', 'stok.model', 'stok.modelYer', 'faturalar.link',
+  // Saf noktalama — çevrilecek kelime yok.
+  'musteriMesaji.faturaDonem', 'musteriMesaji.odemeTarih']);
   const ayni = trY.filter(([p, v]) => !AYNI_OLABILIR.has(p) && String(v).length > 3 && oku(en, p) === v).map(([p]) => p);
   t('★ tr ile en birebir aynı metin yok (özel adlar dışında)', ayni.length === 0, ayni.slice(0, 8));
 }

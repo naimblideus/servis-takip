@@ -1,10 +1,10 @@
 // Paylaşılabilir + yazdırılabilir TAHSİLAT MAKBUZU (tek kaynak: authed print + public link).
+//
+// Dil ve para birimi BAYİDEN geliyor (bkz. InvoiceDocument): makbuz müşteriye
+// veriliyor, ekrandaki kullanıcıya değil.
 import React from 'react';
-
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-const METHOD: Record<string, string> = { CASH: 'Nakit', CARD: 'Kredi Kartı', TRANSFER: 'IBAN / Havale', OPEN_ACCOUNT: 'Açık Hesap', OTHER: 'Diğer' };
+import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 
 export interface ReceiptDocData {
   receiptNo: string;
@@ -12,7 +12,7 @@ export interface ReceiptDocData {
   paymentDate: string | Date;
   method: string;
   referenceNo?: string | null;
-  tenant: { name: string; logo?: string | null; phone?: string | null };
+  tenant: { name: string; logo?: string | null; phone?: string | null; locale?: string | null; currency?: string | null };
   customer: { name?: string | null; phone?: string | null } | null;
   allocations: { invoiceNumber: string; status: string; amount: number }[];
 }
@@ -20,6 +20,12 @@ export interface ReceiptDocData {
 export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }) {
   const t = receipt.tenant;
   const c = receipt.customer;
+  const dil: Dil = dilMi(t.locale) ? t.locale : VARSAYILAN_DIL;
+  const sz = sozluk(dil);
+  const b = bicimYap(dil, t.currency);
+  const fmt = (n: number) => b.para(n);
+  const fmtDate = (d: string | Date) => b.tarih(d);
+  const S = sz.belge.makbuz;
   const amount = receipt.amount;
   const allocated = receipt.allocations.reduce((s, a) => s + Number(a.amount), 0);
   const advance = Math.round((amount - allocated) * 100) / 100;
@@ -92,7 +98,7 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
               </div>
             </div>
             <div className="header-right">
-              <div className="doc-label">Tahsilat Makbuzu</div>
+              <div className="doc-label">{S.etiket}</div>
               <div className="doc-title">{fmt(amount)}</div>
               <div className="doc-no">{receipt.receiptNo}</div>
             </div>
@@ -100,31 +106,31 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
 
           <div className="body">
             <div className="amount-card">
-              <div className="amount-label">Tahsil Edilen Tutar</div>
+              <div className="amount-label">{S.tahsilEdilenTutar}</div>
               <div className="amount-value">{fmt(amount)}</div>
             </div>
 
             <div className="info-card">
-              <div className="info-card-header">💳 Tahsilat Bilgileri</div>
+              <div className="info-card-header">{S.bilgiler}</div>
               <div className="info-card-body">
-                <div className="info-row"><span className="info-key">Tarih</span><span className="info-val">{fmtDate(receipt.paymentDate)}</span></div>
-                <div className="info-row"><span className="info-key">Yöntem</span><span className="info-val">{METHOD[receipt.method] || receipt.method}</span></div>
-                <div className="info-row"><span className="info-key">Müşteri</span><span className="info-val">{c?.name || '—'}</span></div>
-                {c?.phone && <div className="info-row"><span className="info-key">Telefon</span><span className="info-val">{c.phone}</span></div>}
-                {receipt.referenceNo && <div className="info-row" style={{ gridColumn: '1 / -1' }}><span className="info-key">Dekont/Ref</span><span className="info-val">{receipt.referenceNo}</span></div>}
+                <div className="info-row"><span className="info-key">{sz.genel.tarih}</span><span className="info-val">{fmtDate(receipt.paymentDate)}</span></div>
+                <div className="info-row"><span className="info-key">{S.yontem}</span><span className="info-val">{(S.yontemler as Record<string, string>)[receipt.method] ?? receipt.method}</span></div>
+                <div className="info-row"><span className="info-key">{sz.genel.musteri}</span><span className="info-val">{c?.name || '—'}</span></div>
+                {c?.phone && <div className="info-row"><span className="info-key">{sz.fisDetay.telefon}</span><span className="info-val">{c.phone}</span></div>}
+                {receipt.referenceNo && <div className="info-row" style={{ gridColumn: '1 / -1' }}><span className="info-key">{S.dekontRef}</span><span className="info-val">{receipt.referenceNo}</span></div>}
               </div>
             </div>
 
-            <div className="section-title">📑 Mahsup Edilen Faturalar (FIFO)</div>
+            <div className="section-title">{S.mahsupBaslik}</div>
             {receipt.allocations.length === 0 ? (
-              <div className="empty">Açık fatura bulunmadığından tamamı avans olarak kaydedilmiştir.</div>
+              <div className="empty">{S.mahsupYok}</div>
             ) : (
               <table className="ext-table">
                 <thead>
                   <tr>
-                    <th>Fatura No</th>
-                    <th style={{ width: '90px' }}>Durum</th>
-                    <th className="num" style={{ width: '110px' }}>Mahsup</th>
+                    <th>{S.faturaNo}</th>
+                    <th style={{ width: '90px' }}>{sz.genel.durum}</th>
+                    <th className="num" style={{ width: '110px' }}>{S.mahsup}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -133,14 +139,14 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
                     return (
                       <tr key={i}>
                         <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{a.invoiceNumber}</td>
-                        <td><span className="pill" style={{ background: paid ? '#dcfce7' : '#fef3c7', color: paid ? '#15803d' : '#b45309' }}>{paid ? 'Kapandı' : 'Kısmi'}</span></td>
+                        <td><span className="pill" style={{ background: paid ? '#dcfce7' : '#fef3c7', color: paid ? '#15803d' : '#b45309' }}>{paid ? S.kapandi : S.kismi}</span></td>
                         <td className="num" style={{ fontWeight: 700 }}>{fmt(Number(a.amount))}</td>
                       </tr>
                     );
                   })}
                   {advance > 0 && (
                     <tr>
-                      <td colSpan={2} style={{ color: '#6b7280' }}>Avans (gelecek faturaya mahsup)</td>
+                      <td colSpan={2} style={{ color: '#6b7280' }}>{S.avans}</td>
                       <td className="num" style={{ fontWeight: 700, color: '#2563eb' }}>{fmt(advance)}</td>
                     </tr>
                   )}
@@ -149,14 +155,14 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
             )}
 
             <div className="signature-grid">
-              {['Tahsil Eden', 'Ödeyen'].map((label) => (
-                <div key={label} className="sig-box"><div className="sig-area" /><div className="sig-label">{label} İmza</div></div>
+              {[S.tahsilEden, S.odeyen].map((label) => (
+                <div key={label} className="sig-box"><div className="sig-area" /><div className="sig-label">{label} {S.imza}</div></div>
               ))}
             </div>
           </div>
 
           <div className="footer">
-            Bu makbuz {t.name} tarafından {fmtDate(receipt.paymentDate)} tarihinde düzenlenmiştir. Yukarıdaki tutar tahsil edilmiştir.
+            {doldur(S.altbilgi, { firma: t.name, tarih: fmtDate(receipt.paymentDate) })}
           </div>
         </div>
       </div>

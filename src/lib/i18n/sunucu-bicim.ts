@@ -11,7 +11,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import { sunucuDili } from './sunucu';
-import { sozluk, type Sozluk, type Dil } from './sozluk';
+import { sozluk, dilMi, type Sozluk, type Dil } from './sozluk';
 import { bicimYap, type Bicimleyici } from '@/lib/bicim';
 
 export interface SunucuBicim {
@@ -20,6 +20,10 @@ export interface SunucuBicim {
   b: Bicimleyici;
   /** ISO 3166-1 alpha-2 — TR'ye özgü modüller buna göre kapılanır. */
   ulke: string;
+  /** BAYİNİN dili — müşteriye giden metin (mesaj, belge) bununla yazılır. */
+  bayiDili: Dil;
+  /** Bayinin dilindeki sözlük. */
+  bayiSz: Sozluk;
 }
 
 export async function sunucuBicimi(
@@ -32,5 +36,9 @@ export async function sunucuBicimi(
     })
     : null;
   const dil = await sunucuDili(kullanici?.locale, bayi?.locale);
-  return { dil, sz: sozluk(dil), b: bicimYap(dil, bayi?.currency), ulke: bayi?.country ?? 'TR' };
+  const bayiDili: Dil = dilMi(bayi?.locale) ? bayi.locale : dil;
+  return {
+    dil, sz: sozluk(dil), b: bicimYap(dil, bayi?.currency), ulke: bayi?.country ?? 'TR',
+    bayiDili, bayiSz: sozluk(bayiDili),
+  };
 }

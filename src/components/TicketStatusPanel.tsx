@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { openWhatsApp, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 import { FAULT_CATEGORIES, QUICK_FAULT_CODES } from '@/lib/fault-categories';
-import { useT, useBicim } from '@/lib/i18n/client';
+import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
 // Fişin "kapandığı" durumlar — arıza kategorisi en geç burada sorulur.
@@ -74,6 +74,8 @@ export default function TicketStatusPanel({
     const t = useT();
     // `b` adı sayacKaydet içinde tutuluyor; biçimlendirici `bic`.
     const bic = useBicim();
+    // Müşteriye gidecek mesaj BAYİNİN dilinde yazılır.
+    const musteri = useMusteriDili();
     const etiket = (code: string) => (t.ariza as Record<string, string>)[code] ?? code;
     const durumAdi = (code: string) => (t.durum.fisKisa as Record<string, string>)[code] ?? code;
     const odemeAdi = (code: string) =>
@@ -222,7 +224,7 @@ export default function TicketStatusPanel({
                 <div style={{ width: '100%', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>{t.fisPanel.bildirelimMi}</span>
                     <span style={{ display: 'flex', gap: '0.4rem' }}>
-                        <button onClick={() => { openWhatsApp(customerPhone, statusMessage(notifyStatus, { tenantName, customerName, deviceName, ticketNumber, actionText, totalCost: Number(totalCost) })); setNotifyStatus(null); }}
+                        <button onClick={() => { openWhatsApp(customerPhone, statusMessage(notifyStatus, { dil: musteri.dil, birim: musteri.b.birim, tenantName, customerName, deviceName, ticketNumber, actionText, totalCost: Number(totalCost) })); setNotifyStatus(null); }}
                             style={{ padding: '0.4rem 0.8rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.4rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{t.fisPanel.whatsappBildir}</button>
                         <button onClick={() => setNotifyStatus(null)} style={{ padding: '0.4rem 0.6rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer' }}>{t.genel.kapat}</button>
                     </span>

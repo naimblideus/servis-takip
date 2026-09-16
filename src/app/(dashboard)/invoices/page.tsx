@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { openWhatsApp, invoiceMessage } from '@/lib/share';
 import { openPrintable } from '@/lib/print';
-import { useT, useBicim } from '@/lib/i18n/client';
+import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
 interface Line { kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number; }
@@ -31,6 +31,7 @@ export default function InvoicesPage() {
   const router = useRouter();
   const t = useT();
   const b = useBicim();
+  const musteri = useMusteriDili(); // müşteriye giden mesaj bayinin dilinde
   const fmt = (n: number) => b.para(n);
   const fmtDate = (s: string) => b.tarih(s);
   const durumAdi = (k: string) => (t.faturalar.durum as Record<string, string>)[k] ?? k;
@@ -317,7 +318,7 @@ export default function InvoicesPage() {
               {detail.customer && (
                 <button onClick={() => {
                   const link = detail.docToken ? `${window.location.origin}/belge/fatura/${detail.id}/${detail.docToken}` : '';
-                  const msg = invoiceMessage({ tenantName, customerName: detail.customer!.name, invoiceNumber: detail.invoiceNumber, period: detail.period, totalAmount: detail.totalAmount, openAmount: detail.openAmount, dueDate: detail.dueDate })
+                  const msg = invoiceMessage({ dil: musteri.dil, birim: musteri.b.birim, tenantName, customerName: detail.customer!.name, invoiceNumber: detail.invoiceNumber, period: detail.period, totalAmount: detail.totalAmount, openAmount: detail.openAmount, dueDate: detail.dueDate })
                     + (link ? `\n\n${doldur(t.faturalar.faturaLinkOn, { n: link })}` : '');
                   openWhatsApp(detail.customer!.phone, msg);
                 }}

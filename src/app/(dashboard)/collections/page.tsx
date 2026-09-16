@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { openWhatsApp, paymentMessage } from '@/lib/share';
 import { openPrintable } from '@/lib/print';
-import { useT, useBicim } from '@/lib/i18n/client';
+import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
 interface Cust { id: string; name: string; phone: string; }
@@ -14,6 +14,7 @@ export default function CollectionsPage() {
   const { data: session } = useSession();
   const t = useT();
   const b = useBicim();
+  const musteri = useMusteriDili(); // makbuz mesajı bayinin dilinde
   const fmt = (n: number) => b.para(n);
   const fmtDate = (s: string) => b.tarih(s);
   const tenantName = (session?.user as any)?.tenantName as string | undefined;
@@ -169,7 +170,7 @@ export default function CollectionsPage() {
                 </button>
                 <button onClick={() => {
                   const link = result.receiptToken ? `${window.location.origin}/belge/makbuz/${result.paymentId}/${result.receiptToken}` : '';
-                  const msg = paymentMessage({ tenantName, customerName: sel?.name, amount: result.allocated + result.unallocated, date })
+                  const msg = paymentMessage({ dil: musteri.dil, birim: musteri.b.birim, tenantName, customerName: sel?.name, amount: result.allocated + result.unallocated, date })
                     + (link ? `\n\n${doldur(t.tahsilat.makbuzLinkOn, { n: link })}` : '');
                   openWhatsApp(sel?.phone, msg);
                 }}

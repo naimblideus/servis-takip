@@ -31,7 +31,8 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   // IDOR koruması: yalnızca bu tenant'ın fişi görüntülenebilir
   const me = await oturumKullanicisi(session);
   if (!me) redirect('/login');
-  const { sz, b } = await sunucuBicimi(me);
+  // `sz`/`b` ekran için (kullanıcının dili), `bayiDili` müşteriye giden mesaj için.
+  const { sz, b, bayiDili } = await sunucuBicimi(me);
   const tenantName = (session.user as any)?.tenantName as string | undefined;
 
   const ticket = await prisma.serviceTicket.findFirst({
@@ -183,6 +184,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               <div style={{ marginTop: '0.6rem' }}>
                 <a
                   href={waUrl(ticket.device.customer.phone, statusMessage(ticket.status, {
+                    dil: bayiDili, birim: b.birim,
                     tenantName,
                     customerName: ticket.device.customer.name,
                     deviceName: `${ticket.device.brand} ${ticket.device.model}`,

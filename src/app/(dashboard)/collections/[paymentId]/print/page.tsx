@@ -29,7 +29,9 @@ export default async function ReceiptPrintPage({ params }: { params: Promise<{ p
     paymentDate: payment.paymentDate,
     method: payment.method,
     referenceNo: payment.referenceNo,
-    tenant: { name: payment.tenant.name, logo: payment.tenant.logo, phone: payment.tenant.phone },
+    // Makbuz müşteriye veriliyor: dil ve para birimi BAYİDEN.
+    tenant: { name: payment.tenant.name, logo: payment.tenant.logo, phone: payment.tenant.phone,
+      locale: payment.tenant.locale, currency: payment.tenant.currency },
     customer: payment.customer ? { name: payment.customer.name, phone: payment.customer.phone } : null,
     allocations: payment.allocations.map((a) => ({
       invoiceNumber: a.invoice.invoiceNumber, status: a.invoice.status, amount: Number(a.amount),

@@ -34,6 +34,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     paidAmount: Number(invoice.paidAmount),
     tenant: {
       name: invoice.tenant.name, logo: invoice.tenant.logo, phone: invoice.tenant.phone,
+      locale: invoice.tenant.locale, currency: invoice.tenant.currency,
       address: invoice.tenant.address, taxOffice: invoice.tenant.taxOffice, taxNumber: invoice.tenant.taxNumber,
     },
     customer: {

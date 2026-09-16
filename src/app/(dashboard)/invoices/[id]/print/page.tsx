@@ -40,6 +40,8 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
     paidAmount: Number(invoice.paidAmount),
     tenant: {
       name: invoice.tenant.name, logo: invoice.tenant.logo, phone: invoice.tenant.phone,
+      // Belge müşteriye gidiyor: dil ve para birimi BAYİDEN, oturumdan değil.
+      locale: invoice.tenant.locale, currency: invoice.tenant.currency,
       address: invoice.tenant.address, taxOffice: invoice.tenant.taxOffice, taxNumber: invoice.tenant.taxNumber,
     },
     customer: {

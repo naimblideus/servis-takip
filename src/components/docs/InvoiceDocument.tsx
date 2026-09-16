@@ -1,17 +1,21 @@
 // Paylaşılabilir + yazdırılabilir FATURA belgesi (tek kaynak: authed print + public link kullanır).
+//
+// ── BELGENİN DİLİ BAYİNİN DİLİ ────────────────────────────────────────────
+// Bu belge MÜŞTERİYE gidiyor, ekranda duran kullanıcıya değil. Bir Türk
+// bayinin İngilizce arayüz kullanan çalışanı fatura bastığında müşteriye
+// İngilizce fatura gitmesi yanlış olurdu. Bu yüzden dil ve para birimi
+// BAYİDEN geliyor (tenant.locale / tenant.currency), oturumdan değil.
 import React from 'react';
+import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-const KIND: Record<string, string> = { COUNTER: 'Sayaç', RENTAL: 'Kira', PART: 'Parça', LABOR: 'İşçilik', OTHER: 'Diğer' };
-const STATUS: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  OPEN: { label: 'Açık', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-  PARTIAL: { label: 'Kısmi Ödendi', bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
-  PAID: { label: 'Ödendi', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-  OVERDUE: { label: 'Vadesi Geçti', bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
-  CANCELLED: { label: 'İptal', bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
-  DRAFT: { label: 'Taslak', bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
+const STATUS_RENK: Record<string, { bg: string; color: string; border: string }> = {
+  OPEN: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  PARTIAL: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+  PAID: { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+  OVERDUE: { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+  CANCELLED: { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
+  DRAFT: { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
 };
 
 export interface InvoiceDocData {
@@ -28,7 +32,12 @@ export interface InvoiceDocData {
   dueDate: string | Date;
   status: string;
   subtotal: number; vatRate: number; vatAmount: number; totalAmount: number; paidAmount: number;
-  tenant: { name: string; logo?: string | null; phone?: string | null; address?: string | null; taxOffice?: string | null; taxNumber?: string | null };
+  tenant: {
+    name: string; logo?: string | null; phone?: string | null; address?: string | null;
+    taxOffice?: string | null; taxNumber?: string | null;
+    /** Belgenin dili ve para birimi buradan — müşteri bunu okuyacak. */
+    locale?: string | null; currency?: string | null;
+  };
   customer: { name: string; phone?: string | null; taxNo?: string | null; contactPerson?: string | null; address?: string | null };
   lines: { id?: string; kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number }[];
   /** Sayaç eki (2. sayfa) — src/lib/invoice-appendix.ts ile üretilir; yoksa sayfa basılmaz */
@@ -41,6 +50,12 @@ export interface InvoiceDocData {
 export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }) {
   const t = invoice.tenant;
   const c = invoice.customer;
+  const dil: Dil = dilMi(t.locale) ? t.locale : VARSAYILAN_DIL;
+  const sz = sozluk(dil);
+  const b = bicimYap(dil, t.currency);
+  const fmt = (n: number) => b.para(n);
+  const fmtDate = (d: string | Date) => b.tarih(d);
+  const S = sz.belge.fatura;
   const subtotal = invoice.subtotal;
   const vatRate = invoice.vatRate;
   const vatAmount = invoice.vatAmount;
@@ -48,7 +63,10 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
   const paidAmount = invoice.paidAmount;
   const openAmount = Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100);
   const overpaid = Math.max(0, Math.round((paidAmount - totalAmount) * 100) / 100);
-  const st = STATUS[invoice.status] || STATUS.OPEN;
+  const st = {
+    label: (sz.faturalar.durum as Record<string, string>)[invoice.status] ?? invoice.status,
+    ...(STATUS_RENK[invoice.status] ?? STATUS_RENK.OPEN),
+  };
   const ap = invoice.counterAppendix;
 
   return (
@@ -144,18 +162,18 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
                 </div>
                 {(t.taxOffice || t.taxNumber) && (
                   <div className="company-tax">
-                    {t.taxOffice && `${t.taxOffice} V.D.`}{t.taxOffice && t.taxNumber && ' · '}{t.taxNumber && `VKN ${t.taxNumber}`}
+                    {t.taxOffice && `${t.taxOffice} ${S.vd}`}{t.taxOffice && t.taxNumber && ' · '}{t.taxNumber && `${S.vkn} ${t.taxNumber}`}
                   </div>
                 )}
               </div>
             </div>
             <div className="header-right">
-              <div className="doc-label">Fatura</div>
+              <div className="doc-label">{S.etiket}</div>
               <div className="doc-title">{fmt(totalAmount)}</div>
               <div className="doc-no">{invoice.invoiceNumber}</div>
               {invoice.gibNo && (
                 <div className="doc-no" style={{ fontSize: '0.68rem', opacity: 0.85 }}>
-                  {invoice.senaryo === 'EARSIVFATURA' ? 'e-Arşiv' : 'e-Fatura'}: {invoice.gibNo}
+                  {invoice.senaryo === 'EARSIVFATURA' ? S.eArsiv : S.eFatura}: {invoice.gibNo}
                 </div>
               )}
               {invoice.ettn && (
@@ -168,11 +186,11 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
 
           <div className="body">
             <div className="meta-bar">
-              <div className="meta-chip"><div className="meta-key">Fatura Tarihi</div><div className="meta-val">{fmtDate(invoice.invoiceDate)}</div></div>
-              <div className="meta-chip"><div className="meta-key">Vade Tarihi</div><div className="meta-val">{fmtDate(invoice.dueDate)}</div></div>
-              <div className="meta-chip"><div className="meta-key">Dönem</div><div className="meta-val">{invoice.period}</div></div>
+              <div className="meta-chip"><div className="meta-key">{S.faturaTarihi}</div><div className="meta-val">{fmtDate(invoice.invoiceDate)}</div></div>
+              <div className="meta-chip"><div className="meta-key">{S.vadeTarihi}</div><div className="meta-val">{fmtDate(invoice.dueDate)}</div></div>
+              <div className="meta-chip"><div className="meta-key">{S.donem}</div><div className="meta-val">{invoice.period}</div></div>
               <div className="meta-chip">
-                <div className="meta-key">Durum</div>
+                <div className="meta-key">{sz.genel.durum}</div>
                 <div style={{ marginTop: '3px' }}>
                   <span className="status-badge" style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>{st.label}</span>
                 </div>
@@ -180,34 +198,34 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
             </div>
 
             <div className="info-card">
-              <div className="info-card-header">👤 Sayın (Alıcı)</div>
+              <div className="info-card-header">{S.alici}</div>
               <div className="info-card-body">
-                <div className="info-row"><span className="info-key">Ad / Unvan</span><span className="info-val">{c.name}</span></div>
-                <div className="info-row"><span className="info-key">Telefon</span><span className="info-val">{c.phone}</span></div>
-                {c.taxNo && <div className="info-row"><span className="info-key">Vergi No</span><span className="info-val">{c.taxNo}</span></div>}
-                {c.contactPerson && <div className="info-row"><span className="info-key">Yetkili</span><span className="info-val">{c.contactPerson}</span></div>}
-                {c.address && <div className="info-row" style={{ gridColumn: '1 / -1' }}><span className="info-key">Adres</span><span className="info-val" style={{ fontSize: '12px' }}>{c.address}</span></div>}
+                <div className="info-row"><span className="info-key">{S.adUnvan}</span><span className="info-val">{c.name}</span></div>
+                <div className="info-row"><span className="info-key">{sz.fisDetay.telefon}</span><span className="info-val">{c.phone}</span></div>
+                {c.taxNo && <div className="info-row"><span className="info-key">{S.vergiNo}</span><span className="info-val">{c.taxNo}</span></div>}
+                {c.contactPerson && <div className="info-row"><span className="info-key">{S.yetkili}</span><span className="info-val">{c.contactPerson}</span></div>}
+                {c.address && <div className="info-row" style={{ gridColumn: '1 / -1' }}><span className="info-key">{sz.fisYeni.adres}</span><span className="info-val" style={{ fontSize: '12px' }}>{c.address}</span></div>}
               </div>
             </div>
 
-            <div className="section-title">📑 Fatura Kalemleri</div>
+            <div className="section-title">{S.kalemler}</div>
             {invoice.lines.length === 0 ? (
-              <div className="empty">Bu faturada kalem bulunmuyor.</div>
+              <div className="empty">{S.kalemYok}</div>
             ) : (
               <table className="ext-table">
                 <thead>
                   <tr>
-                    <th>Açıklama</th>
-                    <th className="num" style={{ width: '60px' }}>Adet</th>
-                    <th className="num" style={{ width: '95px' }}>Birim Fiyat</th>
-                    <th className="num" style={{ width: '105px' }}>Tutar</th>
+                    <th>{sz.muhasebe.sutunAciklama}</th>
+                    <th className="num" style={{ width: '60px' }}>{sz.parcalar.sutun.adet}</th>
+                    <th className="num" style={{ width: '95px' }}>{sz.faturalar.birimFiyat}</th>
+                    <th className="num" style={{ width: '105px' }}>{sz.genel.tutar}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoice.lines.map((l, idx) => (
                     <tr key={l.id || idx}>
-                      <td style={{ fontWeight: 600 }}><span className="kind-badge">{KIND[l.kind] || l.kind}</span>{l.description}</td>
-                      <td className="num">{Number(l.quantity).toLocaleString('tr-TR')}</td>
+                      <td style={{ fontWeight: 600 }}><span className="kind-badge">{(sz.faturalar.tur as Record<string, string>)[l.kind] ?? l.kind}</span>{l.description}</td>
+                      <td className="num">{b.sayi(Number(l.quantity))}</td>
                       <td className="num">{fmt(Number(l.unitPrice))}</td>
                       <td className="num" style={{ fontWeight: 700 }}>{fmt(Number(l.lineTotal))}</td>
                     </tr>
@@ -218,26 +236,26 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
 
             <div className="totals">
               <div className="totals-box">
-                <div className="totals-row sub"><span>Ara Toplam</span><span className="num">{fmt(subtotal)}</span></div>
-                <div className="totals-row sub"><span>KDV (%{vatRate.toLocaleString('tr-TR')})</span><span className="num">{fmt(vatAmount)}</span></div>
-                <div className="totals-row grand"><span>Genel Toplam</span><span className="num">{fmt(totalAmount)}</span></div>
-                {paidAmount > 0 && <div className="totals-row paid"><span>Tahsil Edilen</span><span className="num">{fmt(paidAmount)}</span></div>}
+                <div className="totals-row sub"><span>{sz.faturalar.araToplam}</span><span className="num">{fmt(subtotal)}</span></div>
+                <div className="totals-row sub"><span>{doldur(S.kdvOran, { n: b.sayi(vatRate) })}</span><span className="num">{fmt(vatAmount)}</span></div>
+                <div className="totals-row grand"><span>{sz.faturalar.genelToplam}</span><span className="num">{fmt(totalAmount)}</span></div>
+                {paidAmount > 0 && <div className="totals-row paid"><span>{sz.faturalar.tahsilEdilen}</span><span className="num">{fmt(paidAmount)}</span></div>}
                 {overpaid > 0
-                  ? <div className="totals-row open" style={{ color: '#059669' }}><span>Fazla Ödeme (İade)</span><span className="num">{fmt(overpaid)}</span></div>
-                  : <div className="totals-row open"><span>Kalan Tutar</span><span className="num">{fmt(openAmount)}</span></div>}
+                  ? <div className="totals-row open" style={{ color: '#059669' }}><span>{S.fazlaOdeme}</span><span className="num">{fmt(overpaid)}</span></div>
+                  : <div className="totals-row open"><span>{S.kalanTutar}</span><span className="num">{fmt(openAmount)}</span></div>}
               </div>
             </div>
 
             <div className="signature-grid">
-              {['Teslim Eden', 'Teslim Alan'].map((label) => (
-                <div key={label} className="sig-box"><div className="sig-area" /><div className="sig-label">{label} İmza / Kaşe</div></div>
+              {[S.teslimEden, S.teslimAlan].map((label) => (
+                <div key={label} className="sig-box"><div className="sig-area" /><div className="sig-label">{label} {S.imzaKase}</div></div>
               ))}
             </div>
           </div>
 
           <div className="footer">
-            Bu belge {t.name} tarafından {fmtDate(invoice.invoiceDate)} tarihinde düzenlenmiştir.
-            {openAmount > 0 ? ` Ödeme vadesi: ${fmtDate(invoice.dueDate)}.` : ' Ödeme tamamlanmıştır, teşekkür ederiz.'}
+            {doldur(S.altbilgi, { firma: t.name, tarih: fmtDate(invoice.invoiceDate) })}
+            {openAmount > 0 ? doldur(S.vadeNotu, { tarih: fmtDate(invoice.dueDate) }) : S.odendiNotu}
           </div>
         </div>
 
@@ -247,8 +265,8 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
             <div className="body">
               <div className="ap-head">
                 <div>
-                  <div className="ap-title">Sayaç Dökümü</div>
-                  <div className="ap-sub">{invoice.invoiceNumber} · {invoice.period} dönemi · {c.name}</div>
+                  <div className="ap-title">{S.ekBaslik}</div>
+                  <div className="ap-sub">{doldur(S.ekAlt, { fatura: invoice.invoiceNumber, donem: invoice.period, musteri: c.name })}</div>
                 </div>
                 <div className="ap-sub" style={{ textAlign: 'right' }}>
                   {t.name}<br />{fmtDate(invoice.invoiceDate)}
@@ -258,14 +276,14 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
               <table className="ext-table">
                 <thead>
                   <tr>
-                    <th>Cihaz</th>
-                    <th style={{ width: '38px' }}>Tür</th>
-                    <th className="num" style={{ width: '128px' }}>Önceki → Yeni</th>
-                    <th className="num" style={{ width: '62px' }}>Çekilen</th>
-                    {ap.hasIncluded && <th className="num" style={{ width: '56px' }}>Dahil</th>}
-                    {ap.hasIncluded && <th className="num" style={{ width: '58px' }}>Aşım</th>}
-                    <th className="num" style={{ width: '68px' }}>Birim</th>
-                    <th className="num" style={{ width: '82px' }}>Tutar</th>
+                    <th>{sz.genel.cihaz}</th>
+                    <th style={{ width: '38px' }}>{S.ekTur}</th>
+                    <th className="num" style={{ width: '128px' }}>{S.ekOncekiYeni}</th>
+                    <th className="num" style={{ width: '62px' }}>{S.ekCekilen}</th>
+                    {ap.hasIncluded && <th className="num" style={{ width: '56px' }}>{S.ekDahil}</th>}
+                    {ap.hasIncluded && <th className="num" style={{ width: '58px' }}>{S.ekAsim}</th>}
+                    <th className="num" style={{ width: '68px' }}>{S.ekBirim}</th>
+                    <th className="num" style={{ width: '82px' }}>{sz.genel.tutar}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -277,26 +295,26 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
                       </td>
                       <td>
                         <span className="ap-ch" style={{ background: r.channel === 'COLOR' ? '#f5f0ff' : '#f3f4f6', color: r.channel === 'COLOR' ? '#6d28d9' : '#374151' }}>
-                          {r.channel === 'COLOR' ? 'Renkli' : 'S/B'}
+                          {r.channel === 'COLOR' ? S.ekRenkli : S.ekSiyah}
                         </span>
                       </td>
                       <td className="num mono">
-                        {r.prev != null ? r.prev.toLocaleString('tr-TR') : '—'}
+                        {r.prev != null ? b.sayi(r.prev) : '—'}
                         <span style={{ color: '#9ca3af' }}> → </span>
-                        <b>{r.current != null ? r.current.toLocaleString('tr-TR') : '—'}</b>
+                        <b>{r.current != null ? b.sayi(r.current) : '—'}</b>
                       </td>
-                      <td className="num mono" style={{ fontWeight: 700 }}>{r.pages.toLocaleString('tr-TR')}</td>
-                      {ap.hasIncluded && <td className="num mono" style={{ color: '#059669' }}>{r.included > 0 ? r.included.toLocaleString('tr-TR') : '—'}</td>}
-                      {ap.hasIncluded && <td className="num mono" style={{ fontWeight: 700 }}>{r.billed.toLocaleString('tr-TR')}</td>}
-                      <td className="num mono">{Number(r.unitPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>
+                      <td className="num mono" style={{ fontWeight: 700 }}>{b.sayi(r.pages)}</td>
+                      {ap.hasIncluded && <td className="num mono" style={{ color: '#059669' }}>{r.included > 0 ? b.sayi(r.included) : '—'}</td>}
+                      {ap.hasIncluded && <td className="num mono" style={{ fontWeight: 700 }}>{b.sayi(r.billed)}</td>}
+                      <td className="num mono">{b.sayi(Number(r.unitPrice), 4)}</td>
                       <td className="num" style={{ fontWeight: 700 }}>{fmt(r.lineTotal)}</td>
                     </tr>
                   ))}
                   <tr style={{ background: '#f9fafb' }}>
-                    <td colSpan={ap.hasIncluded ? 3 : 2} style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>TOPLAM</td>
-                    <td className="num mono" style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>{ap.totalPages.toLocaleString('tr-TR')}</td>
+                    <td colSpan={ap.hasIncluded ? 3 : 2} style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>{S.ekToplam}</td>
+                    <td className="num mono" style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>{b.sayi(ap.totalPages)}</td>
                     {ap.hasIncluded && <td className="num" style={{ borderTop: '2px solid #d1d5db' }} />}
-                    {ap.hasIncluded && <td className="num mono" style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>{ap.totalBilled.toLocaleString('tr-TR')}</td>}
+                    {ap.hasIncluded && <td className="num mono" style={{ fontWeight: 800, borderTop: '2px solid #d1d5db' }}>{b.sayi(ap.totalBilled)}</td>}
                     <td className="num" style={{ borderTop: '2px solid #d1d5db' }} />
                     <td className="num" style={{ fontWeight: 800, color: '#0f2253', borderTop: '2px solid #d1d5db' }}>{fmt(ap.totalAmount)}</td>
                   </tr>
@@ -304,10 +322,8 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
               </table>
 
               <div className="ap-note">
-                {ap.hasIncluded
-                  ? 'Kiraya dahil sayfalar ücretlendirilmez; yalnızca dahil paketi aşan sayfalar faturalanır.'
-                  : 'Dönemde çekilen sayfalar birim fiyat üzerinden faturalanmıştır.'}
-                {' '}Sayaç değerleri cihaz üzerinden okunmuştur.
+                {ap.hasIncluded ? S.ekNotDahil : S.ekNotDuz}
+                {' '}{S.ekNotSon}
               </div>
             </div>
           </div>

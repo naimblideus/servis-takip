@@ -9,6 +9,7 @@ import AccessLock from '@/components/AccessLock';
 import Onboarding from '@/components/Onboarding';
 import { sunucuDili } from '@/lib/i18n/sunucu';
 import { LocaleProvider } from '@/lib/i18n/client';
+import { dilMi } from '@/lib/i18n/sozluk';
 import { paraBirimiMi, VARSAYILAN_BIRIM } from '@/lib/bicim';
 
 export default async function DashboardLayout({
@@ -74,6 +75,9 @@ export default async function DashboardLayout({
     ? await prisma.user.findUnique({ where: { id: kullaniciId }, select: { locale: true } }).catch(() => null)
     : null;
   const dil = await sunucuDili(kullanici?.locale, tenant?.locale);
+  // Bayinin dili ayrıca taşınıyor: müşteriye giden mesaj/belge bununla
+  // yazılıyor, ekrandaki kullanıcının diliyle değil.
+  const bayiDili = dilMi(tenant?.locale) ? tenant.locale : dil;
   const birimAday = tenant?.currency;
   const birim = paraBirimiMi(birimAday) ? birimAday : VARSAYILAN_BIRIM;
   const ulke = tenant?.country ?? 'TR';
@@ -104,7 +108,7 @@ export default async function DashboardLayout({
   };
 
   return (
-    <LocaleProvider dil={dil} birim={birim} ulke={ulke}>
+    <LocaleProvider dil={dil} birim={birim} ulke={ulke} bayiDili={bayiDili}>
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar modules={modules} durum={menuDurum} />
       <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">

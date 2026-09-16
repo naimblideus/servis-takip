@@ -23,19 +23,31 @@ export interface DilBaglami {
   birim: ParaBirimi;
   /** ISO 3166-1 alpha-2; TR'ye özgü modüller (e-Fatura, KDV) buna göre kapılanır. */
   ulke: string;
+  /**
+   * BAYİNİN dili — kullanıcının değil.
+   *
+   * Müşteriye giden her şey (WhatsApp mesajı, SMS, fatura, makbuz) bununla
+   * yazılır: Türk bir bayinin İngilizce arayüz kullanan çalışanı düğmeye
+   * bastığında müşteriye İngilizce mesaj gitmesi yanlış olurdu. Verilmezse
+   * kullanıcının diline düşer (tek dilli kurulumda ikisi zaten aynı).
+   */
+  bayiDili: Dil;
 }
 
-const Baglam = createContext<DilBaglami>({ dil: VARSAYILAN_DIL, birim: VARSAYILAN_BIRIM, ulke: 'TR' });
+const Baglam = createContext<DilBaglami>({
+  dil: VARSAYILAN_DIL, birim: VARSAYILAN_BIRIM, ulke: 'TR', bayiDili: VARSAYILAN_DIL,
+});
 
 export function LocaleProvider({
-  dil, birim, ulke, children,
-}: { dil: Dil; birim?: ParaBirimi; ulke?: string; children: ReactNode }) {
+  dil, birim, ulke, bayiDili, children,
+}: { dil: Dil; birim?: ParaBirimi; ulke?: string; bayiDili?: Dil; children: ReactNode }) {
   const ust = useContext(Baglam);
   const deger = useMemo<DilBaglami>(() => ({
     dil,
     birim: birim ?? ust.birim,
     ulke: ulke ?? ust.ulke,
-  }), [dil, birim, ulke, ust.birim, ust.ulke]);
+    bayiDili: bayiDili ?? dil,
+  }), [dil, birim, ulke, bayiDili, ust.birim, ust.ulke]);
   return <Baglam.Provider value={deger}>{children}</Baglam.Provider>;
 }
 
@@ -52,4 +64,15 @@ export function useT(): Sozluk {
 export function useBicim() {
   const { dil, birim } = useContext(Baglam);
   return useMemo(() => bicimYap(dil, birim), [dil, birim]);
+}
+
+/**
+ * MÜŞTERİYE giden metin için sözlük + biçimlendirici: bayinin dilinde.
+ * WhatsApp/SMS düğmeleri bunu kullanır, `useT()`/`useBicim()`i değil.
+ */
+export function useMusteriDili() {
+  const { bayiDili, birim } = useContext(Baglam);
+  return useMemo(() => ({
+    dil: bayiDili, sz: sozluk(bayiDili), b: bicimYap(bayiDili, birim),
+  }), [bayiDili, birim]);
 }

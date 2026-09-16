@@ -4,9 +4,8 @@ import { prisma } from '@/lib/prisma';
 import PrintNowButton from '@/components/PrintNowButton';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { ekstre } from '@/lib/musteri-bakiye';
-
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtDate = (d: Date) => new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 
 export default async function CariEkstrePrintPage({ params }: { params: Promise<{ customerId: string }> }) {
   const { customerId } = await params;
@@ -22,6 +21,14 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
   });
   if (!customer) redirect('/accounting');
 
+  // Ekstre MÜŞTERİYE veriliyor: dil ve para birimi BAYİDEN (bkz. components/docs).
+  const dil: Dil = dilMi(customer.tenant.locale) ? customer.tenant.locale : VARSAYILAN_DIL;
+  const sz = sozluk(dil);
+  const b = bicimYap(dil, customer.tenant.currency);
+  const S = sz.belge.ekstre;
+  const fmt = (n: number) => b.para(n);
+  const fmtDate = (d: Date) => b.tarih(d);
+
   // BİRLEŞİK EKSTRE: servis kalemleri + kira/sayaç faturaları.
   // Eskiden yalnız AccountEntry basılıyordu; müşteriye verilen ekstrede kira
   // faturası borcu HİÇ görünmüyordu, yani bayi eksik belge veriyordu.
@@ -35,7 +42,7 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
     return {
       date: new Date(s.tarih),
       desc: s.aciklama,
-      method: s.kaynak === 'SERVIS' ? 'Servis' : 'Kira/Sayaç',
+      method: s.kaynak === 'SERVIS' ? S.kaynakServis : S.kaynakKira,
       notes: s.detay ?? null,
       debit: borc ? s.tutar : 0,
       credit: borc ? 0 : s.tutar,
@@ -123,38 +130,38 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
               </div>
             </div>
             <div className="header-right">
-              <div className="doc-label">Cari Hesap Ekstresi</div>
+              <div className="doc-label">{S.etiket}</div>
               <div className="doc-title">{fmt(balance)}</div>
-              <div className="doc-date">{fmtDate(new Date())} itibarıyla</div>
+              <div className="doc-date">{doldur(S.itibariyla, { tarih: fmtDate(new Date()) })}</div>
             </div>
           </div>
 
           <div className="body">
             {/* MÜŞTERİ */}
             <div className="info-card">
-              <div className="info-card-header">👤 Müşteri Bilgileri</div>
+              <div className="info-card-header">{S.musteriBilgileri}</div>
               <div className="info-card-body">
-                <div className="info-row"><span className="info-key">Ad / Unvan</span><span className="info-val">{customer.name}</span></div>
-                <div className="info-row"><span className="info-key">Telefon</span><span className="info-val">{customer.phone}</span></div>
-                {customer.taxNo && <div className="info-row"><span className="info-key">Vergi No</span><span className="info-val">{customer.taxNo}</span></div>}
-                {customer.contactPerson && <div className="info-row"><span className="info-key">Yetkili</span><span className="info-val">{customer.contactPerson}</span></div>}
-                {customer.address && <div className="info-row" style={{ gridColumn: '1 / -1' }}><span className="info-key">Adres</span><span className="info-val" style={{ fontSize: '12px' }}>{customer.address}</span></div>}
+                <div className="info-row"><span className="info-key">{sz.belge.fatura.adUnvan}</span><span className="info-val">{customer.name}</span></div>
+                <div className="info-row"><span className="info-key">{sz.fisDetay.telefon}</span><span className="info-val">{customer.phone}</span></div>
+                {customer.taxNo && <div className="info-row"><span className="info-key">{sz.belge.fatura.vergiNo}</span><span className="info-val">{customer.taxNo}</span></div>}
+                {customer.contactPerson && <div className="info-row"><span className="info-key">{S.yetkili}</span><span className="info-val">{customer.contactPerson}</span></div>}
+                {customer.address && <div className="info-row" style={{ gridColumn: '1 / -1' }}><span className="info-key">{sz.fisYeni.adres}</span><span className="info-val" style={{ fontSize: '12px' }}>{customer.address}</span></div>}
               </div>
             </div>
 
             {/* EKSTRE TABLOSU */}
-            <div className="section-title">📑 Hesap Hareketleri</div>
+            <div className="section-title">{S.hareketler}</div>
             {rows.length === 0 ? (
-              <div className="empty">Bu müşteri için kayıtlı hesap hareketi bulunmuyor.</div>
+              <div className="empty">{S.hareketYok}</div>
             ) : (
               <table className="ext-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '80px' }}>Tarih</th>
-                    <th>Açıklama</th>
-                    <th className="num" style={{ width: '90px' }}>Borç</th>
-                    <th className="num" style={{ width: '90px' }}>Alacak</th>
-                    <th className="num" style={{ width: '100px' }}>Bakiye</th>
+                    <th style={{ width: '80px' }}>{sz.genel.tarih}</th>
+                    <th>{sz.muhasebe.sutunAciklama}</th>
+                    <th className="num" style={{ width: '90px' }}>{S.borc}</th>
+                    <th className="num" style={{ width: '90px' }}>{S.alacak}</th>
+                    <th className="num" style={{ width: '100px' }}>{S.bakiye}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -168,7 +175,7 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
                     </tr>
                   ))}
                   <tr className="ext-total">
-                    <td colSpan={2} style={{ textAlign: 'right', fontSize: '11px', color: '#6b7280' }}>TOPLAM</td>
+                    <td colSpan={2} style={{ textAlign: 'right', fontSize: '11px', color: '#6b7280' }}>{S.toplam}</td>
                     <td className="num" style={{ color: '#b91c1c' }}>{fmt(totalDebit)}</td>
                     <td className="num" style={{ color: '#059669' }}>{fmt(totalCredit)}</td>
                     <td className="num" style={{ color: balance > 0 ? '#b91c1c' : '#059669' }}>{fmt(balance)}</td>
@@ -179,24 +186,24 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
 
             {/* ÖZET */}
             <div className="pay-row">
-              <div className="pay-box"><div className="pay-label">Toplam Borç</div><div className="pay-value" style={{ color: '#b91c1c' }}>{fmt(totalDebit)}</div></div>
-              <div className="pay-box" style={{ borderColor: '#86efac', background: '#f0fdf4' }}><div className="pay-label">Toplam Tahsilat</div><div className="pay-value" style={{ color: '#059669' }}>{fmt(totalCredit)}</div></div>
+              <div className="pay-box"><div className="pay-label">{S.toplamBorc}</div><div className="pay-value" style={{ color: '#b91c1c' }}>{fmt(totalDebit)}</div></div>
+              <div className="pay-box" style={{ borderColor: '#86efac', background: '#f0fdf4' }}><div className="pay-label">{S.toplamTahsilat}</div><div className="pay-value" style={{ color: '#059669' }}>{fmt(totalCredit)}</div></div>
               <div className="pay-box" style={{ borderColor: balance > 0 ? '#fca5a5' : '#86efac', background: balance > 0 ? '#fef2f2' : '#f0fdf4' }}>
-                <div className="pay-label">{balance > 0 ? 'Kalan Borç' : 'Bakiye'}</div>
+                <div className="pay-label">{balance > 0 ? S.kalanBorc : S.bakiye}</div>
                 <div className="pay-value" style={{ color: balance > 0 ? '#dc2626' : '#059669' }}>{fmt(Math.abs(balance))}</div>
               </div>
             </div>
 
             {/* İMZA */}
             <div className="signature-grid">
-              {['Müşteri', 'Yetkili'].map((label) => (
-                <div key={label} className="sig-box"><div className="sig-area" /><div className="sig-label">{label} İmza / Kaşe</div></div>
+              {[sz.genel.musteri, S.yetkili].map((label) => (
+                <div key={label} className="sig-box"><div className="sig-area" /><div className="sig-label">{label} {sz.belge.fatura.imzaKase}</div></div>
               ))}
             </div>
           </div>
 
           <div className="footer">
-            Bu ekstre {t.name} tarafından {fmtDate(new Date())} tarihinde düzenlenmiştir. Bilgilendirme amaçlıdır.
+            {doldur(S.altbilgi, { firma: t.name, tarih: fmtDate(new Date()) })}
           </div>
         </div>
       </div>

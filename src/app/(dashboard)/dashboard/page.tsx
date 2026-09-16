@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { getStatusLabel, getStatusColor } from '@/lib/utils';
 import { openWhatsApp, reminderMessage, telUrl } from '@/lib/share';
-import { useT, useBicim } from '@/lib/i18n/client';
+import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
 interface StuckTicket {
@@ -59,6 +59,8 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const t = useT();
   const b = useBicim();
+  // Borç hatırlatma mesajı MÜŞTERİYE gidiyor: bayinin dilinde yazılır.
+  const musteri = useMusteriDili();
   const tenantName = (session?.user as any)?.tenantName as string | undefined;
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -309,7 +311,7 @@ export default function DashboardPage() {
                 <div className="text-lg font-bold text-red-600 mt-1">{b.para(d.debt)}</div>
                 <div className="flex gap-2 mt-2">
                   <button
-                    onClick={() => openWhatsApp(d.customer.phone, reminderMessage({ tenantName, customerName: d.customer.name, debt: d.debt }))}
+                    onClick={() => openWhatsApp(d.customer.phone, reminderMessage({ dil: musteri.dil, birim: musteri.b.birim, tenantName, customerName: d.customer.name, debt: d.debt }))}
                     className="flex-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md px-2 py-1.5"
                   >📱 {t.pano.borclu.hatirlat}</button>
                   <Link href="/accounting" className="text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-md px-2 py-1.5 hover:bg-blue-50">{t.pano.borclu.cariOk}</Link>
