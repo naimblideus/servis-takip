@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import ContactActions from '@/components/ContactActions';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Item {
   id: string; brand: string; model: string; serialNo: string; location: string | null;
@@ -11,6 +13,8 @@ interface Item {
 }
 
 export default function TakipPage() {
+  const t = useT();
+  const b = useBicim();
   const [items, setItems] = useState<Item[]>([]);
   const [rentalCount, setRentalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -30,40 +34,40 @@ export default function TakipPage() {
     [items, threshold]
   );
 
-  const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('tr-TR') : 'hiç okunmadı');
+  const fmtDate = (s: string | null) => (s ? b.tarih(s) : t.takip.hicOkunmadiKisa);
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: 880, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>🔔 Takip — Sayacı Geç Okunanlar</h1>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.takip.baslik}</h1>
           <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-            Kiralık cihazlarda geç kalan sayaç okumaları = kaçan faturalama. Bunları okutmaya git.
+            {t.takip.alt}
           </p>
         </div>
         <label style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600 }}>
-          Eşik:&nbsp;
+          {t.takip.esik}&nbsp;
           <select value={threshold} onChange={(e) => setThreshold(parseInt(e.target.value))} style={{ padding: '0.4rem 0.6rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.85rem' }}>
-            {[15, 30, 45, 60].map((d) => <option key={d} value={d}>{d}+ gün</option>)}
+            {[15, 30, 45, 60].map((d) => <option key={d} value={d}>{doldur(t.takip.esikGun, { n: d })}</option>)}
           </select>
         </label>
       </div>
 
       <div style={{ display: 'flex', gap: 10, margin: '1rem 0' }}>
         <div style={{ flex: 1, background: 'white', border: '1px solid #fecaca', borderRadius: 10, padding: '0.7rem 1rem' }}>
-          <div style={{ fontSize: '0.72rem', color: '#b91c1c', fontWeight: 700 }}>GEÇ OKUNAN ({threshold}+ gün)</div>
+          <div style={{ fontSize: '0.72rem', color: '#b91c1c', fontWeight: 700 }}>{doldur(t.takip.gecOkunan, { n: threshold })}</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#b91c1c' }}>{overdue.length}</div>
         </div>
         <div style={{ flex: 1, background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0.7rem 1rem' }}>
-          <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700 }}>TOPLAM KİRALIK</div>
+          <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700 }}>{t.takip.toplamKiralik}</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{rentalCount}</div>
         </div>
       </div>
 
       {loading ? (
-        <p style={{ color: '#9ca3af' }}>Yükleniyor…</p>
+        <p style={{ color: '#9ca3af' }}>{t.genel.yukleniyor}</p>
       ) : overdue.length === 0 ? (
-        <p style={{ color: '#16a34a', textAlign: 'center', padding: '2rem', fontWeight: 600 }}>✅ {threshold}+ gündür okunmayan kiralık cihaz yok. Her şey güncel!</p>
+        <p style={{ color: '#16a34a', textAlign: 'center', padding: '2rem', fontWeight: 600 }}>{doldur(t.takip.hepsiGuncel, { n: threshold })}</p>
       ) : (
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           {overdue.map((i) => {
@@ -79,10 +83,10 @@ export default function TakipPage() {
                       {i.location ? ` · ${i.location}` : ''}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: sev ? '#b91c1c' : '#92400e', fontWeight: 600, marginTop: 4 }}>
-                      ⏱️ {never ? 'Hiç sayaç okunmadı' : `${i.daysSince} gündür okunmadı`} <span style={{ color: '#9ca3af', fontWeight: 400 }}>(son: {fmtDate(i.lastReadingAt)})</span>
+                      ⏱️ {never ? t.takip.hicOkunmadi : doldur(t.takip.gunOkunmadi, { n: i.daysSince ?? 0 })} <span style={{ color: '#9ca3af', fontWeight: 400 }}>{doldur(t.takip.sonOkuma, { n: fmtDate(i.lastReadingAt) })}</span>
                     </div>
                   </div>
-                  <Link href={`/devices/${i.id}`} style={{ flexShrink: 0, padding: '0.5rem 0.9rem', background: '#0ea5e9', color: 'white', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>📊 Sayaç Oku →</Link>
+                  <Link href={`/devices/${i.id}`} style={{ flexShrink: 0, padding: '0.5rem 0.9rem', background: '#0ea5e9', color: 'white', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>{t.takip.sayacOku}</Link>
                 </div>
                 {i.customer && <ContactActions phone={i.customer.phone} address={i.customer.address} />}
               </div>

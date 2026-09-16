@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { mapsUrl } from '@/lib/share';
 import ContactActions from '@/components/ContactActions';
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 // Aktif durum listesi artık SUNUCUDA (api/tickets · AKTIF_DURUMLAR).
 // İki yerde durursa sessizce ayrışır: biri güncellenir, öteki eski listeyle
@@ -21,6 +23,7 @@ interface ActiveT { id: string; ticketNumber: string; status: string }
 const LS_KEY = 'rota_selected_v1';
 
 export default function RotaPage() {
+  const t = useT();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [activeByCust, setActiveByCust] = useState<Record<string, ActiveT[]>>({});
   const [selected, setSelected] = useState<string[]>([]); // sıralı müşteri id listesi
@@ -101,19 +104,19 @@ export default function RotaPage() {
     <div style={{ padding: '1.5rem', maxWidth: 820, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>🗺️ Rota Planla</h1>
-          <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>Gideceğin müşterileri ara/seç, sırala, tek haritada yol tarifi al.</p>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.rota.baslik}</h1>
+          <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>{t.rota.alt}</p>
         </div>
         {routeUrl && (
           <a href={routeUrl} target="_blank" rel="noreferrer" style={{ padding: '0.6rem 1.1rem', background: '#2563eb', color: 'white', borderRadius: 10, fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-            🗺️ Haritada aç{withAddr.length > 10 ? ' (ilk 10)' : ''}
+            {t.rota.haritadaAc}{withAddr.length > 10 ? t.rota.ilk10 : ''}
           </a>
         )}
       </div>
 
       {/* Müşteri ara → rotaya ekle */}
       <div style={{ position: 'relative', margin: '1rem 0 0.75rem' }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="🔍 Müşteri ara (ad / adres / telefon) → rotaya ekle"
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.rota.araYer}
           style={{ width: '100%', padding: '0.7rem 0.9rem', border: '1px solid #d1d5db', borderRadius: 10, fontSize: '0.95rem', boxSizing: 'border-box' }} />
         {filtered.length > 0 && (
           <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', borderRadius: 10, maxHeight: 300, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', marginTop: 4 }}>
@@ -123,10 +126,10 @@ export default function RotaPage() {
                 <div key={c.id} onClick={() => { if (!inRoute) { add(c.id); setSearch(''); } }}
                   style={{ padding: '0.55rem 0.8rem', cursor: inRoute ? 'default' : 'pointer', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, opacity: inRoute ? 0.55 : 1 }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{c.name} {activeByCust[c.id] && <span style={{ fontSize: '0.66rem', color: '#1d4ed8' }}>● aktif fiş</span>}</div>
-                    <div style={{ fontSize: '0.74rem', color: c.address ? '#9ca3af' : '#b91c1c' }}>{c.address ? c.address : '⚠ adres yok'}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{c.name} {activeByCust[c.id] && <span style={{ fontSize: '0.66rem', color: '#1d4ed8' }}>{t.rota.aktifFis}</span>}</div>
+                    <div style={{ fontSize: '0.74rem', color: c.address ? '#9ca3af' : '#b91c1c' }}>{c.address ? c.address : t.rota.adresYokKisa}</div>
                   </div>
-                  <span style={{ flexShrink: 0, fontSize: '0.78rem', fontWeight: 700, color: inRoute ? '#16a34a' : '#2563eb' }}>{inRoute ? '✓ ekli' : '+ ekle'}</span>
+                  <span style={{ flexShrink: 0, fontSize: '0.78rem', fontWeight: 700, color: inRoute ? '#16a34a' : '#2563eb' }}>{inRoute ? t.rota.ekli : t.rota.ekle}</span>
                 </div>
               );
             })}
@@ -138,14 +141,14 @@ export default function RotaPage() {
       {activeCustomers.length > 0 && (
         <div style={{ background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '0.75rem 1rem', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e40af' }}>🔧 Aktif servis fişi olan {activeCustomers.length} müşteri</span>
-            <button onClick={addAllActive} style={{ padding: '0.4rem 0.8rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>Hepsini rotaya ekle</button>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e40af' }}>{doldur(t.rota.aktifFisliMusteri, { n: activeCustomers.length })}</span>
+            <button onClick={addAllActive} style={{ padding: '0.4rem 0.8rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{t.rota.hepsiniEkle}</button>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
             {activeCustomers.filter((c) => !selected.includes(c.id)).map((c) => (
               <button key={c.id} onClick={() => add(c.id)} style={{ padding: '0.25rem 0.6rem', background: 'white', border: '1px solid #bfdbfe', borderRadius: 9999, fontSize: '0.76rem', fontWeight: 600, color: '#1e40af', cursor: 'pointer' }}>+ {c.name}</button>
             ))}
-            {activeCustomers.every((c) => selected.includes(c.id)) && <span style={{ fontSize: '0.76rem', color: '#16a34a', fontWeight: 600 }}>✓ hepsi rotada</span>}
+            {activeCustomers.every((c) => selected.includes(c.id)) && <span style={{ fontSize: '0.76rem', color: '#16a34a', fontWeight: 600 }}>{t.rota.hepsiRotada}</span>}
           </div>
         </div>
       )}
@@ -157,10 +160,10 @@ export default function RotaPage() {
       </div>
 
       {loading ? (
-        <p style={{ color: '#9ca3af' }}>Yükleniyor…</p>
+        <p style={{ color: '#9ca3af' }}>{t.genel.yukleniyor}</p>
       ) : route.length === 0 ? (
         <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 12, padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-          Rotan boş. Yukarıdan müşteri ara-ekle ya da “Aktif fişli müşterileri ekle”yi kullan.
+          {t.rota.rotaBos}
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '0.6rem' }}>
@@ -173,7 +176,7 @@ export default function RotaPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Link href={`/customers/${s.id}`} style={{ fontWeight: 700, color: '#111827', textDecoration: 'none' }}>{s.name}</Link>
                     <div style={{ fontSize: '0.82rem', color: s.address ? '#6b7280' : '#b91c1c', marginTop: 2 }}>
-                      {s.address && s.address.trim() ? `📍 ${s.address}` : '⚠ Adres yok — yol tarifi için ekleyin'}
+                      {s.address && s.address.trim() ? `📍 ${s.address}` : t.rota.adresYok}
                     </div>
                     {ts.length > 0 && (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
@@ -191,9 +194,9 @@ export default function RotaPage() {
                   </div>
                   {/* Sıra / çıkar kontrolleri */}
                   <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <button onClick={() => move(s.id, -1)} disabled={i === 0} title="Yukarı" style={{ width: 28, height: 24, border: '1px solid #e5e7eb', background: 'white', borderRadius: 6, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.4 : 1 }}>▲</button>
-                    <button onClick={() => move(s.id, 1)} disabled={i === route.length - 1} title="Aşağı" style={{ width: 28, height: 24, border: '1px solid #e5e7eb', background: 'white', borderRadius: 6, cursor: i === route.length - 1 ? 'default' : 'pointer', opacity: i === route.length - 1 ? 0.4 : 1 }}>▼</button>
-                    <button onClick={() => remove(s.id)} title="Çıkar" style={{ width: 28, height: 24, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', borderRadius: 6, cursor: 'pointer' }}>✕</button>
+                    <button onClick={() => move(s.id, -1)} disabled={i === 0} title={t.rota.yukari} style={{ width: 28, height: 24, border: '1px solid #e5e7eb', background: 'white', borderRadius: 6, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.4 : 1 }}>▲</button>
+                    <button onClick={() => move(s.id, 1)} disabled={i === route.length - 1} title={t.rota.asagi} style={{ width: 28, height: 24, border: '1px solid #e5e7eb', background: 'white', borderRadius: 6, cursor: i === route.length - 1 ? 'default' : 'pointer', opacity: i === route.length - 1 ? 0.4 : 1 }}>▼</button>
+                    <button onClick={() => remove(s.id)} title={t.rota.cikar} style={{ width: 28, height: 24, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', borderRadius: 6, cursor: 'pointer' }}>✕</button>
                   </div>
                 </div>
               </div>
