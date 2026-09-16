@@ -4,6 +4,7 @@ import { verifyDocToken } from '@/lib/doc-token';
 import PrintNowButton from '@/components/PrintNowButton';
 import InvoiceDocument, { type InvoiceDocData } from '@/components/docs/InvoiceDocument';
 import { buildCounterAppendix } from '@/lib/invoice-appendix';
+import { sozluk, dilMi, VARSAYILAN_DIL } from '@/lib/i18n/sozluk';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,8 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <PrintNowButton />
+      {/* Belgeyi MÜŞTERİ açıyor: düğme de bayinin dilinde. */}
+      <PrintNowButton etiket={sozluk(dilMi(invoice.tenant.locale) ? invoice.tenant.locale : VARSAYILAN_DIL).genel.yazdir} />
       <InvoiceDocument invoice={doc} />
     </>
   );

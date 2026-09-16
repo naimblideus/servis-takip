@@ -2,7 +2,11 @@
 
 import { useT } from '@/lib/i18n/client';
 
-export default function PrintNowButton() {
+/**
+ * `etiket` verilirse bağlam okunmaz: girişsiz belge bağlantısında (müşteri
+ * WhatsApp'tan açar) sağlayıcı yok ve dil BAYİDEN gelmeli.
+ */
+export default function PrintNowButton({ etiket }: { etiket?: string } = {}) {
   const t = useT();
   return (
     <button
@@ -15,7 +19,7 @@ export default function PrintNowButton() {
         fontWeight: 600, fontSize: '0.875rem', boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
       }}
     >
-      🖨️ {t.genel.yazdir}
+      🖨️ {etiket ?? t.genel.yazdir}
     </button>
   );
 }

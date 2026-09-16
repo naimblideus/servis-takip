@@ -3738,6 +3738,22 @@ export const en: Sozluk = {
     },
   },
 
+  hataSayfasi: {
+    baslik: 'Something went wrong',
+    alt: 'An unexpected error happened. You can try again or go back to the dashboard. If it keeps happening, get in touch with us.',
+    kod: 'Error code: {n}',
+    tekrarDene: 'Try again',
+    paneleDon: 'Back to the dashboard',
+    sistemBaslik: 'System error',
+    sistemAlt: 'An unexpected error happened. Please try again.',
+    bulunamadiBaslik: 'Page not found',
+    bulunamadiAlt: 'The page you are looking for may have moved, been deleted, or the address may be mistyped.',
+    portalOn: 'If you are trying to open the',
+    portalVurgu: 'customer panel link',
+    portalSon: 'that was sent to you, it may have been renewed. Ask your service company for the new one.',
+    anaSayfa: 'Home',
+  },
+
   durum: {
     fis: {
       NEW: 'New',

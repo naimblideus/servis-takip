@@ -15,7 +15,7 @@
  * dışında kalırsa çökmesin, Türkçe açılsın.
  */
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { sozluk, VARSAYILAN_DIL, type Dil, type Sozluk } from './sozluk';
+import { sozluk, dilMi, DIL_CEREZI, VARSAYILAN_DIL, type Dil, type Sozluk } from './sozluk';
 import { bicimYap, VARSAYILAN_BIRIM, type ParaBirimi } from '../bicim';
 
 export interface DilBaglami {
@@ -53,6 +53,18 @@ export function LocaleProvider({
 
 export function useDil(): DilBaglami {
   return useContext(Baglam);
+}
+
+/**
+ * Sağlayıcı YOKKEN dil. Kök hata sınırı ve 404 gibi ekranlar layout'un
+ * dışında çiziliyor; bağlamı okusalardı herkese Türkçe çıkarlardı.
+ * Doğrudan çerezi okuyoruz — sunucudaki `sunucuDili` ile aynı çerez.
+ */
+export function cerezDili(): Dil {
+  if (typeof document === 'undefined') return VARSAYILAN_DIL;
+  const m = document.cookie.match(new RegExp(`(?:^|; )${DIL_CEREZI}=([^;]*)`));
+  const d = m ? decodeURIComponent(m[1]) : '';
+  return dilMi(d) ? d : VARSAYILAN_DIL;
 }
 
 export function useT(): Sozluk {

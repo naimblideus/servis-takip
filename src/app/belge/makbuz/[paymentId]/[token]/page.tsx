@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyDocToken } from '@/lib/doc-token';
 import PrintNowButton from '@/components/PrintNowButton';
 import ReceiptDocument, { type ReceiptDocData } from '@/components/docs/ReceiptDocument';
+import { sozluk, dilMi, VARSAYILAN_DIL } from '@/lib/i18n/sozluk';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,8 @@ export default async function PublicReceiptPage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <PrintNowButton />
+      {/* Belgeyi MÜŞTERİ açıyor: düğme de bayinin dilinde. */}
+      <PrintNowButton etiket={sozluk(dilMi(payment.tenant.locale) ? payment.tenant.locale : VARSAYILAN_DIL).genel.yazdir} />
       <ReceiptDocument receipt={receipt} />
     </>
   );

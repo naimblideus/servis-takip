@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { sunucuDili } from '@/lib/i18n/sunucu';
+import { sozluk } from '@/lib/i18n/sozluk';
 
 /**
  * 404 — SAYFA BULUNAMADI
@@ -16,36 +18,38 @@ import Link from 'next/link';
  * bağlantısı bozulan MÜŞTERİ (bayisini aramalı) ve yanlış adres yazan
  * BAYİ (panele dönmeli). Hangisi olduğunu bilemeyiz, ikisini de yazıyoruz.
  */
-export default function NotFound() {
+export default async function NotFound() {
+  // Bu sayfayı en çok MÜŞTERİ görüyor (kırılmış panel bağlantısı): dil
+  // çerezden, yoksa varsayılandan.
+  const dil = await sunucuDili();
+  const t = sozluk(dil);
   return (
-    <div style={{
+    <div lang={dil} style={{
       minHeight: '70vh', display: 'flex', alignItems: 'center',
       justifyContent: 'center', padding: '1.5rem',
     }}>
       <div style={{ maxWidth: 460, textAlign: 'center' }}>
         <div style={{ fontSize: '2.6rem' }}>🔍</div>
         <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0.5rem 0', color: '#0f172a' }}>
-          Sayfa bulunamadı
+          {t.hataSayfasi.bulunamadiBaslik}
         </h2>
         <p style={{ color: '#64748b', lineHeight: 1.6, margin: '0 0 0.75rem' }}>
-          Aradığınız sayfa taşınmış, silinmiş ya da adres yanlış yazılmış olabilir.
+          {t.hataSayfasi.bulunamadiAlt}
         </p>
         <p style={{ color: '#64748b', lineHeight: 1.6, margin: '0 0 1.25rem', fontSize: '0.9rem' }}>
-          Size gönderilen <strong>müşteri paneli bağlantısını</strong> açmaya
-          çalışıyorsanız, bağlantı yenilenmiş olabilir. Servis firmanızdan yeni
-          bağlantıyı isteyin.
+          {t.hataSayfasi.portalOn} <strong>{t.hataSayfasi.portalVurgu}</strong> {t.hataSayfasi.portalSon}
         </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link href="/dashboard" style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             minHeight: '2.75rem', padding: '0 1.2rem', background: '#0f2253', color: 'white',
             border: 'none', borderRadius: 8, fontWeight: 700, textDecoration: 'none',
-          }}>Panele Dön</Link>
+          }}>{t.hataSayfasi.paneleDon}</Link>
           <Link href="/" style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             minHeight: '2.75rem', padding: '0 1.2rem', background: 'white', color: '#0f2253',
             border: '1px solid #cbd5e1', borderRadius: 8, fontWeight: 700, textDecoration: 'none',
-          }}>Ana Sayfa</Link>
+          }}>{t.hataSayfasi.anaSayfa}</Link>
         </div>
       </div>
     </div>

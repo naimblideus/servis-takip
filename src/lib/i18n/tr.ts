@@ -3838,6 +3838,23 @@ export const tr = {
     },
   },
 
+  // Hata sayfaları ve 404.
+  hataSayfasi: {
+    baslik: 'Bir şeyler ters gitti',
+    alt: 'Beklenmeyen bir hata oluştu. Tekrar deneyebilir ya da panele dönebilirsiniz. Sorun sürerse bizimle iletişime geçin.',
+    kod: 'Hata kodu: {n}',
+    tekrarDene: 'Tekrar Dene',
+    paneleDon: 'Panele Dön',
+    sistemBaslik: 'Sistem hatası',
+    sistemAlt: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.',
+    bulunamadiBaslik: 'Sayfa bulunamadı',
+    bulunamadiAlt: 'Aradığınız sayfa taşınmış, silinmiş ya da adres yanlış yazılmış olabilir.',
+    portalOn: 'Size gönderilen',
+    portalVurgu: 'müşteri paneli bağlantısını',
+    portalSon: 'açmaya çalışıyorsanız, bağlantı yenilenmiş olabilir. Servis firmanızdan yeni bağlantıyı isteyin.',
+    anaSayfa: 'Ana Sayfa',
+  },
+
   durum: {
     fis: {
       NEW: 'Yeni',
