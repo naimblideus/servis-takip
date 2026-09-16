@@ -22,6 +22,12 @@ export const FAULT_CATEGORIES: { code: FaultCategory; label: string; isFailure: 
   { code: 'PRINTHEAD',            label: 'Kafa Arızası',     isFailure: true },
   // Aşağıdakiler arıza DEĞİLDİR. Ayrı tutulmazsa arıza oranı yapay olarak şişer
   // ve marka/model güvenilirlik karşılaştırması anlamsızlaşır.
+  //
+  // SARF DEĞİŞİMİ ayrı bir maddedir: planlı bakım takvime, kurulum sözleşmeye,
+  // sarf değişimi ise KULLANIMA bağlıdır. Eskiden bu seçenek yoktu ve toner
+  // bitince teknisyen mecburen 'Toner Sorunu' seçiyordu — her modelin en sık
+  // arızası toner çıkıyor, güvenilirlik raporu anlamsızlaşıyordu.
+  { code: 'CONSUMABLE',           label: 'Sarf Değişimi',    isFailure: false },
   { code: 'PERIODIC_MAINTENANCE', label: 'Periyodik Bakım',  isFailure: false },
   { code: 'INSTALLATION',         label: 'Kurulum',          isFailure: false },
   { code: 'OTHER',                label: 'Diğer',            isFailure: true },
@@ -33,7 +39,7 @@ export const FAULT_CATEGORIES: { code: FaultCategory; label: string; isFailure: 
  * Amaç, teknisyenin %80 durumda TEK dokunuşla geçmesi — liste uzarsa kimse doldurmaz.
  */
 export const QUICK_FAULT_CODES: FaultCategory[] = [
-  'PAPER_JAM', 'TONER', 'PRINT_QUALITY', 'FEED_ERROR', 'FUSER', 'DRUM', 'PERIODIC_MAINTENANCE',
+  'PAPER_JAM', 'CONSUMABLE', 'PRINT_QUALITY', 'FEED_ERROR', 'TONER', 'FUSER', 'PERIODIC_MAINTENANCE',
 ];
 
 const BY_CODE = new Map(FAULT_CATEGORIES.map((c) => [c.code, c]));
@@ -92,6 +98,12 @@ export function faultCategoryFromLegacyText(text?: string | null): FaultCategory
   const t = text.toLocaleLowerCase('tr');
   const has = (...xs: string[]) => xs.some((x) => t.includes(x));
   if (has('sıkış', 'sikis')) return 'PAPER_JAM';
+  // Sırası ÖNEMLİ: "toner değişti/bitti" rutin sarf işidir, "toner sorunu/
+  // akıtıyor" arızadır. Önce değişim kalıbına bakılıyor; yoksa metin
+  // içinde toner geçen her fiş arıza sayılırdı.
+  if (has('toner', 'kartuş', 'kartus', 'drum')
+      && has('değiş', 'degis', 'takıl', 'takil', 'bitti', 'yenilendi')) return 'CONSUMABLE';
+  if (has('sarf')) return 'CONSUMABLE';
   if (has('toner')) return 'TONER';
   if (has('kalite')) return 'PRINT_QUALITY';
   if (has('besleme')) return 'FEED_ERROR';

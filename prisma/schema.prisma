@@ -627,6 +627,7 @@ enum FaultCategory {
   GEAR // Dişli arızası
   ROLLER // Paten sorunu
   PRINTHEAD // Kafa arızası
+  CONSUMABLE // Sarf değişimi (toner/drum bitti) — ARIZA DEĞİL. Kullanıma bağlıdır.
   PERIODIC_MAINTENANCE // Periyodik bakım — ARIZA DEĞİL. Ayrı tutulmazsa arıza oranı şişer.
   INSTALLATION // Kurulum/devreye alma — arıza değil
   OTHER // Diğer (bilinçli seçim)

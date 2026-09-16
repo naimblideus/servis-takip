@@ -1,0 +1,17 @@
+-- SARF DEĞİŞİMİ — arıza değil.
+--
+-- Taksonomide rutin sarf değişimi için kategori yoktu. Toner bitip
+-- değiştirildiğinde teknisyenin seçebileceği en yakın seçenek "Toner Sorunu"
+-- oluyordu ve o kategori ARIZA sayılıyor. Sonuç: marka/model güvenilirlik
+-- raporunda her modelin en sık "arızası" toner çıkıyor, arıza oranı yapay
+-- olarak şişiyor ve rapor asıl işini — hangi model gerçekten bozuluyor —
+-- yapamıyor.
+--
+-- PERIODIC_MAINTENANCE ve INSTALLATION zaten "arıza değil" olarak ayrılmıştı;
+-- sarf değişimi de o gruba ait ama ikisinden de farklı: planlı bakım takvime,
+-- kurulum sözleşmeye bağlıdır, sarf değişimi ise KULLANIMA bağlıdır.
+--
+-- ESKİ KAYITLAR OLDUĞU GİBİ KALIYOR. Geçmişteki TONER kayıtlarının hangisi
+-- gerçek arıza hangisi rutin değişim, bilinmiyor; toplu yeniden sınıflamak
+-- veriyi uydurmak olurdu ve analizin tamamını bozardı.
+ALTER TYPE "FaultCategory" ADD VALUE IF NOT EXISTS 'CONSUMABLE';

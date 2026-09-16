@@ -588,7 +588,11 @@ async function main() {
             ticketNumber: `MBS-T${String(++tonerFisNo).padStart(4, '0')}`,
             status: 'DELIVERED', priority: 'NORMAL',
             createdByUserId: patron.id, assignedUserId: teknisyen.id,
-            faultCategory: 'TONER',
+            // SARF DEĞİŞİMİ, arıza değil. 'TONER' yazılsaydı bu 230 fiş
+            // güvenilirlik raporunda arıza sayılır ve her modelin en sık
+            // "arızası" toner çıkardı — rapor hangi modelin gerçekten
+            // bozulduğunu söyleyemezdi.
+            faultCategory: 'CONSUMABLE',
             issueText: `${k.kanal === 'COLOR' ? 'Renkli' : 'S/B'} toner bitti`,
             actionText: `${k.parcaAd} takıldı, sayaç kaydedildi.`,
             laborCost: 0, totalCost: pr.satis,
