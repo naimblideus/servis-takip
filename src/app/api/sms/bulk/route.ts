@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { resolveRecipients, fmtTLm } from '@/lib/reminders';
 import { sendBulkSms, smsConfigured, netgsmPhone } from '@/lib/sms';
+import { sablonDoldur } from '@/lib/mesaj-sablonu';
 import { waConfigured } from '@/lib/whatsapp';
 
 // GET /api/sms/bulk — kanal durumu (UI, kurulu olmayan kanalı hata vermeden gizler/pasifleştirir)
@@ -36,10 +37,8 @@ export async function POST(req: NextRequest) {
       .filter(r => netgsmPhone(r.phone))
       .map(r => ({
         phone: r.phone,
-        message: template
-          .replace(/{ad}/g, r.name)
-          .replace(/{borç}/g, fmtTLm(r.balance))
-          .replace(/{telefon}/g, r.phone),
+        // Ekrandaki önizleme ile BU metin aynı kuraldan geçiyor (lib/mesaj-sablonu).
+        message: sablonDoldur(template, { ad: r.name, borc: fmtTLm(r.balance), telefon: r.phone }),
       }));
     const skipped = recipients.length - items.length;
 

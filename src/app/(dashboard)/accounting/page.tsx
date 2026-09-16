@@ -2,6 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { openPrintable } from '@/lib/print';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
+import { sablonDoldur, SABLON_DEGISKENLERI } from '@/lib/mesaj-sablonu';
 const StockTab = dynamic(() => import('@/components/StockTab'), { ssr: false });
 const ExpenseTab = dynamic(() => import('@/components/ExpenseTab'), { ssr: false });
 
@@ -13,10 +16,14 @@ interface EkstreSatiri { id:string; kaynak:'SERVIS'|'FATURA'; tip:'BORC'|'ODEME'
 interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; ekstre?:EkstreSatiri[]; summary:{totalSales:number;totalPayments:number;balance:number;servisBorc?:number;faturaBorc?:number;entryCount:number}; }
 
 interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; notes?:string|null; }
-const METHOD_LABELS: Record<string,string> = { CASH:'💵 Nakit', CARD:'💳 Kredi Kartı', TRANSFER:'🏦 IBAN/Havale', OPEN_ACCOUNT:'📖 Açık Hesap', OTHER:'📋 Diğer' };
-const METHOD_OPTIONS = Object.entries(METHOD_LABELS);
+// Etiketler sözlükte (muhasebe.yontem); kod veritabanına yazılan şey.
+const METHODS = ['CASH', 'CARD', 'TRANSFER', 'OPEN_ACCOUNT', 'OTHER'];
 
 export default function AccountingPage() {
+  // `sz` (sözlük): aşağıdaki liste döngüleri `t` adını kullanıyor.
+  const sz = useT();
+  const b = useBicim();
+  const yontem = (kod: string) => (sz.muhasebe.yontem as Record<string, string>)[kod] ?? kod;
   const [activeTab, setActiveTab] = useState<'accounting'|'stock'|'expense'>('accounting');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [allCustomers, setAllCustomers] = useState<AllCustomer[]>([]); // Form dropdown için filtresiz liste
@@ -45,7 +52,7 @@ export default function AccountingPage() {
   // Toplu WhatsApp
   const [showBulkWA, setShowBulkWA] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
-  const [bulkMsgTpl, setBulkMsgTpl] = useState('Sayın {ad},\n\nHesabınızda ₺{borç} tutarında ödenmemiş bakiye bulunmaktadır.\n\nLütfen en kısa sürede ödeme yapmanızı rica ederiz.\n\nSaygılarımızla');
+  const [bulkMsgTpl, setBulkMsgTpl] = useState(sz.toplu.varsayilanSablon);
   const [bulkIdx, setBulkIdx] = useState(-1);
   const [bulkQueue, setBulkQueue] = useState<Customer[]>([]); // gönderim başında dondurulan liste
   const [smsSending, setSmsSending] = useState(false);
@@ -75,11 +82,11 @@ export default function AccountingPage() {
       const res = await fetch(`/api/muhasebe?${params}`);
       if (res.ok) { const d = await res.json(); setCustomers(d.customers); setSummary(d.summary); }
       else {
-        const d = await res.json().catch(() => ({ error: 'Bilinmeyen hata' }));
-        setError(d.error || `Sunucu hatası (${res.status})`);
+        const d = await res.json().catch(() => ({ error: sz.muhasebe.bilinmeyenHata }));
+        setError(d.error || doldur(sz.muhasebe.sunucuHatasi, { n: res.status }));
       }
     } catch (e: any) {
-      setError('Sunucuya bağlanılamadı. Lütfen sayfayı yenileyin.');
+      setError(sz.muhasebe.baglantiYok);
     }
     setLoading(false);
   }, [filter, search]);
@@ -146,7 +153,7 @@ export default function AccountingPage() {
   };
 
   const handleQuickAddStock = async () => {
-    if (!quickStockName.trim()) { alert('Ürün adı zorunlu'); return; }
+    if (!quickStockName.trim()) { alert(sz.muhasebe.urunAdiZorunlu); return; }
     setQuickStockSaving(true);
     try {
       const r = await fetch('/api/stock', { method:'POST', headers:{'Content-Type':'application/json'},
@@ -158,13 +165,13 @@ export default function AccountingPage() {
         selectStockItem(si);
         setQuickAddStock(false); setQuickStockName(''); setQuickStockPrice('');
         loadStock();
-      } else { const d = await r.json(); alert('Hata: '+d.error); }
-    } catch(e:any) { alert('Hata: '+e.message); }
+      } else { const d = await r.json(); alert(doldur(sz.fisler.hata, { n: d.error })); }
+    } catch(e:any) { alert(doldur(sz.fisler.hata, { n: e.message })); }
     setQuickStockSaving(false);
   };
 
   const handleQuickAddCust = async () => {
-    if (!quickCustForm.name.trim() || !quickCustForm.phone.trim()) { alert('Ad ve telefon zorunlu'); return; }
+    if (!quickCustForm.name.trim() || !quickCustForm.phone.trim()) { alert(sz.muhasebe.adTelefonZorunlu); return; }
     setQuickCustSaving(true);
     const res = await fetch('/api/customers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(quickCustForm) });
     if (res.ok) {
@@ -175,32 +182,32 @@ export default function AccountingPage() {
       setQuickCustForm({name:'', phone:'', address:''});
     } else {
       const d = await res.json();
-      alert('Hata: ' + (d.error || 'Bilinmeyen hata'));
+      alert(doldur(sz.fisler.hata, { n: d.error || sz.muhasebe.bilinmeyenHata }));
     }
     setQuickCustSaving(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.customerId) { alert('Lütfen bir müşteri seçin'); return; }
+    if (!form.customerId) { alert(sz.muhasebe.musteriSecin); return; }
     setSaving(true);
     const res = await fetch('/api/muhasebe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
     if (res.ok) {
       resetForm();
       setShowForm(false); loadData(); if (selCust) loadDetail(selCust.id);
-    } else { const d = await res.json(); alert('Hata: '+d.error); }
+    } else { const d = await res.json(); alert(doldur(sz.fisler.hata, { n: d.error })); }
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bu kaydı silmek istiyor musunuz?')) return;
+    if (!confirm(sz.muhasebe.silSor)) return;
     try {
       const res = await fetch(`/api/muhasebe?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) { const d = await res.json(); alert('Silme hatası: ' + d.error); return; }
+      if (!res.ok) { const d = await res.json(); alert(doldur(sz.muhasebe.silmeHatasi, { n: d.error })); return; }
       await loadData();
       if (selCust) await loadDetail(selCust.id);
     } catch {
-      alert('Silme işlemi başarısız.');
+      alert(sz.muhasebe.silmeBasarisiz);
     }
   };
 
@@ -213,7 +220,7 @@ export default function AccountingPage() {
     setEditSaving(true);
     const res = await fetch('/api/muhasebe', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(editModal)});
     if (res.ok) { setEditModal(null); loadData(); if (selCust) loadDetail(selCust.id); }
-    else { const d = await res.json(); alert('Hata: '+d.error); }
+    else { const d = await res.json(); alert(doldur(sz.fisler.hata, { n: d.error })); }
     setEditSaving(false);
   };
 
@@ -236,20 +243,20 @@ export default function AccountingPage() {
 
   const sendWhatsApp = (cust: {name:string;phone:string}, debt: number) => {
     const phone = formatPhone(cust.phone);
-    const msg = `Sayın ${cust.name},\n\nÖdenmemiş borcunuz: ₺${debt.toFixed(2)}\n\nSaygılarımızla`;
+    const msg = sablonDoldur(sz.toplu.tekMesaj, { ad: cust.name, borc: b.para(debt), telefon: cust.phone });
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   // Açık servis fişlerini toplu olarak cariye işle (idempotent, güvenli)
   const backfillCari = async () => {
-    if (!confirm('Tüm açık servis fişleri muhasebeye (cariye) işlensin mi? Güvenli ve tekrarlanabilir bir işlemdir.')) return;
+    if (!confirm(sz.muhasebe.aktarSor)) return;
     setBackfilling(true);
     try {
       const r = await fetch('/api/tickets/backfill-cari', { method: 'POST' });
       const d = await r.json().catch(() => ({}));
-      if (r.ok) { alert(`✓ ${d.synced}/${d.processed} servis fişi cariye işlendi.`); loadData(); }
-      else alert(d.error || 'Aktarım yapılamadı');
-    } catch { alert('Sunucuya bağlanılamadı'); }
+      if (r.ok) { alert(doldur(sz.muhasebe.aktarildi, { n: d.synced, toplam: d.processed })); loadData(); }
+      else alert(d.error || sz.muhasebe.aktarilamadi);
+    } catch { alert(sz.sayacTuru.sunucuYok); }
     setBackfilling(false);
   };
 
@@ -259,27 +266,24 @@ export default function AccountingPage() {
     try {
       const pr = await fetch(`/api/customers/${selCust.id}/period-charges`);
       const c = await pr.json().catch(() => ({}));
-      if (!pr.ok) { alert(c.error || 'Hesaplanamadı'); return; }
+      if (!pr.ok) { alert(c.error || sz.muhasebe.hesaplanamadi); return; }
       const rent = c.rent || 0, counter = c.counter || 0;
-      if (rent <= 0 && counter <= 0) { alert('Bu dönem için eklenecek kira/sayaç yok (zaten eklenmiş ya da kiralık cihaz/okuma yok).'); return; }
-      const f = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+      if (rent <= 0 && counter <= 0) { alert(sz.muhasebe.donemYok); return; }
       // Gösterilen tutar KDV DAHİL — cariye yazılan tutarın aynısı.
       // Net ve KDV ayrı satırda: bayi neyi onayladığını tahmin etmesin.
       const net = (c.rentNet || 0) + (c.counterNet || 0);
       const kdv = rent + counter - net;
-      if (!confirm(
-        `${c.period} dönemi — ${selCust.name}\n\n` +
-        `🖨️ Kira: ${f(rent)}\n🔢 Sayaç: ${f(counter)}\n───────────\n` +
-        `Ara toplam (KDV hariç): ${f(net)}\n` +
-        `KDV %${c.vatRate ?? 0}: ${f(kdv)}\n` +
-        `Toplam: ${f(rent + counter)}\n\n` +
-        `Bu tutarlar cari hesaba eklensin mi?`,
-      )) return;
+      if (!confirm(doldur(sz.muhasebe.donemOnay, {
+        donem: c.period, musteri: selCust.name,
+        kira: b.para(rent), sayac: b.para(counter),
+        net: b.para(net), oran: c.vatRate ?? 0, kdv: b.para(kdv),
+        toplam: b.para(rent + counter),
+      }))) return;
       const r = await fetch(`/api/customers/${selCust.id}/period-charges`, { method: 'POST' });
       const d = await r.json().catch(() => ({}));
-      if (r.ok) { alert(`✓ ${d.added} kayıt cariye eklendi.`); loadData(); loadDetail(selCust.id); }
-      else alert(d.error || 'Eklenemedi');
-    } catch { alert('Sunucuya bağlanılamadı'); }
+      if (r.ok) { alert(doldur(sz.muhasebe.donemEklendi, { n: d.added })); loadData(); loadDetail(selCust.id); }
+      else alert(d.error || sz.muhasebe.eklenemedi);
+    } catch { alert(sz.sayacTuru.sunucuYok); }
   };
 
   const debtors = customers.filter(c => c.balance > 0);
@@ -304,10 +308,7 @@ export default function AccountingPage() {
     if (nextIdx >= list.length) { setShowBulkWA(false); setBulkIdx(-1); return; }
     const c = list[nextIdx];
     const phone = formatPhone(c.phone);
-    const msg = bulkMsgTpl
-      .replace(/{ad}/g, c.name)
-      .replace(/{borç}/g, c.balance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
-      .replace(/{telefon}/g, c.phone);
+    const msg = sablonDoldur(bulkMsgTpl, { ad: c.name, borc: b.para(c.balance), telefon: c.phone });
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     setBulkIdx(nextIdx);
   };
@@ -316,14 +317,16 @@ export default function AccountingPage() {
   const handleBulkSms = async () => {
     const ids = debtorsWithPhone.filter(c => bulkSelected.has(c.id)).map(c => c.id);
     if (!ids.length) return;
-    if (!confirm(`${ids.length} kişiye SMS gönderilecek. (Uzun/Türkçe karakterli mesaj birden fazla SMS sayılabilir.) Onaylıyor musunuz?`)) return;
+    if (!confirm(doldur(sz.toplu.smsOnay, { n: ids.length }))) return;
     setSmsSending(true);
     try {
       const res = await fetch('/api/sms/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerIds: ids, template: bulkMsgTpl }) });
       const d = await res.json();
-      if (res.ok) { alert(`✅ ${d.sent} SMS gönderildi${d.skipped ? `, ${d.skipped} telefonsuz atlandı` : ''}.`); setShowBulkWA(false); }
-      else alert(`❌ ${d.error || 'SMS gönderilemedi'}${d.code ? ` (${d.code})` : ''}`);
-    } catch { alert('❌ Bağlantı hatası, tekrar deneyin.'); }
+      if (res.ok) {
+        alert(doldur(sz.toplu.smsSonuc, { n: d.sent, ek: d.skipped ? doldur(sz.toplu.atlandi, { n: d.skipped }) : '' }));
+        setShowBulkWA(false);
+      } else alert(`❌ ${d.error || sz.toplu.smsHata}${d.code ? ` (${d.code})` : ''}`);
+    } catch { alert(sz.toplu.baglantiHatasi); }
     setSmsSending(false);
   };
 
@@ -331,33 +334,34 @@ export default function AccountingPage() {
   const handleBulkWa = async () => {
     const ids = debtorsWithPhone.filter(c => bulkSelected.has(c.id)).map(c => c.id);
     if (!ids.length) return;
-    if (!confirm(`${ids.length} kişiye WhatsApp gönderilecek (Meta onaylı şablonla). Onaylıyor musunuz?`)) return;
+    if (!confirm(doldur(sz.toplu.waOnay, { n: ids.length }))) return;
     setWaSending(true);
     try {
       const res = await fetch('/api/whatsapp/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerIds: ids }) });
       const d = await res.json();
       if (res.ok) {
-        alert(`✅ ${d.sent} WhatsApp gönderildi${d.failed ? `, ${d.failed} başarısız` : ''}${d.skipped ? `, ${d.skipped} telefonsuz atlandı` : ''}.${d.errors?.length ? `\n\n${d.errors.join('\n')}` : ''}`);
+        const ek = `${d.failed ? doldur(sz.toplu.basarisiz, { n: d.failed }) : ''}${d.skipped ? doldur(sz.toplu.atlandi, { n: d.skipped }) : ''}`;
+        alert(`${doldur(sz.toplu.waSonuc, { n: d.sent, ek })}${d.errors?.length ? `\n\n${d.errors.join('\n')}` : ''}`);
         setShowBulkWA(false);
-      } else alert(`❌ ${d.error || 'WhatsApp gönderilemedi'}`);
-    } catch { alert('❌ Bağlantı hatası, tekrar deneyin.'); }
+      } else alert(`❌ ${d.error || sz.toplu.waHata}`);
+    } catch { alert(sz.toplu.baglantiHatasi); }
     setWaSending(false);
   };
 
   const handlePrint = () => {
-    if (!selCust) { alert('Lütfen önce soldan bir müşteri seçin, sonra "Yazdır"a basın.'); return; }
+    if (!selCust) { alert(sz.muhasebe.yazdirSec); return; }
     openPrintable(`/accounting/${selCust.id}/print`);
   };
 
-  if (loading) return <div style={{padding:'2rem',color:'#6b7280'}}>Yükleniyor...</div>;
+  if (loading) return <div style={{padding:'2rem',color:'#6b7280'}}>{sz.genel.yukleniyor}</div>;
 
   if (error) return (
     <div style={{padding:'2rem',maxWidth:'600px',margin:'2rem auto'}}>
       <div style={{backgroundColor:'#fef2f2',border:'1px solid #fca5a5',borderRadius:'0.75rem',padding:'1.5rem',textAlign:'center'}}>
         <div style={{fontSize:'2rem',marginBottom:'0.75rem'}}>⚠️</div>
-        <h2 style={{color:'#dc2626',fontWeight:'700',margin:'0 0 0.5rem'}}>Muhasebe Modülü Hatası</h2>
+        <h2 style={{color:'#dc2626',fontWeight:'700',margin:'0 0 0.5rem'}}>{sz.muhasebe.hataBaslik}</h2>
         <p style={{color:'#7f1d1d',fontSize:'0.9rem',margin:'0 0 1rem',lineHeight:'1.5'}}>{error}</p>
-        <button onClick={() => { setLoading(true); loadData(); }} style={{padding:'0.625rem 1.5rem',backgroundColor:'#dc2626',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'}}>🔄 Tekrar Dene</button>
+        <button onClick={() => { setLoading(true); loadData(); }} style={{padding:'0.625rem 1.5rem',backgroundColor:'#dc2626',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'}}>{sz.muhasebe.tekrarDene}</button>
       </div>
     </div>
   );
@@ -370,23 +374,23 @@ export default function AccountingPage() {
         <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100}} onClick={()=>setQuickAddStock(false)}>
           <div onClick={e=>e.stopPropagation()} style={{backgroundColor:'white',borderRadius:'1rem',width:'420px',maxWidth:'95vw',boxShadow:'0 20px 60px rgba(0,0,0,0.3)',overflow:'hidden'}}>
             <div style={{background:'linear-gradient(135deg,#15803d,#22c55e)',color:'white',padding:'1rem 1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{fontWeight:'700',fontSize:'1rem'}}>📦 Stoka Ekle &amp; Seç</span>
+              <span style={{fontWeight:'700',fontSize:'1rem'}}>{sz.muhasebe.stokaEkleBaslik}</span>
               <button onClick={()=>setQuickAddStock(false)} style={{background:'rgba(255,255,255,0.2)',color:'white',border:'none',borderRadius:'50%',width:'28px',height:'28px',cursor:'pointer',fontSize:'1rem'}}>✕</button>
             </div>
             <div style={{padding:'1.25rem'}}>
-              <p style={{fontSize:'0.82rem',color:'#6b7280',margin:'0 0 1rem'}}>Ürün stoka eklenecek ve satış fiyatı otomatik forma aktarılacak.</p>
+              <p style={{fontSize:'0.82rem',color:'#6b7280',margin:'0 0 1rem'}}>{sz.muhasebe.stokaEkleAlt}</p>
               <div style={{marginBottom:'0.75rem'}}>
-                <label style={lbl}>Ürün / Hizmet Adı *</label>
-                <input style={inp} value={quickStockName} onChange={e=>setQuickStockName(e.target.value)} placeholder="Drum ünitesi, toner, servis ücr..." autoFocus />
+                <label style={lbl}>{sz.muhasebe.urunAdi}</label>
+                <input style={inp} value={quickStockName} onChange={e=>setQuickStockName(e.target.value)} placeholder={sz.muhasebe.urunAdiYer} autoFocus />
               </div>
               <div style={{marginBottom:'1rem'}}>
-                <label style={lbl}>Satış Fiyatı (₺) <span style={{fontWeight:'400',color:'#9ca3af'}}>→ otomatik forma gelir</span></label>
+                <label style={lbl}>{doldur(sz.muhasebe.satisFiyati, { birim: b.simge })} <span style={{fontWeight:'400',color:'#9ca3af'}}>{sz.muhasebe.formaGelir}</span></label>
                 <input type="number" step="0.01" style={inp} value={quickStockPrice} onChange={e=>setQuickStockPrice(e.target.value)} placeholder="0.00" />
               </div>
               <div style={{display:'flex',gap:'0.5rem'}}>
-                <button onClick={()=>setQuickAddStock(false)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>İptal</button>
+                <button onClick={()=>setQuickAddStock(false)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>{sz.genel.iptal}</button>
                 <button onClick={handleQuickAddStock} disabled={quickStockSaving} style={{flex:2,padding:'0.625rem',backgroundColor:'#15803d',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',opacity:quickStockSaving?0.7:1}}>
-                  {quickStockSaving?'Ekleniyor...':'✅ Stoka Ekle & Seç'}
+                  {quickStockSaving ? sz.cihazHizli.ekleniyor : sz.muhasebe.stokaEkleBaslik}
                 </button>
               </div>
             </div>
@@ -401,8 +405,8 @@ export default function AccountingPage() {
             {/* Modal Başlık */}
             <div style={{background:'linear-gradient(135deg,#15803d,#22c55e)',color:'white',padding:'1rem 1.25rem',borderRadius:'1rem 1rem 0 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
-                <div style={{fontWeight:'700',fontSize:'1.05rem'}}>📩 Toplu Hatırlatma (SMS / WhatsApp)</div>
-                <div style={{fontSize:'0.78rem',opacity:0.85,marginTop:'0.15rem'}}>{debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} borçlu müşteri seçili</div>
+                <div style={{fontWeight:'700',fontSize:'1.05rem'}}>{sz.toplu.baslik}</div>
+                <div style={{fontSize:'0.78rem',opacity:0.85,marginTop:'0.15rem'}}>{doldur(sz.toplu.secili, { n: debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length })}</div>
               </div>
               <button onClick={() => setShowBulkWA(false)} style={{background:'rgba(255,255,255,0.2)',color:'white',border:'none',borderRadius:'50%',width:'30px',height:'30px',cursor:'pointer',fontSize:'1rem'}}>✕</button>
             </div>
@@ -412,23 +416,25 @@ export default function AccountingPage() {
                 <>
                   {/* Mesaj Şablonu */}
                   <div style={{marginBottom:'1rem'}}>
-                    <label style={{...lbl,color:'#374151',fontSize:'0.85rem'}}>✏️ Mesaj Şablonu</label>
-                    <div style={{fontSize:'0.72rem',color:'#9ca3af',marginBottom:'0.35rem'}}>Kullanılabilir değişkenler: <code style={{background:'#f3f4f6',padding:'0.1rem 0.3rem',borderRadius:'3px'}}>{'{ad}'}</code> <code style={{background:'#f3f4f6',padding:'0.1rem 0.3rem',borderRadius:'3px'}}>{'{borç}'}</code> <code style={{background:'#f3f4f6',padding:'0.1rem 0.3rem',borderRadius:'3px'}}>{'{telefon}'}</code></div>
+                    <label style={{...lbl,color:'#374151',fontSize:'0.85rem'}}>{sz.toplu.sablon}</label>
+                    <div style={{fontSize:'0.72rem',color:'#9ca3af',marginBottom:'0.35rem'}}>{sz.toplu.degiskenler} {(SABLON_DEGISKENLERI[b.dil] ?? SABLON_DEGISKENLERI.tr).map(v => (
+                      <code key={v} style={{background:'#f3f4f6',padding:'0.1rem 0.3rem',borderRadius:'3px',marginRight:'0.25rem'}}>{v}</code>
+                    ))}</div>
                     <textarea rows={5} style={{...inp,resize:'vertical',fontFamily:'inherit',lineHeight:'1.5'}} value={bulkMsgTpl} onChange={e => setBulkMsgTpl(e.target.value)} />
                   </div>
 
                   {/* Müşteri Listesi */}
                   <div style={{marginBottom:'1rem'}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
-                      <label style={{...lbl,color:'#374151',fontSize:'0.85rem',marginBottom:0}}>👥 Borçlu Müşteriler</label>
+                      <label style={{...lbl,color:'#374151',fontSize:'0.85rem',marginBottom:0}}>{sz.toplu.borclular}</label>
                       <div style={{display:'flex',gap:'0.5rem'}}>
-                        <button onClick={() => setBulkSelected(new Set(debtorsWithPhone.map(c=>c.id)))} style={{fontSize:'0.72rem',color:'#2563eb',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>Tümünü Seç</button>
+                        <button onClick={() => setBulkSelected(new Set(debtorsWithPhone.map(c=>c.id)))} style={{fontSize:'0.72rem',color:'#2563eb',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>{sz.toplu.tumunuSec}</button>
                         <span style={{color:'#d1d5db'}}>|</span>
-                        <button onClick={() => setBulkSelected(new Set())} style={{fontSize:'0.72rem',color:'#dc2626',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>Hiçbirini Seçme</button>
+                        <button onClick={() => setBulkSelected(new Set())} style={{fontSize:'0.72rem',color:'#dc2626',background:'none',border:'none',cursor:'pointer',fontWeight:'600'}}>{sz.toplu.hicbiri}</button>
                       </div>
                     </div>
                     {noPhoneCount > 0 && (
-                      <div style={{fontSize:'0.72rem',color:'#b45309',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:'0.4rem',padding:'0.4rem 0.6rem',marginBottom:'0.5rem'}}>⚠️ {noPhoneCount} borçluda geçerli telefon yok — listeye alınmadı.</div>
+                      <div style={{fontSize:'0.72rem',color:'#b45309',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:'0.4rem',padding:'0.4rem 0.6rem',marginBottom:'0.5rem'}}>{doldur(sz.toplu.telefonsuz, { n: noPhoneCount })}</div>
                     )}
                     <div style={{border:'1px solid #e5e7eb',borderRadius:'0.5rem',overflow:'hidden',maxHeight:'220px',overflowY:'auto'}}>
                       {debtorsWithPhone.map(c => (
@@ -442,7 +448,7 @@ export default function AccountingPage() {
                             <div style={{fontWeight:'600',fontSize:'0.875rem'}}>{c.name}</div>
                             <div style={{fontSize:'0.72rem',color:'#6b7280'}}>📞 {c.phone}</div>
                           </div>
-                          <span style={{fontWeight:'700',color:'#ef4444',fontSize:'0.875rem'}}>₺{c.balance.toLocaleString('tr-TR',{minimumFractionDigits:2})}</span>
+                          <span style={{fontWeight:'700',color:'#ef4444',fontSize:'0.875rem'}}>{b.para(c.balance)}</span>
                         </label>
                       ))}
                     </div>
@@ -451,9 +457,9 @@ export default function AccountingPage() {
                   {/* Önizleme */}
                   {debtorsWithPhone[0] && bulkSelected.has(debtorsWithPhone[0].id) && (
                     <div style={{backgroundColor:'#f0fdf4',border:'1px solid #86efac',borderRadius:'0.5rem',padding:'0.75rem',marginBottom:'1rem'}}>
-                      <div style={{fontSize:'0.72rem',color:'#15803d',fontWeight:'600',marginBottom:'0.35rem'}}>👁️ Mesaj Önizleme ({debtorsWithPhone[0].name})</div>
+                      <div style={{fontSize:'0.72rem',color:'#15803d',fontWeight:'600',marginBottom:'0.35rem'}}>{doldur(sz.toplu.onizleme, { n: debtorsWithPhone[0].name })}</div>
                       <div style={{fontSize:'0.8rem',color:'#374151',whiteSpace:'pre-wrap',lineHeight:'1.5'}}>
-                        {bulkMsgTpl.replace(/{ad}/g,debtorsWithPhone[0].name).replace(/{borç}/g,debtorsWithPhone[0].balance.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})).replace(/{telefon}/g,debtorsWithPhone[0].phone)}
+                        {sablonDoldur(bulkMsgTpl, { ad: debtorsWithPhone[0].name, borc: b.para(debtorsWithPhone[0].balance), telefon: debtorsWithPhone[0].phone })}
                       </div>
                     </div>
                   )}
@@ -461,32 +467,32 @@ export default function AccountingPage() {
                   {/* Toplu kanallar — sadece KURULU olan buton olarak çıkar; kurulu değilse hata vermez, "kurulum gerekli" der */}
                   {channels?.sms !== false && (
                     <button onClick={handleBulkSms} disabled={bulkSelected.size===0 || smsSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#2563eb',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||smsSending)?0.5:1,marginBottom:'0.6rem'}}>
-                      {smsSending ? '📩 Gönderiliyor…' : `📩 SMS ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
+                      {smsSending ? `📩 ${sz.toplu.gonderiliyor}` : doldur(sz.toplu.smsGonder, { n: debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length })}
                     </button>
                   )}
                   {channels?.whatsapp !== false && (
                     <button onClick={handleBulkWa} disabled={bulkSelected.size===0 || waSending} style={{width:'100%',padding:'0.8rem',backgroundColor:'#16a34a',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',opacity:(bulkSelected.size===0||waSending)?0.5:1,marginBottom:'0.35rem'}}>
-                      {waSending ? '🟢 Gönderiliyor…' : `🟢 WhatsApp ile TOPLUCA gönder — ${debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length} kişi (tek tık)`}
+                      {waSending ? `🟢 ${sz.toplu.gonderiliyor}` : doldur(sz.toplu.waGonder, { n: debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length })}
                     </button>
                   )}
                   {(channels?.sms || channels?.whatsapp || channels === null) && (
-                    <div style={{fontSize:'0.68rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.6rem'}}>WhatsApp metni Meta onaylı şablondan gelir; SMS metni yukarıdaki kutudan.</div>
+                    <div style={{fontSize:'0.68rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.6rem'}}>{sz.toplu.kaynakNot}</div>
                   )}
                   {channels && (!channels.sms || !channels.whatsapp) && (
                     <div style={{fontSize:'0.72rem',color:'#64748b',background:'#f8fafc',border:'1px dashed #cbd5e1',borderRadius:'0.5rem',padding:'0.6rem 0.75rem',marginBottom:'0.7rem',lineHeight:1.6}}>
-                      ⚙️ <b>Tek tıkla toplu gönderim</b>{!channels.sms && !channels.whatsapp ? '' : !channels.sms ? ' (SMS)' : ' (WhatsApp)'} için hat tanımlanmamış.
-                      {!channels.sms && <> Toplu <b>SMS</b> için Netgsm hattı,</>}{!channels.whatsapp && <> toplu <b>WhatsApp</b> için Meta onayı</>} gerekir.
-                      <br />Aşağıdaki <b>tek tek WhatsApp</b> seçeneği kurulum istemez — mesaj hazır gelir, siz yalnızca gönder’e basarsınız.
+                      ⚙️ <b>{sz.toplu.hatYokBaslik}</b>{!channels.sms && !channels.whatsapp ? '' : !channels.sms ? ' (SMS)' : ' (WhatsApp)'}
+                      {!channels.sms && <>{sz.toplu.hatYokSms}</>}{!channels.whatsapp && <>{sz.toplu.hatYokWa}</>}{sz.toplu.hatYokSon}
+                      <br />{sz.toplu.hatYokAlt}
                     </div>
                   )}
                   <div style={{fontSize:'0.72rem',color:'#9ca3af',textAlign:'center',marginBottom:'0.5rem'}}>
-                    {channels && !channels.sms && !channels.whatsapp ? '— ücretsiz, kurulum gerektirmez —' : '— veya ücretsiz, tek tek WhatsApp —'}
+                    {channels && !channels.sms && !channels.whatsapp ? sz.toplu.ucretsiz : sz.toplu.veyaUcretsiz}
                   </div>
                   {(() => {
                     const solo = !!channels && !channels.sms && !channels.whatsapp; // tek seçenek kaldıysa ana buton gibi görünsün
                     return (
                       <button onClick={bulkSendNext} disabled={bulkSelected.size===0} style={{width:'100%',padding:solo?'0.8rem':'0.6rem',backgroundColor:solo?'#16a34a':'white',color:solo?'white':'#15803d',border:solo?'none':'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:solo?'700':'600',fontSize:solo?'0.95rem':'0.88rem',opacity:bulkSelected.size===0?0.5:1}}>
-                        📱 WhatsApp ile tek tek aç ({debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length})
+                        {doldur(sz.toplu.tekTekAc, { n: debtorsWithPhone.filter(c=>bulkSelected.has(c.id)).length })}
                       </button>
                     );
                   })()}
@@ -497,9 +503,9 @@ export default function AccountingPage() {
                   <div style={{textAlign:'center',marginBottom:'1.25rem'}}>
                     <div style={{fontSize:'2.5rem',marginBottom:'0.5rem'}}>📱</div>
                     <div style={{fontWeight:'700',fontSize:'1.1rem',color:'#15803d'}}>
-                      {bulkIdx + 1} / {bulkQueue.length} gönderildi
+                      {doldur(sz.toplu.gonderildi, { n: bulkIdx + 1, toplam: bulkQueue.length })}
                     </div>
-                    <div style={{color:'#6b7280',fontSize:'0.85rem',marginTop:'0.25rem'}}>WhatsApp açıldı, mesajı gönderdikten sonra buraya dönün</div>
+                    <div style={{color:'#6b7280',fontSize:'0.85rem',marginTop:'0.25rem'}}>{sz.toplu.waAcildi}</div>
                   </div>
 
                   {/* İlerleme çubuğu */}
@@ -515,14 +521,14 @@ export default function AccountingPage() {
                           <div key={c.id} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.5rem 0.875rem',borderBottom:'1px solid #f3f4f6',backgroundColor:'#f0fdf4'}}>
                             <span style={{color:'#22c55e',fontWeight:'700'}}>✓</span>
                             <span style={{fontSize:'0.85rem',flex:1}}>{c.name}</span>
-                            <span style={{fontSize:'0.75rem',color:'#ef4444',fontWeight:'600'}}>₺{c.balance.toFixed(2)}</span>
+                            <span style={{fontSize:'0.75rem',color:'#ef4444',fontWeight:'600'}}>{b.para(c.balance)}</span>
                           </div>
                         ))}
                         {remaining.map(c => (
                           <div key={c.id} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.5rem 0.875rem',borderBottom:'1px solid #f3f4f6',opacity:0.5}}>
                             <span style={{color:'#d1d5db'}}>○</span>
                             <span style={{fontSize:'0.85rem',flex:1}}>{c.name}</span>
-                            <span style={{fontSize:'0.75rem',color:'#ef4444'}}>₺{c.balance.toFixed(2)}</span>
+                            <span style={{fontSize:'0.75rem',color:'#ef4444'}}>{b.para(c.balance)}</span>
                           </div>
                         ))}
                       </div>
@@ -530,9 +536,9 @@ export default function AccountingPage() {
                   ); })()}
 
                   <div style={{display:'flex',gap:'0.75rem'}}>
-                    <button onClick={() => {setShowBulkWA(false); setBulkIdx(-1);}} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>Bitir</button>
+                    <button onClick={() => {setShowBulkWA(false); setBulkIdx(-1);}} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>{sz.toplu.bitir}</button>
                     <button onClick={bulkSendNext} style={{flex:2,padding:'0.625rem',backgroundColor:'#22c55e',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
-                      {bulkIdx + 1 >= bulkQueue.length ? '✅ Tamamlandı' : `Sıradaki → ${bulkQueue[bulkIdx+1]?.name}`}
+                      {bulkIdx + 1 >= bulkQueue.length ? sz.toplu.tamamlandi : doldur(sz.toplu.siradaki, { n: bulkQueue[bulkIdx+1]?.name ?? '' })}
                     </button>
                   </div>
                 </>
@@ -547,26 +553,26 @@ export default function AccountingPage() {
         <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={() => setQuickAddCust(false)}>
           <div onClick={e => e.stopPropagation()} style={{backgroundColor:'white',borderRadius:'1rem',width:'420px',maxWidth:'95vw',boxShadow:'0 20px 60px rgba(0,0,0,0.3)',overflow:'hidden'}}>
             <div style={{background:'linear-gradient(135deg,#1e3a5f,#2563eb)',color:'white',padding:'1rem 1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{fontWeight:'700',fontSize:'1rem'}}>👤 Yeni Müşteri Ekle</span>
+              <span style={{fontWeight:'700',fontSize:'1rem'}}>{sz.muhasebe.yeniMusteriBaslik}</span>
               <button onClick={() => setQuickAddCust(false)} style={{background:'rgba(255,255,255,0.2)',color:'white',border:'none',borderRadius:'50%',width:'28px',height:'28px',cursor:'pointer',fontSize:'1rem'}}>✕</button>
             </div>
             <div style={{padding:'1.25rem'}}>
               <div style={{marginBottom:'0.75rem'}}>
-                <label style={lbl}>Ad Soyad *</label>
-                <input style={inp} value={quickCustForm.name} onChange={e => setQuickCustForm(f=>({...f,name:e.target.value}))} placeholder="Müşteri adı..." autoFocus />
+                <label style={lbl}>{sz.muhasebe.adSoyad}</label>
+                <input style={inp} value={quickCustForm.name} onChange={e => setQuickCustForm(f=>({...f,name:e.target.value}))} placeholder={sz.muhasebe.musteriAdiYer} autoFocus />
               </div>
               <div style={{marginBottom:'0.75rem'}}>
-                <label style={lbl}>Telefon *</label>
-                <input style={inp} value={quickCustForm.phone} onChange={e => setQuickCustForm(f=>({...f,phone:e.target.value}))} placeholder="05xx xxx xx xx" />
+                <label style={lbl}>{sz.muhasebe.telefonZorunlu}</label>
+                <input style={inp} value={quickCustForm.phone} onChange={e => setQuickCustForm(f=>({...f,phone:e.target.value}))} placeholder={sz.muhasebe.telefonYer} />
               </div>
               <div style={{marginBottom:'1rem'}}>
-                <label style={lbl}>Adres</label>
-                <input style={inp} value={quickCustForm.address} onChange={e => setQuickCustForm(f=>({...f,address:e.target.value}))} placeholder="İsteğe bağlı..." />
+                <label style={lbl}>{sz.fisYeni.adres}</label>
+                <input style={inp} value={quickCustForm.address} onChange={e => setQuickCustForm(f=>({...f,address:e.target.value}))} placeholder={sz.muhasebe.adresYer} />
               </div>
               <div style={{display:'flex',gap:'0.5rem'}}>
-                <button onClick={() => setQuickAddCust(false)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>İptal</button>
+                <button onClick={() => setQuickAddCust(false)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>{sz.genel.iptal}</button>
                 <button onClick={handleQuickAddCust} disabled={quickCustSaving} style={{flex:2,padding:'0.625rem',backgroundColor:'#2563eb',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',opacity:quickCustSaving?0.7:1}}>
-                  {quickCustSaving ? 'Kaydediliyor...' : '✅ Müşteri Ekle & Seç'}
+                  {quickCustSaving ? sz.genel.kaydediliyor : sz.muhasebe.musteriEkleSec}
                 </button>
               </div>
             </div>
@@ -580,25 +586,25 @@ export default function AccountingPage() {
         <div style={{minWidth:'12rem',flex:'1 1 16rem'}}>
           {/* "Cari hesap" jargonu kaldırıldı: bayi teknik değil, bu ekrandan
               tek bir şey soruyor — kim bana ne kadar borçlu. */}
-          <h1 style={{fontSize:'1.875rem',fontWeight:'bold',margin:0}}>Muhasebe</h1>
-          <p style={{color:'#6b7280',margin:'0.25rem 0 0'}}>Kim sana ne kadar borçlu — servis işleri ve kira/sayaç faturaları birlikte</p>
+          <h1 style={{fontSize:'1.875rem',fontWeight:'bold',margin:0}}>{sz.muhasebe.baslik}</h1>
+          <p style={{color:'#6b7280',margin:'0.25rem 0 0'}}>{sz.muhasebe.alt}</p>
         </div>
         <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
           {activeTab==='accounting' && (
             <>
-              <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>🖨️ Yazdır</button>
+              <button onClick={handlePrint} style={{padding:'0.625rem 1rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>{sz.fisDetay.yazdir}</button>
               {/* Muhasebeciye giden dosya. Borç ekrandakiyle AYNI
                   kaynaktan (lib/musteri-bakiye.ts) — iki yer iki farklı
                   rakam gösterirse hangisine inanılacağı belli olmaz. */}
-              <a href="/api/disa-aktar?tur=cari" title="Kim ne kadar borçlu — Excel olarak indir" style={{padding:'0.625rem 1rem',backgroundColor:'#0f2253',color:'white',borderRadius:'0.5rem',textDecoration:'none',fontWeight:500,fontSize:'0.875rem',whiteSpace:'nowrap',display:'inline-flex',alignItems:'center'}}>⬇️ Excel (CSV)</a>
-              <button onClick={backfillCari} disabled={backfilling} title="Teslim edilmemiş dahil tüm açık servis fişlerini cariye işler" style={{padding:'0.625rem 1rem',backgroundColor:'#eef2ff',color:'#4338ca',border:'1px solid #c7d2fe',borderRadius:'0.5rem',cursor:backfilling?'not-allowed':'pointer',fontWeight:'600',opacity:backfilling?0.6:1}}>{backfilling ? '⏳ Aktarılıyor…' : '🔄 Fişleri cariye aktar'}</button>
+              <a href="/api/disa-aktar?tur=cari" title={sz.muhasebe.excelIpucu} style={{padding:'0.625rem 1rem',backgroundColor:'#0f2253',color:'white',borderRadius:'0.5rem',textDecoration:'none',fontWeight:500,fontSize:'0.875rem',whiteSpace:'nowrap',display:'inline-flex',alignItems:'center'}}>{sz.genel.excelIndir}</a>
+              <button onClick={backfillCari} disabled={backfilling} title={sz.muhasebe.fisleriAktarIpucu} style={{padding:'0.625rem 1rem',backgroundColor:'#eef2ff',color:'#4338ca',border:'1px solid #c7d2fe',borderRadius:'0.5rem',cursor:backfilling?'not-allowed':'pointer',fontWeight:'600',opacity:backfilling?0.6:1}}>{backfilling ? sz.muhasebe.aktariliyor : sz.muhasebe.fisleriAktar}</button>
               {debtors.length > 0 && (
                 <button onClick={openBulkWA} style={{padding:'0.625rem 1rem',backgroundColor:'#dcfce7',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',display:'flex',alignItems:'center',gap:'0.4rem'}}>
-                  📩 Toplu Hatırlatma <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>
+                  {sz.muhasebe.topluHatirlatma} <span style={{backgroundColor:'#15803d',color:'white',borderRadius:'9999px',padding:'0.1rem 0.45rem',fontSize:'0.75rem'}}>{debtors.length}</span>
                 </button>
               )}
               <button onClick={()=>{ if(showForm){resetForm();setShowForm(false);}else{setShowForm(true);if(selCust)selectFormCust({id:selCust.id,name:selCust.name,phone:selCust.phone});} }} style={{backgroundColor:'#3b82f6',color:'white',padding:'0.625rem 1.25rem',borderRadius:'0.5rem',border:'none',fontWeight:'500',cursor:'pointer'}}>
-                {showForm ? '✕ İptal' : '+ Yeni Kayıt'}
+                {showForm ? sz.muhasebe.iptalKisa : sz.muhasebe.yeniKayit}
               </button>
             </>
           )}
@@ -607,7 +613,7 @@ export default function AccountingPage() {
 
       {/* TAB BAR */}
       <div style={{display:'flex',gap:'0.25rem',backgroundColor:'#f3f4f6',borderRadius:'0.625rem',padding:'0.3rem',marginBottom:'1.5rem',width:'fit-content'}} className="print-hide">
-        {([['accounting','📊 Muhasebe'],['expense','💸 Giderler'],['stock','📦 Stok']] as [string,string][]).map(([k,l])=>(
+        {([['accounting',sz.muhasebe.sekme.muhasebe],['expense',sz.muhasebe.sekme.gider],['stock',sz.muhasebe.sekme.stok]] as [string,string][]).map(([k,l])=>(
           <button key={k} onClick={()=>setActiveTab(k as any)} style={{
             padding:'0.5rem 1.25rem',borderRadius:'0.375rem',border:'none',cursor:'pointer',fontSize:'0.9rem',
             fontWeight:activeTab===k?'700':'400', backgroundColor:activeTab===k?'white':'transparent',
@@ -644,31 +650,31 @@ export default function AccountingPage() {
         <div style={{backgroundColor:'#fef2f2',borderRadius:'0.75rem',padding:'1.25rem',border:'1px solid #fecaca'}}>
           <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.35rem'}}>
             <span style={{fontSize:'1.25rem'}}>💰</span>
-            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>Toplam Alacağın</span>
+            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{sz.muhasebe.toplamAlacak}</span>
           </div>
           <div style={{fontSize:'2rem',fontWeight:'bold',color:'#ef4444',lineHeight:1.1}}>
-            ₺{Number(summary.totalDebt).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+            {b.para(Number(summary.totalDebt))}
           </div>
           <div style={{fontSize:'0.75rem',color:'#9ca3af',marginTop:'0.35rem'}}>
-            {summary.debtorCount} müşteriden · servis + kira/sayaç birlikte
+            {doldur(sz.muhasebe.alacakAlt, { n: summary.debtorCount })}
           </div>
         </div>
         <div style={{backgroundColor:'#fffbeb',borderRadius:'0.75rem',padding:'1.25rem',border:'1px solid #fde68a'}}>
           <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem'}}>
             <span style={{fontSize:'1.25rem'}}>🔧</span>
-            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>Servis işlerinden</span>
+            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{sz.muhasebe.servisten}</span>
           </div>
           <div style={{fontSize:'1.4rem',fontWeight:'bold',color:'#f59e0b'}}>
-            ₺{Number(summary.servisAlacak).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+            {b.para(Number(summary.servisAlacak))}
           </div>
         </div>
         <div style={{backgroundColor:'#eff6ff',borderRadius:'0.75rem',padding:'1.25rem',border:'1px solid #bfdbfe'}}>
           <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem'}}>
             <span style={{fontSize:'1.25rem'}}>🏷️</span>
-            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>Kira / sayaç faturasından</span>
+            <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{sz.muhasebe.kiraSayactan}</span>
           </div>
           <div style={{fontSize:'1.4rem',fontWeight:'bold',color:'#3b82f6'}}>
-            ₺{Number(summary.faturaAlacak).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+            {b.para(Number(summary.faturaAlacak))}
           </div>
         </div>
       </div>
@@ -676,7 +682,7 @@ export default function AccountingPage() {
       {/* FİLTRELER */}
       <div style={{display:'flex',gap:'0.75rem',marginBottom:'1.5rem',alignItems:'center'}} className="print-hide">
         <div style={{display:'flex',gap:'0.25rem',backgroundColor:'#f3f4f6',borderRadius:'0.5rem',padding:'0.25rem'}}>
-          {([['all','Tümü'],['unpaid','⚠️ Borçlu'],['paid','✅ Temiz']] as const).map(([k,l]) => (
+          {([['all',sz.genel.tumu],['unpaid',sz.muhasebe.filtre.borclu],['paid',sz.muhasebe.filtre.temiz]] as const).map(([k,l]) => (
             <button key={k} onClick={() => setFilter(k)} style={{
               padding:'0.5rem 1rem',borderRadius:'0.375rem',border:'none',cursor:'pointer',fontSize:'0.85rem',
               fontWeight:filter===k?'600':'400', backgroundColor:filter===k?'white':'transparent',
@@ -686,14 +692,14 @@ export default function AccountingPage() {
         </div>
         <div style={{position:'relative',flex:1}}>
           <span style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'#9ca3af'}}>🔍</span>
-          <input placeholder="Müşteri ara..." value={search} onChange={e => setSearch(e.target.value)} style={{...inp,paddingLeft:'2.25rem',backgroundColor:'#f9fafb'}} />
+          <input placeholder={sz.muhasebe.musteriAraYer} value={search} onChange={e => setSearch(e.target.value)} style={{...inp,paddingLeft:'2.25rem',backgroundColor:'#f9fafb'}} />
         </div>
       </div>
 
       {/* YENİ KAYIT FORMU */}
       {showForm && (
         <div style={{backgroundColor:'white',borderRadius:'0.75rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)',padding:'1.5rem',marginBottom:'1.5rem',border:'1px solid #e5e7eb'}} className="print-hide">
-          <h2 style={{fontWeight:'600',marginBottom:'1rem',fontSize:'1rem'}}>Yeni Kayıt Ekle</h2>
+          <h2 style={{fontWeight:'600',marginBottom:'1rem',fontSize:'1rem'}}>{sz.muhasebe.yeniKayitBaslik}</h2>
           <form onSubmit={handleSubmit}>
             <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
               {(['SALE','PAYMENT'] as const).map(t => (
@@ -701,12 +707,12 @@ export default function AccountingPage() {
                   flex:1,padding:'0.75rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600',
                   backgroundColor:form.type===t?(t==='SALE'?'#f59e0b':'#10b981'):'#f3f4f6',
                   color:form.type===t?'white':'#374151',
-                }}>{t==='SALE'?'🛒 Satış/Ürün':'💵 Ödeme'}</button>
+                }}>{t==='SALE'?sz.muhasebe.satisUrun:sz.muhasebe.odemeKisa}</button>
               ))}
             </div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(11rem,1fr))',gap:'1rem',marginBottom:'1rem'}}>
               <div style={{position:'relative'}}>
-                <label style={lbl}>Müşteri *</label>
+                <label style={lbl}>{sz.muhasebe.musteriZorunlu}</label>
                 <input
                   type="text"
                   style={inp}
@@ -714,7 +720,7 @@ export default function AccountingPage() {
                   onClick={e => e.stopPropagation()}
                   onChange={e => { setFormCustSearch(e.target.value); setShowCustDrop(true); if(!e.target.value){ setFormSelCust(null); setForm(f=>({...f,customerId:''})); } }}
                   onFocus={() => setShowCustDrop(true)}
-                  placeholder="Müşteri adı yazarak arayın..."
+                  placeholder={sz.muhasebe.musteriYer}
                   autoComplete="off"
                 />
                 {formSelCust && (
@@ -733,31 +739,31 @@ export default function AccountingPage() {
                     <div onClick={() => { setShowCustDrop(false); setQuickCustForm(f=>({...f,name:formCustSearch})); setQuickAddCust(true); }} style={{padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'#2563eb',fontWeight:'600',borderTop:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:'0.4rem'}}
                       onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#eff6ff')}
                       onMouseLeave={e=>(e.currentTarget.style.backgroundColor='white')}>
-                      <span style={{fontSize:'1rem'}}>+</span> Yeni Müşteri Ekle
+                      <span style={{fontSize:'1rem'}}>+</span> {sz.muhasebe.yeniMusteriEkle}
                     </div>
                   </div>
                 )}
                 {showCustDrop && formCustSearch && filteredFormCusts.length === 0 && (
                   <div onClick={e => e.stopPropagation()} style={{position:'absolute',top:'100%',left:0,right:0,zIndex:200,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',boxShadow:'0 4px 12px rgba(0,0,0,0.1)',marginTop:'2px'}}>
-                    <div style={{padding:'0.6rem 0.75rem',fontSize:'0.8rem',color:'#9ca3af'}}>Müşteri bulunamadı</div>
+                    <div style={{padding:'0.6rem 0.75rem',fontSize:'0.8rem',color:'#9ca3af'}}>{sz.muhasebe.musteriBulunamadi}</div>
                     <div onClick={() => { setShowCustDrop(false); setQuickCustForm(f=>({...f,name:formCustSearch})); setQuickAddCust(true); }} style={{padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'#2563eb',fontWeight:'600',borderTop:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:'0.4rem'}}
                       onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#eff6ff')}
                       onMouseLeave={e=>(e.currentTarget.style.backgroundColor='white')}>
-                      <span style={{fontSize:'1rem'}}>+</span> "{formCustSearch}" adıyla yeni müşteri ekle
+                      <span style={{fontSize:'1rem'}}>+</span> {doldur(sz.muhasebe.adiylaEkle, { q: formCustSearch })}
                     </div>
                   </div>
                 )}
               </div>
               {form.type === 'SALE' && (
                 <div style={{position:'relative'}}>
-                  <label style={lbl}>Ürün/Hizmet * <span style={{fontWeight:'400',color:'#9ca3af',fontSize:'0.72rem'}}>(stoktan seç veya yaz)</span></label>
+                  <label style={lbl}>{sz.muhasebe.urunHizmet} <span style={{fontWeight:'400',color:'#9ca3af',fontSize:'0.72rem'}}>{sz.muhasebe.stoktanSec}</span></label>
                   <div style={{display:'flex',gap:'0.4rem'}}>
                     <div style={{position:'relative',flex:1}}>
                       <input style={inp} value={formStockSearch}
                         onClick={e=>e.stopPropagation()}
                         onChange={e=>{ const v=e.target.value; setFormStockSearch(v); setForm(f=>({...f,product:v})); setShowStockDrop(true); if(!v) setFormStockItem(null); }}
                         onFocus={()=>setShowStockDrop(true)}
-                        placeholder="Stoktan ara veya yaz..." autoComplete="off" />
+                        placeholder={sz.muhasebe.stokAraYer} autoComplete="off" />
                       {formStockItem && <span style={{position:'absolute',right:'0.5rem',top:'50%',transform:'translateY(-50%)',color:'#10b981',fontSize:'0.85rem'}}>✓</span>}
                       {showStockDrop && (
                         <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'100%',left:0,right:0,zIndex:300,backgroundColor:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',maxHeight:'200px',overflowY:'auto',boxShadow:'0 4px 16px rgba(0,0,0,0.15)',marginTop:'2px'}}>
@@ -768,22 +774,22 @@ export default function AccountingPage() {
                               onMouseLeave={e=>(e.currentTarget.style.backgroundColor='white')}>
                               <div>
                                 <div style={{fontWeight:'600',fontSize:'0.85rem'}}>{item.name}</div>
-                                <div style={{fontSize:'0.7rem',color:'#9ca3af'}}>{item.source==='PART'?'🔧':'🖨️'} Stok: {item.stockQty}</div>
+                                <div style={{fontSize:'0.7rem',color:'#9ca3af'}}>{item.source==='PART'?'🔧':'🖨️'} {doldur(sz.muhasebe.stokAdet, { n: item.stockQty })}</div>
                               </div>
-                              {item.sellPrice>0 && <span style={{fontWeight:'700',color:'#10b981',fontSize:'0.85rem',whiteSpace:'nowrap'}}>₺{item.sellPrice.toLocaleString('tr-TR',{minimumFractionDigits:2})}</span>}
+                              {item.sellPrice>0 && <span style={{fontWeight:'700',color:'#10b981',fontSize:'0.85rem',whiteSpace:'nowrap'}}>{b.para(item.sellPrice)}</span>}
                             </div>
                           ))}
-                          {allStock.length===0 && <div style={{padding:'0.6rem 0.75rem',fontSize:'0.8rem',color:'#9ca3af'}}>Stok bulunamadı</div>}
+                          {allStock.length===0 && <div style={{padding:'0.6rem 0.75rem',fontSize:'0.8rem',color:'#9ca3af'}}>{sz.muhasebe.stokBulunamadi}</div>}
                           <div onClick={()=>{ setShowStockDrop(false); setQuickStockName(formStockSearch); setQuickAddStock(true); }}
                             style={{padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'#15803d',fontWeight:'600',borderTop:'2px solid #e5e7eb',backgroundColor:'#f0fdf4',display:'flex',alignItems:'center',gap:'0.4rem'}}
                             onMouseEnter={e=>(e.currentTarget.style.backgroundColor='#dcfce7')}
                             onMouseLeave={e=>(e.currentTarget.style.backgroundColor='#f0fdf4')}>
-                            📦 Stoka Ekle &amp; Seç: <strong>"{formStockSearch||'Yeni Ürün'}"</strong>
+                            {doldur(sz.muhasebe.stokaEkleSec, { q: formStockSearch || sz.muhasebe.yeniUrun })}
                           </div>
                         </div>
                       )}
                     </div>
-                    <button type="button" title="Stoka yeni ürün ekle"
+                    <button type="button" title={sz.muhasebe.stokaEkleIpucu}
                       onClick={()=>{ setQuickStockName(formStockSearch); setQuickAddStock(true); }}
                       style={{padding:'0 0.75rem',backgroundColor:'#f0fdf4',color:'#15803d',border:'1px solid #86efac',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600',whiteSpace:'nowrap'}}>
                       📦+
@@ -792,28 +798,28 @@ export default function AccountingPage() {
                 </div>
               )}
               <div>
-                <label style={lbl}>Tutar (₺) *</label>
+                <label style={lbl}>{doldur(sz.muhasebe.tutar, { birim: b.simge })}</label>
                 <input required type="number" step="0.01" min="0" style={inp} value={form.amount} onChange={e => setForm({...form,amount:e.target.value})} placeholder="0.00" />
               </div>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(11rem,1fr))',gap:'1rem',marginBottom:'1rem'}}>
               <div>
-                <label style={lbl}>Ödeme Yöntemi</label>
+                <label style={lbl}>{sz.muhasebe.odemeYontemi}</label>
                 <select style={inp} value={form.method} onChange={e => setForm({...form,method:e.target.value})}>
-                  {METHOD_OPTIONS.map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                  {METHODS.map(k => <option key={k} value={k}>{yontem(k)}</option>)}
                 </select>
               </div>
               <div>
-                <label style={lbl}>Tarih</label>
+                <label style={lbl}>{sz.genel.tarih}</label>
                 <input type="date" style={inp} value={form.date} onChange={e => setForm({...form,date:e.target.value})} />
               </div>
               <div>
-                <label style={lbl}>Not</label>
-                <input style={inp} value={form.notes} onChange={e => setForm({...form,notes:e.target.value})} placeholder="İsteğe bağlı..." />
+                <label style={lbl}>{sz.muhasebe.not}</label>
+                <input style={inp} value={form.notes} onChange={e => setForm({...form,notes:e.target.value})} placeholder={sz.muhasebe.istegeBagli} />
               </div>
             </div>
             <button type="submit" disabled={saving} style={{backgroundColor:form.type==='SALE'?'#f59e0b':'#10b981',color:'white',padding:'0.625rem 1.5rem',borderRadius:'0.5rem',border:'none',fontWeight:'600',cursor:'pointer',opacity:saving?0.7:1}}>
-              {saving ? 'Kaydediliyor...' : (form.type==='SALE'?'🛒 Satış Kaydet':'💵 Ödeme Kaydet')}
+              {saving ? sz.genel.kaydediliyor : (form.type==='SALE'?sz.muhasebe.satisKaydet:sz.muhasebe.odemeKaydet)}
             </button>
           </form>
         </div>
@@ -831,13 +837,13 @@ export default function AccountingPage() {
             {customers.length === 0 ? (
               <div style={{padding:'1.75rem 1rem',textAlign:'center',color:'#6b7280',fontSize:'0.85rem'}}>
                 <div style={{fontSize:'1.5rem',marginBottom:'0.35rem'}}>👥</div>
-                <div style={{fontWeight:600,color:'#111827',marginBottom:'0.15rem'}}>Henüz müşteri yok</div>
-                <div style={{marginBottom:'0.85rem'}}>Borç takibi müşteri eklendikten sonra başlar.</div>
+                <div style={{fontWeight:600,color:'#111827',marginBottom:'0.15rem'}}>{sz.muhasebe.musteriYok}</div>
+                <div style={{marginBottom:'0.85rem'}}>{sz.muhasebe.musteriYokAlt}</div>
                 <a href="/customers/new" style={{
                   display:'inline-flex',alignItems:'center',justifyContent:'center',minHeight:'2.5rem',
                   padding:'0 1rem',backgroundColor:'#1e3a5f',color:'white',borderRadius:'0.5rem',
                   textDecoration:'none',fontWeight:600,fontSize:'0.85rem',
-                }}>+ İlk müşteriyi ekle</a>
+                }}>{sz.muhasebe.ilkMusteri}</a>
               </div>
             ) : customers.map(c => (
               <div key={c.id} onClick={() => setSelCust(c)} style={{
@@ -855,9 +861,9 @@ export default function AccountingPage() {
                   </div>
                   <div style={{textAlign:'right'}}>
                     {c.balance > 0 ? (
-                      <span style={{fontSize:'0.85rem',fontWeight:'700',color:'#ef4444'}}>₺{c.balance.toLocaleString('tr-TR',{minimumFractionDigits:2})}</span>
+                      <span style={{fontSize:'0.85rem',fontWeight:'700',color:'#ef4444'}}>{b.para(c.balance)}</span>
                     ) : (
-                      <span style={{fontSize:'0.75rem',color:'#10b981',fontWeight:'600'}}>✅ Temiz</span>
+                      <span style={{fontSize:'0.75rem',color:'#10b981',fontWeight:'600'}}>{sz.muhasebe.temiz}</span>
                     )}
                   </div>
                 </div>
@@ -868,41 +874,25 @@ export default function AccountingPage() {
 
         {/* SAĞ: MÜŞTERİ DETAY */}
         <div id="print-area">
-          {/* PRINT BAŞLIĞI - sadece yazdırmada görünür */}
-          <div className="print-only" style={{display:'none',marginBottom:'1rem'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'1rem 1.5rem',background:'#1e3a5f',color:'white',borderRadius:'0.5rem 0.5rem 0 0'}}>
-              <div>
-                <div style={{fontWeight:'900',fontSize:'1.2rem',letterSpacing:'0.03em'}}>SAYGILI FOTOKOPİ</div>
-                <div style={{fontSize:'0.72rem',opacity:0.8,marginTop:'0.1rem'}}>///// SERVİ MAH. SÜMER1 SK. NO5/E KÜTAHYA</div>
-                <div style={{fontSize:'0.72rem',opacity:0.8}}>📞 02742236206</div>
-              </div>
-              <div style={{textAlign:'right'}}>
-                <div style={{fontWeight:'700',fontSize:'0.95rem'}}>CARİ HESAP EKSTRESİ</div>
-                <div style={{fontSize:'0.72rem',opacity:0.85,marginTop:'0.2rem'}}>Tarih: {new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'})}</div>
-              </div>
-            </div>
-            {selCust && (
-              <div style={{backgroundColor:'#f8fafc',border:'1px solid #e2e8f0',borderTop:'none',padding:'0.75rem 1.5rem',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(9rem,1fr))',gap:'0.35rem',fontSize:'0.8rem'}}>
-                <div><span style={{color:'#6b7280'}}>Müşteri: </span><strong>{selCust.name}</strong></div>
-                <div><span style={{color:'#6b7280'}}>Telefon: </span>{selCust.phone}</div>
-              </div>
-            )}
-          </div>
+          {/* Buradaki yazdırma antetinde TEK BİR BAYİNİN adı, adresi ve telefonu
+              gömülüydü ("SAYGILI FOTOKOPİ … KÜTAHYA"). Çok kiracılı üründe
+              başka bir bayi Ctrl+P yaptığında müşterisine BAŞKASININ antetli
+              ekstresi çıkıyordu. Kaldırıldı: ekstrenin gerçek yeri
+              /accounting/[customerId]/print — orası anteti bayinin kendi
+              kaydından (tenant.name) alıyor. */}
           {!selCust ? (
             <div style={{backgroundColor:'white',borderRadius:'0.75rem',padding:'2.5rem 1.5rem',textAlign:'center',color:'#6b7280',border:'2px dashed #e5e7eb'}}>
               {/* Liste boşken "soldan seç" demek çelişki: seçilecek bir şey yok. */}
               <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>{customers.length === 0 ? '🧾' : '👈'}</div>
               <div style={{fontWeight:600,color:'#111827',marginBottom:'0.2rem'}}>
-                {customers.length === 0 ? 'Burada müşteri borçları görünecek' : 'Soldan bir müşteri seçin'}
+                {customers.length === 0 ? sz.muhasebe.bosBaslik : sz.muhasebe.secBaslik}
               </div>
               <div style={{fontSize:'0.85rem'}}>
-                {customers.length === 0
-                  ? 'Servis fişi kestikçe ve kira/sayaç faturası oluştukça bu ekran kendiliğinden dolar.'
-                  : 'Seçtiğin müşterinin borcunu, ödemelerini ve hesap hareketlerini burada görürsün.'}
+                {customers.length === 0 ? sz.muhasebe.bosAlt : sz.muhasebe.secAlt}
               </div>
             </div>
           ) : detailLoading ? (
-            <div style={{padding:'2rem',textAlign:'center',color:'#6b7280'}}>Yükleniyor...</div>
+            <div style={{padding:'2rem',textAlign:'center',color:'#6b7280'}}>{sz.genel.yukleniyor}</div>
           ) : detail ? (
             <>
               {/* MÜŞTERİ BAŞLIK */}
@@ -913,12 +903,12 @@ export default function AccountingPage() {
                     <div style={{fontSize:'0.8rem',opacity:0.8,marginTop:'0.25rem'}}>📞 {detail.customer.phone} {detail.customer.address && `• 📍 ${detail.customer.address}`}</div>
                   </div>
                   <div style={{display:'flex',gap:'0.5rem'}} className="print-hide">
-                    <button onClick={() => openPrintable(`/accounting/${selCust.id}/print`)} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>🖨️ Ekstre Yazdır</button>
+                    <button onClick={() => openPrintable(`/accounting/${selCust.id}/print`)} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>{sz.muhasebe.ekstreYazdir}</button>
                     {detail.summary.balance > 0 && (
                       <button onClick={() => sendWhatsApp(detail.customer, detail.summary.balance)} style={{backgroundColor:'#25d366',color:'white',border:'none',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>📱 WhatsApp</button>
                     )}
-                    <button onClick={addPeriodCharges} title="Bu dönemin kira + sayaç bedelini hesaplar; onayınla cariye ekler (otomatik eklemez)" style={{backgroundColor:'rgba(255,255,255,0.18)',color:'white',border:'1px solid rgba(255,255,255,0.35)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'700'}}>🖨️🔢 Kira/Sayaç Ekle</button>
-                    <button onClick={() => { selectFormCust({ id: selCust.id, name: selCust.name, phone: selCust.phone }); setShowForm(true); }} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>+ Kayıt Ekle</button>
+                    <button onClick={addPeriodCharges} title={sz.muhasebe.kiraSayacIpucu} style={{backgroundColor:'rgba(255,255,255,0.18)',color:'white',border:'1px solid rgba(255,255,255,0.35)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'700'}}>{sz.muhasebe.kiraSayacEkle}</button>
+                    <button onClick={() => { selectFormCust({ id: selCust.id, name: selCust.name, phone: selCust.phone }); setShowForm(true); }} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>{sz.muhasebe.kayitEkle}</button>
                   </div>
                 </div>
                 {/* Tek gerçek önce, kırılımı sonra: bayinin sorduğu soru
@@ -926,19 +916,19 @@ export default function AccountingPage() {
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem',marginTop:'1rem'}}>
                   <div style={{backgroundColor:'rgba(255,255,255,0.14)',borderRadius:'0.5rem',padding:'0.85rem'}}>
                     <div style={{fontSize:'0.7rem',opacity:0.75,marginBottom:'0.25rem'}}>
-                      {detail.summary.balance>0?'TOPLAM BORCU':detail.summary.balance<0?'FAZLA ÖDEME (kredi)':'BORCU YOK'}
+                      {detail.summary.balance>0?sz.muhasebe.toplamBorcu:detail.summary.balance<0?sz.muhasebe.fazlaOdeme:sz.muhasebe.borcuYok}
                     </div>
                     <div style={{fontSize:'1.6rem',fontWeight:'800',lineHeight:1.1,color:detail.summary.balance>0?'#fca5a5':detail.summary.balance<0?'#6ee7b7':'#d1d5db'}}>
-                      ₺{Math.abs(detail.summary.balance).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+                      {b.para(Math.abs(detail.summary.balance))}
                     </div>
                   </div>
                   <div style={{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:'0.5rem',padding:'0.75rem'}}>
-                    <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>🔧 Servisten</div>
-                    <div style={{fontSize:'1.05rem',fontWeight:'700',color:'#fbbf24'}}>₺{Math.abs(detail.summary.servisBorc ?? 0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+                    <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>{sz.muhasebe.servistenKisa}</div>
+                    <div style={{fontSize:'1.05rem',fontWeight:'700',color:'#fbbf24'}}>{b.para(Math.abs(detail.summary.servisBorc ?? 0))}</div>
                   </div>
                   <div style={{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:'0.5rem',padding:'0.75rem'}}>
-                    <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>🏷️ Kira / sayaç</div>
-                    <div style={{fontSize:'1.05rem',fontWeight:'700',color:'#93c5fd'}}>₺{Math.abs(detail.summary.faturaBorc ?? 0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+                    <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>{sz.muhasebe.kiraSayacKisa}</div>
+                    <div style={{fontSize:'1.05rem',fontWeight:'700',color:'#93c5fd'}}>{b.para(Math.abs(detail.summary.faturaBorc ?? 0))}</div>
                   </div>
                 </div>
               </div>
@@ -958,20 +948,20 @@ export default function AccountingPage() {
                   return (
                     <>
                       <div style={{padding:'0.75rem 1rem',borderBottom:'1px solid #e5e7eb',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                        <span style={{fontWeight:'600',fontSize:'0.9rem'}}>Hesap Hareketleri</span>
-                        <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{satirlar.length} hareket</span>
+                        <span style={{fontWeight:'600',fontSize:'0.9rem'}}>{sz.muhasebe.hareketler}</span>
+                        <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{doldur(sz.muhasebe.hareketSayisi, { n: satirlar.length })}</span>
                       </div>
                       {satirlar.length === 0 ? (
                         <div style={{padding:'3rem',textAlign:'center',color:'#9ca3af',fontSize:'0.85rem'}}>
-                          Bu müşteriye ait hareket yok
+                          {sz.muhasebe.hareketYok}
                           <br/>
-                          <button onClick={() => { selectFormCust(selCust as any); setShowForm(true); }} style={{marginTop:'0.75rem',padding:'0.5rem 1rem',backgroundColor:'#3b82f6',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem'}} className="print-hide">+ Kayıt Ekle</button>
+                          <button onClick={() => { selectFormCust(selCust as any); setShowForm(true); }} style={{marginTop:'0.75rem',padding:'0.5rem 1rem',backgroundColor:'#3b82f6',color:'white',border:'none',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem'}} className="print-hide">{sz.muhasebe.kayitEkle}</button>
                         </div>
                       ) : (
                         <table style={{width:'100%',borderCollapse:'collapse'}}>
                           <thead>
                             <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
-                              {['Tarih','Nereden','Açıklama','Tutar',''].map((h,hi) => (
+                              {[sz.genel.tarih,sz.muhasebe.sutunNereden,sz.muhasebe.sutunAciklama,sz.genel.tutar,''].map((h,hi) => (
                                 <th key={hi} style={{padding:'0.6rem 0.875rem',textAlign:hi===3?'right':'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h}</th>
                               ))}
                             </tr>
@@ -989,10 +979,10 @@ export default function AccountingPage() {
                               // Şerit aynı bilgiyi üçüncü kez söylüyordu.
                               return (
                                 <tr key={s.id} style={{borderBottom:'1px solid #f3f4f6',backgroundColor:i%2===0?'white':'#fafafa'}}>
-                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem',color:'#6b7280',whiteSpace:'nowrap'}}>{new Date(s.tarih).toLocaleDateString('tr-TR')}</td>
+                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem',color:'#6b7280',whiteSpace:'nowrap'}}>{b.tarih(s.tarih)}</td>
                                   <td style={{padding:'0.6rem 0.875rem'}}>
                                     <span style={{backgroundColor:servis?'#fef3c7':'#dbeafe',color:servis?'#92400e':'#1e40af',padding:'0.15rem 0.45rem',borderRadius:'9999px',fontSize:'0.65rem',fontWeight:'600',whiteSpace:'nowrap'}}>
-                                      {servis?'🔧 Servis':'🏷️ Kira/Sayaç'}
+                                      {servis?sz.muhasebe.rozetServis:sz.muhasebe.rozetKira}
                                     </span>
                                   </td>
                                   <td style={{padding:'0.6rem 0.875rem',fontSize:'0.875rem',fontWeight:'500'}}>
@@ -1000,13 +990,13 @@ export default function AccountingPage() {
                                     {s.detay && <div style={{fontSize:'0.7rem',color:'#9ca3af',fontWeight:'400'}}>{s.detay}</div>}
                                   </td>
                                   <td style={{padding:'0.6rem 0.875rem',fontSize:'0.95rem',fontWeight:'700',textAlign:'right',whiteSpace:'nowrap',color:borc?'#f59e0b':'#10b981'}}>
-                                    {borc?'':'+'} ₺{Number(s.tutar).toLocaleString('tr-TR',{minimumFractionDigits:2})}
+                                    {borc?'':'+'} {b.para(Number(s.tutar))}
                                   </td>
                                   <td style={{padding:'0.6rem 0.5rem'}} className="print-hide">
                                     {kayit && (
                                       <div style={{display:'flex',gap:'0.25rem'}}>
-                                        <button onClick={() => openEdit(kayit)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#eff6ff',color:'#2563eb',border:'1px solid #bfdbfe',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title="Düzenle">✏️</button>
-                                        <button onClick={() => handleDelete(kayit.id)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#fef2f2',color:'#dc2626',border:'1px solid #fca5a5',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title="Sil">🗑️</button>
+                                        <button onClick={() => openEdit(kayit)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#eff6ff',color:'#2563eb',border:'1px solid #bfdbfe',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title={sz.genel.duzenle}>✏️</button>
+                                        <button onClick={() => handleDelete(kayit.id)} style={{padding:'0.2rem 0.4rem',backgroundColor:'#fef2f2',color:'#dc2626',border:'1px solid #fca5a5',borderRadius:'0.375rem',cursor:'pointer',fontSize:'0.65rem'}} title={sz.genel.sil}>🗑️</button>
                                       </div>
                                     )}
                                   </td>
@@ -1030,7 +1020,7 @@ export default function AccountingPage() {
         <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={() => setEditModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{backgroundColor:'white',borderRadius:'1rem',padding:'1.5rem',width:'480px',maxWidth:'95vw',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-              <h3 style={{fontWeight:'700',fontSize:'1.1rem',margin:0}}>✏️ Kaydı Düzenle</h3>
+              <h3 style={{fontWeight:'700',fontSize:'1.1rem',margin:0}}>{sz.muhasebe.kaydiDuzenle}</h3>
               <button onClick={() => setEditModal(null)} style={{background:'none',border:'none',fontSize:'1.25rem',cursor:'pointer',color:'#6b7280'}}>✕</button>
             </div>
             <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
@@ -1039,43 +1029,43 @@ export default function AccountingPage() {
                   flex:1,padding:'0.625rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600',
                   backgroundColor:editModal.type===t?(t==='SALE'?'#f59e0b':'#10b981'):'#f3f4f6',
                   color:editModal.type===t?'white':'#374151',
-                }}>{t==='SALE'?'🛒 Satış':'💵 Ödeme'}</button>
+                }}>{t==='SALE'?sz.muhasebe.satisKisa:sz.muhasebe.odemeKisa}</button>
               ))}
             </div>
             {editModal.type === 'SALE' && (
               <div style={{marginBottom:'0.75rem'}}>
-                <label style={lbl}>Ürün/Hizmet *</label>
-                <input style={inp} value={editModal.product} onChange={e => setEditModal({...editModal,product:e.target.value})} placeholder="Aldığı ürün..." />
+                <label style={lbl}>{sz.muhasebe.urunHizmet}</label>
+                <input style={inp} value={editModal.product} onChange={e => setEditModal({...editModal,product:e.target.value})} placeholder={sz.muhasebe.urunYer} />
               </div>
             )}
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem',marginBottom:'0.75rem'}}>
               <div>
-                <label style={lbl}>Tutar (₺) *</label>
+                <label style={lbl}>{doldur(sz.muhasebe.tutar, { birim: b.simge })}</label>
                 <input type="number" step="0.01" min="0" style={inp} value={editModal.amount} onChange={e => setEditModal({...editModal,amount:e.target.value})} />
               </div>
               <div>
-                <label style={lbl}>Ödeme Yöntemi</label>
+                <label style={lbl}>{sz.muhasebe.odemeYontemi}</label>
                 <select style={inp} value={editModal.method} onChange={e => setEditModal({...editModal,method:e.target.value})}>
-                  {METHOD_OPTIONS.map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                  {METHODS.map(k => <option key={k} value={k}>{yontem(k)}</option>)}
                 </select>
               </div>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem',marginBottom:'1rem'}}>
               <div>
-                <label style={lbl}>Tarih</label>
+                <label style={lbl}>{sz.genel.tarih}</label>
                 <input type="date" style={inp} value={editModal.date} onChange={e => setEditModal({...editModal,date:e.target.value})} />
               </div>
               <div>
-                <label style={lbl}>Not</label>
-                <input style={inp} value={editModal.notes} onChange={e => setEditModal({...editModal,notes:e.target.value})} placeholder="İsteğe bağlı..." />
+                <label style={lbl}>{sz.muhasebe.not}</label>
+                <input style={inp} value={editModal.notes} onChange={e => setEditModal({...editModal,notes:e.target.value})} placeholder={sz.muhasebe.istegeBagli} />
               </div>
             </div>
             <div style={{display:'flex',gap:'0.5rem'}}>
-              <button onClick={() => setEditModal(null)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>İptal</button>
+              <button onClick={() => setEditModal(null)} style={{flex:1,padding:'0.625rem',backgroundColor:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'500'}}>{sz.genel.iptal}</button>
               <button onClick={handleEdit} disabled={editSaving} style={{
                 flex:1,padding:'0.625rem',backgroundColor:'#3b82f6',color:'white',
                 border:'none',borderRadius:'0.5rem',cursor:'pointer',fontWeight:'600',opacity:editSaving?0.7:1,
-              }}>{editSaving ? 'Kaydediliyor...' : '✓ Kaydet'}</button>
+              }}>{editSaving ? sz.genel.kaydediliyor : `✓ ${sz.genel.kaydet}`}</button>
             </div>
           </div>
         </div>
@@ -1090,7 +1080,6 @@ export default function AccountingPage() {
           #app-sidebar, nav, header, aside { display: none !important; }
           body { background: white !important; margin: 0; }
           #print-area { grid-column: 1 / -1 !important; }
-          .print-only { display: block !important; }
 
           /* Print sayfa düzeni */
           @page { margin: 1.5cm; size: A4; }
@@ -1108,18 +1097,6 @@ export default function AccountingPage() {
 
           /* Renk bantları */
           tr:nth-child(even) td { background: #f9fafb !important; }
-
-          /* Footer */
-          body::after {
-            content: 'Saygılı Fotokopi - Servi Mah. Sümer1 Sk. No5/E Kütahya - Tel: 02742236206';
-            display: block;
-            text-align: center;
-            font-size: 0.65rem;
-            color: #9ca3af;
-            margin-top: 1.5rem;
-            padding-top: 0.5rem;
-            border-top: 1px solid #e5e7eb;
-          }
         }
       `}</style>
     </div>

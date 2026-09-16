@@ -3,16 +3,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { openWhatsApp, paymentMessage } from '@/lib/share';
 import { openPrintable } from '@/lib/print';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Cust { id: string; name: string; phone: string; }
 interface OpenInv { id: string; invoiceNumber: string; invoiceDate: string; dueDate: string; status: string; totalAmount: number; paidAmount: number; openAmount: number; }
 interface AllocResult { paymentId: string; receiptToken?: string; allocations: { invoiceNumber: string; amount: number; status: string }[]; allocated: number; unallocated: number; }
 
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtDate = (s: string) => new Date(s).toLocaleDateString('tr-TR');
-
 export default function CollectionsPage() {
   const { data: session } = useSession();
+  const t = useT();
+  const b = useBicim();
+  const fmt = (n: number) => b.para(n);
+  const fmtDate = (s: string) => b.tarih(s);
   const tenantName = (session?.user as any)?.tenantName as string | undefined;
   const [customers, setCustomers] = useState<Cust[]>([]);
   const [custSearch, setCustSearch] = useState('');
@@ -56,7 +59,7 @@ export default function CollectionsPage() {
   };
 
   const submit = async () => {
-    if (!sel || !amount || Number(amount) <= 0) { setErr('Müşteri ve tutar zorunlu'); return; }
+    if (!sel || !amount || Number(amount) <= 0) { setErr(t.tahsilat.zorunlu); return; }
     setSaving(true); setErr(null); setResult(null);
     try {
       const res = await fetch('/api/collections', {
@@ -68,8 +71,8 @@ export default function CollectionsPage() {
         setResult({ paymentId: d.paymentId, receiptToken: d.receiptToken, allocations: d.allocations, allocated: d.allocated, unallocated: d.unallocated });
         setAmount(''); setRefNo('');
         loadOpen(sel.id);
-      } else setErr(d.error || 'Hata');
-    } catch { setErr('Sunucuya bağlanılamadı'); }
+      } else setErr(d.error || t.genel.hata);
+    } catch { setErr(t.sayacTuru.sunucuYok); }
     setSaving(false);
   };
 
@@ -77,19 +80,19 @@ export default function CollectionsPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Tahsilat</h1>
-      <p className="text-sm text-gray-500 mb-6">IBAN/havale/nakit tahsilat — en eski açık faturadan başlayarak <b>otomatik mahsup</b> (FIFO), onay gerekmez.</p>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">{t.tahsilat.baslik}</h1>
+      <p className="text-sm text-gray-500 mb-6">{t.tahsilat.alt}</p>
 
       <div className="bg-white rounded-xl border p-5 space-y-4">
         {/* Müşteri seçimi */}
         <div className="relative">
-          <label className="block text-xs font-medium text-gray-500 mb-1">Müşteri</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">{t.genel.musteri}</label>
           <input value={custSearch} onChange={(e) => { setCustSearch(e.target.value); setShowDrop(true); setSel(null); }}
-            onFocus={() => setShowDrop(true)} placeholder="Müşteri ara…"
+            onFocus={() => setShowDrop(true)} placeholder={t.tahsilat.musteriAraYer}
             className="w-full px-3 py-2 border rounded-lg text-sm" />
           {showDrop && custSearch && !sel && (
             <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-              {filtered.length === 0 ? <div className="px-3 py-2 text-sm text-gray-400">Bulunamadı</div> :
+              {filtered.length === 0 ? <div className="px-3 py-2 text-sm text-gray-400">{t.tahsilat.bulunamadi}</div> :
                 filtered.map((c) => (
                   <div key={c.id} onClick={() => pickCustomer(c)} className="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm">
                     {c.name} <span className="text-gray-400 text-xs">· {c.phone}</span>
@@ -103,14 +106,14 @@ export default function CollectionsPage() {
         {sel && (
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex justify-between text-sm font-medium mb-2">
-              <span>Açık Faturalar (FIFO sırası)</span>
-              <span className="text-red-600">Toplam açık: {fmt(openTotal)}</span>
+              <span>{t.tahsilat.acikFaturalar}</span>
+              <span className="text-red-600">{doldur(t.tahsilat.toplamAcik, { n: fmt(openTotal) })}</span>
             </div>
-            {openInvoices.length === 0 ? <p className="text-sm text-gray-400">Açık fatura yok.</p> : (
+            {openInvoices.length === 0 ? <p className="text-sm text-gray-400">{t.tahsilat.acikFaturaYok}</p> : (
               <div className="space-y-1">
                 {openInvoices.map((i) => (
                   <div key={i.id} className="flex justify-between text-xs">
-                    <span className="font-mono">{i.invoiceNumber} <span className="text-gray-400">· vade {fmtDate(i.dueDate)}</span></span>
+                    <span className="font-mono">{i.invoiceNumber} <span className="text-gray-400">· {doldur(t.tahsilat.vadeKisa, { n: fmtDate(i.dueDate) })}</span></span>
                     <span className="font-medium">{fmt(i.openAmount)}</span>
                   </div>
                 ))}
@@ -122,26 +125,25 @@ export default function CollectionsPage() {
         {/* Tahsilat formu */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Tutar (₺)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{doldur(t.tahsilat.tutar, { birim: b.simge })}</label>
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00"
               className="w-full px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Yöntem</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t.tahsilat.yontem}</label>
             <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
-              <option value="TRANSFER">🏦 IBAN/Havale</option>
-              <option value="CASH">💵 Nakit</option>
-              <option value="CARD">💳 Kart</option>
-              <option value="OTHER">📋 Diğer</option>
+              {(['TRANSFER', 'CASH', 'CARD', 'OTHER'] as const).map((k) => (
+                <option key={k} value={k}>{t.tahsilat.yontemler[k]}</option>
+              ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Dekont/Referans No</label>
-            <input value={refNo} onChange={(e) => setRefNo(e.target.value)} placeholder="opsiyonel"
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t.tahsilat.dekont}</label>
+            <input value={refNo} onChange={(e) => setRefNo(e.target.value)} placeholder={t.tahsilat.opsiyonel}
               className="w-full px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Tarih</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t.genel.tarih}</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" />
           </div>
         </div>
@@ -150,7 +152,7 @@ export default function CollectionsPage() {
 
         <button onClick={submit} disabled={saving || !sel}
           className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50">
-          {saving ? 'Kaydediliyor…' : 'Tahsilatı Kaydet ve Otomatik Mahsup Et'}
+          {saving ? t.genel.kaydediliyor : t.tahsilat.kaydet}
         </button>
 
         {/* Sonuç */}
@@ -158,21 +160,21 @@ export default function CollectionsPage() {
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
               <p className="font-medium text-green-800">
-                ✓ {fmt(result.allocated)} mahsup edildi{result.unallocated > 0 ? ` · ${fmt(result.unallocated)} avans (gelecek faturaya)` : ''}
+                {doldur(t.tahsilat.mahsupEdildi, { n: fmt(result.allocated) })}{result.unallocated > 0 ? doldur(t.tahsilat.avans, { n: fmt(result.unallocated) }) : ''}
               </p>
               <div className="flex gap-2 shrink-0">
                 <button onClick={() => openPrintable(`/collections/${result.paymentId}/print`)}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm">
-                  🧾 Makbuz Yazdır
+                  {t.tahsilat.makbuzYazdir}
                 </button>
                 <button onClick={() => {
                   const link = result.receiptToken ? `${window.location.origin}/belge/makbuz/${result.paymentId}/${result.receiptToken}` : '';
                   const msg = paymentMessage({ tenantName, customerName: sel?.name, amount: result.allocated + result.unallocated, date })
-                    + (link ? `\n\n🧾 Makbuzunuz: ${link}` : '');
+                    + (link ? `\n\n${doldur(t.tahsilat.makbuzLinkOn, { n: link })}` : '');
                   openWhatsApp(sel?.phone, msg);
                 }}
                   className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm">
-                  📱 WhatsApp + Link
+                  {t.faturalar.whatsappLink}
                 </button>
               </div>
             </div>
@@ -180,10 +182,10 @@ export default function CollectionsPage() {
               {result.allocations.map((a, idx) => (
                 <div key={idx} className="flex justify-between text-sm text-gray-700">
                   <span className="font-mono">{a.invoiceNumber}</span>
-                  <span>{fmt(a.amount)} <span className={a.status === 'PAID' ? 'text-green-600' : 'text-amber-600'}>· {a.status === 'PAID' ? 'Tamamlandı' : 'Kısmi'}</span></span>
+                  <span>{fmt(a.amount)} <span className={a.status === 'PAID' ? 'text-green-600' : 'text-amber-600'}>· {a.status === 'PAID' ? t.tahsilat.tamamlandi : t.tahsilat.kismi}</span></span>
                 </div>
               ))}
-              {result.allocations.length === 0 && <p className="text-sm text-gray-500">Açık fatura olmadığı için tamamı avans olarak kaydedildi.</p>}
+              {result.allocations.length === 0 && <p className="text-sm text-gray-500">{t.tahsilat.hepsiAvans}</p>}
             </div>
           </div>
         )}

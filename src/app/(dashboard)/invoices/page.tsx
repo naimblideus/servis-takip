@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { openWhatsApp, invoiceMessage } from '@/lib/share';
 import { openPrintable } from '@/lib/print';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Line { kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number; }
 interface Invoice {
@@ -15,20 +17,24 @@ interface Invoice {
 }
 interface Summary { count: number; total: number; open: number; overdue: number; paidCount: number; }
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-  OPEN: { label: 'Açık', cls: 'bg-blue-100 text-blue-700' },
-  PARTIAL: { label: 'Kısmi', cls: 'bg-amber-100 text-amber-700' },
-  PAID: { label: 'Ödendi', cls: 'bg-green-100 text-green-700' },
-  OVERDUE: { label: 'Vadesi Geçti', cls: 'bg-red-100 text-red-700' },
-  CANCELLED: { label: 'İptal', cls: 'bg-gray-100 text-gray-500' },
-  DRAFT: { label: 'Taslak', cls: 'bg-gray-100 text-gray-500' },
+// Etiketler sözlükte (faturalar.durum / faturalar.tur); burada yalnız renk.
+const STATUS_CLS: Record<string, string> = {
+  OPEN: 'bg-blue-100 text-blue-700',
+  PARTIAL: 'bg-amber-100 text-amber-700',
+  PAID: 'bg-green-100 text-green-700',
+  OVERDUE: 'bg-red-100 text-red-700',
+  CANCELLED: 'bg-gray-100 text-gray-500',
+  DRAFT: 'bg-gray-100 text-gray-500',
 };
-const KIND: Record<string, string> = { COUNTER: 'Sayaç', RENTAL: 'Kira', PART: 'Parça', LABOR: 'İşçilik', OTHER: 'Diğer' };
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtDate = (s: string) => new Date(s).toLocaleDateString('tr-TR');
 
 export default function InvoicesPage() {
   const router = useRouter();
+  const t = useT();
+  const b = useBicim();
+  const fmt = (n: number) => b.para(n);
+  const fmtDate = (s: string) => b.tarih(s);
+  const durumAdi = (k: string) => (t.faturalar.durum as Record<string, string>)[k] ?? k;
+  const turAdi = (k: string) => (t.faturalar.tur as Record<string, string>)[k] ?? k;
   const { data: session } = useSession();
   const tenantName = (session?.user as any)?.tenantName as string | undefined;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -66,8 +72,8 @@ export default function InvoicesPage() {
       const r = await fetch('/api/invoices/preflight');
       const d = await r.json();
       if (r.ok) setPreflight({ loading: false, data: d });
-      else { setPreflight(null); setMsg('❌ ' + (d.error || 'Kontrol yapılamadı')); }
-    } catch { setPreflight(null); setMsg('❌ Sunucuya bağlanılamadı'); }
+      else { setPreflight(null); setMsg('❌ ' + (d.error || t.faturalar.kontrolYapilamadi)); }
+    } catch { setPreflight(null); setMsg('❌ ' + t.sayacTuru.sunucuYok); }
   };
 
   const runBilling = async () => {
@@ -76,9 +82,14 @@ export default function InvoicesPage() {
     try {
       const res = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       const d = await res.json();
-      if (res.ok) { setMsg(`✓ ${d.created} fatura kesildi (toplam ${fmt(d.total)})${d.errors ? ` · ${d.errors} hata` : ''}`); load(); }
-      else setMsg('❌ ' + (d.error || 'Hata'));
-    } catch { setMsg('❌ Sunucuya bağlanılamadı'); }
+      if (res.ok) {
+        setMsg(doldur(t.faturalar.kesildi, {
+          n: d.created, tutar: fmt(d.total),
+          ek: d.errors ? doldur(t.faturalar.hataEki, { n: d.errors }) : '',
+        }));
+        load();
+      } else setMsg('❌ ' + (d.error || t.genel.hata));
+    } catch { setMsg('❌ ' + t.sayacTuru.sunucuYok); }
     setRunning(false);
   };
 
@@ -86,12 +97,12 @@ export default function InvoicesPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Faturalar</h1>
-          <p className="text-sm text-gray-500 mt-1">Otomatik kesilen müşteri faturaları — sayaç, kira ve servis tek faturada</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t.faturalar.baslik}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t.faturalar.alt}</p>
         </div>
         <button onClick={openPreflight} disabled={running}
           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-          {running ? 'Kesiliyor…' : '⚡ Bu Dönemi Faturala'}
+          {running ? t.faturalar.kesiliyor : t.faturalar.faturala}
         </button>
       </div>
 
@@ -104,21 +115,21 @@ export default function InvoicesPage() {
           <div onClick={(e) => e.stopPropagation()}
             style={{ background: 'white', borderRadius: 16, width: 620, maxWidth: '100%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 30px 70px -30px rgba(11,21,51,.7)' }}>
             <div style={{ padding: '1.25rem 1.4rem', borderBottom: '1px solid #eef2f7' }}>
-              <div style={{ fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>Faturalama öncesi kontrol</div>
+              <div style={{ fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>{t.faturalar.kontrolUst}</div>
               <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B1533', marginTop: 4 }}>
-                {preflight.loading ? 'Kontrol ediliyor…'
+                {preflight.loading ? t.faturalar.kontrolEdiliyor
                   : preflight.data?.missingCount > 0
-                    ? `${preflight.data.missingCount} cihazın bu ay sayacı okunmadı`
-                    : 'Tüm sayaçlar okunmuş ✓'}
+                    ? doldur(t.faturalar.okunmayan, { n: preflight.data.missingCount })
+                    : t.faturalar.hepsiOkundu}
               </div>
               {!preflight.loading && preflight.data?.missingCount > 0 && (
                 <p style={{ color: '#B45309', fontSize: '.88rem', margin: '.45rem 0 0', lineHeight: 1.55 }}>
-                  Şimdi faturalarsan bu cihazların <b>aşım bedeli faturaya girmez</b> — eksik fatura gider.
+                  {t.faturalar.okunmayanUyariOn} <b>{t.faturalar.okunmayanUyariVurgu}</b> {t.faturalar.okunmayanUyariSon}
                 </p>
               )}
               {!preflight.loading && preflight.data?.missingCount === 0 && (
                 <p style={{ color: '#0B6B4A', fontSize: '.88rem', margin: '.45rem 0 0' }}>
-                  {preflight.data.totalRental} kiralık cihazın hepsinde bu dönem okuma var.
+                  {doldur(t.faturalar.hepsiOkunduAlt, { n: preflight.data.totalRental })}
                 </p>
               )}
             </div>
@@ -129,7 +140,7 @@ export default function InvoicesPage() {
                   <div key={c.id} style={{ marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <a href={`/customers/${c.id}`} style={{ fontWeight: 700, fontSize: '.92rem', color: '#0B1533', textDecoration: 'none' }}>{c.name}</a>
-                      <a href={`/sayac-turu`} style={{ fontSize: '.78rem', fontWeight: 700, color: '#0E9F6E', textDecoration: 'none', whiteSpace: 'nowrap' }}>Sayaç Turu →</a>
+                      <a href={`/sayac-turu`} style={{ fontSize: '.78rem', fontWeight: 700, color: '#0E9F6E', textDecoration: 'none', whiteSpace: 'nowrap' }}>{t.faturalar.sayacTuruOk}</a>
                     </div>
                     <div style={{ display: 'grid', gap: 4 }}>
                       {c.devices.map((d: any) => (
@@ -147,17 +158,17 @@ export default function InvoicesPage() {
             <div style={{ padding: '1rem 1.4rem', borderTop: '1px solid #eef2f7', display: 'flex', gap: '.6rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button onClick={() => setPreflight(null)}
                 style={{ padding: '.6rem 1.1rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 10, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
-                Vazgeç
+                {t.genel.iptal}
               </button>
               {!preflight.loading && preflight.data?.missingCount > 0 && (
                 <a href="/sayac-turu"
                   style={{ padding: '.6rem 1.1rem', background: '#0E9F6E', color: 'white', borderRadius: 10, fontWeight: 700, textDecoration: 'none' }}>
-                  Önce sayaçları oku
+                  {t.faturalar.onceSayac}
                 </a>
               )}
               <button onClick={runBilling} disabled={preflight.loading}
                 style={{ padding: '.6rem 1.2rem', background: preflight.data?.missingCount > 0 ? '#B45309' : '#0F2253', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', opacity: preflight.loading ? .5 : 1 }}>
-                {preflight.data?.missingCount > 0 ? 'Yine de faturala' : 'Faturala'}
+                {preflight.data?.missingCount > 0 ? t.faturalar.yineDeFaturala : t.faturalar.faturalaKisa}
               </button>
             </div>
           </div>
@@ -168,40 +179,39 @@ export default function InvoicesPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-gray-300" />
-          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">Toplam Fatura</p><span>🧾</span></div>
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">{t.faturalar.toplamFatura}</p><span>🧾</span></div>
           <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{summary.count}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">{summary.paidCount} adet ödendi</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{doldur(t.faturalar.adetOdendi, { n: summary.paidCount })}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-400" />
-          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">Toplam Tutar</p><span>💼</span></div>
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">{t.faturalar.toplamTutar}</p><span>💼</span></div>
           <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{fmt(summary.total)}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">KDV dahil ciro</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{t.faturalar.kdvDahilCiro}</p>
         </div>
         <div className="bg-white rounded-xl border border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
-          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">Açık Bakiye</p><span>⏳</span></div>
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">{t.faturalar.acikBakiye}</p><span>⏳</span></div>
           <p className="text-2xl font-bold text-blue-600 mt-1 tabular-nums">{fmt(summary.open)}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Tahsil edilecek</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{t.faturalar.tahsilEdilecek}</p>
         </div>
         <div className="bg-white rounded-xl border border-red-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
-          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">Vadesi Geçen</p><span>🔴</span></div>
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">{t.faturalar.vadesiGecen}</p><span>🔴</span></div>
           <p className="text-2xl font-bold text-red-600 mt-1 tabular-nums">{fmt(summary.overdue)}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Gecikmiş tutar</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{t.faturalar.gecikmisTutar}</p>
         </div>
       </div>
 
       {/* Filtreler */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Fatura no / müşteri ara…"
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.faturalar.araYer}
           className="px-3 py-2 border rounded-lg text-sm flex-1 min-w-[200px]" />
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-          <option value="all">Tüm Durumlar</option>
-          <option value="OPEN">Açık</option>
-          <option value="PARTIAL">Kısmi</option>
-          <option value="OVERDUE">Vadesi Geçti</option>
-          <option value="PAID">Ödendi</option>
+          <option value="all">{t.fisler.filtre.tumDurumlar}</option>
+          {(['OPEN', 'PARTIAL', 'OVERDUE', 'PAID'] as const).map((k) => (
+            <option key={k} value={k}>{durumAdi(k)}</option>
+          ))}
         </select>
       </div>
 
@@ -211,24 +221,24 @@ export default function InvoicesPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
               <tr>
-                <th className="text-left px-4 py-3">Fatura No</th>
-                <th className="text-left px-4 py-3">Müşteri</th>
-                <th className="text-left px-4 py-3">Dönem</th>
-                <th className="text-right px-4 py-3">Tutar</th>
-                <th className="text-right px-4 py-3">Açık</th>
-                <th className="text-left px-4 py-3">Vade</th>
-                <th className="text-left px-4 py-3">Durum</th>
+                <th className="text-left px-4 py-3">{t.faturalar.sutunFaturaNo}</th>
+                <th className="text-left px-4 py-3">{t.genel.musteri}</th>
+                <th className="text-left px-4 py-3">{t.faturalar.sutunDonem}</th>
+                <th className="text-right px-4 py-3">{t.genel.tutar}</th>
+                <th className="text-right px-4 py-3">{t.faturalar.sutunAcik}</th>
+                <th className="text-left px-4 py-3">{t.faturalar.sutunVade}</th>
+                <th className="text-left px-4 py-3">{t.genel.durum}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">Yükleniyor…</td></tr>
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">{t.genel.yukleniyor}</td></tr>
               ) : invoices.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">
-                  Henüz fatura yok. "Bu Dönemi Faturala" ile başlatabilirsiniz.
+                  {t.faturalar.faturaYok}
                 </td></tr>
               ) : invoices.map((i) => {
-                const st = STATUS[i.status] || STATUS.OPEN;
+                const st = { label: durumAdi(i.status), cls: STATUS_CLS[i.status] ?? STATUS_CLS.OPEN };
                 return (
                   <tr key={i.id} onClick={() => setDetail(i)} className="hover:bg-gray-50 cursor-pointer">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">
@@ -241,11 +251,7 @@ export default function InvoicesPage() {
                           ['KABUL', 'GONDERILDI'].includes((i as any).eBelgeDurum) ? 'text-green-700'
                             : ['RED', 'HATA'].includes((i as any).eBelgeDurum) ? 'text-red-700' : 'text-amber-700'
                         }`}>
-                          {(i as any).eBelgeDurum === 'GONDERILDI' ? 'e-belge gönderildi'
-                            : (i as any).eBelgeDurum === 'KABUL' ? 'e-belge kabul'
-                            : (i as any).eBelgeDurum === 'RED' ? 'e-belge RED'
-                            : (i as any).eBelgeDurum === 'HATA' ? 'e-belge hata'
-                            : (i as any).eBelgeDurum === 'GONDERILIYOR' ? 'gönderiliyor…' : ''}
+                          {(t.faturalar.eBelge as Record<string, string>)[(i as any).eBelgeDurum] ?? ''}
                         </div>
                       )}
                     </td>
@@ -276,17 +282,17 @@ export default function InvoicesPage() {
             </div>
             <div className="p-5">
               <div className="flex justify-between text-sm text-gray-500 mb-3">
-                <span>Dönem: {detail.period}</span>
-                <span>Vade: {fmtDate(detail.dueDate)}</span>
+                <span>{doldur(t.faturalar.donem, { n: detail.period })}</span>
+                <span>{doldur(t.faturalar.vade, { n: fmtDate(detail.dueDate) })}</span>
               </div>
               <table className="w-full text-sm mb-4">
                 <thead className="text-xs text-gray-400 border-b">
-                  <tr><th className="text-left py-1">Kalem</th><th className="text-right py-1">Adet</th><th className="text-right py-1">B.Fiyat</th><th className="text-right py-1">Tutar</th></tr>
+                  <tr><th className="text-left py-1">{t.faturalar.kalem}</th><th className="text-right py-1">{t.parcalar.sutun.adet}</th><th className="text-right py-1">{t.faturalar.birimFiyat}</th><th className="text-right py-1">{t.genel.tutar}</th></tr>
                 </thead>
                 <tbody>
                   {detail.lines.map((l, idx) => (
                     <tr key={idx} className="border-b last:border-0">
-                      <td className="py-2"><span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded mr-1">{KIND[l.kind] || l.kind}</span>{l.description}</td>
+                      <td className="py-2"><span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded mr-1">{turAdi(l.kind)}</span>{l.description}</td>
                       <td className="py-2 text-right">{l.quantity}</td>
                       <td className="py-2 text-right">{fmt(l.unitPrice)}</td>
                       <td className="py-2 text-right font-medium">{fmt(l.lineTotal)}</td>
@@ -295,48 +301,48 @@ export default function InvoicesPage() {
                 </tbody>
               </table>
               <div className="space-y-1 text-sm border-t pt-3">
-                <div className="flex justify-between text-gray-500"><span>Ara Toplam</span><span>{fmt(detail.subtotal)}</span></div>
-                <div className="flex justify-between text-gray-500"><span>KDV</span><span>{fmt(detail.vatAmount)}</span></div>
-                <div className="flex justify-between font-bold text-base"><span>Genel Toplam</span><span>{fmt(detail.totalAmount)}</span></div>
-                <div className="flex justify-between text-green-600"><span>Tahsil Edilen</span><span>{fmt(detail.paidAmount)}</span></div>
-                <div className="flex justify-between font-medium text-red-600"><span>Kalan</span><span>{fmt(detail.openAmount)}</span></div>
+                <div className="flex justify-between text-gray-500"><span>{t.faturalar.araToplam}</span><span>{fmt(detail.subtotal)}</span></div>
+                <div className="flex justify-between text-gray-500"><span>{t.faturalar.kdv}</span><span>{fmt(detail.vatAmount)}</span></div>
+                <div className="flex justify-between font-bold text-base"><span>{t.faturalar.genelToplam}</span><span>{fmt(detail.totalAmount)}</span></div>
+                <div className="flex justify-between text-green-600"><span>{t.faturalar.tahsilEdilen}</span><span>{fmt(detail.paidAmount)}</span></div>
+                <div className="flex justify-between font-medium text-red-600"><span>{t.faturalar.kalan}</span><span>{fmt(detail.openAmount)}</span></div>
               </div>
             </div>
             {/* Aksiyonlar */}
             <div className="p-4 border-t bg-gray-50 flex gap-2 flex-wrap sticky bottom-0">
               <button onClick={() => openPrintable(`/invoices/${detail.id}/print`)}
                 className="flex-1 min-w-[120px] px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
-                🖨 Yazdır / PDF
+                {t.faturalar.yazdirPdf}
               </button>
               {detail.customer && (
                 <button onClick={() => {
                   const link = detail.docToken ? `${window.location.origin}/belge/fatura/${detail.id}/${detail.docToken}` : '';
                   const msg = invoiceMessage({ tenantName, customerName: detail.customer!.name, invoiceNumber: detail.invoiceNumber, period: detail.period, totalAmount: detail.totalAmount, openAmount: detail.openAmount, dueDate: detail.dueDate })
-                    + (link ? `\n\n📄 Faturanızı görüntüleyin: ${link}` : '');
+                    + (link ? `\n\n${doldur(t.faturalar.faturaLinkOn, { n: link })}` : '');
                   openWhatsApp(detail.customer!.phone, msg);
                 }}
                   className="flex-1 min-w-[120px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium">
-                  📱 WhatsApp + Link
+                  {t.faturalar.whatsappLink}
                 </button>
               )}
               {detail.docToken && (
                 <button onClick={() => {
                   const link = `${window.location.origin}/belge/fatura/${detail.id}/${detail.docToken}`;
-                  navigator.clipboard?.writeText(link).then(() => setMsg('🔗 Belge linki kopyalandı')).catch(() => window.open(link, '_blank'));
+                  navigator.clipboard?.writeText(link).then(() => setMsg(t.faturalar.linkKopyalandi)).catch(() => window.open(link, '_blank'));
                 }}
-                  className="px-4 py-2.5 bg-white border text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium" title="Girişsiz görüntülenebilir belge linki">
-                  🔗 Link
+                  className="px-4 py-2.5 bg-white border text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium" title={t.faturalar.linkIpucu}>
+                  {t.faturalar.link}
                 </button>
               )}
               {detail.openAmount > 0 && detail.customer && (
                 <button onClick={() => router.push(`/collections?customerId=${detail.customer!.id}`)}
                   className="flex-1 min-w-[140px] px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
-                  💰 Tahsilat Yap
+                  {t.faturalar.tahsilatYap}
                 </button>
               )}
               <button onClick={() => setDetail(null)}
                 className="px-4 py-2.5 bg-white border text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium">
-                Kapat
+                {t.genel.kapat}
               </button>
             </div>
           </div>
