@@ -1,6 +1,9 @@
 'use client';
 
+import { useT } from '@/lib/i18n/client';
+
 export default function PrintNowButton() {
+  const t = useT();
   return (
     <button
       className="no-print"
@@ -12,7 +15,7 @@ export default function PrintNowButton() {
         fontWeight: 600, fontSize: '0.875rem', boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
       }}
     >
-      🖨️ Yazdır
+      🖨️ {t.genel.yazdir}
     </button>
   );
 }

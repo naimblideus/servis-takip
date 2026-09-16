@@ -42,6 +42,8 @@ export type GarantiSonucu = {
   durum: GarantiDurumu;
   kalanGun: number | null;
   bitis: Date | null;
+  /** Başlangıç — "henüz başlamadı" cümlesini ekran kendi dilinde kurabilsin. */
+  baslangic: Date | null;
   not: string | null;
   /** Fiş ekranında gösterilecek tek cümle. */
   mesaj: string;
@@ -59,14 +61,14 @@ export function garantiDurumu(
   // "ne zaman bittiği" bilinmeden kapsamda olup olmadığı söylenemez.
   if (!bit) {
     return {
-      durum: 'BILINMIYOR', kalanGun: null, bitis: null, not,
+      durum: 'BILINMIYOR', kalanGun: null, bitis: null, baslangic: bas, not,
       mesaj: 'Garanti bilgisi girilmemiş — cihaz kartından ekleyin.',
     };
   }
 
   if (bas && gunFarki(bugun, bas) > 0) {
     return {
-      durum: 'BASLAMADI', kalanGun: null, bitis: bit, not,
+      durum: 'BASLAMADI', kalanGun: null, bitis: bit, baslangic: bas, not,
       mesaj: `Garanti ${bas.toLocaleDateString('tr-TR')} tarihinde başlıyor.`,
     };
   }
@@ -74,19 +76,19 @@ export function garantiDurumu(
   const kalanGun = gunFarki(bugun, bit);
   if (kalanGun < 0) {
     return {
-      durum: 'BITTI', kalanGun, bitis: bit, not,
+      durum: 'BITTI', kalanGun, bitis: bit, baslangic: bas, not,
       mesaj: `Garanti ${bit.toLocaleDateString('tr-TR')} tarihinde bitti (${-kalanGun} gün önce) — bu iş ücretli.`,
     };
   }
   if (kalanGun <= BITIYOR_ESIGI) {
     return {
-      durum: 'BITIYOR', kalanGun, bitis: bit, not,
+      durum: 'BITIYOR', kalanGun, bitis: bit, baslangic: bas, not,
       mesaj: `Garanti kapsamında ama ${kalanGun} gün sonra bitiyor (${bit.toLocaleDateString('tr-TR')}).`
         + (not ? ` Kapsam: ${not}` : ''),
     };
   }
   return {
-    durum: 'KAPSAMDA', kalanGun, bitis: bit, not,
+    durum: 'KAPSAMDA', kalanGun, bitis: bit, baslangic: bas, not,
     mesaj: `Garanti kapsamında — ${bit.toLocaleDateString('tr-TR')} tarihine kadar (${kalanGun} gün).`
       + (not ? ` Kapsam: ${not}` : ''),
   };
@@ -117,6 +119,8 @@ export type TekrarArizaSonucu = {
   tekrar: boolean;
   adet: number;
   gunler: number | null;
+  /** Kaç günlük pencereye bakıldı — cümleyi ekran kendi dilinde kuruyor. */
+  esikGun: number;
   fisler: { id: string; ticketNumber: string; arize: string; gunOnce: number }[];
   mesaj: string | null;
 };
@@ -150,7 +154,7 @@ export function tekrarAriza(
     .sort((a, b) => a.gunOnce - b.gunOnce);
 
   if (!yakin.length) {
-    return { tekrar: false, adet: 0, gunler: null, fisler: [], mesaj: null };
+    return { tekrar: false, adet: 0, gunler: null, esikGun, fisler: [], mesaj: null };
   }
 
   const enYakin = yakin[0];
@@ -158,6 +162,7 @@ export function tekrarAriza(
     tekrar: true,
     adet: yakin.length,
     gunler: enYakin.gunOnce,
+    esikGun,
     fisler: yakin.slice(0, 5).map((x) => ({
       id: x.f.id,
       ticketNumber: x.f.ticketNumber,

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 /**
  * Telefonun KAMERASIYLA barkod/QR okuma (USB okuyucu olmayan sahada).
@@ -8,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
  * Desteklenmiyorsa kibarca bilgilendirir — kullanıcı USB okuyucuyla veya elle devam eder.
  */
 export default function CameraScanner({ onDetect }: { onDetect: (code: string) => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [supported, setSupported] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -67,7 +70,7 @@ export default function CameraScanner({ onDetect }: { onDetect: (code: string) =
       };
       rafRef.current = requestAnimationFrame(tick);
     } catch (e: any) {
-      setErr('Kameraya erişilemedi (' + (e?.name || 'izin reddedildi') + '). Tarayıcı kamera iznini ve HTTPS gerekir.');
+      setErr(doldur(t.ortak.kameraHata, { n: e?.name || t.ortak.kameraIzinYok }));
     }
   };
 
@@ -77,22 +80,22 @@ export default function CameraScanner({ onDetect }: { onDetect: (code: string) =
     <>
       <button type="button" onClick={start}
         style={{ padding: '0.55rem 1rem', background: '#0f2253', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        📷 Kamerayla Tara
+        {t.ortak.kamerayla}
       </button>
 
       {open && (
         <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: '#0b1220', borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1rem', color: 'white' }}>
-              <span style={{ fontWeight: 700 }}>📷 Barkod / QR Tara</span>
+              <span style={{ fontWeight: 700 }}>{t.ortak.kameraBaslik}</span>
               <button type="button" onClick={close} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: '1rem' }}>✕</button>
             </div>
 
             {!supported ? (
               <div style={{ padding: '1.5rem', color: '#e5e7eb', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                Bu cihaz/tarayıcı kamerayla okumayı desteklemiyor. <b>USB barkod okuyucu (LS2208)</b> kullanın ya da kodu elle yazıp Enter&apos;a basın.
+                {t.ortak.kameraDesteksizOn} <b>{t.ortak.kameraDesteksizVurgu}</b> {t.ortak.kameraDesteksizSon}
                 <div style={{ marginTop: '0.75rem', textAlign: 'right' }}>
-                  <button type="button" onClick={close} style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Tamam</button>
+                  <button type="button" onClick={close} style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>{t.ortak.tamam}</button>
                 </div>
               </div>
             ) : err ? (
@@ -105,7 +108,9 @@ export default function CameraScanner({ onDetect }: { onDetect: (code: string) =
                   <div style={{ width: '78%', height: 110, border: '3px solid #34d399', borderRadius: 12, boxShadow: '0 0 0 9999px rgba(0,0,0,0.25)' }} />
                 </div>
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0.6rem 1rem', background: 'linear-gradient(transparent,rgba(0,0,0,0.7))', color: 'white', fontSize: '0.82rem', textAlign: 'center' }}>
-                  {last ? <span style={{ color: '#34d399', fontWeight: 700 }}>✓ Okundu: {last}</span> : 'Barkodu yeşil çerçeveye getirin'}
+                  {last
+                    ? <span style={{ color: '#34d399', fontWeight: 700 }}>{doldur(t.ortak.okundu, { kod: last })}</span>
+                    : t.ortak.kameraYonerge}
                 </div>
               </div>
             )}

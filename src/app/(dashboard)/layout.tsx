@@ -9,7 +9,7 @@ import AccessLock from '@/components/AccessLock';
 import Onboarding from '@/components/Onboarding';
 import { sunucuDili } from '@/lib/i18n/sunucu';
 import { LocaleProvider } from '@/lib/i18n/client';
-import { dilMi } from '@/lib/i18n/sozluk';
+import { dilMi, sozluk } from '@/lib/i18n/sozluk';
 import { paraBirimiMi, VARSAYILAN_BIRIM } from '@/lib/bicim';
 
 export default async function DashboardLayout({
@@ -47,9 +47,14 @@ export default async function DashboardLayout({
     redirect('/login?hata=oturum-bayat');
   }
 
+  // Kilit ekranı da çevrili: çerez + bayinin varsayılanı yetiyor, kullanıcı
+  // kaydını okumaya gerek yok (ekran zaten kapalı).
+  const kilitDili = await sunucuDili(undefined, tenant?.locale);
+  const kt = sozluk(kilitDili);
+
   // 1) Bakım modu — tüm tenant kullanıcıları
   if (settings?.maintenanceMode) {
-    return <AccessLock title="Bakımdayız" message="Sistem kısa süreli bakımda. Lütfen birazdan tekrar deneyin." contactEmail={settings?.contactEmail} showLogout={false} />;
+    return <AccessLock dil={kilitDili} title={kt.ortak.bakimBaslik} message={kt.ortak.bakimMesaj} contactEmail={settings?.contactEmail} showLogout={false} />;
   }
 
   // 2) Abonelik kilidi — askıya alındı / deneme bitti / süre doldu / pasif
@@ -59,11 +64,11 @@ export default async function DashboardLayout({
     const planExpired = !!tenant.planEndDate && new Date(tenant.planEndDate).getTime() < now;
     if (tenant.isActive === false || tenant.isSuspended || trialExpired || planExpired) {
       const reason = tenant.isSuspended
-        ? (tenant.suspendReason || 'Aboneliğiniz askıya alındı.')
-        : trialExpired ? 'Deneme süreniz doldu.'
-          : planExpired ? 'Abonelik süreniz doldu.'
-            : 'Hesabınız şu an pasif durumda.';
-      return <AccessLock title="Erişim Kapalı" message={`${reason} Devam etmek için lütfen bizimle iletişime geçin.`} contactEmail={settings?.contactEmail} />;
+        ? (tenant.suspendReason || kt.ortak.askiya)
+        : trialExpired ? kt.ortak.denemeBitti
+          : planExpired ? kt.ortak.abonelikBitti
+            : kt.ortak.hesapPasif;
+      return <AccessLock dil={kilitDili} title={kt.ortak.erisimKapali} message={`${reason} ${kt.ortak.erisimKapaliSon}`} contactEmail={settings?.contactEmail} />;
     }
   }
 

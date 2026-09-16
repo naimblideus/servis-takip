@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { useT } from '@/lib/i18n/client';
 
 /**
  * YAZDIRMA ÖNİZLEME BARI — üç ekranda birden kullanılıyor.
@@ -49,8 +50,10 @@ const KUTU: React.CSSProperties = {
 };
 
 export default function YazdirBari({
-  baslik, ayrinti, geriHref, geriMetin = 'Geri', children,
+  baslik, ayrinti, geriHref, geriMetin, children,
 }: YazdirBariProps) {
+  const t = useT();
+  const geri = geriMetin ?? t.genel.geri;
   return (
     <div className="no-print sticky top-0 z-20 border-b border-gray-700 bg-gray-800 print:hidden">
       <div
@@ -66,12 +69,12 @@ export default function YazdirBari({
           {geriHref ? (
             <Link href={geriHref}
               className="rounded border border-gray-600 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700">
-              ← {geriMetin}
+              ← {geri}
             </Link>
           ) : (
             <button type="button" onClick={() => window.history.back()}
               className="rounded border border-gray-600 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700">
-              ← {geriMetin}
+              ← {geri}
             </button>
           )}
 
@@ -79,7 +82,7 @@ export default function YazdirBari({
 
           <button type="button" onClick={() => window.print()}
             className="rounded bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700">
-            Yazdır
+            {t.genel.yazdir}
           </button>
         </div>
       </div>
