@@ -1,21 +1,25 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 
 interface Cust { id: string; name: string }
 type Field = 'monthlyRent' | 'pricePerBlack' | 'pricePerColor' | 'overagePriceBlack' | 'overagePriceColor';
 
-const FIELD_OPTS: { key: Field; label: string; hint: string }[] = [
-  { key: 'monthlyRent', label: 'Aylık kira', hint: 'Sabit aylık bedel' },
-  { key: 'pricePerBlack', label: 'Sayfa fiyatı (S/B)', hint: 'Siyah-beyaz baskı' },
-  { key: 'pricePerColor', label: 'Sayfa fiyatı (Renkli)', hint: 'Renkli baskı' },
-  { key: 'overagePriceBlack', label: 'Aşım (S/B)', hint: 'Dahil paketi aşan S/B' },
-  { key: 'overagePriceColor', label: 'Aşım (Renkli)', hint: 'Dahil paketi aşan renkli' },
+/** Alan etiketleri sözlükten; sunucunun döndürdüğü Türkçe etiketler kullanılmıyor. */
+const alanSecenekleri = (t: Sozluk): { key: Field; label: string; hint: string }[] => [
+  { key: 'monthlyRent', label: t.topluZam.alanKira, hint: t.topluZam.alanKiraIpucu },
+  { key: 'pricePerBlack', label: t.topluZam.alanSb, hint: t.topluZam.alanSbIpucu },
+  { key: 'pricePerColor', label: t.topluZam.alanRenkli, hint: t.topluZam.alanRenkliIpucu },
+  { key: 'overagePriceBlack', label: t.topluZam.alanAsimSb, hint: t.topluZam.alanAsimSbIpucu },
+  { key: 'overagePriceColor', label: t.topluZam.alanAsimRenkli, hint: t.topluZam.alanAsimRenkliIpucu },
 ];
 
-const money = (n: number, d = 2) => n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d });
-
 export default function TopluZamPage() {
+  const t = useT();
+  const b = useBicim();
+  const FIELD_OPTS = useMemo(() => alanSecenekleri(t), [t]);
   const [customers, setCustomers] = useState<Cust[]>([]);
   const [customerId, setCustomerId] = useState('');
   const [mode, setMode] = useState<'percent' | 'amount'>('percent');
@@ -50,10 +54,10 @@ export default function TopluZamPage() {
         body: JSON.stringify({ customerId: customerId || undefined, mode, value: Number(value), fields, dryRun }),
       });
       const d = await r.json();
-      if (!r.ok) { setErr(d.error || 'İşlem yapılamadı'); setBusy(false); return; }
+      if (!r.ok) { setErr(d.error || t.topluZam.islemYapilamadi); setBusy(false); return; }
       setPreview(d);
       if (!dryRun) setApplied(true);
-    } catch { setErr('Sunucuya bağlanılamadı'); }
+    } catch { setErr(t.topluZam.sunucuYok); }
     setBusy(false);
   };
 
@@ -72,10 +76,10 @@ export default function TopluZamPage() {
       `}</style>
 
       <div className="no-print">
-        <div style={{ fontSize: 10.5, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>Fiyatlandırma</div>
-        <h1 style={{ fontSize: '1.7rem', fontWeight: 800, letterSpacing: '-.022em', margin: '.3rem 0 .35rem', color: '#0B1533' }}>Toplu Zam</h1>
+        <div style={{ fontSize: 10.5, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>{t.topluZam.ustBaslik}</div>
+        <h1 style={{ fontSize: '1.7rem', fontWeight: 800, letterSpacing: '-.022em', margin: '.3rem 0 .35rem', color: '#0B1533' }}>{t.topluZam.baslik}</h1>
         <p style={{ color: '#5B6479', fontSize: '.9rem', margin: '0 0 1.4rem', lineHeight: 1.55 }}>
-          Kiralık cihazların fiyatlarını tek işlemde güncelle. <b>Önce önizleme çıkar</b>, listeyi gör, sonra uygula.
+          {t.topluZam.altOn} <b>{t.topluZam.altVurgu}</b>{t.topluZam.altSon}
         </p>
       </div>
 
@@ -84,16 +88,16 @@ export default function TopluZamPage() {
         <div className="no-print" style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 16, padding: '1.25rem 1.35rem', marginBottom: '1.1rem' }}>
           <div style={{ display: 'grid', gap: '1.1rem' }}>
             <div>
-              <label style={{ fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB', display: 'block', marginBottom: 6 }}>Kimlere</label>
+              <label style={{ fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB', display: 'block', marginBottom: 6 }}>{t.topluZam.kimlere}</label>
               <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); setPreview(null); }}
                 style={{ width: '100%', padding: '.6rem .85rem', border: '1px solid #d1d5db', borderRadius: 10, fontSize: '.95rem', background: 'white' }}>
-                <option value="">Tüm müşteriler (tüm kiralık cihazlar)</option>
+                <option value="">{t.topluZam.tumMusteriler}</option>
                 {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={{ fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB', display: 'block', marginBottom: 6 }}>Ne kadar</label>
+              <label style={{ fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB', display: 'block', marginBottom: 6 }}>{t.topluZam.neKadar}</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {(['percent', 'amount'] as const).map((m) => (
@@ -102,18 +106,18 @@ export default function TopluZamPage() {
                         padding: '.55rem 1rem', borderRadius: 999, cursor: 'pointer', fontWeight: 700, fontSize: '.85rem',
                         border: `1px solid ${mode === m ? '#0F2253' : '#e5e7eb'}`,
                         background: mode === m ? '#0F2253' : 'white', color: mode === m ? 'white' : '#5B6479',
-                      }}>{m === 'percent' ? 'Yüzde (%)' : 'Tutar (₺)'}</button>
+                      }}>{m === 'percent' ? t.topluZam.yuzdeMod : doldur(t.topluZam.tutarMod, { s: b.simge })}</button>
                   ))}
                 </div>
                 <input inputMode="decimal" value={value}
                   onChange={(e) => { setValue(e.target.value.replace(',', '.')); setPreview(null); }}
                   style={{ width: 120, padding: '.6rem .85rem', border: '1px solid #d1d5db', borderRadius: 10, fontSize: '1rem', textAlign: 'right', fontFamily: 'monospace' }} />
-                <span style={{ color: '#8A93AB', fontSize: '.9rem' }}>{mode === 'percent' ? '% zam' : '₺ ekle'}</span>
+                <span style={{ color: '#8A93AB', fontSize: '.9rem' }}>{mode === 'percent' ? t.topluZam.yuzdeEk : doldur(t.topluZam.tutarEk, { s: b.simge })}</span>
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB', display: 'block', marginBottom: 6 }}>Hangi fiyatlar</label>
+              <label style={{ fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB', display: 'block', marginBottom: 6 }}>{t.topluZam.hangiFiyatlar}</label>
               <div style={{ display: 'grid', gap: 6 }}>
                 {FIELD_OPTS.map((f) => (
                   <label key={f.key} style={{
@@ -136,7 +140,7 @@ export default function TopluZamPage() {
                 padding: '.8rem', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: '.95rem',
                 background: canRun ? '#0F2253' : '#D1D5DB', color: 'white', cursor: canRun ? 'pointer' : 'not-allowed',
               }}>
-              {busy ? 'Hesaplanıyor…' : 'Önizleme çıkar'}
+              {busy ? t.topluZam.hesaplaniyor : t.topluZam.onizlemeCikar}
             </button>
           </div>
         </div>
@@ -148,40 +152,42 @@ export default function TopluZamPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', paddingBottom: '.9rem', borderBottom: '2px solid #0F2253', marginBottom: '.9rem' }}>
             <div>
               <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0B1533' }}>
-                {applied ? '✓ Zam uygulandı' : 'Zam Önizleme'}
+                {applied ? t.topluZam.uygulandi : t.topluZam.onizlemeBaslik}
               </div>
               <div style={{ fontSize: '.82rem', color: '#5B6479', marginTop: 3 }}>
-                {custName || 'Tüm müşteriler'} · {preview.mode === 'percent' ? `%${preview.value}` : `+₺${preview.value}`} · {preview.fieldLabels.join(', ')}
+                {custName || t.topluZam.tumMusterilerKisa} ·{' '}
+                {preview.mode === 'percent' ? b.yuzde(preview.value) : `+${b.para(preview.value)}`} ·{' '}
+                {(preview.fields as Field[]).map((f) => FIELD_OPTS.find((x) => x.key === f)?.label ?? f).join(', ')}
               </div>
             </div>
             <div style={{ fontSize: '.82rem', color: '#8A93AB', textAlign: 'right' }}>
-              {new Date().toLocaleDateString('tr-TR')}<br />{preview.deviceCount} cihaz
+              {b.tarih(new Date())}<br />{doldur(t.topluZam.cihazAdet, { n: preview.deviceCount })}
             </div>
           </div>
 
           {preview.deviceCount === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: '#5B6479' }}>
-              Güncellenecek cihaz bulunamadı.
+              {t.topluZam.cihazYok}
               {preview.skippedEmpty > 0 && <div style={{ fontSize: '.82rem', color: '#B45309', marginTop: 8 }}>
-                {preview.skippedEmpty} alanda fiyat girilmemiş — zam yapılamadı.
+                {doldur(t.topluZam.bosAlanKisa, { n: preview.skippedEmpty })}
               </div>}
             </div>
           ) : (
             <>
               {preview.monthlyDiff > 0 && (
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', background: '#F0F7F4', border: '1px solid #A7E3C8', borderRadius: 12, padding: '.8rem 1rem', marginBottom: '.9rem' }}>
-                  <div><div style={{ fontSize: '.72rem', color: '#5B6479', fontWeight: 600 }}>Aylık kira toplamı</div>
-                    <div style={{ fontWeight: 800, color: '#0B1533' }}>₺{money(preview.oldMonthlyTotal)} → ₺{money(preview.newMonthlyTotal)}</div></div>
-                  <div><div style={{ fontSize: '.72rem', color: '#5B6479', fontWeight: 600 }}>Aylık artış</div>
-                    <div style={{ fontWeight: 800, color: '#0B6B4A' }}>+₺{money(preview.monthlyDiff)}</div></div>
-                  <div><div style={{ fontSize: '.72rem', color: '#5B6479', fontWeight: 600 }}>Yıllık etki</div>
-                    <div style={{ fontWeight: 800, color: '#0B6B4A' }}>+₺{money(preview.monthlyDiff * 12)}</div></div>
+                  <div><div style={{ fontSize: '.72rem', color: '#5B6479', fontWeight: 600 }}>{t.topluZam.kiraToplami}</div>
+                    <div style={{ fontWeight: 800, color: '#0B1533' }}>{b.para(preview.oldMonthlyTotal)} → {b.para(preview.newMonthlyTotal)}</div></div>
+                  <div><div style={{ fontSize: '.72rem', color: '#5B6479', fontWeight: 600 }}>{t.topluZam.aylikArtis}</div>
+                    <div style={{ fontWeight: 800, color: '#0B6B4A' }}>+{b.para(preview.monthlyDiff)}</div></div>
+                  <div><div style={{ fontSize: '.72rem', color: '#5B6479', fontWeight: 600 }}>{t.topluZam.yillikEtki}</div>
+                    <div style={{ fontWeight: 800, color: '#0B6B4A' }}>+{b.para(preview.monthlyDiff * 12)}</div></div>
                 </div>
               )}
 
               {preview.skippedEmpty > 0 && (
                 <div className="no-print" style={{ background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E', borderRadius: 10, padding: '.6rem .8rem', fontSize: '.8rem', marginBottom: '.9rem' }}>
-                  ⚠️ {preview.skippedEmpty} alanda fiyat girilmemiş (cihazda ve firma varsayılanında) — o alanlara zam uygulanmadı.
+                  {doldur(t.topluZam.bosAlanUyari, { n: preview.skippedEmpty })}
                 </div>
               )}
 
@@ -189,9 +195,9 @@ export default function TopluZamPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.82rem' }}>
                   <thead>
                     <tr style={{ background: '#F7F9FC' }}>
-                      <th style={{ textAlign: 'left', padding: '.5rem .6rem', fontSize: '.7rem', fontWeight: 800, color: '#5B6479', textTransform: 'uppercase', letterSpacing: '.05em' }}>Müşteri / Cihaz</th>
-                      <th style={{ textAlign: 'left', padding: '.5rem .6rem', fontSize: '.7rem', fontWeight: 800, color: '#5B6479', textTransform: 'uppercase', letterSpacing: '.05em' }}>Alan</th>
-                      <th style={{ textAlign: 'right', padding: '.5rem .6rem', fontSize: '.7rem', fontWeight: 800, color: '#5B6479', textTransform: 'uppercase', letterSpacing: '.05em' }}>Eski → Yeni</th>
+                      <th style={{ textAlign: 'left', padding: '.5rem .6rem', fontSize: '.7rem', fontWeight: 800, color: '#5B6479', textTransform: 'uppercase', letterSpacing: '.05em' }}>{t.topluZam.sutunMusteriCihaz}</th>
+                      <th style={{ textAlign: 'left', padding: '.5rem .6rem', fontSize: '.7rem', fontWeight: 800, color: '#5B6479', textTransform: 'uppercase', letterSpacing: '.05em' }}>{t.topluZam.sutunAlan}</th>
+                      <th style={{ textAlign: 'right', padding: '.5rem .6rem', fontSize: '.7rem', fontWeight: 800, color: '#5B6479', textTransform: 'uppercase', letterSpacing: '.05em' }}>{t.topluZam.sutunEskiYeni}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -208,9 +214,9 @@ export default function TopluZamPage() {
                             {FIELD_OPTS.find((x) => x.key === f)?.label || f}
                           </td>
                           <td style={{ padding: '.5rem .6rem', textAlign: 'right', fontFamily: 'monospace' }}>
-                            <span style={{ color: '#9AA3B8' }}>{ch.old == null ? '—' : money(ch.old, f === 'monthlyRent' ? 2 : 4)}</span>
+                            <span style={{ color: '#9AA3B8' }}>{ch.old == null ? '—' : b.sayi(ch.old, f === 'monthlyRent' ? 2 : 4)}</span>
                             <span style={{ color: '#9AA3B8' }}> → </span>
-                            <b style={{ color: '#0B6B4A' }}>{money(ch.next, f === 'monthlyRent' ? 2 : 4)}</b>
+                            <b style={{ color: '#0B6B4A' }}>{b.sayi(ch.next, f === 'monthlyRent' ? 2 : 4)}</b>
                           </td>
                         </tr>
                       ))
@@ -224,22 +230,22 @@ export default function TopluZamPage() {
                   <>
                     <button onClick={() => setPreview(null)}
                       style={{ padding: '.7rem 1.2rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 10, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
-                      Vazgeç
+                      {t.genel.iptal}
                     </button>
-                    <button onClick={() => { if (confirm(`${preview.deviceCount} cihazın fiyatı güncellenecek. Onaylıyor musunuz?`)) call(false); }} disabled={busy}
+                    <button onClick={() => { if (confirm(doldur(t.topluZam.onaySorusu, { n: preview.deviceCount }))) call(false); }} disabled={busy}
                       style={{ padding: '.7rem 1.4rem', background: '#0E9F6E', color: 'white', border: 'none', borderRadius: 10, fontWeight: 800, cursor: 'pointer' }}>
-                      {busy ? 'Uygulanıyor…' : 'Zammı uygula'}
+                      {busy ? t.topluZam.uygulaniyor : t.topluZam.zammiUygula}
                     </button>
                   </>
                 ) : (
                   <>
                     <button onClick={() => { setApplied(false); setPreview(null); }}
                       style={{ padding: '.7rem 1.2rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 10, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
-                      Yeni zam
+                      {t.topluZam.yeniZam}
                     </button>
                     <button onClick={() => window.print()}
                       style={{ padding: '.7rem 1.4rem', background: '#0F2253', color: 'white', border: 'none', borderRadius: 10, fontWeight: 800, cursor: 'pointer' }}>
-                      🖨️ Zam listesini yazdır
+                      {t.topluZam.listeyiYazdir}
                     </button>
                   </>
                 )}
