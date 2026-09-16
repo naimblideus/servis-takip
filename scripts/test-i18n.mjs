@@ -38,7 +38,7 @@ for (const d of ['i18n/sozluk.js']) {
 const { tr } = await import(pathToFileURL(join(g, 'i18n/tr.js')).href);
 const { en } = await import(pathToFileURL(join(g, 'i18n/en.js')).href);
 const { sozluk, dilMi, DILLER } = await import(pathToFileURL(join(g, 'i18n/sozluk.js')).href);
-const { para, sayi, yuzde, tarih, tarihSaat, kisaTarih, paraBirimiMi } = await import(pathToFileURL(join(g, 'bicim.js')).href);
+const { para, sayi, yuzde, tarih, tarihSaat, kisaTarih, paraBirimiMi, birimSimgesi, bicimYap } = await import(pathToFileURL(join(g, 'bicim.js')).href);
 
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
@@ -88,7 +88,8 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
 
   // Aynı anahtar iki dilde birebir aynıysa ya özel ad ya unutulmuş çeviri.
   const AYNI_OLABILIR = new Set(['dil.tr', 'dil.en', 'menu./dashboard', 'menu./whatsapp', 'giris.epostaYer',
-  'genel.excelIndir', 'durum.oncelik.NORMAL']);
+  'genel.excelIndir', 'durum.oncelik.NORMAL', 'fisDetay.whatsapp', 'ariza.INSTALLATION',
+  'cihazHizli.markaYer', 'cihazHizli.modelYer', 'fisYeni.model', 'fisPanel.notYer']);
   const ayni = trY.filter(([p, v]) => !AYNI_OLABILIR.has(p) && String(v).length > 3 && oku(en, p) === v).map(([p]) => p);
   t('★ tr ile en birebir aynı metin yok (özel adlar dışında)', ayni.length === 0, ayni.slice(0, 8));
 }
@@ -129,6 +130,21 @@ console.log('\n★ PARA BİÇİMİ\n');
   t('NaN "—"', para(Number.NaN, { dil: 'tr' }) === '—');
   t('paraBirimiMi("EUR")', paraBirimiMi('EUR') === true);
   t('paraBirimiMi("TL") false — ISO kodu değil', paraBirimiMi('TL') === false);
+  // Alan etiketi "Tutar (₺)" — ISO kodu değil simge gösterilir.
+  t('★ birimSimgesi tr/TRY ₺', birimSimgesi('tr', 'TRY') === '₺', birimSimgesi('tr', 'TRY'));
+  t('★ birimSimgesi en/EUR €', birimSimgesi('en', 'EUR') === '€', birimSimgesi('en', 'EUR'));
+  t('birimSimgesi bilinmeyen birim ₺', birimSimgesi('en', 'XYZ') === '₺', birimSimgesi('en', 'XYZ'));
+}
+
+console.log('\n★ BAĞLI BİÇİMLENDİRİCİ (useBicim / sunucuBicimi ortak)\n');
+{
+  const b = bicimYap('en', 'EUR');
+  t('★ b.para birime bağlı', b.para(1234.56).includes('€'), b.para(1234.56));
+  t('b.sayi dile bağlı', b.sayi(12345) === '12,345', b.sayi(12345));
+  t('b.tarih gün/ay/yıl', b.tarih(new Date(2026, 8, 16)) === '16/09/2026', b.tarih(new Date(2026, 8, 16)));
+  t('b.simge €', b.simge === '€', b.simge);
+  const tl = bicimYap('tr');
+  t('★ birim verilmezse TRY', tl.birim === 'TRY' && tl.simge === '₺', [tl.birim, tl.simge]);
 }
 
 console.log('\n★ SAYI VE YÜZDE\n');

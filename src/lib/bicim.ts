@@ -112,3 +112,53 @@ export function ayYil(d: Date | string | number | null | undefined, dil: Dil): s
   if (!t) return '—';
   return new Intl.DateTimeFormat(yerel(dil), { month: 'long', year: 'numeric' }).format(t);
 }
+
+/**
+ * Para birimi simgesi: ₺ / € / £ / $.
+ *
+ * Alan etiketlerinde ("Toplam Tutar (₺)") sabit ₺ yazmak yerine buradan
+ * geliyor. ISO kodunu ("TRY") göstermek teknik ve soğuk; simge her dilde
+ * tanıdık. Simge bulunamazsa kodun kendisi döner.
+ */
+export function birimSimgesi(dil: Dil, birim?: ParaBirimi | string | null): string {
+  const b = paraBirimiMi(birim) ? birim : VARSAYILAN_BIRIM;
+  const parcalar = new Intl.NumberFormat(yerel(dil), {
+    style: 'currency', currency: b, currencyDisplay: 'narrowSymbol',
+  }).formatToParts(0);
+  return parcalar.find((p) => p.type === 'currency')?.value ?? b;
+}
+
+/**
+ * DİLE VE BİRİME BAĞLI biçimlendirici demeti.
+ *
+ * Ekranlar `b.para(x)` yazar; dil ve para birimi zaten bağlanmıştır. İstemci
+ * tarafında `useBicim()`, sunucu tarafında `sunucuBicimi()` bunu döndürür —
+ * ikisi de AYNI işlevi kullanır, yoksa iki tarafta iki ayrı biçim oluşurdu.
+ */
+export interface Bicimleyici {
+  para(n: number | string | null | undefined, kesir?: number): string;
+  sayi(n: number | string | null | undefined, kesir?: number): string;
+  yuzde(n: number | null | undefined, kesir?: number): string;
+  tarih(d: Date | string | number | null | undefined): string;
+  tarihSaat(d: Date | string | number | null | undefined): string;
+  kisaTarih(d: Date | string | number | null | undefined): string;
+  ayYil(d: Date | string | number | null | undefined): string;
+  dil: Dil;
+  birim: ParaBirimi;
+  /** Alan etiketlerinde kullanılan para simgesi. */
+  simge: string;
+}
+
+export function bicimYap(dil: Dil, birim?: ParaBirimi | string | null): Bicimleyici {
+  const b = paraBirimiMi(birim) ? birim : VARSAYILAN_BIRIM;
+  return {
+    para: (n, kesir) => para(n, { dil, birim: b, kesir }),
+    sayi: (n, kesir) => sayi(n, dil, kesir),
+    yuzde: (n, kesir) => yuzde(n, dil, kesir),
+    tarih: (d) => tarih(d, dil),
+    tarihSaat: (d) => tarihSaat(d, dil),
+    kisaTarih: (d) => kisaTarih(d, dil),
+    ayYil: (d) => ayYil(d, dil),
+    dil, birim: b, simge: birimSimgesi(dil, b),
+  };
+}

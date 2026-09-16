@@ -16,10 +16,7 @@
  */
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { sozluk, VARSAYILAN_DIL, type Dil, type Sozluk } from './sozluk';
-import {
-  para, sayi, yuzde, tarih, tarihSaat, kisaTarih, ayYil,
-  VARSAYILAN_BIRIM, type ParaBirimi,
-} from '../bicim';
+import { bicimYap, VARSAYILAN_BIRIM, type ParaBirimi } from '../bicim';
 
 export interface DilBaglami {
   dil: Dil;
@@ -54,14 +51,5 @@ export function useT(): Sozluk {
 /** Dile ve bayinin para birimine BAĞLI biçimlendiriciler. */
 export function useBicim() {
   const { dil, birim } = useContext(Baglam);
-  return useMemo(() => ({
-    para: (n: number | string | null | undefined, kesir?: number) => para(n, { dil, birim, kesir }),
-    sayi: (n: number | string | null | undefined, kesir?: number) => sayi(n, dil, kesir),
-    yuzde: (n: number | null | undefined, kesir?: number) => yuzde(n, dil, kesir),
-    tarih: (d: Date | string | number | null | undefined) => tarih(d, dil),
-    tarihSaat: (d: Date | string | number | null | undefined) => tarihSaat(d, dil),
-    kisaTarih: (d: Date | string | number | null | undefined) => kisaTarih(d, dil),
-    ayYil: (d: Date | string | number | null | undefined) => ayYil(d, dil),
-    dil, birim,
-  }), [dil, birim]);
+  return useMemo(() => bicimYap(dil, birim), [dil, birim]);
 }

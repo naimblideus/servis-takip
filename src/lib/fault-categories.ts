@@ -79,15 +79,22 @@ export function foldTr(s: string): string {
     .trim();
 }
 
-/** Kategorileri yazılan metne göre süz. Boş sorgu = hepsi (14 tane, liste kısa). */
-export function searchFaultCategories(query: string) {
+/**
+ * Kategorileri yazılan metne göre süz. Boş sorgu = hepsi (liste kısa).
+ *
+ * `etiket` verilirse arama EKRANDA GÖRÜNEN metne bakar: İngilizce arayüzde
+ * "fus" yazan biri "Fuser fault" bulmalı; buradaki Türkçe etikette arasaydık
+ * hiçbir şey çıkmazdı. Verilmezse Türkçe etiket kullanılır (sunucu/eski yol).
+ */
+export function searchFaultCategories(query: string, etiket?: (code: FaultCategory) => string) {
+  const ad = (c: { code: FaultCategory; label: string }) => (etiket ? etiket(c.code) : c.label);
   const q = foldTr(query);
   if (!q) return FAULT_CATEGORIES;
-  const hits = FAULT_CATEGORIES.filter((c) => foldTr(c.label).includes(q) || foldTr(c.code).includes(q));
+  const hits = FAULT_CATEGORIES.filter((c) => foldTr(ad(c)).includes(q) || foldTr(c.code).includes(q));
   // Baştan eşleşenler önce ("ton" → "Toner Sorunu" en üstte)
   return hits.sort((a, b) => {
-    const aStarts = foldTr(a.label).startsWith(q) ? 0 : 1;
-    const bStarts = foldTr(b.label).startsWith(q) ? 0 : 1;
+    const aStarts = foldTr(ad(a)).startsWith(q) ? 0 : 1;
+    const bStarts = foldTr(ad(b)).startsWith(q) ? 0 : 1;
     return aStarts - bStarts;
   });
 }

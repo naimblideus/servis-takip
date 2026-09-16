@@ -7,9 +7,13 @@
  * form dolunca kutlamak "doldurdum" hissini ödüllendirir, oysa asıl iş fişin
  * kaydedilmesidir. Tamamlanma anı SaveSuccess'te (kaydetme sonrası).
  */
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
+
 interface Step { label: string; done: boolean }
 
 export default function TicketProgress({ steps }: { steps: Step[] }) {
+  const t = useT();
   const doneCount = steps.filter((s) => s.done).length;
   const total = steps.length;
   const complete = doneCount === total && total > 0;
@@ -29,10 +33,10 @@ export default function TicketProgress({ steps }: { steps: Step[] }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.85rem', fontWeight: 600, color: complete ? '#15803d' : '#374151' }}>
-          {complete ? 'Fiş hazır — kaydedebilirsiniz' : `${doneCount}/${total} tamam`}
+          {complete ? t.fisIlerleme.hazir : doldur(t.fisIlerleme.tamam, { n: doneCount, toplam: total })}
         </span>
         {!complete && next && (
-          <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>sıradaki: {next.label}</span>
+          <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{doldur(t.fisIlerleme.siradaki, { n: next.label })}</span>
         )}
       </div>
 

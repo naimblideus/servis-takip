@@ -4,23 +4,22 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { openWhatsApp, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 import { FAULT_CATEGORIES, QUICK_FAULT_CODES } from '@/lib/fault-categories';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 // Fişin "kapandığı" durumlar — arıza kategorisi en geç burada sorulur.
 const CLOSING_STATUSES = ['READY', 'DELIVERED'];
+// Etiketler sözlükte (durum.fisKisa); burada sıra ve renk.
 const STATUS_FLOW = [
-    { value: 'NEW', label: 'Yeni', color: '#f59e0b' },
-    { value: 'IN_SERVICE', label: 'Serviste', color: '#3b82f6' },
-    { value: 'WAITING_FOR_PART', label: 'Parça Bkl.', color: '#ec4899' },
-    { value: 'READY', label: 'Hazır', color: '#10b981' },
-    { value: 'DELIVERED', label: 'Teslim', color: '#6366f1' },
-    { value: 'CANCELLED', label: 'İptal', color: '#6b7280' },
+    { value: 'NEW', color: '#f59e0b' },
+    { value: 'IN_SERVICE', color: '#3b82f6' },
+    { value: 'WAITING_FOR_PART', color: '#ec4899' },
+    { value: 'READY', color: '#10b981' },
+    { value: 'DELIVERED', color: '#6366f1' },
+    { value: 'CANCELLED', color: '#6b7280' },
 ];
 
-const PAYMENT_OPTIONS = [
-    { value: 'UNPAID', label: 'Ödenmedi' },
-    { value: 'PARTIAL', label: 'Kısmi Ödeme' },
-    { value: 'PAID', label: 'Ödendi' },
-];
+const PAYMENT_OPTIONS = ['UNPAID', 'PARTIAL', 'PAID'];
 
 interface Props {
     ticketId: string;
@@ -72,12 +71,19 @@ export default function TicketStatusPanel({
     reading,
 }: Props) {
     const router = useRouter();
+    const t = useT();
+    // `b` adı sayacKaydet içinde tutuluyor; biçimlendirici `bic`.
+    const bic = useBicim();
+    const etiket = (code: string) => (t.ariza as Record<string, string>)[code] ?? code;
+    const durumAdi = (code: string) => (t.durum.fisKisa as Record<string, string>)[code] ?? code;
+    const odemeAdi = (code: string) =>
+        code === 'PARTIAL' ? t.odemePanel.kismiOdeme : (t.durum.odeme as Record<string, string>)[code] ?? code;
     const [loading, setLoading] = useState(false);
     const [showPanel, setShowPanel] = useState(false);
     const [notifyStatus, setNotifyStatus] = useState<string | null>(null);
     const [cariMsg, setCariMsg] = useState<string | null>(null);
     const applyCari = (data: any) => {
-        if (data?.cari?.synced) setCariMsg(`💼 ₺${Number(data.cari.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} müşteri carisine (Muhasebe) işlendi.`);
+        if (data?.cari?.synced) setCariMsg(doldur(t.fisPanel.cariIslendi, { n: bic.para(Number(data.cari.amount)) }));
         else setCariMsg(null);
     };
     const [assignedUserId, setAssignedUserId] = useState(currentAssignedUserId);
@@ -137,7 +143,7 @@ export default function TicketStatusPanel({
         if (reading?.billed) return true;                           // kilitli
         const yeniB = b === '' ? null : parseInt(b.replace(/\D/g, ''), 10);
         const yeniR = r === '' ? 0 : parseInt(r.replace(/\D/g, ''), 10);
-        if (yeniB == null || Number.isNaN(yeniB)) { setSayacHata('Siyah sayaç geçersiz.'); return false; }
+        if (yeniB == null || Number.isNaN(yeniB)) { setSayacHata(t.fisPanel.siyahGecersiz); return false; }
         // Değişmemişse boşuna istek atma
         if (reading && yeniB === reading.counterBlack && yeniR === reading.counterColor) return true;
 
@@ -150,9 +156,9 @@ export default function TicketStatusPanel({
             body: JSON.stringify({ counterBlack: yeniB, counterColor: yeniR, ...(reading ? {} : { ticketId }) }),
         });
         const d = await res.json().catch(() => null);
-        if (!res.ok) { setSayacHata(d?.error ?? 'Sayaç kaydedilemedi.'); return false; }
+        if (!res.ok) { setSayacHata(d?.error ?? t.fisPanel.sayacKaydedilemedi); return false; }
         if (d?.sonrakiGuncellendi) {
-            setSayacNot(`Sonraki okumanın farkı da güncellendi: ${Number(d.sonrakiGuncellendi.black).toLocaleString('tr-TR')} sayfa.`);
+            setSayacNot(doldur(t.fisPanel.sonrakiGuncellendi, { n: bic.sayi(Number(d.sonrakiGuncellendi.black)) }));
         }
         return true;
     };
@@ -208,26 +214,26 @@ export default function TicketStatusPanel({
             {cariMsg && (
                 <div style={{ width: '100%', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.8rem', color: '#3730a3', fontWeight: 600 }}>{cariMsg}</span>
-                    <button onClick={() => setCariMsg(null)} style={{ padding: '0.3rem 0.55rem', background: 'white', border: '1px solid #c7d2fe', borderRadius: '0.4rem', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer' }}>Kapat</button>
+                    <button onClick={() => setCariMsg(null)} style={{ padding: '0.3rem 0.55rem', background: 'white', border: '1px solid #c7d2fe', borderRadius: '0.4rem', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer' }}>{t.genel.kapat}</button>
                 </div>
             )}
             {/* Feature 8: durum değişince müşteriye WhatsApp bildirimi önerisi */}
             {notifyStatus && customerPhone && (
                 <div style={{ width: '100%', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>Durum güncellendi — müşteriye haber verelim mi?</span>
+                    <span style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>{t.fisPanel.bildirelimMi}</span>
                     <span style={{ display: 'flex', gap: '0.4rem' }}>
                         <button onClick={() => { openWhatsApp(customerPhone, statusMessage(notifyStatus, { tenantName, customerName, deviceName, ticketNumber, actionText, totalCost: Number(totalCost) })); setNotifyStatus(null); }}
-                            style={{ padding: '0.4rem 0.8rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.4rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>📱 WhatsApp ile bildir</button>
-                        <button onClick={() => setNotifyStatus(null)} style={{ padding: '0.4rem 0.6rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer' }}>Kapat</button>
+                            style={{ padding: '0.4rem 0.8rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.4rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{t.fisPanel.whatsappBildir}</button>
+                        <button onClick={() => setNotifyStatus(null)} style={{ padding: '0.4rem 0.6rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer' }}>{t.genel.kapat}</button>
                     </span>
                 </div>
             )}
             {/* Kapanışta arıza kategorisi — tek dokunuş: kategori + durum aynı istekte gider */}
             {askFault && (
                 <div style={{ width: '100%', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.6rem', padding: '0.85rem' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#92400e' }}>Bu işte sorun neydi?</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#92400e' }}>{t.fisPanel.sorunNeydi}</div>
                     <div style={{ fontSize: '0.75rem', color: '#a16207', marginTop: '0.15rem', marginBottom: '0.7rem' }}>
-                        Dokunduğunuzda fiş <b>{askFault === 'READY' ? 'Hazır' : 'Teslim'}</b> olur — ayrıca kaydetmeniz gerekmez.
+                        {t.fisPanel.dokununcaOn} <b>{durumAdi(askFault)}</b> {t.fisPanel.dokununcaSon}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                         {(allFaults
@@ -240,7 +246,7 @@ export default function TicketStatusPanel({
                                     border: '1px solid #fcd34d', borderRadius: '0.5rem', fontSize: '0.85rem',
                                     fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
                                 }}>
-                                {c.label}
+                                {etiket(c.code)}
                             </button>
                         ))}
                         {!allFaults && (
@@ -250,18 +256,18 @@ export default function TicketStatusPanel({
                                     border: '1px dashed #fcd34d', borderRadius: '0.5rem', fontSize: '0.85rem',
                                     fontWeight: 600, cursor: 'pointer',
                                 }}>
-                                Tümü…
+                                {t.fisPanel.tumu}
                             </button>
                         )}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem', alignItems: 'center' }}>
                         <button onClick={() => updateStatus(askFault)} disabled={loading}
                             style={{ padding: '0.4rem 0.75rem', background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer' }}>
-                            Bilmiyorum, geç
+                            {t.fisPanel.bilmiyorum}
                         </button>
                         <button onClick={() => { setAskFault(null); setAllFaults(false); }}
                             style={{ padding: '0.4rem 0.75rem', background: 'transparent', border: 'none', fontSize: '0.78rem', color: '#9ca3af', cursor: 'pointer' }}>
-                            Vazgeç
+                            {t.genel.iptal}
                         </button>
                     </div>
                 </div>
@@ -287,7 +293,7 @@ export default function TicketStatusPanel({
                             transition: 'all 0.15s',
                         }}
                     >
-                        {s.value === currentStatus ? `✓ ${s.label}` : s.label}
+                        {s.value === currentStatus ? `✓ ${durumAdi(s.value)}` : durumAdi(s.value)}
                     </button>
                 ))}
             </div>
@@ -301,7 +307,7 @@ export default function TicketStatusPanel({
                     fontSize: '0.8rem', cursor: 'pointer', color: '#374151', fontWeight: '500',
                 }}
             >
-                {showPanel ? '✕ Kapat' : '✏️ Düzenle'}
+                {showPanel ? t.fisPanel.paneliKapat : t.fisPanel.duzenle}
             </button>
 
             {/* Düzenleme Paneli */}
@@ -312,41 +318,41 @@ export default function TicketStatusPanel({
                     minWidth: '320px', border: '1px solid #e5e7eb',
                     width: '100%',
                 }}>
-                    <h3 style={{ fontWeight: '600', marginBottom: '1rem', fontSize: '0.9rem' }}>Hızlı Düzenle</h3>
+                    <h3 style={{ fontWeight: '600', marginBottom: '1rem', fontSize: '0.9rem' }}>{t.fisPanel.hizliDuzenle}</h3>
 
                     {/* ── Arıza & İşlem Bilgileri ── */}
                     <div style={{ marginBottom: '0.5rem', padding: '0.625rem 0.75rem', background: '#f0f7ff', borderRadius: '0.5rem', border: '1px solid #bfdbfe' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#2563eb', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            🔧 Arıza &amp; İşlem Bilgileri
+                            {t.fisPanel.arizaIslem}
                         </div>
 
                         <div style={{ marginBottom: '0.625rem' }}>
-                            <label style={fieldLabel}>Arıza Açıklaması</label>
+                            <label style={fieldLabel}>{t.fisDetay.arizaAciklamasi}</label>
                             <textarea
                                 style={textarea}
                                 value={issueText}
                                 onChange={e => setIssueText(e.target.value)}
-                                placeholder="Müşterinin bildirdiği arıza..."
+                                placeholder={t.fisPanel.arizaYer}
                             />
                         </div>
 
                         <div style={{ marginBottom: '0.625rem' }}>
-                            <label style={fieldLabel}>Yapılan İşlem</label>
+                            <label style={fieldLabel}>{t.fisDetay.yapilanIslem}</label>
                             <textarea
                                 style={textarea}
                                 value={actionText}
                                 onChange={e => setActionText(e.target.value)}
-                                placeholder="Teknisyen tarafından yapılan işlem..."
+                                placeholder={t.fisPanel.islemYer}
                             />
                         </div>
 
                         <div>
-                            <label style={fieldLabel}>Notlar</label>
+                            <label style={fieldLabel}>{t.fisDetay.notlar}</label>
                             <textarea
                                 style={{ ...textarea, minHeight: '56px' }}
                                 value={notes}
                                 onChange={e => setNotes(e.target.value)}
-                                placeholder="Ek notlar..."
+                                placeholder={t.fisPanel.notYer}
                             />
                         </div>
                     </div>
@@ -358,37 +364,34 @@ export default function TicketStatusPanel({
                     {deviceId && (
                         <div style={{ marginBottom: '0.5rem', padding: '0.625rem 0.75rem', background: '#f5f3ff', borderRadius: '0.5rem', border: '1px solid #ddd6fe' }}>
                             <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6d28d9', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                🔢 Sayaç {reading ? '' : '— bu fişte girilmemiş'}
+                                {t.fisPanel.sayacBaslik} {reading ? '' : t.fisPanel.sayacGirilmemis}
                             </div>
 
                             {reading?.billed ? (
                                 <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                                    ⚫ {reading.counterBlack.toLocaleString('tr-TR')}
+                                    ⚫ {bic.sayi(reading.counterBlack)}
                                     <span style={{ margin: '0 6px', color: '#d1d5db' }}>|</span>
-                                    🟣 {reading.counterColor.toLocaleString('tr-TR')}
+                                    🟣 {bic.sayi(reading.counterColor)}
                                     <div style={{ marginTop: '0.35rem', fontSize: '0.72rem', color: '#b45309' }}>
-                                        Bu okuma faturalandı, düzenlenemez. Düzeltme gerekiyorsa faturayı
-                                        düzeltmek gerekir — sessizce değiştirmek fatura ile defteri ayrıştırır.
+                                        {t.fisPanel.faturalandi}
                                     </div>
                                 </div>
                             ) : (
                                 <>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                                         <div>
-                                            <label style={fieldLabel}>⚫ Siyah Sayaç</label>
+                                            <label style={fieldLabel}>{t.fisDetay.siyahSayac}</label>
                                             <input style={inp} value={sayacB} inputMode="numeric"
-                                                onChange={e => setSayacB(e.target.value)} placeholder="örn. 36010" />
+                                                onChange={e => setSayacB(e.target.value)} placeholder={doldur(t.fisPanel.sayacOrnek, { n: 36010 })} />
                                         </div>
                                         <div>
-                                            <label style={fieldLabel}>🟣 Renkli Sayaç</label>
+                                            <label style={fieldLabel}>{t.fisDetay.renkliSayac}</label>
                                             <input style={inp} value={sayacR} inputMode="numeric"
-                                                onChange={e => setSayacR(e.target.value)} placeholder="örn. 0" />
+                                                onChange={e => setSayacR(e.target.value)} placeholder={doldur(t.fisPanel.sayacOrnek, { n: 0 })} />
                                         </div>
                                     </div>
                                     <div style={{ marginTop: '0.4rem', fontSize: '0.72rem', color: '#6b7280' }}>
-                                        {reading
-                                            ? 'Değiştirirseniz farkı ve varsa sonraki okumanın farkı yeniden hesaplanır.'
-                                            : 'Girerseniz bu fişe bağlı yeni bir sayaç okuması oluşturulur.'}
+                                        {reading ? t.fisPanel.sayacDegisirse : t.fisPanel.sayacYeni}
                                     </div>
                                 </>
                             )}
@@ -405,13 +408,13 @@ export default function TicketStatusPanel({
                     {/* ── Fiş Bilgileri ── */}
                     <div style={{ marginBottom: '0.5rem', padding: '0.625rem 0.75rem', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            📋 Fiş Bilgileri
+                            {t.fisPanel.fisBilgileri}
                         </div>
 
                         <div style={{ marginBottom: '0.625rem' }}>
-                            <label style={fieldLabel}>Teknisyen</label>
+                            <label style={fieldLabel}>{t.fisDetay.teknisyen}</label>
                             <select style={inp} value={assignedUserId} onChange={e => setAssignedUserId(e.target.value)}>
-                                <option value="">Atanmadı</option>
+                                <option value="">{t.fisPanel.atanmadi}</option>
                                 {users.map(u => (
                                     <option key={u.id} value={u.id}>{u.name}</option>
                                 ))}
@@ -419,16 +422,16 @@ export default function TicketStatusPanel({
                         </div>
 
                         <div style={{ marginBottom: '0.625rem' }}>
-                            <label style={fieldLabel}>Ödeme Durumu</label>
+                            <label style={fieldLabel}>{t.fisPanel.odemeDurumu}</label>
                             <select style={inp} value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}>
                                 {PAYMENT_OPTIONS.map(o => (
-                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                    <option key={o} value={o}>{odemeAdi(o)}</option>
                                 ))}
                             </select>
                         </div>
 
                         <div style={{ marginBottom: '0.625rem' }}>
-                            <label style={fieldLabel}>Toplam Tutar (₺)</label>
+                            <label style={fieldLabel}>{doldur(t.fisPanel.toplamTutar, { birim: bic.simge })}</label>
                             <input
                                 type="number" step="0.01" style={inp}
                                 value={totalCost}
@@ -437,7 +440,7 @@ export default function TicketStatusPanel({
                         </div>
 
                         <div>
-                            <label style={fieldLabel}>Fiş Tarihi & Saati</label>
+                            <label style={fieldLabel}>{t.fisPanel.fisTarihi}</label>
                             <input
                                 type="datetime-local" style={inp}
                                 value={createdAt}
@@ -457,7 +460,7 @@ export default function TicketStatusPanel({
                             opacity: loading ? 0.7 : 1,
                         }}
                     >
-                        {loading ? 'Kaydediliyor...' : '💾 Kaydet'}
+                        {loading ? t.genel.kaydediliyor : t.fisPanel.kaydet}
                     </button>
                 </div>
             )}

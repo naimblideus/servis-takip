@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 import { PART_GROUPS } from '@/lib/part-groups';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Part {
     id: string;
@@ -27,6 +29,9 @@ interface Props {
 
 export default function TicketPartsPanel({ ticketId }: Props) {
     const router = useRouter();
+    // `sz` (sözlük): aşağıdaki zamanlayıcı efekti `t` adını kullanıyor.
+    const sz = useT();
+    const b = useBicim();
     const [ticketParts, setTicketParts] = useState<TicketPart[]>([]);
     const [allParts, setAllParts] = useState<Part[]>([]);
     const [loading, setLoading] = useState(true);
@@ -67,10 +72,10 @@ export default function TicketPartsPanel({ ticketId }: Props) {
         if (d?.tonerSorusu) { setTonerSoru(d.tonerSorusu); setTonerBilgi(null); return; }
         if (d?.tonerKaydi) {
             setTonerSoru(null);
-            const k = d.tonerKaydi.kanal === 'COLOR' ? 'Renkli' : 'S/B';
+            const k = d.tonerKaydi.kanal === 'COLOR' ? sz.parcalar.renkli : sz.parcalar.siyahBeyaz;
             setTonerBilgi(d.tonerKaydi.olculenVerim
-                ? `${k} toner değişimi kaydedildi — bu cihazda ${d.tonerKaydi.olculenVerim.toLocaleString('tr-TR')} sayfa ölçüldü.`
-                : `${k} toner değişimi kaydedildi. Verim, bir sonraki değişimde ölçülecek.`);
+                ? doldur(sz.parcalar.tonerOlculdu, { kanal: k, n: b.sayi(d.tonerKaydi.olculenVerim) })
+                : doldur(sz.parcalar.tonerKaydedildi, { kanal: k }));
         }
     };
 
@@ -81,12 +86,12 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             body: JSON.stringify({ ticketPartId: tonerSoru.ticketPartId, kanal }),
         });
         const d = await r.json();
-        if (!r.ok) { alert(d.error || 'Kaydedilemedi'); return; }
+        if (!r.ok) { alert(d.error || sz.sayacTuru.kaydedilemedi); return; }
         setTonerSoru(null);
-        const k = kanal === 'COLOR' ? 'Renkli' : 'S/B';
+        const k = kanal === 'COLOR' ? sz.parcalar.renkli : sz.parcalar.siyahBeyaz;
         setTonerBilgi(d.olculenVerim
-            ? `${k} toner değişimi kaydedildi — bu cihazda ${d.olculenVerim.toLocaleString('tr-TR')} sayfa ölçüldü.`
-            : `${k} toner değişimi kaydedildi. Verim, bir sonraki değişimde ölçülecek.`);
+            ? doldur(sz.parcalar.tonerOlculdu, { kanal: k, n: b.sayi(d.olculenVerim) })
+            : doldur(sz.parcalar.tonerKaydedildi, { kanal: k }));
     };
 
     const load = async () => {
@@ -119,7 +124,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
 
     // ═══ Barkod okuyucuyla fişe parça ekle (okut → otomatik 1 adet düş) ═══
     const handleScan = async (code: string) => {
-        setScanMsg({ text: `Okutuluyor: ${code}…`, ok: true });
+        setScanMsg({ text: doldur(sz.parcalar.okutuluyor, { n: code }), ok: true });
         try {
             const res = await fetch(`/api/tickets/${ticketId}/parts`, {
                 method: 'POST',
@@ -132,13 +137,13 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                 const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);
                 if (tpRes.ok) { const parts = await tpRes.json(); await syncTotalCost(parts); }
                 router.refresh();
-                setScanMsg({ text: `Eklendi: ${code}`, ok: true });
+                setScanMsg({ text: doldur(sz.parcalar.eklendi, { n: code }), ok: true });
             } else {
                 const d = await res.json().catch(() => ({}));
-                setScanMsg({ text: `${d.error || 'Barkod bulunamadı'} (${code})`, ok: false });
+                setScanMsg({ text: `${d.error || sz.parcalar.barkodYok} (${code})`, ok: false });
             }
         } catch {
-            setScanMsg({ text: `Bağlantı hatası (${code})`, ok: false });
+            setScanMsg({ text: doldur(sz.parcalar.baglantiHatasi, { n: code }), ok: false });
         }
     };
 
@@ -194,7 +199,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             router.refresh();
         } else {
             const d = await res.json().catch(() => ({}));
-            alert('Hata: ' + (d.error || 'Eklenemedi'));
+            alert(doldur(sz.fisler.hata, { n: d.error || sz.parcalar.eklenemedi }));
         }
         setSaving(false);
     };
@@ -219,13 +224,13 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             router.refresh();
         } else {
             const d = await res.json();
-            alert('Hata: ' + d.error);
+            alert(doldur(sz.fisler.hata, { n: d.error }));
         }
         setSaving(false);
     };
 
     const removePart = async (ticketPartId: string) => {
-        if (!confirm('Bu parçayı fişten çıkarıp stoğa geri koymak isteniyor musunuz?')) return;
+        if (!confirm(sz.parcalar.cikarSor)) return;
         await fetch(`/api/tickets/${ticketId}/parts?ticketPartId=${ticketPartId}`, {
             method: 'DELETE',
         });
@@ -279,10 +284,10 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                 setNewPart({ name: '', group: '', sellPrice: '', stockQty: '1' });
             } else {
                 const d = await res.json();
-                alert('Hata: ' + d.error);
+                alert(doldur(sz.fisler.hata, { n: d.error }));
             }
         } catch (e) {
-            alert('Ürün oluşturulurken hata oluştu');
+            alert(sz.parcalar.urunHatasi);
         }
         setCreatingPart(false);
     };
@@ -297,14 +302,14 @@ export default function TicketPartsPanel({ ticketId }: Props) {
     return (
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <h2 style={{ fontWeight: '600', margin: 0 }}>Kullanılan Parçalar</h2>
-                <span title="USB barkod okuyucuyla bir parça barkodunu okutun — otomatik olarak 1 adet eklenir."
+                <h2 style={{ fontWeight: '600', margin: 0 }}>{sz.parcalar.baslik}</h2>
+                <span title={sz.parcalar.okuyucuIpucu}
                     style={{
                         display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                         backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc',
                         padding: '0.25rem 0.6rem', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: '600',
                     }}>
-                    <span style={{ fontSize: '0.85rem' }}>▮▮▯▮</span> Barkod okuyucu hazır
+                    <span style={{ fontSize: '0.85rem' }}>▮▮▯▮</span> {sz.parcalar.okuyucuHazir}
                 </span>
             </div>
 
@@ -315,7 +320,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             {oneri.length > 0 && (
                 <div style={{ marginBottom: '0.9rem' }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.4rem' }}>
-                        Bu modelde en çok kullanılanlar
+                        {sz.parcalar.enCokKullanilan}
                     </div>
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         {oneri.map((o) => {
@@ -323,7 +328,9 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                             return (
                                 <button key={o.id} type="button" disabled={saving || yok}
                                     onClick={() => hizliEkle(o.id)}
-                                    title={yok ? `${o.name} — stokta yok` : `${o.name} · ${o.kullanim} kez kullanıldı · stok ${o.stockQty}`}
+                                    title={yok
+                                        ? `${o.name} — ${sz.parcalar.stoktaYok}`
+                                        : `${o.name} · ${doldur(sz.parcalar.kullanildi, { n: o.kullanim })} · ${doldur(sz.parcalar.stokta, { n: o.stockQty })}`}
                                     style={{
                                         padding: '0.45rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.82rem',
                                         fontWeight: 600, cursor: yok ? 'not-allowed' : 'pointer', textAlign: 'left',
@@ -332,7 +339,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                                         color: yok ? '#9ca3af' : '#1e3a8a',
                                         maxWidth: '15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                     }}>
-                                    + {o.name}{yok ? ' (stokta yok)' : ` · stok ${o.stockQty}`}
+                                    + {o.name}{yok ? ` (${sz.parcalar.stoktaYok})` : ` · ${doldur(sz.parcalar.stokta, { n: o.stockQty })}`}
                                 </button>
                             );
                         })}
@@ -347,24 +354,24 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                     padding: '0.75rem 1rem', marginBottom: '0.75rem',
                 }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e3a8a', marginBottom: '0.5rem' }}>
-                        {tonerSoru.partAdi} takıldı — hangi toner?
+                        {doldur(sz.parcalar.tonerSoru, { n: tonerSoru.partAdi })}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button type="button" onClick={() => kanalCevapla('BLACK')} style={{
                             padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: 'none',
                             background: '#111827', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-                        }}>S/B</button>
+                        }}>{sz.parcalar.siyahBeyaz}</button>
                         <button type="button" onClick={() => kanalCevapla('COLOR')} style={{
                             padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: 'none',
                             background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-                        }}>Renkli</button>
+                        }}>{sz.parcalar.renkli}</button>
                         <button type="button" onClick={() => setTonerSoru(null)} style={{
                             padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: '1px solid #d1d5db',
                             background: 'white', color: '#374151', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
-                        }}>Toner değişmedi</button>
+                        }}>{sz.parcalar.tonerDegismedi}</button>
                     </div>
                     <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.4rem' }}>
-                        Bu cevap tonerin ne kadar dayandığını ölçmek için; parça zaten fişe eklendi.
+                        {sz.parcalar.tonerSoruAlt}
                     </div>
                 </div>
             )}
@@ -395,7 +402,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div ref={searchRef} style={{ flex: '1', minWidth: '200px', position: 'relative' }}>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#6b7280', marginBottom: '0.25rem' }}>
-                        Parça Ara (Ad, SKU veya Grup)
+                        {sz.parcalar.araEtiket}
                     </label>
                     <input
                         type="text"
@@ -407,7 +414,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                             if (!e.target.value) setSelectedPart(null);
                         }}
                         onFocus={() => setShowResults(true)}
-                        placeholder="🔍 Parça adı veya kodu yazın..."
+                        placeholder={sz.parcalar.araYer}
                     />
                     {showResults && searchText && filteredParts.length > 0 && (
                         <div style={{
@@ -433,11 +440,11 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                                             <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#6b7280', marginRight: '0.5rem' }}>{p.sku}</span>
                                             <span style={{ fontWeight: '500' }}>{p.name}</span>
                                         </div>
-                                        <span style={{ fontWeight: '600', color: '#059669', fontSize: '0.8rem' }}>₺{Number(p.sellPrice).toFixed(2)}</span>
+                                        <span style={{ fontWeight: '600', color: '#059669', fontSize: '0.8rem' }}>{b.para(Number(p.sellPrice))}</span>
                                     </div>
                                     <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.15rem' }}>
-                                        Stok: {p.stockQty} {p.group ? `• ${p.group}` : ''}
-                                        {p.stockQty <= 0 && <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>Stok yok</span>}
+                                        {doldur(sz.parcalar.stok, { n: p.stockQty })} {p.group ? `• ${p.group}` : ''}
+                                        {p.stockQty <= 0 && <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>{sz.parcalar.stokYok}</span>}
                                     </div>
                                 </div>
                             ))}
@@ -449,7 +456,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                             backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem',
                             padding: '0.75rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                         }}>
-                            <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: 0 }}>Sonuç bulunamadı</p>
+                            <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: 0 }}>{sz.parcalar.sonucYok}</p>
                             <button
                                 onClick={() => { setShowNewPartForm(true); setShowResults(false); setNewPart(p => ({ ...p, name: searchText })); }}
                                 style={{
@@ -457,7 +464,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                                     color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer',
                                     fontSize: '0.8rem', fontWeight: '500',
                                 }}
-                            >+ Yeni Ürün Oluştur</button>
+                            >{sz.parcalar.yeniUrunOlustur}</button>
                         </div>
                     )}
                 </div>
@@ -471,14 +478,14 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                     border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500',
                     opacity: (!selectedPart || saving) ? 0.6 : 1, fontSize: '0.875rem',
                 }}>
-                    {saving ? '...' : '+ Ekle'}
+                    {saving ? '...' : sz.parcalar.ekle}
                 </button>
                 <button onClick={() => setShowNewPartForm(!showNewPartForm)} style={{
                     padding: '0.5rem 0.75rem', backgroundColor: '#f0fdf4', color: '#16a34a',
                     border: '1px solid #86efac', borderRadius: '0.5rem', cursor: 'pointer',
                     fontSize: '0.8rem', fontWeight: '500',
                 }}>
-                    Yeni Ürün
+                    {sz.parcalar.yeniUrun}
                 </button>
             </div>
 
@@ -489,34 +496,34 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                     padding: '1rem', marginBottom: '1rem',
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                        <h3 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a', margin: 0 }}>Yeni Ürün Oluştur</h3>
-                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Ürün kodu otomatik verilecek</span>
+                        <h3 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a', margin: 0 }}>{sz.parcalar.yeniUrunBaslik}</h3>
+                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{sz.parcalar.kodOtomatik}</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Ürün Adı *</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>{sz.parcalar.urunAdi}</label>
                             <input
                                 type="text" style={{ ...inp, width: '100%' }}
                                 value={newPart.name}
                                 onChange={e => setNewPart({ ...newPart, name: e.target.value })}
-                                placeholder="Ürün adı girin..."
+                                placeholder={sz.parcalar.urunAdiYer}
                             />
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Ürün Grubu</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>{sz.parcalar.urunGrubu}</label>
                             <select
                                 style={{ ...inp, width: '100%' }}
                                 value={newPart.group}
                                 onChange={e => setNewPart({ ...newPart, group: e.target.value })}
                             >
-                                <option value="">Grup seçin...</option>
+                                <option value="">{sz.parcalar.grupSecin}</option>
                                 {PART_GROUPS.map(g => (
                                     <option key={g} value={g}>{g}</option>
                                 ))}
                             </select>
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Satış Fiyatı (₺)</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>{doldur(sz.parcalar.satisFiyati, { birim: b.simge })}</label>
                             <input
                                 type="number" step="0.01" min="0" style={{ ...inp, width: '100%' }}
                                 value={newPart.sellPrice}
@@ -525,7 +532,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                             />
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Stok Adedi</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>{sz.parcalar.stokAdedi}</label>
                             <input
                                 type="number" min="0" style={{ ...inp, width: '100%' }}
                                 value={newPart.stockQty}
@@ -539,28 +546,28 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                             border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500',
                             fontSize: '0.85rem', opacity: (creatingPart || !newPart.name.trim()) ? 0.6 : 1,
                         }}>
-                            {creatingPart ? 'Kaydediliyor...' : '✓ Oluştur ve Seç'}
+                            {creatingPart ? sz.genel.kaydediliyor : sz.parcalar.olusturSec}
                         </button>
                         <button onClick={() => setShowNewPartForm(false)} style={{
                             padding: '0.5rem 1rem', backgroundColor: 'white', color: '#374151',
                             border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer',
                             fontSize: '0.85rem',
-                        }}>İptal</button>
+                        }}>{sz.genel.iptal}</button>
                     </div>
                 </div>
             )}
 
             {/* ═══ Parça Listesi ═══ */}
             {loading ? (
-                <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Yükleniyor...</p>
+                <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>{sz.genel.yukleniyor}</p>
             ) : ticketParts.length === 0 ? (
-                <p style={{ color: '#9ca3af', fontSize: '0.875rem', textAlign: 'center', padding: '1rem' }}>Henüz parça eklenmedi</p>
+                <p style={{ color: '#9ca3af', fontSize: '0.875rem', textAlign: 'center', padding: '1rem' }}>{sz.parcalar.parcaYok}</p>
             ) : (
                 <>
                     <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0.75rem' }}>
                         <thead>
                             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                                {['SKU', 'Parça', 'Grup', 'Adet', 'Birim Fiyat', 'Toplam', ''].map(h => (
+                                {['SKU', sz.parcalar.sutun.parca, sz.parcalar.sutun.grup, sz.parcalar.sutun.adet, sz.parcalar.sutun.birimFiyat, sz.genel.toplam, ''].map(h => (
                                     <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '600', color: '#6b7280' }}>{h}</th>
                                 ))}
                             </tr>
@@ -595,19 +602,19 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                                             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                                         />
                                     </td>
-                                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: '600' }}>₺{(Number(tp.unitPrice) * tp.quantity).toFixed(2)}</td>
+                                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: '600' }}>{b.para(Number(tp.unitPrice) * tp.quantity)}</td>
                                     <td style={{ padding: '0.5rem 0.75rem' }}>
                                         <button onClick={() => removePart(tp.id)} style={{
                                             backgroundColor: '#fee2e2', color: '#b91c1c', border: 'none',
                                             borderRadius: '0.375rem', padding: '0.2rem 0.5rem', cursor: 'pointer', fontSize: '0.75rem',
-                                        }}>Çıkar</button>
+                                        }}>{sz.parcalar.cikar}</button>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                     <div style={{ textAlign: 'right', fontWeight: '700', fontSize: '1rem', color: '#059669' }}>
-                        Parçalar Toplamı: ₺{total.toFixed(2)}
+                        {sz.parcalar.toplami} {b.para(total)}
                     </div>
                 </>
             )}

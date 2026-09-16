@@ -12,6 +12,7 @@
  */
 import { useMemo, useRef, useState } from 'react';
 import { FAULT_CATEGORIES, searchFaultCategories } from '@/lib/fault-categories';
+import { useT } from '@/lib/i18n/client';
 
 interface Props {
   value: string;                                  // seçili kod ('' = boş)
@@ -20,12 +21,16 @@ interface Props {
 }
 
 export default function FaultCategoryPicker({ value, onChange, autoFocus }: Props) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const [justPicked, setJustPicked] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const results = useMemo(() => searchFaultCategories(query), [query]);
+  // Etiket sözlükten; arama da onun üzerinden yapılıyor (İngilizce arayüzde
+  // Türkçe etikette aramak hiçbir şey bulduramazdı).
+  const etiket = (code: string) => (t.ariza as Record<string, string>)[code] ?? code;
+  const results = useMemo(() => searchFaultCategories(query, etiket), [query, t]);
   const selected = FAULT_CATEGORIES.find((c) => c.code === value) || null;
 
   const pick = (code: string, label: string) => {
@@ -58,15 +63,15 @@ export default function FaultCategoryPicker({ value, onChange, autoFocus }: Prop
       >
         <span aria-hidden="true" className={justPicked ? 'sa-check' : undefined}
           style={{ color: '#16a34a', fontWeight: 700, fontSize: '1rem', lineHeight: 1 }}>✓</span>
-        <span style={{ fontWeight: 600, color: '#14532d', flex: 1 }}>{selected.label}</span>
+        <span style={{ fontWeight: 600, color: '#14532d', flex: 1 }}>{etiket(selected.code)}</span>
         {!selected.isFailure && (
           <span style={{ fontSize: '0.7rem', color: '#166534', backgroundColor: '#dcfce7',
-            padding: '0.1rem 0.45rem', borderRadius: '9999px' }}>arıza değil</span>
+            padding: '0.1rem 0.45rem', borderRadius: '9999px' }}>{t.kategoriSecici.arizaDegil}</span>
         )}
         <button type="button" onClick={() => { onChange('', ''); setTimeout(() => inputRef.current?.focus(), 0); }}
           style={{ background: 'none', border: 'none', color: '#15803d', cursor: 'pointer',
             fontSize: '0.78rem', textDecoration: 'underline', padding: 0 }}>
-          değiştir
+          {t.kategoriSecici.degistir}
         </button>
       </div>
     );
@@ -80,8 +85,8 @@ export default function FaultCategoryPicker({ value, onChange, autoFocus }: Prop
         value={query}
         onChange={(e) => { setQuery(e.target.value); setActive(0); }}
         onKeyDown={onKeyDown}
-        placeholder="Yazın: fırın, toner, sıkış… veya aşağıdan seçin"
-        aria-label="Arıza kategorisi ara"
+        placeholder={t.kategoriSecici.araYer}
+        aria-label={t.kategoriSecici.etiket}
         style={{
           width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db',
           borderRadius: '0.5rem', fontSize: '0.9rem', outline: 'none',
@@ -92,7 +97,7 @@ export default function FaultCategoryPicker({ value, onChange, autoFocus }: Prop
           <button
             key={c.code}
             type="button"
-            onClick={() => pick(c.code, c.label)}
+            onClick={() => pick(c.code, etiket(c.code))}
             onMouseEnter={() => setActive(i)}
             style={{
               padding: '0.5rem 0.8rem', borderRadius: '9999px', cursor: 'pointer',
@@ -103,12 +108,12 @@ export default function FaultCategoryPicker({ value, onChange, autoFocus }: Prop
               fontWeight: i === active && query ? 600 : 400,
             }}
           >
-            {c.label}
+            {etiket(c.code)}
           </button>
         ))}
         {results.length === 0 && (
           <span style={{ fontSize: '0.8rem', color: '#9ca3af', padding: '0.4rem 0' }}>
-            Eşleşme yok — yazıyı kısaltın
+            {t.kategoriSecici.eslesmeYok}
           </span>
         )}
       </div>

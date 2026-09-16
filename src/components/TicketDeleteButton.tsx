@@ -1,6 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Props {
     ticketId: string;
@@ -9,22 +11,23 @@ interface Props {
 
 export default function TicketDeleteButton({ ticketId, ticketNumber }: Props) {
     const router = useRouter();
+    const t = useT();
 
     const handleDelete = async () => {
-        if (!confirm(`"${ticketNumber}" çöp kutusuna taşınsın mı?\nÇöp kutusundan geri alabilirsiniz.`)) return;
+        if (!confirm(doldur(t.fisDetay.silSor, { n: ticketNumber }))) return;
         const res = await fetch(`/api/tickets/${ticketId}`, { method: 'DELETE' });
         if (res.ok) {
             router.push('/tickets');
         } else {
             const d = await res.json();
-            alert('Hata: ' + d.error);
+            alert(doldur(t.fisler.hata, { n: d.error }));
         }
     };
 
     return (
         <button
             onClick={handleDelete}
-            title="Çöp Kutusuna Taşı"
+            title={t.fisler.tablo.cope}
             style={{
                 padding: '0.5rem 0.875rem',
                 backgroundColor: '#fef2f2',
@@ -39,7 +42,7 @@ export default function TicketDeleteButton({ ticketId, ticketNumber }: Props) {
                 gap: '0.35rem',
             }}
         >
-            🗑️ Sil
+            {t.fisDetay.sil}
         </button>
     );
 }

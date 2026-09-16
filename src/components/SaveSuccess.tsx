@@ -9,7 +9,10 @@
  * Bilinçli olarak yok: puan, rozet, "bu hafta N fiş" sayacı, sıralama.
  * Bunlar adet üretmeyi ödüllendirir ve veri kalitesini bozar.
  */
+import { useT } from '@/lib/i18n/client';
+
 export default function SaveSuccess({ ticketNumber }: { ticketNumber?: string }) {
+  const t = useT();
   return (
     <div
       className="sa-overlay"
@@ -41,7 +44,7 @@ export default function SaveSuccess({ ticketNumber }: { ticketNumber?: string })
             justifyContent: 'center', fontSize: '1.75rem', color: '#16a34a', fontWeight: 700,
           }}>✓</div>
         </div>
-        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#14532d' }}>Fiş kaydedildi</div>
+        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#14532d' }}>{t.fisYeni.kaydedildi}</div>
         {ticketNumber && (
           <div style={{ marginTop: '0.2rem', fontSize: '0.85rem', color: '#6b7280' }}>{ticketNumber}</div>
         )}

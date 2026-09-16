@@ -9,17 +9,18 @@ import TicketPrintButton from '@/components/TicketPrintButton';
 import TicketDeleteButton from '@/components/TicketDeleteButton';
 import ContactActions from '@/components/ContactActions';
 import { waUrl, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
-import { faultLabel } from '@/lib/fault-categories';
-import { ASAMA_KISA } from '@/lib/ticket-asama';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
 
-const statusLabel: Record<string, { label: string; color: string; text: string }> = {
-  NEW: { label: 'Yeni', color: '#fef3c7', text: '#92400e' },
-  IN_SERVICE: { label: 'Serviste', color: '#dbeafe', text: '#1e40af' },
-  WAITING_FOR_PART: { label: 'Parça Bkl.', color: '#fce7f3', text: '#9d174d' },
-  READY: { label: 'Hazır', color: '#d1fae5', text: '#065f46' },
-  DELIVERED: { label: 'Teslim', color: '#f0fdf4', text: '#166534' },
-  CANCELLED: { label: 'İptal', color: '#f3f4f6', text: '#374151' },
+// Etiketler sözlükte (durum.fisKisa); burada yalnız renk.
+const statusRenk: Record<string, { color: string; text: string }> = {
+  NEW: { color: '#fef3c7', text: '#92400e' },
+  IN_SERVICE: { color: '#dbeafe', text: '#1e40af' },
+  WAITING_FOR_PART: { color: '#fce7f3', text: '#9d174d' },
+  READY: { color: '#d1fae5', text: '#065f46' },
+  DELIVERED: { color: '#f0fdf4', text: '#166534' },
+  CANCELLED: { color: '#f3f4f6', text: '#374151' },
 };
 
 export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +31,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   // IDOR koruması: yalnızca bu tenant'ın fişi görüntülenebilir
   const me = await oturumKullanicisi(session);
   if (!me) redirect('/login');
+  const { sz, b } = await sunucuBicimi(me);
   const tenantName = (session.user as any)?.tenantName as string | undefined;
 
   const ticket = await prisma.serviceTicket.findFirst({
@@ -86,13 +88,16 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const counterBlackVal = guncelOkuma?.counterBlack ?? ticket.device.counterBlack ?? null;
   const counterColorVal = guncelOkuma?.counterColor ?? ticket.device.counterColor ?? null;
 
-  const st = statusLabel[ticket.status] ?? { label: ticket.status, color: '#f3f4f6', text: '#374151' };
+  const st = {
+    label: (sz.durum.fisKisa as Record<string, string>)[ticket.status] ?? ticket.status,
+    ...(statusRenk[ticket.status] ?? { color: '#f3f4f6', text: '#374151' }),
+  };
 
   return (
     <div style={{ padding: '2rem', maxWidth: '960px' }}>
       {/* Başlık */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/tickets" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Servis Fişleri</Link>
+        <Link href="/tickets" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>{sz.fisDetay.geri}</Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '0.25rem', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
             <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{ticket.ticketNumber}</h1>
@@ -146,13 +151,13 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(17rem,1fr))', gap: '1rem', marginBottom: '1rem' }}>
         {/* Cihaz & Müşteri */}
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
-          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Cihaz & Müşteri</h2>
+          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisDetay.cihazMusteri}</h2>
           {[
-            ['Müşteri', ticket.device.customer.name],
-            ['Telefon', ticket.device.customer.phone],
-            ['Cihaz', `${ticket.device.brand} ${ticket.device.model}`],
-            ['Seri No', ticket.device.serialNo],
-            ['Konum', ticket.device.location || '-'],
+            [sz.genel.musteri, ticket.device.customer.name],
+            [sz.fisDetay.telefon, ticket.device.customer.phone],
+            [sz.genel.cihaz, `${ticket.device.brand} ${ticket.device.model}`],
+            [sz.fisDetay.seriNo, ticket.device.serialNo],
+            [sz.fisDetay.konum, ticket.device.location || '-'],
           ].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.875rem' }}>
               <span style={{ color: '#6b7280' }}>{k}</span>
@@ -160,9 +165,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             </div>
           ))}
           <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
-            <Link href={`/devices/${ticket.device.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>Cihaz Detayı →</Link>
+            <Link href={`/devices/${ticket.device.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>{sz.fisDetay.cihazDetayi}</Link>
             <span style={{ color: '#d1d5db' }}>|</span>
-            <Link href={`/customers/${ticket.device.customer.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>Müşteri Detayı →</Link>
+            <Link href={`/customers/${ticket.device.customer.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>{sz.fisDetay.musteriDetayi}</Link>
           </div>
 
           {/* Mobil iletişim aksiyonları */}
@@ -171,9 +176,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           {/* Müşteriye durum bildirimi — durum değiştirdiğin an değil, fiş açık olduğu SÜRECE burada durur */}
           {NOTIFY_STATUSES.includes(ticket.status) && ticket.device.customer.phone && (() => {
             const done = ticket.status === 'READY' || ticket.status === 'DELIVERED';
-            const label = ticket.status === 'READY' ? '🔔 Arıza giderildi — müşteriye bildir'
-              : ticket.status === 'DELIVERED' ? '🔔 Müşteriye işlem özetini gönder'
-              : '🔔 Müşteriye durumu bildir';
+            const label = ticket.status === 'READY' ? sz.fisDetay.bildirHazir
+              : ticket.status === 'DELIVERED' ? sz.fisDetay.bildirTeslim
+              : sz.fisDetay.bildirDurum;
             return (
               <div style={{ marginTop: '0.6rem' }}>
                 <a
@@ -192,9 +197,17 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                 </a>
                 {done && (
                   <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: '0.35rem', lineHeight: 1.5 }}>
-                    {ticket.actionText?.trim() || Number(ticket.totalCost) > 0
-                      ? <>Mesaja {ticket.actionText?.trim() ? <b>yapılan işlem</b> : null}{ticket.actionText?.trim() && Number(ticket.totalCost) > 0 ? ' ve ' : null}{Number(ticket.totalCost) > 0 ? <b>tutar</b> : null} da eklenir.</>
-                      : <>💡 “Yapılan İşlem” ve tutarı girerseniz mesaja otomatik eklenir.</>}
+                    {(() => {
+                      // Hangi alanların mesaja gireceği tek cümlede söyleniyor;
+                      // dil sırasını sözlük belirliyor (İngilizcede kelime sırası başka).
+                      const ekler = [
+                        ticket.actionText?.trim() ? sz.fisDetay.yapilanIslem : null,
+                        Number(ticket.totalCost) > 0 ? sz.genel.tutar : null,
+                      ].filter((x): x is string => Boolean(x));
+                      return ekler.length
+                        ? doldur(sz.fisDetay.mesajaEklenir, { n: ekler.join(` ${sz.genel.ve} `) })
+                        : sz.fisDetay.mesajaEklenirIpucu;
+                    })()}
                   </div>
                 )}
               </div>
@@ -204,7 +217,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
         {/* Fiş Bilgileri */}
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
-          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Fiş Bilgileri</h2>
+          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisDetay.fisBilgileri}</h2>
 
           {/* Siyah / Renkli Sayaç Göstergesi */}
           {(counterBlackVal !== null || counterColorVal !== null) && (
@@ -215,19 +228,19 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                   padding: '0.625rem 0.875rem', textAlign: 'center',
                 }}>
                   <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>
-                    ⚫ Siyah Sayaç
+                    {sz.fisDetay.siyahSayac}
                   </div>
                   <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', fontFamily: 'monospace' }}>
                     {oncekiOkuma && (
                       <span style={{ color: '#9ca3af', fontWeight: 500, fontSize: '0.85rem' }}>
-                        {oncekiOkuma.counterBlack.toLocaleString('tr-TR')} →{' '}
+                        {b.sayi(oncekiOkuma.counterBlack)} →{' '}
                       </span>
                     )}
-                    {counterBlackVal.toLocaleString('tr-TR')}
+                    {b.sayi(counterBlackVal)}
                   </div>
                   {oncekiOkuma && guncelOkuma && (
                     <div style={{ fontSize: '0.7rem', color: '#6ee7b7', fontWeight: 700, marginTop: '0.15rem' }}>
-                      +{Math.max(0, guncelOkuma.counterBlack - oncekiOkuma.counterBlack).toLocaleString('tr-TR')} sayfa
+                      +{b.sayi(Math.max(0, guncelOkuma.counterBlack - oncekiOkuma.counterBlack))} {sz.fisDetay.sayfa}
                     </div>
                   )}
                 </div>
@@ -238,19 +251,19 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                   padding: '0.625rem 0.875rem', textAlign: 'center',
                 }}>
                   <div style={{ fontSize: '0.7rem', color: '#c4b5fd', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>
-                    🟣 Renkli Sayaç
+                    {sz.fisDetay.renkliSayac}
                   </div>
                   <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', fontFamily: 'monospace' }}>
                     {oncekiOkuma && (
                       <span style={{ color: '#c4b5fd', fontWeight: 500, fontSize: '0.85rem' }}>
-                        {oncekiOkuma.counterColor.toLocaleString('tr-TR')} →{' '}
+                        {b.sayi(oncekiOkuma.counterColor)} →{' '}
                       </span>
                     )}
-                    {counterColorVal.toLocaleString('tr-TR')}
+                    {b.sayi(counterColorVal)}
                   </div>
                   {oncekiOkuma && guncelOkuma && (
                     <div style={{ fontSize: '0.7rem', color: '#ddd6fe', fontWeight: 700, marginTop: '0.15rem' }}>
-                      +{Math.max(0, guncelOkuma.counterColor - oncekiOkuma.counterColor).toLocaleString('tr-TR')} sayfa
+                      +{b.sayi(Math.max(0, guncelOkuma.counterColor - oncekiOkuma.counterColor))} {sz.fisDetay.sayfa}
                     </div>
                   )}
                 </div>
@@ -259,12 +272,12 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           )}
 
           {[
-            ['Teknisyen', ticket.assignedUser?.name ?? '-'],
-            ['Arıza Kategorisi', faultLabel(ticket.faultCategory)],
-            ['Oluşturan', ticket.createdBy?.name ?? '-'],
-            ['Toplam Tutar', `₺${Number(ticket.totalCost).toFixed(2)}`],
-            ['Ödeme', ticket.paymentStatus === 'UNPAID' ? 'Ödenmedi' : ticket.paymentStatus === 'PAID' ? 'Ödendi' : ticket.paymentStatus === 'PARTIAL' ? 'Kısmi' : '-'],
-            ['Tarih', new Date(ticket.createdAt).toLocaleDateString('tr-TR')],
+            [sz.fisDetay.teknisyen, ticket.assignedUser?.name ?? '-'],
+            [sz.fisDetay.arizaKategorisi, (sz.ariza as Record<string, string>)[ticket.faultCategory ?? ''] ?? '—'],
+            [sz.fisDetay.olusturan, ticket.createdBy?.name ?? '-'],
+            [sz.fisDetay.toplamTutar, b.para(Number(ticket.totalCost))],
+            [sz.fisDetay.odeme, (sz.durum.odeme as Record<string, string>)[ticket.paymentStatus] ?? '-'],
+            [sz.genel.tarih, b.tarih(ticket.createdAt)],
           ].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.875rem' }}>
               <span style={{ color: '#6b7280' }}>{k}</span>
@@ -278,9 +291,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           yazılmaz: yanlış aşamaya alındıysa doğrusuna geçilir, ikisi de kalır. */}
       {ticket.statusHistory.length > 0 && (
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
-          <h2 style={{ fontWeight: '600', marginBottom: '0.35rem' }}>Aşama Geçmişi</h2>
+          <h2 style={{ fontWeight: '600', marginBottom: '0.35rem' }}>{sz.fisDetay.asamaGecmisi}</h2>
           <p style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '1rem' }}>
-            Müşteri bu adımları kendi panelinde de görüyor.
+            {sz.fisDetay.asamaAlt}
           </p>
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {ticket.statusHistory.map((h) => {
@@ -288,14 +301,14 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               return (
                 <div key={h.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', fontSize: '0.85rem', paddingBottom: '0.4rem', borderBottom: '1px solid #f3f4f6' }}>
                   <span style={{ color: '#6b7280', fontSize: '0.78rem', minWidth: 128, fontVariantNumeric: 'tabular-nums' }}>
-                    {new Date(h.changedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {b.tarihSaat(h.changedAt)}
                   </span>
                   <span style={{ fontWeight: 500 }}>
-                    {h.oncekiStatus ? `${ASAMA_KISA[h.oncekiStatus]} → ` : ''}{ASAMA_KISA[h.status]}
+                    {h.oncekiStatus ? `${(sz.durum.asamaKisa as Record<string, string>)[h.oncekiStatus]} → ` : ''}{(sz.durum.asamaKisa as Record<string, string>)[h.status]}
                   </span>
                   <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: '0.75rem', textAlign: 'right' }}>
-                    {h.kaynak === 'GECMIS' ? 'devir kaydı'
-                      : h.kaynak === 'PORTAL' ? (h.notu || 'müşteri kanalı')
+                    {h.kaynak === 'GECMIS' ? sz.fisDetay.devirKaydi
+                      : h.kaynak === 'PORTAL' ? (h.notu || sz.fisDetay.musteriKanali)
                         : kisi ?? '—'}
                   </span>
                 </div>
@@ -307,12 +320,12 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
       {/* Arıza Bilgileri */}
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
-        <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Arıza & İşlem Bilgileri</h2>
+        <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisDetay.arizaIslem}</h2>
         <div style={{ display: 'grid', gap: '1rem' }}>
           {[
-            ['Arıza Açıklaması', ticket.issueText],
-            ['Yapılan İşlem', ticket.actionText || '-'],
-            ['Notlar', ticket.notes || '-'],
+            [sz.fisDetay.arizaAciklamasi, ticket.issueText],
+            [sz.fisDetay.yapilanIslem, ticket.actionText || '-'],
+            [sz.fisDetay.notlar, ticket.notes || '-'],
           ].map(([k, v]) => (
             <div key={k}>
               <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#6b7280', marginBottom: '0.25rem' }}>{k}</div>

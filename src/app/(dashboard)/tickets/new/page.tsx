@@ -9,6 +9,8 @@ import TicketProgress from '@/components/TicketProgress';
 import FaultInsight, { type FaultHistory } from '@/components/FaultInsight';
 import CihazUyarilari from '@/components/CihazUyarilari';
 import SaveSuccess from '@/components/SaveSuccess';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Customer { id: string; name: string; phone: string; address: string | null; }
 interface Device {
@@ -26,6 +28,9 @@ function QuickAddDeviceModal({
   onClose: () => void;
   onCreated: (device: Device) => void;
 }) {
+  // `sz` (sözlük): sayfanın alt kısmında `t` adı zamanlayıcıya ait.
+  const sz = useT();
+  const b = useBicim();
   const [saving, setSaving] = useState(false);
   const [dform, setDform] = useState({
     brand: '', model: '', serialNo: '', location: '',
@@ -54,7 +59,7 @@ function QuickAddDeviceModal({
     if (res.ok) {
       onCreated(data);
     } else {
-      alert('Hata: ' + (data.error || JSON.stringify(data)));
+      alert(doldur(sz.fisler.hata, { n: data.error || JSON.stringify(data) }));
       setSaving(false);
     }
   };
@@ -78,7 +83,7 @@ function QuickAddDeviceModal({
           borderRadius: '1rem 1rem 0 0',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
-          <span style={{ fontWeight: '700', fontSize: '1rem' }}>🖨️ Hızlı Cihaz Ekle</span>
+          <span style={{ fontWeight: '700', fontSize: '1rem' }}>{sz.cihazHizli.baslik}</span>
           <button onClick={onClose} style={{
             background: 'rgba(255,255,255,0.2)', color: 'white',
             border: 'none', borderRadius: '50%', width: '28px', height: '28px',
@@ -90,45 +95,45 @@ function QuickAddDeviceModal({
           {/* Marka & Model */}
           <div style={g2}>
             <div>
-              <label style={lbl}>Marka *</label>
+              <label style={lbl}>{sz.fisYeni.marka} *</label>
               <input required style={inp} value={dform.brand}
                 onChange={e => setDform({ ...dform, brand: e.target.value })}
-                placeholder="Canon, HP, Xerox..." />
+                placeholder={sz.cihazHizli.markaYer} />
             </div>
             <div>
-              <label style={lbl}>Model *</label>
+              <label style={lbl}>{sz.fisYeni.model} *</label>
               <input required style={inp} value={dform.model}
                 onChange={e => setDform({ ...dform, model: e.target.value })}
-                placeholder="iR2425, LaserJet..." />
+                placeholder={sz.cihazHizli.modelYer} />
             </div>
           </div>
 
           {/* Seri No */}
           <div style={{ marginBottom: '0.75rem' }}>
-            <label style={lbl}>Seri No *</label>
+            <label style={lbl}>{sz.fisDetay.seriNo} *</label>
             <input required style={inp} value={dform.serialNo}
               onChange={e => setDform({ ...dform, serialNo: e.target.value })}
-              placeholder="Örn: CNR987654" />
+              placeholder={sz.cihazHizli.seriYer} />
           </div>
 
           {/* Konum */}
           <div style={{ marginBottom: '0.75rem' }}>
-            <label style={lbl}>Konum</label>
+            <label style={lbl}>{sz.fisDetay.konum}</label>
             <input style={inp} value={dform.location}
               onChange={e => setDform({ ...dform, location: e.target.value })}
-              placeholder="Muhasebe, Ofis..." />
+              placeholder={sz.cihazHizli.konumYer} />
           </div>
 
           {/* Sayaçlar */}
           <div style={g2}>
             <div>
-              <label style={lbl}>⚫ Siyah Sayaç</label>
+              <label style={lbl}>{sz.fisDetay.siyahSayac}</label>
               <input type="number" min="0" style={inp} value={dform.counterBlack}
                 onChange={e => setDform({ ...dform, counterBlack: e.target.value })}
                 placeholder="0" />
             </div>
             <div>
-              <label style={lbl}>🟣 Renkli Sayaç</label>
+              <label style={lbl}>{sz.fisDetay.renkliSayac}</label>
               <input type="number" min="0" style={inp} value={dform.counterColor}
                 onChange={e => setDform({ ...dform, counterColor: e.target.value })}
                 placeholder="0" />
@@ -138,26 +143,26 @@ function QuickAddDeviceModal({
           {/* Kiralık toggle */}
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', marginBottom: dform.isRental ? '0.75rem' : '1rem' }}>
             <input type="checkbox" checked={dform.isRental} onChange={e => setDform({ ...dform, isRental: e.target.checked })} />
-            <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>🏷️ Kiralık Cihaz</span>
+            <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{sz.cihazHizli.kiralikCihaz}</span>
           </label>
 
           {dform.isRental && (
             <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.5rem', padding: '0.75rem', marginBottom: '1rem' }}>
               <div style={{ marginBottom: '0.5rem' }}>
-                <label style={lbl}>Aylık Kira (₺)</label>
+                <label style={lbl}>{doldur(sz.cihazHizli.aylikKira, { birim: b.simge })}</label>
                 <input type="number" min="0" style={inp} value={dform.monthlyRent}
                   onChange={e => setDform({ ...dform, monthlyRent: e.target.value })} placeholder="500" />
               </div>
               <div style={g2}>
                 <div>
-                  <label style={lbl}>⚫ Siyah Birim (₺)</label>
+                  <label style={lbl}>{doldur(sz.cihazHizli.siyahBirim, { birim: b.simge })}</label>
                   <input type="number" step="0.01" style={inp} value={dform.pricePerBlack}
-                    onChange={e => setDform({ ...dform, pricePerBlack: e.target.value })} placeholder="Varsayılan" />
+                    onChange={e => setDform({ ...dform, pricePerBlack: e.target.value })} placeholder={sz.cihazHizli.varsayilan} />
                 </div>
                 <div>
-                  <label style={lbl}>🟣 Renkli Birim (₺)</label>
+                  <label style={lbl}>{doldur(sz.cihazHizli.renkliBirim, { birim: b.simge })}</label>
                   <input type="number" step="0.01" style={inp} value={dform.pricePerColor}
-                    onChange={e => setDform({ ...dform, pricePerColor: e.target.value })} placeholder="Varsayılan" />
+                    onChange={e => setDform({ ...dform, pricePerColor: e.target.value })} placeholder={sz.cihazHizli.varsayilan} />
                 </div>
               </div>
             </div>
@@ -170,12 +175,12 @@ function QuickAddDeviceModal({
               border: 'none', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer',
               fontSize: '0.875rem', opacity: saving ? 0.7 : 1,
             }}>
-              {saving ? 'Ekleniyor...' : '✅ Cihazı Ekle & Seç'}
+              {saving ? sz.cihazHizli.ekleniyor : sz.cihazHizli.ekleSec}
             </button>
             <button type="button" onClick={onClose} style={{
               padding: '0.65rem 1rem', border: '1px solid #d1d5db', backgroundColor: 'white',
               borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500', fontSize: '0.875rem', color: '#374151',
-            }}>İptal</button>
+            }}>{sz.genel.iptal}</button>
           </div>
         </form>
       </div>
@@ -186,6 +191,9 @@ function QuickAddDeviceModal({
 // ─── Ana Sayfa ─────────────────────────────────────────────────────────────────
 export default function NewTicketPage() {
   const router = useRouter();
+  // `sz` (sözlük): aşağıdaki zamanlayıcı efekti `t` adını kullanıyor.
+  const sz = useT();
+  const b = useBicim();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -230,20 +238,20 @@ export default function NewTicketPage() {
 
   // 📷 Cihaz barkodunu okut → müşteri + cihaz otomatik seçilsin (makine gelince fiş aç)
   useBarcodeWedge(async (code) => {
-    setScanMsg({ text: `Cihaz aranıyor: ${code}…`, ok: true });
+    setScanMsg({ text: doldur(sz.fisYeni.cihazAraniyor, { n: code }), ok: true });
     try {
       const r = await fetch(`/api/devices/lookup?code=${encodeURIComponent(code)}`);
-      if (!r.ok) { const e = await r.json().catch(() => ({})); setScanMsg({ text: e.error || `Cihaz bulunamadı: ${code}`, ok: false }); return; }
+      if (!r.ok) { const e = await r.json().catch(() => ({})); setScanMsg({ text: e.error || doldur(sz.fisYeni.cihazBulunamadi, { n: code }), ok: false }); return; }
       const d = await r.json();
-      if (!d.customer) { setScanMsg({ text: 'Cihazın müşterisi bulunamadı', ok: false }); return; }
+      if (!d.customer) { setScanMsg({ text: sz.fisYeni.musteriBulunamadi, ok: false }); return; }
       scanCustomerRef.current = d.customer.id; // bu müşteri-değişimi okutmadan geldi
       setSelectedCustomer({ id: d.customer.id, name: d.customer.name, phone: d.customer.phone, address: null });
       setCustomerSearch(d.customer.name);
       setShowDropdown(false);
       setForm(f => ({ ...f, customerId: d.customer.id }));
       setPendingDeviceId(d.id); // cihazlar yüklenince seçilecek
-      setScanMsg({ text: `✓ ${d.brand} ${d.model} (${d.customer.name}) seçildi`, ok: true });
-    } catch { setScanMsg({ text: 'Bağlantı hatası', ok: false }); }
+      setScanMsg({ text: doldur(sz.fisYeni.secildi, { n: `${d.brand} ${d.model} (${d.customer.name})` }), ok: true });
+    } catch { setScanMsg({ text: sz.genel.baglantiHatasi, ok: false }); }
   }, { enabled: !showAddDevice });
 
   // Cihazlar (müşteriye göre) yüklenince, okutulan cihazı seç
@@ -356,7 +364,7 @@ export default function NewTicketPage() {
     // Tek dokunuşluk bir alan olduğu için engelliyoruz — ama tahmin ürettirmemek adına
     // otomatik varsayılan ATANMAZ; kullanıcı bilerek seçer.
     if (!form.faultCategory) {
-      alert('Arıza kategorisini seçin — tek dokunuş yeterli.');
+      alert(sz.fisYeni.kategoriZorunlu);
       document.getElementById('ariza-kategorisi')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
@@ -383,16 +391,13 @@ export default function NewTicketPage() {
       // Sayaç kaydedilemediyse SESSİZ GEÇME — kullanıcı bunu bilmeli, yoksa
       // eski davranıştaki gibi veri sessizce kaybolur.
       if (data.counterError) {
-        alert(
-          'Fiş kaydedildi, ancak SAYAÇ KAYDEDİLEMEDİ:\n' + data.counterError.message +
-          '\n\nSayacı cihaz sayfasındaki "Sayaç Okuması" bölümünden girebilirsiniz.'
-        );
+        alert(doldur(sz.fisYeni.sayacKaydedilemedi, { n: data.counterError.message }));
       }
       // Asıl tamamlanma anı burası — kısa bir onay göster, sonra fişe geç.
       setSaved({ ticketNumber: data.ticketNumber });
       window.setTimeout(() => router.push(`/tickets/${data.id}`), 1100);
     } else {
-      alert('Hata: ' + (data.error || JSON.stringify(data)));
+      alert(doldur(sz.fisler.hata, { n: data.error || JSON.stringify(data) }));
       setLoading(false);
     }
   };
@@ -416,9 +421,9 @@ export default function NewTicketPage() {
       )}
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/tickets" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Fişler</Link>
+        <Link href="/tickets" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>{sz.fisYeni.geri}</Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem' }}>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Yeni Servis Fişi</h1>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{sz.fisYeni.baslik}</h1>
           {nextTicketNumber && (
             <span style={{
               backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.35rem 0.75rem',
@@ -439,25 +444,25 @@ export default function NewTicketPage() {
         borderRadius: '0.5rem', padding: '0.6rem 0.9rem', fontSize: '0.85rem', fontWeight: 500,
       }}>
         <span style={{ fontSize: '1rem' }}>📷</span>
-        {scanMsg ? scanMsg.text : 'İpucu: Makinenin barkod etiketini okutun — müşteri ve cihaz otomatik seçilir.'}
+        {scanMsg ? scanMsg.text : sz.fisYeni.okutIpucu}
       </div>
 
       {saved && <SaveSuccess ticketNumber={saved.ticketNumber} />}
 
       <form onSubmit={handleSubmit}>
         <TicketProgress steps={[
-          { label: 'Müşteri', done: !!form.customerId },
-          { label: 'Cihaz', done: !!form.deviceId },
-          { label: 'Arıza kategorisi', done: !!form.faultCategory },
-          { label: 'Açıklama', done: !!form.issueText.trim() },
+          { label: sz.fisYeni.adimMusteri, done: !!form.customerId },
+          { label: sz.fisYeni.adimCihaz, done: !!form.deviceId },
+          { label: sz.fisYeni.adimKategori, done: !!form.faultCategory },
+          { label: sz.fisYeni.adimAciklama, done: !!form.issueText.trim() },
         ]} />
 
         {/* ═══ 1. Müşteri Seçimi ═══ */}
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>👤 Müşteri Bilgileri</h2>
+          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisYeni.musteriBilgileri}</h2>
 
           <div style={{ marginBottom: '1rem', position: 'relative' }}>
-            <label style={label}>Müşteri Adı *</label>
+            <label style={label}>{sz.fisYeni.musteriAdi}</label>
             <input
               type="text"
               style={input}
@@ -471,7 +476,7 @@ export default function NewTicketPage() {
                 }
               }}
               onFocus={() => setShowDropdown(true)}
-              placeholder="Müşteri adı yazarak arayın..."
+              placeholder={sz.fisYeni.musteriYer}
               required={!form.customerId}
             />
             {showDropdown && customerSearch && filteredCustomers.length > 0 && (
@@ -503,11 +508,11 @@ export default function NewTicketPage() {
           {selectedCustomer && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
-                <label style={label}>Telefon</label>
+                <label style={label}>{sz.fisDetay.telefon}</label>
                 <input style={readonlyInput} value={selectedCustomer.phone} readOnly />
               </div>
               <div>
-                <label style={label}>Adres</label>
+                <label style={label}>{sz.fisYeni.adres}</label>
                 <input style={readonlyInput} value={selectedCustomer.address || '-'} readOnly />
               </div>
             </div>
@@ -517,14 +522,14 @@ export default function NewTicketPage() {
         {/* ═══ 2. Cihaz Seçimi ═══ */}
         {form.customerId && (
           <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-            <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>🖨️ Cihaz Bilgileri</h2>
+            <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisYeni.cihazBilgileri}</h2>
 
             <div style={{ marginBottom: '1rem' }}>
-              <label style={label}>Cihaz Seç *</label>
+              <label style={label}>{sz.fisYeni.cihazSec}</label>
               {devices.length === 0 ? (
                 <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '0.5rem', padding: '1rem' }}>
                   <p style={{ color: '#92400e', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-                    Bu müşteriye ait cihaz bulunamadı.
+                    {sz.fisYeni.cihazYok}
                   </p>
                   <button
                     type="button"
@@ -535,7 +540,7 @@ export default function NewTicketPage() {
                       fontWeight: '600', fontSize: '0.875rem',
                     }}
                   >
-                    + Hızlı Cihaz Ekle
+                    {sz.fisYeni.hizliCihaz}
                   </button>
                 </div>
               ) : (
@@ -555,7 +560,7 @@ export default function NewTicketPage() {
                         }
                       }}
                       onFocus={() => setShowDeviceDropdown(true)}
-                      placeholder="🔍 Marka, model veya seri no yazın..."
+                      placeholder={sz.fisYeni.cihazAraYer}
                     />
                     {showDeviceDropdown && (
                       <div style={{
@@ -601,8 +606,8 @@ export default function NewTicketPage() {
                               <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.1rem' }}>
                                 SN: <span style={{ fontFamily: 'monospace' }}>{d.serialNo}</span>
                                 {d.location && <span> • {d.location}</span>}
-                                {d.counterBlack != null && <span style={{ marginLeft: '0.5rem' }}>⚫{d.counterBlack.toLocaleString('tr-TR')}</span>}
-                                {d.counterColor != null && <span style={{ marginLeft: '0.25rem' }}>🟣{d.counterColor.toLocaleString('tr-TR')}</span>}
+                                {d.counterBlack != null && <span style={{ marginLeft: '0.5rem' }}>⚫{b.sayi(d.counterBlack)}</span>}
+                                {d.counterColor != null && <span style={{ marginLeft: '0.25rem' }}>🟣{b.sayi(d.counterColor)}</span>}
                               </div>
                             </div>
                           ))}
@@ -610,7 +615,7 @@ export default function NewTicketPage() {
                           const q = deviceSearch.toLowerCase();
                           return !q || d.brand.toLowerCase().includes(q) || d.model.toLowerCase().includes(q) || d.serialNo.toLowerCase().includes(q);
                         }).length === 0 && (
-                          <div style={{ padding: '0.75rem', color: '#9ca3af', fontSize: '0.875rem' }}>Sonuç bulunamadı</div>
+                          <div style={{ padding: '0.75rem', color: '#9ca3af', fontSize: '0.875rem' }}>{sz.fisYeni.sonucYok}</div>
                         )}
                       </div>
                     )}
@@ -618,14 +623,14 @@ export default function NewTicketPage() {
                   <button
                     type="button"
                     onClick={() => setShowAddDevice(true)}
-                    title="Yeni cihaz ekle"
+                    title={sz.fisYeni.cihazEkleIpucu}
                     style={{
                       padding: '0.625rem 0.9rem', backgroundColor: '#f0f9ff', color: '#2563eb',
                       border: '1px solid #bfdbfe', borderRadius: '0.5rem', cursor: 'pointer',
                       fontWeight: '600', fontSize: '0.875rem', whiteSpace: 'nowrap',
                     }}
                   >
-                    + Cihaz Ekle
+                    {sz.fisYeni.cihazEkle}
                   </button>
                 </div>
               )}
@@ -635,26 +640,26 @@ export default function NewTicketPage() {
               <div style={{ backgroundColor: '#f0f9ff', borderRadius: '0.5rem', padding: '1rem', border: '1px solid #bae6fd' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>Marka</label>
+                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>{sz.fisYeni.marka}</label>
                     <div style={{ fontWeight: '600', fontSize: '0.875rem' }}>{selectedDevice.brand}</div>
                   </div>
                   <div>
-                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>Model</label>
+                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>{sz.fisYeni.model}</label>
                     <div style={{ fontWeight: '600', fontSize: '0.875rem' }}>{selectedDevice.model}</div>
                   </div>
                   <div>
-                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>Seri No</label>
+                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>{sz.fisDetay.seriNo}</label>
                     <div style={{ fontWeight: '600', fontSize: '0.875rem', fontFamily: 'monospace' }}>{selectedDevice.serialNo}</div>
                   </div>
                   <div>
-                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>Konum</label>
+                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>{sz.fisDetay.konum}</label>
                     <div style={{ fontWeight: '600', fontSize: '0.875rem' }}>{selectedDevice.location || '-'}</div>
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem', borderTop: '1px solid #bae6fd', paddingTop: '0.75rem' }}>
                   <div>
-                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>⚫ Sayaç (Siyah)</label>
+                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>{sz.fisYeni.sayacSiyah}</label>
                     <input
                       type="number" min="0"
                       style={{ ...input, backgroundColor: 'white', fontWeight: '600' }}
@@ -664,7 +669,7 @@ export default function NewTicketPage() {
                     />
                   </div>
                   <div>
-                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>🟣 Sayaç (Renkli)</label>
+                    <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>{sz.fisYeni.sayacRenkli}</label>
                     <input
                       type="number" min="0"
                       style={{ ...input, backgroundColor: 'white', fontWeight: '600' }}
@@ -679,18 +684,17 @@ export default function NewTicketPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
               <div>
-                <label style={label}>Öncelik</label>
+                <label style={label}>{sz.fisYeni.oncelik}</label>
                 <select style={input} value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
-                  <option value="LOW">Düşük</option>
-                  <option value="NORMAL">Normal</option>
-                  <option value="HIGH">Yüksek</option>
-                  <option value="URGENT">Acil</option>
+                  {(['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const).map(o => (
+                    <option key={o} value={o}>{sz.durum.oncelik[o]}</option>
+                  ))}
                 </select>
               </div>
               <div>
-                <label style={label}>Teknisyen</label>
+                <label style={label}>{sz.fisDetay.teknisyen}</label>
                 <select style={input} value={form.assignedUserId} onChange={e => setForm({ ...form, assignedUserId: e.target.value })}>
-                  <option value="">Atanmadı</option>
+                  <option value="">{sz.fisPanel.atanmadi}</option>
                   {users.map((u: any) => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
@@ -713,10 +717,10 @@ export default function NewTicketPage() {
             />
 
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-              <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>🔧 Arıza Bilgileri</h2>
+              <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisYeni.arizaBilgileri}</h2>
 
               <div id="ariza-kategorisi" style={{ marginBottom: '1rem' }}>
-                <label style={label}>Arıza Kategorisi *</label>
+                <label style={label}>{sz.fisDetay.arizaKategorisi} *</label>
                 <FaultCategoryPicker
                   value={form.faultCategory}
                   onChange={(code, catLabel) => setForm(f => ({
@@ -733,32 +737,32 @@ export default function NewTicketPage() {
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
-                <label style={label}>Arıza Açıklaması *</label>
+                <label style={label}>{sz.fisYeni.arizaAciklamasiZorunlu}</label>
                 <textarea required rows={3} style={input} value={form.issueText}
                   onChange={e => setForm({ ...form, issueText: e.target.value })}
-                  placeholder="Arızayı detaylı açıklayın..." />
+                  placeholder={sz.fisYeni.arizaYer} />
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
-                <label style={label}>Yapılan İşlem</label>
+                <label style={label}>{sz.fisDetay.yapilanIslem}</label>
                 <textarea rows={3} style={input} value={form.actionText}
                   onChange={e => setForm({ ...form, actionText: e.target.value })}
-                  placeholder="Yapılan işlemi yazın..." />
+                  placeholder={sz.fisYeni.islemYer} />
               </div>
 
               <div>
-                <label style={label}>Notlar</label>
+                <label style={label}>{sz.fisDetay.notlar}</label>
                 <textarea rows={2} style={input} value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Ek notlar..." />
+                  placeholder={sz.fisYeni.notYer} />
               </div>
             </div>
 
             {/* ═══ 4. Ücret ═══ */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-              <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>💰 Ücret</h2>
+              <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisYeni.ucret}</h2>
               <div>
-                <label style={label}>Toplam Tutar (₺)</label>
+                <label style={label}>{doldur(sz.fisPanel.toplamTutar, { birim: b.simge })}</label>
                 <input type="number" step="0.01" style={input} value={form.totalCost}
                   onChange={e => setForm({ ...form, totalCost: e.target.value })}
                   placeholder="0.00" />
@@ -772,12 +776,12 @@ export default function NewTicketPage() {
                 borderRadius: '0.5rem', border: 'none', fontWeight: '600', cursor: 'pointer',
                 fontSize: '0.95rem', opacity: loading ? 0.7 : 1,
               }}>
-                {loading ? 'Kaydediliyor...' : 'Fiş Oluştur'}
+                {loading ? sz.genel.kaydediliyor : sz.fisYeni.olustur}
               </button>
               <Link href="/tickets" style={{
                 padding: '0.75rem 2rem', borderRadius: '0.5rem', border: '1px solid #d1d5db',
                 textDecoration: 'none', color: '#374151', fontWeight: '500',
-              }}>İptal</Link>
+              }}>{sz.genel.iptal}</Link>
             </div>
           </>
         )}
