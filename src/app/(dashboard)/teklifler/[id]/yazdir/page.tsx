@@ -1,6 +1,8 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
+import { useT, useMusteriDili } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 /**
  * MÜŞTERİ ÇIKTISI.
@@ -17,11 +19,13 @@ import { use, useEffect, useState } from 'react';
  * tutulamayacak bir söz vermek olurdu.
  */
 
-const tl = (n: number) => `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const kurus = (n: number) => `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
-
 export default function TeklifCiktisi({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const arayuz = useT();
+  // Kâğıdı müşteri okuyor: bayinin dili ve para birimi geçerli.
+  const { dil, sz, b } = useMusteriDili();
+  const tl = (n: number) => b.para(n);
+  const kurus = (n: number) => b.para(n, 4);
   const [veri, setVeri] = useState<any>(null);
   const [bayi, setBayi] = useState<any>(null);
 
@@ -31,7 +35,7 @@ export default function TeklifCiktisi({ params }: { params: Promise<{ id: string
   }, [id]);
 
   if (!veri || veri.error) {
-    return <div style={{ padding: '2rem', color: '#6b7280' }}>{veri?.error || 'Yükleniyor…'}</div>;
+    return <div style={{ padding: '2rem', color: '#6b7280' }}>{veri?.error || arayuz.genel.yukleniyor}</div>;
   }
 
   const t = veri.teklif;
@@ -46,37 +50,37 @@ export default function TeklifCiktisi({ params }: { params: Promise<{ id: string
   const td: React.CSSProperties = { padding: '0.5rem 0.6rem', fontSize: '0.85rem', borderBottom: '1px solid #e5e7eb' };
 
   return (
-    <div style={{ background: 'white', minHeight: '100vh' }}>
+    <div lang={dil} style={{ background: 'white', minHeight: '100vh' }}>
       <style>{`@media print { .yazdirma-gizle { display: none !important; } body { background: white; } }`}</style>
 
       <div className="yazdirma-gizle" style={{ padding: '0.75rem 2rem', background: '#f8fafc', borderBottom: '1px solid #e5e7eb', display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
         <button onClick={() => window.print()}
           style={{ padding: '0.5rem 1.1rem', borderRadius: '0.45rem', border: 'none', background: '#0f2253', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
-          Yazdır / PDF
+          {arayuz.teklif.yazdirPdf}
         </button>
         <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>
-          Bu sayfada maliyet ve marj yok — olduğu gibi müşteriye verilebilir.
+          {arayuz.teklif.ciktiNot}
         </span>
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '2.5rem 2rem', color: '#0f172a' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '2rem', flexWrap: 'wrap', borderBottom: '2px solid #0f2253', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
           <div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800 }}>{bayi?.name || 'Teklif'}</div>
+            <div style={{ fontSize: '1.35rem', fontWeight: 800 }}>{bayi?.name || sz.teklif.ciktiBasliksiz}</div>
             {bayi?.phone && <div style={{ fontSize: '0.82rem', color: '#475569' }}>{bayi.phone}</div>}
             {bayi?.email && <div style={{ fontSize: '0.82rem', color: '#475569' }}>{bayi.email}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>TEKLİF</div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{sz.teklif.ciktiTeklif}</div>
             <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>{t.teklifNo}</div>
             <div style={{ fontSize: '0.78rem', color: '#475569' }}>
-              {new Date(t.createdAt).toLocaleDateString('tr-TR')}
+              {b.tarih(t.createdAt)}
             </div>
           </div>
         </div>
 
         <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>SAYIN</div>
+          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>{sz.teklif.ciktiSayin}</div>
           <div style={{ fontSize: '1.05rem', fontWeight: 700 }}>{t.musteriAdi}</div>
           {t.yetkili && <div style={{ fontSize: '0.85rem', color: '#475569' }}>{t.yetkili}</div>}
         </div>
@@ -84,11 +88,11 @@ export default function TeklifCiktisi({ params }: { params: Promise<{ id: string
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem' }}>
           <thead>
             <tr>
-              <th style={th}>Makine</th>
-              <th style={{ ...th, textAlign: 'right' }}>Adet</th>
-              <th style={{ ...th, textAlign: 'right' }}>Aylık sayfa</th>
-              <th style={{ ...th, textAlign: 'right' }}>Sayfa fiyatı</th>
-              <th style={{ ...th, textAlign: 'right' }}>Aylık</th>
+              <th style={th}>{sz.teklif.ciktiMakine}</th>
+              <th style={{ ...th, textAlign: 'right' }}>{sz.teklif.ciktiAdet}</th>
+              <th style={{ ...th, textAlign: 'right' }}>{sz.teklif.ciktiAylikSayfa}</th>
+              <th style={{ ...th, textAlign: 'right' }}>{sz.teklif.ciktiSayfaFiyati}</th>
+              <th style={{ ...th, textAlign: 'right' }}>{sz.teklif.ciktiAylik}</th>
             </tr>
           </thead>
           <tbody>
@@ -96,7 +100,7 @@ export default function TeklifCiktisi({ params }: { params: Promise<{ id: string
               <tr key={i}>
                 <td style={td}><b>{s.marka}</b> {s.model}</td>
                 <td style={{ ...td, textAlign: 'right' }}>{s.adet}</td>
-                <td style={{ ...td, textAlign: 'right' }}>{s.aylikSayfa.toLocaleString('tr-TR')}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{b.sayi(s.aylikSayfa)}</td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   {s.teklifSayfaSb !== null ? kurus(s.teklifSayfaSb) : '—'}
                 </td>
@@ -110,7 +114,7 @@ export default function TeklifCiktisi({ params }: { params: Promise<{ id: string
             <tfoot>
               <tr>
                 <td colSpan={4} style={{ ...td, textAlign: 'right', fontWeight: 700, borderBottom: 'none', paddingTop: '0.8rem' }}>
-                  Aylık toplam
+                  {sz.teklif.ciktiAylikToplam}
                 </td>
                 <td style={{ ...td, textAlign: 'right', fontWeight: 800, fontSize: '1.05rem', borderBottom: 'none', paddingTop: '0.8rem' }}>
                   {tl(o.teklifAylik)}
@@ -125,22 +129,24 @@ export default function TeklifCiktisi({ params }: { params: Promise<{ id: string
         {tasarrufGosterilebilir && (
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.6rem', padding: '1rem 1.15rem', marginBottom: '1.5rem' }}>
             <div style={{ fontSize: '0.8rem', color: '#166534', fontWeight: 700, marginBottom: '0.35rem' }}>
-              MEVCUT DURUMUNUZA GÖRE
+              {sz.teklif.ciktiMevcutBaslik}
             </div>
             <div style={{ fontSize: '0.92rem', color: '#14532d', lineHeight: 1.7 }}>
-              Şu anda aylık <b>{tl(o.mevcutAylik)}</b> ödüyorsunuz.
-              Bu teklifle aylık <b>{tl(o.teklifAylik)}</b> —
-              ayda <b>{tl(o.aylikTasarruf)}</b>, yılda <b>{tl(o.yillikTasarruf)}</b> kalıyor.
-              {o.tasarrufYuzde !== null && ` (%${(o.tasarrufYuzde * 100).toFixed(0)})`}
+              {sz.teklif.tasarruf1}<b>{tl(o.mevcutAylik)}</b>
+              {sz.teklif.tasarruf2}<b>{tl(o.teklifAylik)}</b>
+              {sz.teklif.tasarruf3}<b>{tl(o.aylikTasarruf)}</b>
+              {sz.teklif.tasarruf4}<b>{tl(o.yillikTasarruf)}</b>
+              {sz.teklif.tasarruf5}
+              {o.tasarrufYuzde !== null && ` (${b.yuzde(o.tasarrufYuzde * 100)})`}
             </div>
           </div>
         )}
 
         <div style={{ fontSize: '0.82rem', color: '#475569', lineHeight: 1.8 }}>
-          <div><b>Geçerlilik:</b> {gecerli.toLocaleDateString('tr-TR')} tarihine kadar.</div>
-          <div><b>Fiyatlara dahil:</b> toner ve sarf malzemesi, periyodik bakım, servis işçiliği.</div>
-          <div><b>Sayaç:</b> aylık okunur, aşan sayfa aynı birim fiyattan faturalanır.</div>
-          <div>Fiyatlara KDV dahil değildir.</div>
+          <div><b>{sz.teklif.ciktiGecerlilik}</b> {doldur(sz.teklif.ciktiGecerlilikDeger, { t: b.tarih(gecerli) })}</div>
+          <div><b>{sz.teklif.ciktiDahil}</b> {sz.teklif.ciktiDahilDeger}</div>
+          <div><b>{sz.teklif.ciktiSayac}</b> {sz.teklif.ciktiSayacDeger}</div>
+          <div>{sz.teklif.ciktiVergiHaric}</div>
         </div>
 
         {t.notlar && (
