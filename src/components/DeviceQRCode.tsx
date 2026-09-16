@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Props {
     publicCode: string;
@@ -8,6 +10,7 @@ interface Props {
 }
 
 export default function DeviceQRCode({ publicCode, deviceName }: Props) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState<string>('');
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,7 +39,7 @@ export default function DeviceQRCode({ publicCode, deviceName }: Props) {
           <div style="text-align:center;padding:2rem">
             <img src="${qrDataUrl}" width="300" height="300" />
             <h2 style="margin:1rem 0 0.25rem">${deviceName}</h2>
-            <p style="color:#6b7280;font-size:0.9rem;margin:0">Kod: ${publicCode}</p>
+            <p style="color:#6b7280;font-size:0.9rem;margin:0">${doldur(t.qr.kod, { n: publicCode })}</p>
             <p style="color:#9ca3af;font-size:0.75rem;margin-top:0.5rem">${qrUrl}</p>
           </div>
           <script>setTimeout(()=>window.print(),500)<\/script>
@@ -72,7 +75,7 @@ export default function DeviceQRCode({ publicCode, deviceName }: Props) {
                     <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
                     <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
                 </svg>
-                QR Kod
+                {t.qr.dugme}
             </button>
 
             {open && (
@@ -91,7 +94,7 @@ export default function DeviceQRCode({ publicCode, deviceName }: Props) {
                         width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
                         textAlign: 'center',
                     }} onClick={e => e.stopPropagation()}>
-                        <h2 style={{ fontWeight: '700', fontSize: '1.25rem', marginBottom: '0.25rem' }}>Cihaz QR Kodu</h2>
+                        <h2 style={{ fontWeight: '700', fontSize: '1.25rem', marginBottom: '0.25rem' }}>{t.qr.baslik}</h2>
                         <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.5rem' }}>{deviceName}</p>
 
                         {/* QR Kodu */}
@@ -102,7 +105,7 @@ export default function DeviceQRCode({ publicCode, deviceName }: Props) {
                             {qrDataUrl ? (
                                 <img src={qrDataUrl} alt="QR Code" width={250} height={250} style={{ display: 'block' }} />
                             ) : (
-                                <div style={{ width: 250, height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>Yükleniyor...</div>
+                                <div style={{ width: 250, height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>{t.genel.yukleniyor}</div>
                             )}
                         </div>
 
@@ -111,7 +114,7 @@ export default function DeviceQRCode({ publicCode, deviceName }: Props) {
                             backgroundColor: '#f9fafb', borderRadius: '0.5rem', padding: '0.75rem',
                             marginBottom: '1rem', fontSize: '0.8rem',
                         }}>
-                            <div style={{ color: '#6b7280', marginBottom: '0.25rem' }}>Cihaz Kodu</div>
+                            <div style={{ color: '#6b7280', marginBottom: '0.25rem' }}>{t.qr.cihazKodu}</div>
                             <div style={{ fontFamily: 'monospace', fontWeight: '700', fontSize: '1rem', color: '#2563eb' }}>{publicCode}</div>
                             <div style={{ color: '#9ca3af', fontSize: '0.7rem', marginTop: '0.5rem', wordBreak: 'break-all' }}>{qrUrl}</div>
                         </div>
@@ -122,18 +125,18 @@ export default function DeviceQRCode({ publicCode, deviceName }: Props) {
                                 flex: 1, padding: '0.75rem', backgroundColor: '#3b82f6', color: 'white',
                                 border: 'none', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer', fontSize: '0.875rem',
                             }}>
-                                🖨️ Yazdır
+                                {t.fisDetay.yazdir}
                             </button>
                             <button onClick={downloadQR} style={{
                                 flex: 1, padding: '0.75rem', backgroundColor: '#10b981', color: 'white',
                                 border: 'none', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer', fontSize: '0.875rem',
                             }}>
-                                ⬇️ İndir
+                                {t.qr.indir}
                             </button>
                             <button onClick={() => setOpen(false)} style={{
                                 padding: '0.75rem 1rem', border: '1px solid #d1d5db', backgroundColor: 'white',
                                 borderRadius: '0.5rem', cursor: 'pointer', color: '#374151',
-                            }}>Kapat</button>
+                            }}>{t.genel.kapat}</button>
                         </div>
                     </div>
                 </div>

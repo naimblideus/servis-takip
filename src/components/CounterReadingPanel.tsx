@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 // Fotoğrafı tarayıcıda küçült (max ~1100px, JPEG ~0.6) -> küçük base64 (DB'de saklanır)
 function downscaleImage(file: File): Promise<string> {
@@ -38,14 +40,15 @@ function downscaleImage(file: File): Promise<string> {
  * yeşil = cihaz kendisi bildirdi (itiraz edilemez), mavi = görsel kanıt,
  * gri = beyan.
  */
-const KAYNAK_ETIKET: Record<string, { ad: string; renk: string; arka: string }> = {
-    CIHAZ_EPOSTA:  { ad: 'Cihaz bildirdi',  renk: '#047857', arka: '#d1fae5' },
-    FOTOGRAF:      { ad: 'Fotoğraflı',       renk: '#1d4ed8', arka: '#dbeafe' },
-    WHATSAPP_FOTO: { ad: 'WhatsApp foto',    renk: '#1d4ed8', arka: '#dbeafe' },
-    PORTAL:        { ad: 'Müşteri girdi',    renk: '#6d28d9', arka: '#ede9fe' },
-    TOPLU:         { ad: 'Sayaç turu',       renk: '#4b5563', arka: '#f3f4f6' },
-    SERVIS_FISI:   { ad: 'Servis fişi',      renk: '#4b5563', arka: '#f3f4f6' },
-    ELLE:          { ad: 'Elle',             renk: '#4b5563', arka: '#f3f4f6' },
+// Ad sözlükte (sayacPanel.kaynak); burada yalnız renk.
+const KAYNAK_RENK: Record<string, { renk: string; arka: string }> = {
+    CIHAZ_EPOSTA:  { renk: '#047857', arka: '#d1fae5' },
+    FOTOGRAF:      { renk: '#1d4ed8', arka: '#dbeafe' },
+    WHATSAPP_FOTO: { renk: '#1d4ed8', arka: '#dbeafe' },
+    PORTAL:        { renk: '#6d28d9', arka: '#ede9fe' },
+    TOPLU:         { renk: '#4b5563', arka: '#f3f4f6' },
+    SERVIS_FISI:   { renk: '#4b5563', arka: '#f3f4f6' },
+    ELLE:          { renk: '#4b5563', arka: '#f3f4f6' },
 };
 
 interface Reading {
@@ -78,6 +81,9 @@ interface Pricing {
 
 export default function CounterReadingPanel({ deviceId }: { deviceId: string }) {
     const router = useRouter();
+    const t = useT();
+    const b = useBicim();
+    const kaynakAdi = (k: string) => (t.sayacPanel.kaynak as Record<string, string>)[k];
     const [readings, setReadings] = useState<Reading[]>([]);
     const [device, setDevice] = useState<DeviceInfo | null>(null);
     const [pricing, setPricing] = useState<Pricing | null>(null);
@@ -160,7 +166,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
     };
 
     const deleteReading = async (readingId: string) => {
-        if (!confirm('Bu sayaç okumasını silmek istediğinize emin misiniz?')) return;
+        if (!confirm(t.sayacPanel.silSor)) return;
         setDeleting(readingId);
         const res = await fetch(`/api/devices/${deviceId}/readings?readingId=${readingId}`, {
             method: 'DELETE',
@@ -225,7 +231,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', margin: 0 }}>✏️ Sayaç Okumasını Düzenle</h3>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', margin: 0 }}>{t.sayacPanel.duzenleBaslik}</h3>
                             <button onClick={closeEdit} style={{
                                 background: 'none', border: 'none', cursor: 'pointer',
                                 fontSize: '1.4rem', color: '#6b7280', lineHeight: 1,
@@ -233,13 +239,13 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                         </div>
 
                         <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1.5rem', backgroundColor: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.5rem' }}>
-                            📅 {new Date(editReading.readingDate).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                            📅 {b.tarih(editReading.readingDate)}
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.4rem' }}>
-                                    ⚫ Siyah Sayaç
+                                    {t.fisDetay.siyahSayac}
                                 </label>
                                 <input
                                     type="number"
@@ -249,13 +255,13 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                 />
                                 {editForm.counterBlack && (
                                     <div style={{ fontSize: '0.75rem', color: '#0ea5e9', marginTop: '0.25rem', fontWeight: '600' }}>
-                                        {Number(editForm.counterBlack).toLocaleString('tr-TR')}
+                                        {b.sayi(Number(editForm.counterBlack))}
                                     </div>
                                 )}
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.4rem' }}>
-                                    🟣 Renkli Sayaç
+                                    {t.fisDetay.renkliSayac}
                                 </label>
                                 <input
                                     type="number"
@@ -265,7 +271,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                 />
                                 {editForm.counterColor && (
                                     <div style={{ fontSize: '0.75rem', color: '#7c3aed', marginTop: '0.25rem', fontWeight: '600' }}>
-                                        {Number(editForm.counterColor).toLocaleString('tr-TR')}
+                                        {b.sayi(Number(editForm.counterColor))}
                                     </div>
                                 )}
                             </div>
@@ -280,7 +286,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                     color: '#374151', fontWeight: '600', fontSize: '0.875rem',
                                 }}
                             >
-                                İptal
+                                {t.genel.iptal}
                             </button>
                             <button
                                 onClick={saveEdit}
@@ -293,7 +299,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                     opacity: (!editForm.counterBlack || !editForm.counterColor || editSaving) ? 0.6 : 1,
                                 }}
                             >
-                                {editSaving ? 'Kaydediliyor...' : '💾 Kaydet'}
+                                {editSaving ? t.genel.kaydediliyor : t.fisPanel.kaydet}
                             </button>
                         </div>
                     </div>
@@ -303,10 +309,10 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
             {/* ── Panel ──────────────────────────────────────────────── */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h2 style={{ fontWeight: '600' }}>Sayaç Okuma</h2>
+                    <h2 style={{ fontWeight: '600' }}>{t.sayacPanel.baslik}</h2>
                     {device?.isRental && (
                         <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.2rem 0.75rem', borderRadius: '9999px' }}>
-                            KİRALIK
+                            {t.cihazlar.kiralik}
                         </span>
                     )}
                 </div>
@@ -314,11 +320,11 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                 {/* Birim Fiyat Bilgisi */}
                 {device?.isRental && pricing && (
                     <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#eff6ff', borderRadius: '0.5rem', border: '1px solid #bfdbfe', fontSize: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <span>⚫ Siyah: <b>₺{pricing.pricePerBlack.toFixed(2)}</b>/adet</span>
-                        <span>🟣 Renkli: <b>₺{pricing.pricePerColor.toFixed(2)}</b>/adet</span>
-                        {device.monthlyRent > 0 && <span>📅 Aidat: <b>₺{device.monthlyRent.toFixed(2)}</b>/ay</span>}
+                        <span>{doldur(t.sayacPanel.siyahBirim, { n: b.para(pricing.pricePerBlack) })}</span>
+                        <span>{doldur(t.sayacPanel.renkliBirim, { n: b.para(pricing.pricePerColor) })}</span>
+                        {device.monthlyRent > 0 && <span>{doldur(t.sayacPanel.aidat, { n: b.para(device.monthlyRent) })}</span>}
                         {pricing.isDeviceLevel && (
-                            <span style={{ fontSize: '0.7rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '9999px' }}>Özel fiyat</span>
+                            <span style={{ fontSize: '0.7rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '9999px' }}>{t.sayacPanel.ozelFiyat}</span>
                         )}
                     </div>
                 )}
@@ -326,14 +332,14 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                 {/* Yeni Okuma */}
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginBottom: '1.25rem', flexWrap: 'wrap', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '0.5rem', border: '1px solid #bae6fd' }}>
                     <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>Siyah Sayaç</label>
-                        <input type="number" style={inp} placeholder="örn. 7356" value={form.counterBlack} onChange={e => setForm({ ...form, counterBlack: e.target.value })} />
-                        {form.counterBlack && <div style={{ fontSize: '0.7rem', color: '#0ea5e9', fontWeight: '600', marginTop: '0.2rem' }}>{Number(form.counterBlack).toLocaleString('tr-TR')}</div>}
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>{t.sayacPanel.siyahSayac}</label>
+                        <input type="number" style={inp} placeholder={t.sayacPanel.ornekSiyah} value={form.counterBlack} onChange={e => setForm({ ...form, counterBlack: e.target.value })} />
+                        {form.counterBlack && <div style={{ fontSize: '0.7rem', color: '#0ea5e9', fontWeight: '600', marginTop: '0.2rem' }}>{b.sayi(Number(form.counterBlack))}</div>}
                     </div>
                     <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>Renkli Sayaç</label>
-                        <input type="number" style={inp} placeholder="örn. 345567" value={form.counterColor} onChange={e => setForm({ ...form, counterColor: e.target.value })} />
-                        {form.counterColor && <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', marginTop: '0.2rem' }}>{Number(form.counterColor).toLocaleString('tr-TR')}</div>}
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>{t.sayacPanel.renkliSayac}</label>
+                        <input type="number" style={inp} placeholder={t.sayacPanel.ornekRenkli} value={form.counterColor} onChange={e => setForm({ ...form, counterColor: e.target.value })} />
+                        {form.counterColor && <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', marginTop: '0.2rem' }}>{b.sayi(Number(form.counterColor))}</div>}
                     </div>
                     {device?.isRental && device.monthlyRent > 0 && (
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}>
@@ -342,17 +348,17 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                         </label>
                     )}
                     <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>📷 Sayaç Fotoğrafı</label>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>{t.sayacPanel.fotograf}</label>
                         {photo ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <img src={photo} alt="sayaç" style={{ height: 37, borderRadius: 6, border: '1px solid #d1d5db' }} />
-                                <button type="button" onClick={() => setPhoto('')} title="Kaldır" style={{ height: 37, width: 30, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', borderRadius: 6, cursor: 'pointer' }}>✕</button>
+                                <img src={photo} alt={t.sayacPanel.fotografAlt} style={{ height: 37, borderRadius: 6, border: '1px solid #d1d5db' }} />
+                                <button type="button" onClick={() => setPhoto('')} title={t.sayacPanel.kaldir} style={{ height: 37, width: 30, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', borderRadius: 6, cursor: 'pointer' }}>✕</button>
                             </div>
                         ) : (
                             <label style={{ display: 'inline-flex', alignItems: 'center', height: 37, padding: '0 0.9rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#374151', background: 'white', whiteSpace: 'nowrap' }}>
-                                {photoBusy ? '...' : '📷 Çek / Yükle'}
+                                {photoBusy ? '...' : t.sayacPanel.cekYukle}
                                 <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
-                                    onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setPhotoBusy(true); try { setPhoto(await downscaleImage(f)); } catch { alert('Fotoğraf işlenemedi'); } setPhotoBusy(false); e.target.value = ''; }} />
+                                    onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setPhotoBusy(true); try { setPhoto(await downscaleImage(f)); } catch { alert(t.sayacPanel.fotoHatasi); } setPhotoBusy(false); e.target.value = ''; }} />
                             </label>
                         )}
                     </div>
@@ -362,7 +368,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                         opacity: (!form.counterBlack || !form.counterColor || saving) ? 0.6 : 1, fontSize: '0.875rem',
                         height: '37px',
                     }}>
-                        {saving ? '...' : '📊 Ekle'}
+                        {saving ? '...' : t.sayacPanel.ekle}
                     </button>
                 </div>
 
@@ -373,15 +379,14 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                     iki durum tamamen farklı para demek, o yüzden SEBEP soruluyor. */}
                 {dususSoruluyor && (
                     <div style={{ padding: '0.9rem 1rem', background: '#fff7ed', border: '1px solid #fdba74', borderRadius: '0.6rem', marginBottom: '1.25rem' }}>
-                        <div style={{ fontWeight: 700, color: '#9a3412', fontSize: '0.9rem' }}>Sayaç öncekinden düşük — ne oldu?</div>
+                        <div style={{ fontWeight: 700, color: '#9a3412', fontSize: '0.9rem' }}>{t.sayacPanel.dususBaslik}</div>
                         <p style={{ margin: '0.25rem 0 0.7rem', fontSize: '0.78rem', color: '#7c2d12', lineHeight: 1.5 }}>
-                            İki durum farklı fatura üretir. Emin değilseniz birincisini seçin: eksik faturalamak,
-                            müşteriye fahiş fatura göndermekten iyidir.
+                            {t.sayacPanel.dususAlt}
                         </p>
                         <div style={{ display: 'grid', gap: 8 }}>
                             {([
-                                ['CIHAZ_DEGISTI', 'Cihaz değişti', 'Yerine başka bir makine takıldı. Takılan makinenin geçmişi müşterinin bu ay bastığı sayfa DEĞİLDİR — bu dönemin farkı sıfır yazılır.'],
-                                ['SAYAC_SIFIRLANDI', 'Sayaç sıfırlandı', 'Aynı makine, sayaç sıfıra döndü. Okunan değer sıfırlamadan sonraki gerçek kullanımdır — o kadarı faturalanır.'],
+                                ['CIHAZ_DEGISTI', t.sayacPanel.cihazDegisti, t.sayacPanel.cihazDegistiAlt],
+                                ['SAYAC_SIFIRLANDI', t.sayacPanel.sayacSifirlandi, t.sayacPanel.sayacSifirlandiAlt],
                             ] as const).map(([tur, baslik, aciklama]) => (
                                 <label key={tur} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: 'white', border: '1px solid ' + (resetTur === tur ? '#ea580c' : '#fed7aa'), borderRadius: 8, padding: '0.6rem 0.7rem', cursor: 'pointer' }}>
                                     <input type="radio" name="resetTur" checked={resetTur === tur} onChange={() => setResetTur(tur)} style={{ marginTop: 3 }} />
@@ -395,11 +400,11 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                         <div style={{ display: 'flex', gap: 8, marginTop: '0.7rem', flexWrap: 'wrap' }}>
                             <button onClick={save} disabled={!resetTur || saving}
                                 style={{ minHeight: 40, padding: '0 1rem', background: '#ea580c', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', opacity: (!resetTur || saving) ? 0.6 : 1 }}>
-                                {saving ? '...' : 'Onayla ve kaydet'}
+                                {saving ? '...' : t.sayacPanel.onaylaKaydet}
                             </button>
                             <button onClick={() => { setDususSoruluyor(false); setResetTur(null); }}
                                 style={{ minHeight: 40, padding: '0 1rem', background: 'white', color: '#7c2d12', border: '1px solid #fed7aa', borderRadius: 8, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
-                                Vazgeç
+                                {t.genel.iptal}
                             </button>
                         </div>
                     </div>
@@ -414,10 +419,10 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                     <div style={{ padding: '0.8rem 1rem', background: '#fff7ed', border: '1px solid #fdba74', borderRadius: '0.6rem', marginBottom: '1.25rem', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                         <span style={{ fontSize: '1rem' }}>⚠️</span>
                         <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 700, color: '#9a3412', fontSize: '0.85rem' }}>Okuma kaydedildi ama kontrol edin</div>
+                            <div style={{ fontWeight: 700, color: '#9a3412', fontSize: '0.85rem' }}>{t.sayacPanel.uyariBaslik}</div>
                             <div style={{ fontSize: '0.78rem', color: '#7c2d12', lineHeight: 1.5, marginTop: 2 }}>{uyari}</div>
                         </div>
-                        <button onClick={() => setUyari(null)} title="Kapat"
+                        <button onClick={() => setUyari(null)} title={t.genel.kapat}
                             style={{ marginLeft: 'auto', minWidth: 32, minHeight: 32, border: 'none', background: 'transparent', color: '#9a3412', cursor: 'pointer', fontSize: '0.95rem' }}>✕</button>
                     </div>
                 )}
@@ -425,36 +430,36 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                 {/* Son Hesaplama */}
                 {lastResult && (
                     <div style={{ padding: '1rem', backgroundColor: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #86efac', marginBottom: '1.25rem' }}>
-                        <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '0.5rem', color: '#065f46' }}>💰 Ücret Hesabı</div>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '0.5rem', color: '#065f46' }}>{t.sayacPanel.ucretHesabi}</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
-                            <div>⚫ Siyah: {lastResult.deltaBlack} × ₺{lastResult.pricePerBlack.toFixed(2)}</div>
-                            <div style={{ fontWeight: '600' }}>= ₺{lastResult.blackCost.toFixed(2)}</div>
-                            <div>🟣 Renkli: {lastResult.deltaColor} × ₺{lastResult.pricePerColor.toFixed(2)}</div>
-                            <div style={{ fontWeight: '600' }}>= ₺{lastResult.colorCost.toFixed(2)}</div>
+                            <div>{doldur(t.sayacPanel.siyahSatir, { adet: b.sayi(lastResult.deltaBlack), birim: b.para(lastResult.pricePerBlack) })}</div>
+                            <div style={{ fontWeight: '600' }}>= {b.para(lastResult.blackCost)}</div>
+                            <div>{doldur(t.sayacPanel.renkliSatir, { adet: b.sayi(lastResult.deltaColor), birim: b.para(lastResult.pricePerColor) })}</div>
+                            <div style={{ fontWeight: '600' }}>= {b.para(lastResult.colorCost)}</div>
                             {lastResult.monthlyRent > 0 && <>
-                                <div>📅 Aylık Aidat</div>
-                                <div style={{ fontWeight: '600' }}>= ₺{lastResult.monthlyRent.toFixed(2)}</div>
+                                <div>{t.sayacPanel.aylikAidat}</div>
+                                <div style={{ fontWeight: '600' }}>= {b.para(lastResult.monthlyRent)}</div>
                             </>}
                         </div>
                         <div style={{ marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #86efac', fontSize: '1.1rem', fontWeight: '700', color: '#065f46' }}>
-                            TOPLAM: ₺{lastResult.total.toFixed(2)}
+                            {doldur(t.sayacPanel.toplamSatir, { n: b.para(lastResult.total) })}
                         </div>
                     </div>
                 )}
 
                 {/* Okuma Geçmişi */}
                 {loading ? (
-                    <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Yükleniyor...</p>
+                    <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>{t.genel.yukleniyor}</p>
                 ) : readings.length === 0 ? (
-                    <p style={{ color: '#9ca3af', fontSize: '0.875rem', textAlign: 'center', padding: '1rem' }}>Henüz sayaç okuma yok</p>
+                    <p style={{ color: '#9ca3af', fontSize: '0.875rem', textAlign: 'center', padding: '1rem' }}>{t.sayacPanel.okumaYok}</p>
                 ) : (
                     <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
                             <thead>
                                 <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                                    {['Tarih', 'S. Sayaç', '+Δ', 'R. Sayaç', '+Δ', ...(device?.isRental ? ['Ücret'] : []), 'Fiş', 'İşlemler'].map((h, i) => (
+                                    {[t.genel.tarih, t.sayacPanel.sutunSiyah, '+Δ', t.sayacPanel.sutunRenkli, '+Δ', ...(device?.isRental ? [t.sayacPanel.sutunUcret] : []), t.sayacPanel.sutunFis, t.sayacPanel.sutunIslemler].map((h, i) => (
                                         <th key={`${h}-${i}`} style={{
-                                            padding: '0.6rem 0.75rem', textAlign: h === 'İşlemler' ? 'center' : 'left',
+                                            padding: '0.6rem 0.75rem', textAlign: h === t.sayacPanel.sutunIslemler ? 'center' : 'left',
                                             fontSize: '0.75rem', fontWeight: '700', color: '#374151',
                                             whiteSpace: 'nowrap',
                                         }}>{h}</th>
@@ -468,34 +473,34 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                         onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                                     >
                                         <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: '#374151', whiteSpace: 'nowrap' }}>
-                                            {new Date(r.readingDate).toLocaleDateString('tr-TR')}
+                                            {b.tarih(r.readingDate)}
                                             {/* Kaynak rozeti: tartışmada bayinin ilk baktığı şey.
                                                 Tarihin altında, ayrı sütun açmadan — tablo zaten geniş. */}
-                                            {r.source && KAYNAK_ETIKET[r.source] && (
+                                            {r.source && KAYNAK_RENK[r.source] && (
                                                 <div style={{
                                                     display: 'inline-block', marginTop: 3, padding: '1px 7px', borderRadius: 999,
                                                     fontSize: '0.68rem', fontWeight: 700, letterSpacing: '.01em',
-                                                    color: KAYNAK_ETIKET[r.source].renk, background: KAYNAK_ETIKET[r.source].arka,
-                                                }} title="Okumanın kaynağı — kanıt ağırlığı">
-                                                    {KAYNAK_ETIKET[r.source].ad}
+                                                    color: KAYNAK_RENK[r.source].renk, background: KAYNAK_RENK[r.source].arka,
+                                                }} title={t.sayacPanel.kaynakIpucu}>
+                                                    {kaynakAdi(r.source)}
                                                 </div>
                                             )}
                                         </td>
                                         <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.875rem', fontWeight: '600' }}>
-                                            {r.counterBlack.toLocaleString('tr-TR')}
+                                            {b.sayi(r.counterBlack)}
                                         </td>
                                         <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: r.deltaBlack > 0 ? '#059669' : '#9ca3af' }}>
-                                            {r.deltaBlack > 0 ? `+${r.deltaBlack.toLocaleString('tr-TR')}` : '—'}
+                                            {r.deltaBlack > 0 ? `+${b.sayi(r.deltaBlack)}` : '—'}
                                         </td>
                                         <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#7c3aed' }}>
-                                            {r.counterColor.toLocaleString('tr-TR')}
+                                            {b.sayi(r.counterColor)}
                                         </td>
                                         <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: r.deltaColor > 0 ? '#7c3aed' : '#9ca3af' }}>
-                                            {r.deltaColor > 0 ? `+${r.deltaColor.toLocaleString('tr-TR')}` : '—'}
+                                            {r.deltaColor > 0 ? `+${b.sayi(r.deltaColor)}` : '—'}
                                         </td>
                                         {device?.isRental && (
                                             <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.85rem', fontWeight: '700', color: Number(r.calculatedCost) > 0 ? '#059669' : '#9ca3af', whiteSpace: 'nowrap' }}>
-                                                {Number(r.calculatedCost) > 0 ? `₺${Number(r.calculatedCost).toFixed(2)}` : '—'}
+                                                {Number(r.calculatedCost) > 0 ? b.para(Number(r.calculatedCost)) : '—'}
                                             </td>
                                         )}
                                         <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.75rem', fontFamily: 'monospace', color: '#2563eb' }}>
@@ -509,18 +514,18 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                                     <a
                                                         href={`/api/devices/${deviceId}/readings/photo?readingId=${r.id}`}
                                                         target="_blank" rel="noreferrer"
-                                                        title="Sayaç fotoğrafı"
+                                                        title={t.sayacPanel.fotoIpucu}
                                                         style={{
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                                                             backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
                                                             borderRadius: '0.375rem', padding: '0.3rem 0.6rem', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none',
                                                         }}
-                                                    >📷 Foto</a>
+                                                    >{t.sayacPanel.foto}</a>
                                                 )}
                                                 {/* Düzenle */}
                                                 <button
                                                     onClick={() => openEdit(r)}
-                                                    title="Sayaç Değerlerini Düzenle"
+                                                    title={t.sayacPanel.duzenleIpucu}
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                                                         backgroundColor: '#eff6ff', color: '#1d4ed8',
@@ -532,14 +537,14 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                                     onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#dbeafe')}
                                                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#eff6ff')}
                                                 >
-                                                    ✏️ Düzenle
+                                                    {t.sayacPanel.duzenle}
                                                 </button>
 
                                                 {/* Sil */}
                                                 <button
                                                     onClick={() => deleteReading(r.id)}
                                                     disabled={deleting === r.id}
-                                                    title="Sayaç Okumasını Sil"
+                                                    title={t.sayacPanel.silIpucu}
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                                                         backgroundColor: '#fef2f2', color: '#b91c1c',
@@ -553,7 +558,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                                     onMouseEnter={e => { if (deleting !== r.id) e.currentTarget.style.backgroundColor = '#fee2e2'; }}
                                                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#fef2f2')}
                                                 >
-                                                    {deleting === r.id ? '⏳ Siliniyor...' : '🗑️ Sil'}
+                                                    {deleting === r.id ? t.sayacPanel.siliniyor : t.sayacPanel.sil}
                                                 </button>
                                             </div>
                                         </td>

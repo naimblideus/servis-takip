@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Customer {
   id: string;
@@ -12,6 +14,8 @@ interface Customer {
 
 export default function NewDevicePage() {
   const router = useRouter();
+  const t = useT();
+  const b = useBicim();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [form, setForm] = useState({
@@ -69,7 +73,7 @@ export default function NewDevicePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerId) {
-      alert('Lütfen müşteri seçin');
+      alert(t.cihaz.musteriSecin);
       return;
     }
     setLoading(true);
@@ -82,7 +86,7 @@ export default function NewDevicePage() {
     if (res.ok) {
       router.push(`/devices/${data.id}`);
     } else {
-      alert('Hata: ' + (data.error || JSON.stringify(data)));
+      alert(doldur(t.fisler.hata, { n: data.error || JSON.stringify(data) }));
       setLoading(false);
     }
   };
@@ -100,17 +104,17 @@ export default function NewDevicePage() {
   return (
     <div style={{ padding: '2rem', maxWidth: '600px' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/devices" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Cihazlar</Link>
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginTop: '0.25rem' }}>Yeni Cihaz</h1>
+        <Link href="/devices" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← {t.menu['/devices']}</Link>
+        <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginTop: '0.25rem' }}>{t.cihaz.yeniBaslik}</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Cihaz Bilgileri</h2>
+          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{t.cihaz.bilgiler}</h2>
 
           {/* Müşteri Arama (Autocomplete) */}
           <div style={{ marginBottom: '1rem' }}>
-            <label style={lbl}>Müşteri *</label>
+            <label style={lbl}>{t.cihaz.musteriZorunlu}</label>
             <div ref={customerSearchRef} style={{ position: 'relative' }}>
               <input
                 type="text"
@@ -125,7 +129,7 @@ export default function NewDevicePage() {
                   }
                 }}
                 onFocus={() => setShowCustomerResults(true)}
-                placeholder="🔍 Müşteri adı veya telefon yazarak arayın..."
+                placeholder={t.cihaz.musteriAraYer}
               />
               {showCustomerResults && customerSearch && filteredCustomers.length > 0 && (
                 <div style={{
@@ -163,79 +167,78 @@ export default function NewDevicePage() {
                   backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem',
                   padding: '0.75rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 }}>
-                  <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: 0 }}>Müşteri bulunamadı</p>
+                  <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: 0 }}>{t.cihaz.musteriBulunamadi}</p>
                 </div>
               )}
             </div>
             {selectedCustomer && (
               <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem', fontWeight: '500' }}>
-                ✓ {selectedCustomer.name} seçildi
+                {doldur(t.cihaz.musteriSecildi, { n: selectedCustomer.name })}
               </div>
             )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
-              <label style={lbl}>Marka *</label>
+              <label style={lbl}>{t.stok.marka}</label>
               <input required style={inp} value={form.brand}
                 onChange={e => setForm({ ...form, brand: e.target.value })}
-                placeholder="Canon, HP, Epson..." />
+                placeholder={t.cihaz.markaYer} />
             </div>
             <div>
-              <label style={lbl}>Model *</label>
+              <label style={lbl}>{t.stok.model}</label>
               <input required style={inp} value={form.model}
                 onChange={e => setForm({ ...form, model: e.target.value })}
-                placeholder="imageRUNNER 2425..." />
+                placeholder={t.cihaz.modelYer} />
             </div>
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
-            <label style={lbl}>Seri No *</label>
+            <label style={lbl}>{t.fisDetay.seriNo} *</label>
             <input required style={inp} value={form.serialNo}
               onChange={e => setForm({ ...form, serialNo: e.target.value })}
-              placeholder="Örn: CNR987654" />
+              placeholder={t.cihaz.seriYer} />
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
-            <label style={lbl}>📷 Barkod (cihazın üstündeki — varsa)</label>
+            <label style={lbl}>{t.cihaz.barkod}</label>
             <input style={inp} value={form.barcode}
               onChange={e => setForm({ ...form, barcode: e.target.value })}
-              placeholder="Mevcut barkodu okut/yaz — okutunca cihaz açılır (yeni etiket gerekmez)" />
+              placeholder={t.cihaz.barkodYer} />
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
-            <label style={lbl}>Konum</label>
+            <label style={lbl}>{t.fisDetay.konum}</label>
             <input style={inp} value={form.location}
               onChange={e => setForm({ ...form, location: e.target.value })}
-              placeholder="Muhasebe Odası, Zemin Kat..." />
+              placeholder={t.cihaz.konumYer} />
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
-            <label style={lbl}>Kurulum Tarihi</label>
+            <label style={lbl}>{t.cihaz.kurulumTarihi}</label>
             <input type="date" style={inp} value={form.installedAt}
               onChange={e => setForm({ ...form, installedAt: e.target.value })}
               /* yerel tarihe göre: toISOString UTC verir, TR'de gece yarısı-03:00 arası bugünü engellerdi */
               max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)} />
             <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-              Cihazın müşteride çalışmaya başladığı tarih. Bilmiyorsanız boş bırakın — cihazın yaşını
-              gösterir, arıza geçmişi bununla anlam kazanır.
+              {t.cihaz.kurulumAciklama}
             </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={lbl}>⚫ Siyah Sayaç</label>
+              <label style={lbl}>{t.fisDetay.siyahSayac}</label>
               <input type="number" min="0" style={inp} value={form.counterBlack}
                 onChange={e => setForm({ ...form, counterBlack: e.target.value })}
-                placeholder="örn. 7356" />
-              {form.counterBlack && <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{Number(form.counterBlack).toLocaleString('tr-TR')}</span>}
+                placeholder={t.cihaz.sayacOrnekSiyah} />
+              {form.counterBlack && <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{b.sayi(Number(form.counterBlack))}</span>}
             </div>
             <div>
-              <label style={lbl}>🟣 Renkli Sayaç</label>
+              <label style={lbl}>{t.fisDetay.renkliSayac}</label>
               <input type="number" min="0" style={inp} value={form.counterColor}
                 onChange={e => setForm({ ...form, counterColor: e.target.value })}
-                placeholder="örn. 345567" />
-              {form.counterColor && <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{Number(form.counterColor).toLocaleString('tr-TR')}</span>}
+                placeholder={t.cihaz.sayacOrnekRenkli} />
+              {form.counterColor && <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{b.sayi(Number(form.counterColor))}</span>}
             </div>
           </div>
         </div>
@@ -244,40 +247,40 @@ export default function NewDevicePage() {
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: form.isRental ? '1rem' : 0 }}>
             <input type="checkbox" checked={form.isRental} onChange={e => setForm({ ...form, isRental: e.target.checked })} />
-            <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>🏷️ Kiralık Cihaz</span>
+            <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>{t.cihaz.kiralik}</span>
           </label>
           {form.isRental && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', backgroundColor: '#eff6ff', borderRadius: '0.5rem', border: '1px solid #bfdbfe' }}>
               <div>
-                <label style={lbl}>Aylık Kira Bedeli (₺)</label>
+                <label style={lbl}>{doldur(t.cihaz.aylikKira, { birim: b.simge })}</label>
                 <input type="number" step="1" min="0" style={inp} value={form.monthlyRent}
-                  onChange={e => setForm({ ...form, monthlyRent: e.target.value })} placeholder="örn. 500" />
+                  onChange={e => setForm({ ...form, monthlyRent: e.target.value })} placeholder={t.cihaz.kiraOrnek} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={lbl}>⚫ Dahil S/B sayfa</label>
+                  <label style={lbl}>{t.cihaz.dahilSiyah}</label>
                   <input type="number" step="1" min="0" style={inp} value={form.includedBlack}
-                    onChange={e => setForm({ ...form, includedBlack: e.target.value })} placeholder="örn. 5000" />
+                    onChange={e => setForm({ ...form, includedBlack: e.target.value })} placeholder={t.cihaz.dahilSiyahOrnek} />
                 </div>
                 <div>
-                  <label style={lbl}>🟣 Dahil renkli sayfa</label>
+                  <label style={lbl}>{t.cihaz.dahilRenkli}</label>
                   <input type="number" step="1" min="0" style={inp} value={form.includedColor}
-                    onChange={e => setForm({ ...form, includedColor: e.target.value })} placeholder="örn. 0" />
+                    onChange={e => setForm({ ...form, includedColor: e.target.value })} placeholder={t.cihaz.dahilRenkliOrnek} />
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={lbl}>⚫ S/B aşım birim (₺)</label>
+                  <label style={lbl}>{doldur(t.cihaz.asimSiyah, { birim: b.simge })}</label>
                   <input type="number" step="0.01" min="0" style={inp} value={form.pricePerBlack}
-                    onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} placeholder="Varsayılan" />
+                    onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} placeholder={t.cihaz.varsayilan} />
                 </div>
                 <div>
-                  <label style={lbl}>🟣 Renkli aşım birim (₺)</label>
+                  <label style={lbl}>{doldur(t.cihaz.asimRenkli, { birim: b.simge })}</label>
                   <input type="number" step="0.01" min="0" style={inp} value={form.pricePerColor}
-                    onChange={e => setForm({ ...form, pricePerColor: e.target.value })} placeholder="Varsayılan" />
+                    onChange={e => setForm({ ...form, pricePerColor: e.target.value })} placeholder={t.cihaz.varsayilan} />
                 </div>
               </div>
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>💡 <b>Dahil paket:</b> bu kadar sayfa kira içinde (ücretsiz); aşan kısım birim fiyattan faturalanır. Dahil 0 = tüm sayfalar birim fiyattan. Birim fiyat boşsa Ayarlar&apos;daki varsayılan kullanılır.</p>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>{t.cihaz.dahilPaketOn} <b>{t.cihaz.dahilPaketVurgu}</b> {t.cihaz.dahilPaketSon}</p>
             </div>
           )}
         </div>
@@ -288,12 +291,12 @@ export default function NewDevicePage() {
             borderRadius: '0.5rem', border: 'none', fontWeight: '600',
             cursor: 'pointer', fontSize: '0.95rem', opacity: loading ? 0.7 : 1,
           }}>
-            {loading ? 'Kaydediliyor...' : 'Cihaz Oluştur'}
+            {loading ? t.genel.kaydediliyor : t.cihaz.olustur}
           </button>
           <Link href="/devices" style={{
             padding: '0.75rem 2rem', borderRadius: '0.5rem', border: '1px solid #d1d5db',
             textDecoration: 'none', color: '#374151', fontWeight: '500',
-          }}>İptal</Link>
+          }}>{t.genel.iptal}</Link>
         </div>
       </form>
     </div>

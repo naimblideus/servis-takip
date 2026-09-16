@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Props {
     device: {
@@ -25,6 +27,8 @@ interface Props {
 
 export default function DeviceEditPanel({ device }: Props) {
     const router = useRouter();
+    const t = useT();
+    const b = useBicim();
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
@@ -56,19 +60,19 @@ export default function DeviceEditPanel({ device }: Props) {
             setOpen(false);
         } else {
             const d = await res.json();
-            alert('Hata: ' + d.error);
+            alert(doldur(t.fisler.hata, { n: d.error }));
         }
         setSaving(false);
     };
 
     const deleteDevice = async () => {
-        if (!confirm(`"${device.brand} ${device.model}" cihazını silmek isteriyor musunuz?`)) return;
+        if (!confirm(doldur(t.cihaz.silSor, { n: `${device.brand} ${device.model}` }))) return;
         const res = await fetch(`/api/devices/${device.id}`, { method: 'DELETE' });
         if (res.ok) {
             router.push('/devices');
         } else {
             const d = await res.json();
-            alert('Silinemedi: ' + d.error);
+            alert(doldur(t.cihaz.silinemedi, { n: d.error }));
         }
     };
 
@@ -85,7 +89,7 @@ export default function DeviceEditPanel({ device }: Props) {
                 border: '1px solid #d1d5db', borderRadius: '0.5rem',
                 fontSize: '0.875rem', cursor: 'pointer', fontWeight: '500',
             }}>
-                {open ? '✕ Kapat' : '✏️ Düzenle'}
+                {open ? t.fisPanel.paneliKapat : t.fisPanel.duzenle}
             </button>
             <button onClick={deleteDevice} style={{
                 padding: '0.5rem 0.875rem', backgroundColor: '#fee2e2', border: 'none',
@@ -108,29 +112,29 @@ export default function DeviceEditPanel({ device }: Props) {
                         backgroundColor: 'white', borderRadius: '1rem', padding: '2rem',
                         width: '100%', maxWidth: '480px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
                     }} onClick={e => e.stopPropagation()}>
-                        <h2 style={{ fontWeight: '700', fontSize: '1.25rem', marginBottom: '1.5rem' }}>Cihaz Düzenle</h2>
+                        <h2 style={{ fontWeight: '700', fontSize: '1.25rem', marginBottom: '1.5rem' }}>{t.cihaz.duzenleBaslik}</h2>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
-                                <label style={lbl}>Marka *</label>
+                                <label style={lbl}>{t.stok.marka}</label>
                                 <input style={inp} value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} />
                             </div>
                             <div>
-                                <label style={lbl}>Model *</label>
+                                <label style={lbl}>{t.stok.model}</label>
                                 <input style={inp} value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} />
                             </div>
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>Seri No *</label>
+                            <label style={lbl}>{t.fisDetay.seriNo} *</label>
                             <input style={inp} value={form.serialNo} onChange={e => setForm({ ...form, serialNo: e.target.value })} />
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>📷 Barkod (cihazın üstündeki)</label>
-                            <input style={inp} value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder="Mevcut barkodu okut/yaz — okutunca cihaz açılır" />
+                            <label style={lbl}>{t.cihaz.barkodDuzenle}</label>
+                            <input style={inp} value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder={t.cihaz.barkodDuzenleYer} />
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>Konum</label>
-                            <input style={inp} value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Muhasebe, Ofis..." />
+                            <label style={lbl}>{t.fisDetay.konum}</label>
+                            <input style={inp} value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder={t.cihaz.konumKisaYer} />
                         </div>
 
                         {/* GARANTİ — fiş açılırken "bu iş ücretli mi" sorusunun
@@ -139,23 +143,23 @@ export default function DeviceEditPanel({ device }: Props) {
                             ayrışıyor; tahmin edilen garanti ya müşteriye kapsamdaki
                             işi faturalatır ya bayiye kapsam dışı işi bedava yaptırır. */}
                         <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
-                            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Garanti</div>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>{t.cihaz.garanti}</div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(8rem, 1fr))', gap: '0.6rem' }}>
                                 <div>
-                                    <label style={lbl}>Başlangıç</label>
+                                    <label style={lbl}>{t.cihaz.baslangic}</label>
                                     <input type="date" style={inp} value={form.warrantyStart} onChange={e => setForm({ ...form, warrantyStart: e.target.value })} />
                                 </div>
                                 <div>
-                                    <label style={lbl}>Bitiş</label>
+                                    <label style={lbl}>{t.cihaz.bitis}</label>
                                     <input type="date" style={inp} value={form.warrantyEnd} onChange={e => setForm({ ...form, warrantyEnd: e.target.value })} />
                                 </div>
                             </div>
                             <div style={{ marginTop: '0.6rem' }}>
-                                <label style={lbl}>Kapsam notu</label>
-                                <input style={inp} value={form.warrantyNote} onChange={e => setForm({ ...form, warrantyNote: e.target.value })} placeholder="parça hariç, işçilik dahil" />
+                                <label style={lbl}>{t.cihaz.kapsamNotu}</label>
+                                <input style={inp} value={form.warrantyNote} onChange={e => setForm({ ...form, warrantyNote: e.target.value })} placeholder={t.cihaz.kapsamYer} />
                             </div>
                             <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.4rem' }}>
-                                Boş bırakılırsa fiş açarken &quot;garanti bilinmiyor&quot; yazar — tahmin edilmez.
+                                {t.cihaz.garantiBosNot}
                             </div>
                         </div>
 
@@ -163,40 +167,40 @@ export default function DeviceEditPanel({ device }: Props) {
                         <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: form.isRental ? '#eff6ff' : '#f9fafb', borderRadius: '0.5rem', border: form.isRental ? '1px solid #bfdbfe' : '1px solid #e5e7eb' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: form.isRental ? '0.75rem' : 0 }}>
                                 <input type="checkbox" checked={form.isRental} onChange={e => setForm({ ...form, isRental: e.target.checked })} />
-                                <span style={{ fontWeight: '600', fontSize: '0.875rem' }}>Kiralık Cihaz</span>
+                                <span style={{ fontWeight: '600', fontSize: '0.875rem' }}>{t.cihaz.kiralikKisa}</span>
                             </label>
                             {form.isRental && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                     <div>
-                                        <label style={lbl}>Aylık Kira Bedeli (₺)</label>
+                                        <label style={lbl}>{doldur(t.cihaz.aylikKira, { birim: b.simge })}</label>
                                         <input type="number" step="1" min="0" style={inp} value={form.monthlyRent}
-                                            onChange={e => setForm({ ...form, monthlyRent: e.target.value })} placeholder="örn. 500" />
+                                            onChange={e => setForm({ ...form, monthlyRent: e.target.value })} placeholder={t.cihaz.kiraOrnek} />
                                     </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                                         <div>
-                                            <label style={lbl}>⚫ Dahil S/B sayfa</label>
+                                            <label style={lbl}>{t.cihaz.dahilSiyah}</label>
                                             <input type="number" step="1" min="0" style={inp} value={form.includedBlack}
-                                                onChange={e => setForm({ ...form, includedBlack: e.target.value })} placeholder="örn. 5000" />
+                                                onChange={e => setForm({ ...form, includedBlack: e.target.value })} placeholder={t.cihaz.dahilSiyahOrnek} />
                                         </div>
                                         <div>
-                                            <label style={lbl}>🟣 Dahil renkli sayfa</label>
+                                            <label style={lbl}>{t.cihaz.dahilRenkli}</label>
                                             <input type="number" step="1" min="0" style={inp} value={form.includedColor}
-                                                onChange={e => setForm({ ...form, includedColor: e.target.value })} placeholder="örn. 0" />
+                                                onChange={e => setForm({ ...form, includedColor: e.target.value })} placeholder={t.cihaz.dahilRenkliOrnek} />
                                         </div>
                                     </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                                         <div>
-                                            <label style={lbl}>⚫ S/B aşım birim (₺)</label>
+                                            <label style={lbl}>{doldur(t.cihaz.asimSiyah, { birim: b.simge })}</label>
                                             <input type="number" step="0.01" min="0" style={inp} value={form.pricePerBlack}
-                                                onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} placeholder="Varsayılan" />
+                                                onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} placeholder={t.cihaz.varsayilan} />
                                         </div>
                                         <div>
-                                            <label style={lbl}>🟣 Renkli aşım birim (₺)</label>
+                                            <label style={lbl}>{doldur(t.cihaz.asimRenkli, { birim: b.simge })}</label>
                                             <input type="number" step="0.01" min="0" style={inp} value={form.pricePerColor}
-                                                onChange={e => setForm({ ...form, pricePerColor: e.target.value })} placeholder="Varsayılan" />
+                                                onChange={e => setForm({ ...form, pricePerColor: e.target.value })} placeholder={t.cihaz.varsayilan} />
                                         </div>
                                     </div>
-                                    <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: 0 }}>💡 <b>Dahil paket:</b> bu kadar sayfa kira içinde (ücretsiz); aşan kısım birim fiyattan faturalanır. Dahil 0 ise tüm sayfalar birim fiyattan. Birim fiyat boşsa Ayarlar&apos;daki varsayılan kullanılır.</p>
+                                    <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: 0 }}>{t.cihaz.dahilPaketOn} <b>{t.cihaz.dahilPaketVurgu}</b> {t.cihaz.dahilPaketSon}</p>
                                 </div>
                             )}
                         </div>
@@ -207,12 +211,12 @@ export default function DeviceEditPanel({ device }: Props) {
                                 border: 'none', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer',
                                 opacity: saving ? 0.7 : 1,
                             }}>
-                                {saving ? 'Kaydediliyor...' : 'Kaydet'}
+                                {saving ? t.genel.kaydediliyor : t.genel.kaydet}
                             </button>
                             <button onClick={() => setOpen(false)} style={{
                                 padding: '0.75rem 1.5rem', border: '1px solid #d1d5db', backgroundColor: 'white',
                                 borderRadius: '0.5rem', cursor: 'pointer', color: '#374151',
-                            }}>İptal</button>
+                            }}>{t.genel.iptal}</button>
                         </div>
                     </div>
                 </div>

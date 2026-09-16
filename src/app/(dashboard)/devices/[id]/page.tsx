@@ -7,6 +7,8 @@ import CounterReadingPanel from '@/components/CounterReadingPanel';
 import DeviceQRCode from '@/components/DeviceQRCode';
 import TonerPanel from '@/components/TonerPanel';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
 
 // statusLabel and priorityLabel removed — replaced with counter columns
 
@@ -18,6 +20,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
   // IDOR koruması: önce kullanıcı, sonra cihazı tenant-scoped çek
   const user = await oturumKullanicisi(session);
   if (!user) redirect('/login');
+  const { sz, b } = await sunucuBicimi(user);
 
   const device = await prisma.device.findFirst({
     where: { id, tenantId: user.tenantId },
@@ -80,7 +83,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
     <div style={{ padding: '2rem', maxWidth: '900px' }}>
       {/* Başlık */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/devices" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Cihazlar</Link>
+        <Link href="/devices" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← {sz.menu['/devices']}</Link>
         {/* flexWrap: telefonda cihaz adı + KİRALIK rozeti solda, QR/Düzenle/
             Sil sağda aynı satıra sıkışıyordu; buton grubu ekranın dışına
             taşıyordu (ölçüldü: grup 228 px, toplam taşma 258 px) — teknisyen
@@ -89,7 +92,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', minWidth: 0 }}>
             <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{device.brand} {device.model}</h1>
             {device.isRental && (
-              <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.25rem 0.75rem', borderRadius: '9999px' }}>KİRALIK</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.25rem 0.75rem', borderRadius: '9999px' }}>{sz.cihazlar.kiralik}</span>
             )}
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -108,7 +111,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             }} />
           </div>
         </div>
-        <p style={{ color: '#6b7280' }}>Seri No: {device.serialNo}</p>
+        <p style={{ color: '#6b7280' }}>{doldur(sz.cihaz.seriNoEtiket, { n: device.serialNo })}</p>
       </div>
 
       {/* Cihaz + Müşteri + Kiralık Bilgisi */}
@@ -117,15 +120,15 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
           masaüstünde yine yan yana. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(15rem,1fr))', gap: '1rem', marginBottom: '1rem' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
-          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Cihaz Bilgileri</h2>
+          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.cihaz.bilgiler}</h2>
           {[
-            ['Marka', device.brand],
-            ['Model', device.model],
-            ['Seri No', device.serialNo],
-            ['Sayaç (Siyah)', device.counterBlack ? device.counterBlack.toLocaleString('tr-TR') : '-'],
-            ['Sayaç (Renkli)', device.counterColor ? device.counterColor.toLocaleString('tr-TR') : '-'],
-            ['Konum', device.location || '-'],
-            ['QR Kodu', device.publicCode],
+            [sz.fisYeni.marka, device.brand],
+            [sz.fisYeni.model, device.model],
+            [sz.fisDetay.seriNo, device.serialNo],
+            [sz.cihaz.sayacSiyah, device.counterBlack ? b.sayi(device.counterBlack) : '-'],
+            [sz.cihaz.sayacRenkli, device.counterColor ? b.sayi(device.counterColor) : '-'],
+            [sz.fisDetay.konum, device.location || '-'],
+            [sz.cihaz.qrKodu, device.publicCode],
           ].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.875rem' }}>
               <span style={{ color: '#6b7280' }}>{k}</span>
@@ -135,11 +138,11 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
         </div>
 
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
-          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Müşteri</h2>
+          <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.genel.musteri}</h2>
           {[
-            ['Ad Soyad', device.customer.name],
-            ['Telefon', device.customer.phone],
-            ['Adres', device.customer.address || '-'],
+            [sz.belge.fis.adSoyad, device.customer.name],
+            [sz.fisDetay.telefon, device.customer.phone],
+            [sz.fisYeni.adres, device.customer.address || '-'],
           ].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.875rem' }}>
               <span style={{ color: '#6b7280' }}>{k}</span>
@@ -148,7 +151,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
           ))}
           <div style={{ marginTop: '1rem' }}>
             <Link href={`/customers/${device.customer.id}`} style={{ color: '#3b82f6', fontSize: '0.875rem', textDecoration: 'none' }}>
-              Müşteri Detayına Git →
+              {sz.cihaz.musteriDetayina}
             </Link>
           </div>
         </div>
@@ -156,13 +159,13 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
         {/* Kiralık Bilgi Kartı */}
         {device.isRental && (
           <div style={{ backgroundColor: '#eff6ff', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', border: '1px solid #bfdbfe' }}>
-            <h2 style={{ fontWeight: '600', marginBottom: '1rem', color: '#1e40af' }}>🏷️ Kira Bilgileri</h2>
+            <h2 style={{ fontWeight: '600', marginBottom: '1rem', color: '#1e40af' }}>{sz.cihaz.kiraBilgileri}</h2>
             {([
-              ['Aylık Kira', `₺${Number(device.monthlyRent).toFixed(2)}`],
-              ...(inclBlack > 0 ? [['⚫ Dahil S/B', `${inclBlack.toLocaleString('tr-TR')} sf`]] : []),
-              ...(inclColor > 0 ? [['🟣 Dahil Renkli', `${inclColor.toLocaleString('tr-TR')} sf`]] : []),
-              [inclBlack > 0 ? '⚫ S/B Aşım Birim' : '⚫ Siyah Birim', `₺${overageBlack.toFixed(2)}`],
-              [inclColor > 0 ? '🟣 Renkli Aşım Birim' : '🟣 Renkli Birim', `₺${overageColor.toFixed(2)}`],
+              [sz.cihaz.aylikKiraKisa, b.para(Number(device.monthlyRent))],
+              ...(inclBlack > 0 ? [[sz.cihaz.dahilSiyahKisa, doldur(sz.cihaz.sayfaKisa, { n: b.sayi(inclBlack) })]] : []),
+              ...(inclColor > 0 ? [[sz.cihaz.dahilRenkliKisa, doldur(sz.cihaz.sayfaKisa, { n: b.sayi(inclColor) })]] : []),
+              [inclBlack > 0 ? sz.cihaz.asimSiyahKisa : sz.cihaz.siyahBirim, b.para(overageBlack)],
+              [inclColor > 0 ? sz.cihaz.asimRenkliKisa : sz.cihaz.renkliBirim, b.para(overageColor)],
             ] as [string, string][]).map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #bfdbfe', fontSize: '0.875rem' }}>
                 <span style={{ color: '#1e40af' }}>{k}</span>
@@ -171,7 +174,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             ))}
             {((device as any).pricePerBlack !== null || (device as any).pricePerColor !== null) && (
               <div style={{ marginTop: '0.75rem', fontSize: '0.7rem', color: '#92400e', backgroundColor: '#fef3c7', padding: '0.3rem 0.5rem', borderRadius: '0.25rem', textAlign: 'center' }}>
-                Özel fiyat uygulanıyor
+                {sz.cihaz.ozelFiyat}
               </div>
             )}
           </div>
@@ -193,15 +196,15 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
       {/* Servis Fişleri */}
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ fontWeight: '600' }}>Servis Fişleri ({device.serviceTickets.length})</h2>
+          <h2 style={{ fontWeight: '600' }}>{doldur(sz.cihaz.fisler, { n: device.serviceTickets.length })}</h2>
           <Link href={`/tickets/new`} style={{
             backgroundColor: '#3b82f6', color: 'white', padding: '0.5rem 1rem',
             borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.875rem', fontWeight: '500'
-          }}>+ Yeni Fiş</Link>
+          }}>{sz.fisler.yeni}</Link>
         </div>
 
         {device.serviceTickets.length === 0 ? (
-          <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>Henüz servis fişi yok</p>
+          <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>{sz.cihaz.fisYok}</p>
         ) : (
           /* Sarmalayıcı: bu tablo 577 px, telefonda kap 311 px. Kaydırıcı
              yokken SAYFANIN TAMAMI yana kayıyordu (ölçüldü: #app-main 633/375)
@@ -211,7 +214,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
           <table style={{ width: '100%', minWidth: '36rem', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                {['Fiş No', 'Arıza', '⚫ S. Sayaç', '🟣 R. Sayaç', 'Teknisyen', 'Tarih', ''].map(h => (
+                {[sz.fisler.tablo.fisNo, sz.fisler.tablo.ariza, sz.cihaz.sutunSiyahSayac, sz.cihaz.sutunRenkliSayac, sz.fisDetay.teknisyen, sz.genel.tarih, ''].map(h => (
                   <th key={h} style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>{h}</th>
                 ))}
               </tr>
@@ -224,19 +227,19 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', fontFamily: 'monospace' }}>{t.ticketNumber}</td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.issueText}</td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.85rem', fontWeight: '600' }}>
-                      {sayac ? sayac.counterBlack.toLocaleString('tr-TR') : '—'}
+                      {sayac ? b.sayi(sayac.counterBlack) : '—'}
                       {sayac && !sayac.kendiOkumasi && (
-                        <span title="Bu fişte sayaç girilmemiş; fiş tarihindeki son okuma gösteriliyor"
+                        <span title={sz.cihaz.yildizIpucu}
                           style={{ color: '#9ca3af', fontWeight: 400, marginLeft: 3 }}>*</span>
                       )}
                     </td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.85rem', fontWeight: '600', color: '#7c3aed' }}>
-                      {sayac ? sayac.counterColor.toLocaleString('tr-TR') : '—'}
+                      {sayac ? b.sayi(sayac.counterColor) : '—'}
                     </td>
                     <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>{t.assignedUser?.name ?? '-'}</td>
-                    <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>{new Date(t.createdAt).toLocaleDateString('tr-TR')}</td>
+                    <td style={{ padding: '0.625rem 0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>{b.tarih(t.createdAt)}</td>
                     <td style={{ padding: '0.625rem 0.75rem' }}>
-                      <Link href={`/tickets/${t.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>Detay →</Link>
+                      <Link href={`/tickets/${t.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>{sz.genel.detayOk}</Link>
                     </td>
                   </tr>
                 );
@@ -247,8 +250,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
         )}
         {device.serviceTickets.length > 0 && (
           <p style={{ marginTop: '0.6rem', fontSize: '0.72rem', color: '#9ca3af' }}>
-            Sayaç sütunu, fişin kendi okumasını gösterir. <b>*</b> işaretli satırlarda o fişte sayaç
-            girilmemiştir; fiş tarihindeki son okuma gösterilir.
+            {sz.cihaz.sayacNotuOn} <b>*</b> {sz.cihaz.sayacNotuSon}
           </p>
         )}
       </div>

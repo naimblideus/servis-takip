@@ -7,14 +7,13 @@ import CustomerCariPanel from '@/components/CustomerCariPanel';
 import MusteriPortalKarti from '@/components/MusteriPortalKarti';
 import ContactActions from '@/components/ContactActions';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
 
-const statusLabel: Record<string, { label: string; color: string }> = {
-  NEW: { label: 'Yeni', color: '#fef3c7' },
-  IN_SERVICE: { label: 'Serviste', color: '#dbeafe' },
-  WAITING_FOR_PART: { label: 'Parça Bkl.', color: '#fce7f3' },
-  READY: { label: 'Hazır', color: '#d1fae5' },
-  DELIVERED: { label: 'Teslim', color: '#f0fdf4' },
-  CANCELLED: { label: 'İptal', color: '#f3f4f6' },
+// Etiketler sözlükte (durum.fisKisa); burada yalnız renk.
+const statusRenk: Record<string, string> = {
+  NEW: '#fef3c7', IN_SERVICE: '#dbeafe', WAITING_FOR_PART: '#fce7f3',
+  READY: '#d1fae5', DELIVERED: '#f0fdf4', CANCELLED: '#f3f4f6',
 };
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +24,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   // IDOR koruması: yalnızca bu tenant'ın müşterisi görüntülenebilir
   const me = await oturumKullanicisi(session);
   if (!me) redirect('/login');
+  const { sz, b } = await sunucuBicimi(me);
 
   const customer = await prisma.customer.findFirst({
     where: { id, tenantId: me.tenantId },
@@ -51,7 +51,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   return (
     <div style={{ padding: '2rem', maxWidth: '900px' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/customers" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← Müşteriler</Link>
+        <Link href="/customers" style={{ color: '#6b7280', fontSize: '0.875rem', textDecoration: 'none' }}>← {sz.menu['/customers']}</Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{customer.name}</h1>
           <CustomerEditPanel customer={{
@@ -67,12 +67,12 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
       {/* Müşteri Bilgileri */}
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-        <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>İletişim Bilgileri</h2>
+        <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.musteri.iletisim}</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
           {[
-            ['Telefon', customer.phone],
-            ['Adres', customer.address || '-'],
-            ['Kayıt Tarihi', new Date(customer.createdAt).toLocaleDateString('tr-TR')],
+            [sz.fisDetay.telefon, customer.phone],
+            [sz.fisYeni.adres, customer.address || '-'],
+            [sz.musteri.kayitTarihi, b.tarih(customer.createdAt)],
           ].map(([k, v]) => (
             <div key={k} style={{ padding: '0.5rem 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.875rem' }}>
               <span style={{ color: '#6b7280', display: 'block', fontSize: '0.75rem' }}>{k}</span>
@@ -89,32 +89,32 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             "Cihazlar" ile "(2)" alt alta düşüyor, düğme yazıları kırılıyordu
             (ölçüldü: başlık yüksekliği 48 px). Artık düğmeler alt satıra iniyor. */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          <h2 style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>Cihazlar ({customer.devices.length})</h2>
+          <h2 style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>{doldur(sz.musteri.cihazlar, { n: customer.devices.length })}</h2>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {customer.devices.length > 0 && (
-              <Link href={`/customers/${customer.id}/cihaz-dokumu`} title="Cihaz dökümü / zimmet listesi yazdır (kat-oda gruplu tek sayfa)" style={{
+              <Link href={`/customers/${customer.id}/cihaz-dokumu`} title={sz.musteri.dokumIpucu} style={{
                 backgroundColor: '#eef2ff', color: '#4338ca', padding: '0.4rem 0.875rem',
                 borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500',
                 border: '1px solid #c7d2fe'
-              }}>🖨️ Döküm</Link>
+              }}>{sz.musteri.dokum}</Link>
             )}
             <Link href="/devices/new" style={{
               backgroundColor: '#3b82f6', color: 'white', padding: '0.4rem 0.875rem',
               borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500'
-            }}>+ Yeni Cihaz</Link>
+            }}>{sz.musteri.yeniCihaz}</Link>
           </div>
         </div>
         {customer.devices.length === 0 ? (
-          <p style={{ color: '#6b7280', textAlign: 'center', padding: '1.5rem' }}>Henüz cihaz yok</p>
+          <p style={{ color: '#6b7280', textAlign: 'center', padding: '1.5rem' }}>{sz.musteri.cihazYok}</p>
         ) : (
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {customer.devices.map(d => (
               <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.875rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
                 <div>
                   <div style={{ fontWeight: '500', fontSize: '0.875rem' }}>{d.brand} {d.model}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Seri: {d.serialNo} {d.location ? `· ${d.location}` : ''}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{doldur(sz.musteri.seri, { n: d.serialNo })} {d.location ? `· ${d.location}` : ''}</div>
                 </div>
-                <Link href={`/devices/${d.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>Detay →</Link>
+                <Link href={`/devices/${d.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>{sz.genel.detayOk}</Link>
               </div>
             ))}
           </div>
@@ -124,27 +124,30 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       {/* Son Fişler */}
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ fontWeight: '600' }}>Son Servis Fişleri ({allTickets.length})</h2>
+          <h2 style={{ fontWeight: '600' }}>{doldur(sz.musteri.sonFisler, { n: allTickets.length })}</h2>
           <Link href="/tickets/new" style={{
             backgroundColor: '#3b82f6', color: 'white', padding: '0.4rem 0.875rem',
             borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500'
-          }}>+ Yeni Fiş</Link>
+          }}>{sz.fisler.yeni}</Link>
         </div>
         {allTickets.length === 0 ? (
-          <p style={{ color: '#6b7280', textAlign: 'center', padding: '1.5rem' }}>Henüz servis fişi yok</p>
+          <p style={{ color: '#6b7280', textAlign: 'center', padding: '1.5rem' }}>{sz.musteri.fisYok}</p>
         ) : (
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {allTickets.map(t => {
-              const st = statusLabel[t.status] ?? { label: t.status, color: '#f3f4f6' };
+              const st = {
+                label: (sz.durum.fisKisa as Record<string, string>)[t.status] ?? t.status,
+                color: statusRenk[t.status] ?? '#f3f4f6',
+              };
               return (
                 <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.875rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
                   <div>
                     <div style={{ fontWeight: '500', fontSize: '0.875rem', fontFamily: 'monospace' }}>{t.ticketNumber}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{new Date(t.createdAt).toLocaleDateString('tr-TR')}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{b.tarih(t.createdAt)}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <span style={{ backgroundColor: st.color, padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>{st.label}</span>
-                    <Link href={`/tickets/${t.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>Detay →</Link>
+                    <Link href={`/tickets/${t.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>{sz.genel.detayOk}</Link>
                   </div>
                 </div>
               );
