@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 
 interface Kayit {
   id: string;
@@ -35,6 +37,19 @@ interface FiloSatiri {
   araGun: number | null;
   gonderimSayisi: number;
   aciklama: string;
+  aciklamaKod?: { kod: string; ara?: number; sessiz?: number; gun?: number };
+}
+
+/** Sunucudan gelen kodu kullanıcının dilinde cümleye çevirir. */
+function durumMetni(t: Sozluk, f: { aciklama: string; aciklamaKod?: { kod: string; ara?: number; sessiz?: number; gun?: number } }): string {
+  const k = f.aciklamaKod;
+  if (!k) return f.aciklama;
+  if (k.kod === 'HIC') return t.sayacEposta.durumHic;
+  if (k.kod === 'DURDU_ARALIKLI') return doldur(t.sayacEposta.durumDurduAralikli, { ara: k.ara ?? 0, sessiz: k.sessiz ?? 0 });
+  if (k.kod === 'DURDU_TEK') return doldur(t.sayacEposta.durumDurduTek, { sessiz: k.sessiz ?? 0 });
+  if (k.kod === 'BUGUN') return t.sayacEposta.durumBugun;
+  if (k.kod === 'GUN_ONCE') return doldur(t.sayacEposta.durumGunOnce, { gun: k.gun ?? 0 });
+  return f.aciklama;
 }
 
 interface FiloOzeti {
@@ -62,6 +77,8 @@ interface FiloOzeti {
 const LISTE_ADIMI = 40;
 
 export default function SayacEpostaPage() {
+  const t = useT();
+  const b = useBicim();
   const [items, setItems] = useState<Kayit[]>([]);
   const [cihazlar, setCihazlar] = useState<Cihaz[]>([]);
   const [yukleniyor, setYukleniyor] = useState(true);
@@ -118,14 +135,13 @@ export default function SayacEpostaPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       const d = await r.json();
-      if (!r.ok) { setHata(d.error || 'İşlem yapılamadı'); return; }
+      if (!r.ok) { setHata(d.error || t.sayacEposta.islemYapilamadi); return; }
       if (d.uyari) alert('⚠️ ' + d.uyari);
       setAcik(null); yukle();
     } finally { setMesgul(null); }
   };
 
-  const tarih = (iso: string) =>
-    new Date(iso).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const tarih = (iso: string) => b.tarihSaat(iso);
 
   const bekleyen = items.filter(i => i.durum === 'BEKLIYOR' || i.durum === 'HATA').length;
 
@@ -140,21 +156,19 @@ export default function SayacEpostaPage() {
         : 'bg-gray-50 text-gray-600 border-gray-200';
 
   const rozetAd = (d: FiloSatiri['durum']) =>
-    d === 'OTOMATIK' ? 'otomatik' : d === 'DURDU' ? 'durdu' : 'kurulmadı';
+    d === 'OTOMATIK' ? t.sayacEposta.rozetOtomatik : d === 'DURDU' ? t.sayacEposta.rozetDurdu : t.sayacEposta.rozetKurulmadi;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Cihazdan Gelen Sayaçlar</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t.sayacEposta.baslik}</h1>
           <p className="mt-1 max-w-2xl text-sm text-gray-600">
-            Cihazlar sayaç raporunu e-postayla gönderir; sistem seri numarasını tanıdığında
-            sayacı <b>kendiliğinden</b> işler. Tanıyamadıklarını aşağıda elle işlersiniz —
-            böylece hiçbir sayaç kaybolmaz.
+            {t.sayacEposta.altOn} <b>{t.sayacEposta.altVurgu}</b>{t.sayacEposta.altSon}
           </p>
         </div>
         <Link href="/sayac-turu" className="rounded border px-3 py-2 text-sm hover:bg-gray-50">
-          Sayaç turu
+          {t.sayacEposta.sayacTuru}
         </Link>
       </div>
 
@@ -167,40 +181,37 @@ export default function SayacEpostaPage() {
             <div className="rounded-lg border bg-white p-4">
               <div className="text-2xl font-bold tabular-nums text-emerald-700">{ozet.otomatik}</div>
               <div className="text-sm text-gray-600">
-                Otomatik gönderiyor
-                {ozet.oran !== null && <span className="ml-1 text-gray-400">· %{ozet.oran}</span>}
+                {t.sayacEposta.otomatikGonderiyor}
+                {ozet.oran !== null && <span className="ml-1 text-gray-400">· {b.yuzde(ozet.oran)}</span>}
               </div>
             </div>
             <div className="rounded-lg border bg-white p-4">
               <div className={`text-2xl font-bold tabular-nums ${ozet.durdu ? 'text-red-700' : ''}`}>{ozet.durdu}</div>
-              <div className="text-sm text-gray-600">Gönderiyordu, durdu</div>
+              <div className="text-sm text-gray-600">{t.sayacEposta.durdu}</div>
             </div>
             <div className="rounded-lg border bg-white p-4">
               <div className="text-2xl font-bold tabular-nums">{ozet.kurulmadi}</div>
-              <div className="text-sm text-gray-600">Hiç göndermedi</div>
+              <div className="text-sm text-gray-600">{t.sayacEposta.hicGondermedi}</div>
             </div>
           </div>
 
           {ozet.durdu > 0 && (
             <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              <b>{ozet.durdu} cihaz</b> daha önce otomatik gönderiyordu, artık göndermiyor.
-              Bu cihazların sayacı son bilinen değerde duruyor; aradaki sayfalar faturaya girmiyor.
+              <b>{doldur(t.sayacEposta.durduUyariVurgu, { n: ozet.durdu })}</b> {t.sayacEposta.durduUyariSon}
             </p>
           )}
 
           {ozet.otomatik === 0 && (
             <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              Hiçbir cihaz otomatik sayaç göndermiyor. Cihazın web arayüzünde e-posta/bildirim
-              ayarlarına size özel adresi tanımlayınca sayaçlar kendiliğinden düşer —
-              kimse gezmez, kimse fotoğraf beklemez.
+              {t.sayacEposta.hicUyari}
             </p>
           )}
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {([
-              ['IS', `Yapılacaklar (${ozet.durdu + ozet.kurulmadi})`],
-              ['OTOMATIK', `Çalışanlar (${ozet.otomatik})`],
-              ['HEPSI', `Hepsi (${ozet.toplam})`],
+              ['IS', doldur(t.sayacEposta.sekmeIs, { n: ozet.durdu + ozet.kurulmadi })],
+              ['OTOMATIK', doldur(t.sayacEposta.sekmeCalisan, { n: ozet.otomatik })],
+              ['HEPSI', doldur(t.sayacEposta.sekmeHepsi, { n: ozet.toplam })],
             ] as const).map(([k, ad]) => (
               <button key={k} type="button"
                 onClick={() => { setFiloSuzgec(k); setFiloLimit(LISTE_ADIMI); }}
@@ -212,7 +223,7 @@ export default function SayacEpostaPage() {
 
           {filoListe.length === 0 ? (
             <p className="mt-4 rounded-lg border bg-white p-8 text-center text-sm text-gray-500">
-              Bu grupta cihaz yok.
+              {t.sayacEposta.grupBos}
             </p>
           ) : (
             <>
@@ -226,7 +237,7 @@ export default function SayacEpostaPage() {
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-gray-500">
                         {f.musteri && <span className="truncate">{f.musteri}</span>}
-                        <span>{f.aciklama}</span>
+                        <span>{durumMetni(t, f)}</span>
                       </div>
                     </div>
                     <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${rozet(f.durum)}`}>
@@ -234,7 +245,7 @@ export default function SayacEpostaPage() {
                     </span>
                     <Link href={`/devices/${f.deviceId}`}
                       className="rounded border px-3 py-1.5 text-xs hover:bg-gray-50">
-                      Cihaz kartı
+                      {t.sayacEposta.cihazKarti}
                     </Link>
                   </li>
                 ))}
@@ -242,7 +253,7 @@ export default function SayacEpostaPage() {
               {filoListe.length > filoLimit && (
                 <button type="button" onClick={() => setFiloLimit(n => n + LISTE_ADIMI)}
                   className="mt-3 rounded border px-3 py-2 text-sm hover:bg-gray-50">
-                  {filoListe.length - filoLimit} cihaz daha göster
+                  {doldur(t.sayacEposta.dahaGoster, { n: filoListe.length - filoLimit })}
                 </button>
               )}
             </>
@@ -253,28 +264,28 @@ export default function SayacEpostaPage() {
       {/* ── OKUNAMAYAN E-POSTALAR ────────────────────────────────────── */}
       <div className="mt-10 flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-lg font-semibold">
-          Elle işlenecek e-postalar
+          {t.sayacEposta.kuyrukBaslik}
           {bekleyen > 0 && (
             <span className="ml-2 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
-              {bekleyen} bekliyor
+              {doldur(t.sayacEposta.bekliyorRozet, { n: bekleyen })}
             </span>
           )}
         </h2>
         <button type="button" onClick={() => setHepsi(!hepsi)}
           className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">
-          {hepsi ? 'Sadece bekleyenler' : 'Tümünü göster'}
+          {hepsi ? t.sayacEposta.sadeceBekleyen : t.sayacEposta.tumunuGoster}
         </button>
       </div>
 
-      {yukleniyor && <p className="mt-4 text-sm text-gray-500">Yükleniyor…</p>}
+      {yukleniyor && <p className="mt-4 text-sm text-gray-500">{t.genel.yukleniyor}</p>}
 
       {!yukleniyor && items.length === 0 && (
         <div className="mt-4 rounded-lg border bg-white p-10 text-center">
           <div className="text-sm font-semibold text-gray-700">
-            {hepsi ? 'Hiç e-posta yok' : 'Bekleyen yok'}
+            {hepsi ? t.sayacEposta.hicEposta : t.sayacEposta.bekleyenYok}
           </div>
           <div className="mt-1 text-sm text-gray-500">
-            Elle işlenmesi gereken sayaç e-postası yok. Gelenler otomatik işleniyor.
+            {t.sayacEposta.kuyrukBosAlt}
           </div>
         </div>
       )}
@@ -286,25 +297,27 @@ export default function SayacEpostaPage() {
             <div key={k.id} className={`rounded-lg border bg-white p-4 ${bekliyor ? '' : 'opacity-60'}`}>
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <div className="text-sm font-semibold">
-                  {k.seri ? <>Seri: <code className="font-mono">{k.seri}</code></> : 'Seri tanınmadı'}
+                  {k.seri ? <>{t.sayacEposta.seriOn} <code className="font-mono">{k.seri}</code></> : t.sayacEposta.seriTanimadi}
                   {k.durum === 'ISLENDI' && (
-                    <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">işlendi</span>
+                    <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">{t.sayacEposta.durumIslendi}</span>
                   )}
                   {k.durum === 'HATA' && (
-                    <span className="ml-2 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">hata</span>
+                    <span className="ml-2 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">{t.sayacEposta.durumHata}</span>
                   )}
                   {k.durum === 'ATLANDI' && (
-                    <span className="ml-2 rounded-full border bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-600">atlandı</span>
+                    <span className="ml-2 rounded-full border bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-600">{t.sayacEposta.durumAtlandi}</span>
                   )}
                 </div>
                 <div className="text-xs text-gray-400">{tarih(k.tarih)}</div>
               </div>
 
               <div className="mt-1 text-xs text-gray-500">
-                {k.konu || '(konu yok)'}{k.gonderen ? ` · ${k.gonderen}` : ''}
+                {k.konu || t.sayacEposta.konuYok}{k.gonderen ? ` · ${k.gonderen}` : ''}
                 {(k.siyah != null || k.renkli != null) && (
-                  <> · okunan: {k.siyah != null ? `S/B ${k.siyah.toLocaleString('tr-TR')}` : 'S/B —'}
-                    {k.renkli != null ? ` · Renkli ${k.renkli.toLocaleString('tr-TR')}` : ''}</>
+                  <>{doldur(t.sayacEposta.okunan, {
+                    sb: k.siyah != null ? doldur(t.sayacEposta.okunanSb, { n: b.sayi(k.siyah) }) : t.sayacEposta.okunanSbYok,
+                  })}
+                    {k.renkli != null ? doldur(t.sayacEposta.okunanRenkli, { n: b.sayi(k.renkli) }) : ''}</>
                 )}
               </div>
 
@@ -315,7 +328,7 @@ export default function SayacEpostaPage() {
               )}
 
               <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-gray-500">E-posta içeriğini gör</summary>
+                <summary className="cursor-pointer text-xs text-gray-500">{t.sayacEposta.icerigiGor}</summary>
                 <div className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap rounded border bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-600">
                   {k.onizleme}
                 </div>
@@ -323,10 +336,10 @@ export default function SayacEpostaPage() {
 
               {acik === k.id ? (
                 <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-4">
-                  <div className="text-sm font-semibold text-sky-900">Sayacı cihaza işle</div>
+                  <div className="text-sm font-semibold text-sky-900">{t.sayacEposta.islePanel}</div>
                   <select value={dev} onChange={e => setDev(e.target.value)}
                     className="mt-2 w-full rounded border px-3 py-2 text-sm">
-                    <option value="">Cihaz seçin…</option>
+                    <option value="">{t.sayacEposta.cihazSecin}</option>
                     {cihazlar.map(c => (
                       <option key={c.id} value={c.id}>
                         {c.brand} {c.model} · {c.serialNo}{c.customer?.name ? ` — ${c.customer.name}` : ''}
@@ -336,12 +349,12 @@ export default function SayacEpostaPage() {
 
                   <div className="mt-3 flex flex-wrap gap-3">
                     <div className="min-w-[130px] flex-1">
-                      <label className="text-xs font-semibold text-sky-800">Siyah sayaç</label>
+                      <label className="text-xs font-semibold text-sky-800">{t.sayacEposta.siyahSayac}</label>
                       <input value={cb} onChange={e => setCb(e.target.value.replace(/\D/g, ''))}
                         inputMode="numeric" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
                     </div>
                     <div className="min-w-[130px] flex-1">
-                      <label className="text-xs font-semibold text-sky-800">Renkli sayaç</label>
+                      <label className="text-xs font-semibold text-sky-800">{t.sayacEposta.renkliSayac}</label>
                       <input value={cc} onChange={e => setCc(e.target.value.replace(/\D/g, ''))}
                         inputMode="numeric" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
                     </div>
@@ -349,12 +362,12 @@ export default function SayacEpostaPage() {
 
                   <div className="mt-3">
                     <div className="text-xs font-bold text-sky-800">
-                      Yeni değer eskisinden küçükse sebebini seçin
+                      {t.wa.sebepBaslik}
                     </div>
                     <div className="mt-1 grid gap-1">
                       {([
-                        ['CIHAZ_DEGISTI', 'Cihaz değişti — başka makine takıldı', 'Yeni makinenin sayacı bu ayın kullanımı sayılmaz; buradan sonrası sayılır.'],
-                        ['SAYAC_SIFIRLANDI', 'Aynı makine, sayacı sıfırlandı', 'Okunan değer bu ayın kullanımıdır ve faturalanır.'],
+                        ['CIHAZ_DEGISTI', t.wa.sebepCihazBaslik, t.wa.sebepCihazAlt],
+                        ['SAYAC_SIFIRLANDI', t.wa.sebepSifirBaslik, t.wa.sebepSifirAlt],
                       ] as const).map(([tur, baslik, aciklama]) => (
                         <label key={tur} className="flex cursor-pointer items-start gap-2 text-xs text-sky-900">
                           <input type="radio" name={`resetTur-${k.id}`} checked={resetTur === tur}
@@ -368,7 +381,7 @@ export default function SayacEpostaPage() {
                       {resetTur && (
                         <button type="button" onClick={() => setResetTur(null)}
                           className="justify-self-start px-1 py-1 text-xs font-bold text-sky-800 underline">
-                          seçimi kaldır
+                          {t.wa.secimiKaldir}
                         </button>
                       )}
                     </div>
@@ -381,11 +394,11 @@ export default function SayacEpostaPage() {
                       onClick={() => gonder({ id: k.id, deviceId: dev, counterBlack: cb, counterColor: cc || 0, ...(resetTur ? { reset: true, resetTur } : {}) })}
                       disabled={mesgul === k.id || !dev || cb === ''}
                       className="rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-gray-300">
-                      {mesgul === k.id ? 'Kaydediliyor…' : 'Sayacı kaydet'}
+                      {mesgul === k.id ? t.genel.kaydediliyor : t.sayacEposta.sayaciKaydet}
                     </button>
                     <button type="button" onClick={() => setAcik(null)}
                       className="rounded border bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                      Vazgeç
+                      {t.genel.iptal}
                     </button>
                   </div>
                 </div>
@@ -393,11 +406,11 @@ export default function SayacEpostaPage() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button type="button" onClick={() => ac(k)}
                     className="rounded bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700">
-                    Elle işle
+                    {t.sayacEposta.elleIsle}
                   </button>
                   <button type="button" onClick={() => gonder({ id: k.id, yoksay: true })} disabled={mesgul === k.id}
                     className="rounded border bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">
-                    Bu sayaçla ilgilenme
+                    {t.sayacEposta.ilgilenme}
                   </button>
                 </div>
               )}

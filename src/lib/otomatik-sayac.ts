@@ -91,8 +91,18 @@ export interface CihazDurumu {
   araGun: number | null;
   /** Kaç otomatik okuma geldi. */
   gonderimSayisi: number;
-  /** İnsanın okuyacağı tek cümle. */
+  /** İnsanın okuyacağı tek cümle (Türkçe). */
   aciklama: string;
+  /**
+   * Aynı cümlenin dil bağımsız hâli. Cümleyi ekran kendi dilinde kuruyor;
+   * `aciklama` eski çağıranlar ve testler için duruyor.
+   */
+  aciklamaKod:
+    | { kod: 'HIC' }
+    | { kod: 'DURDU_ARALIKLI'; ara: number; sessiz: number }
+    | { kod: 'DURDU_TEK'; sessiz: number }
+    | { kod: 'BUGUN' }
+    | { kod: 'GUN_ONCE'; gun: number };
 }
 
 /**
@@ -111,6 +121,7 @@ export function cihazDurumu(
     return {
       durum: 'KURULMADI', sonGonderim: null, sessizGun: null, araGun: null, gonderimSayisi: 0,
       aciklama: 'Bu cihaz hiç otomatik sayaç göndermedi.',
+      aciklamaKod: { kod: 'HIC' },
     };
   }
 
@@ -125,12 +136,16 @@ export function cihazDurumu(
       aciklama: araGun
         ? `${araGun} günde bir gönderiyordu, ${sessizGun} gündür sessiz.`
         : `${sessizGun} gündür sessiz — bir kez gönderip kesildi.`,
+      aciklamaKod: araGun
+        ? { kod: 'DURDU_ARALIKLI', ara: araGun, sessiz: sessizGun }
+        : { kod: 'DURDU_TEK', sessiz: sessizGun },
     };
   }
 
   return {
     durum: 'OTOMATIK', sonGonderim: son, sessizGun, araGun, gonderimSayisi: s.length,
     aciklama: sessizGun === 0 ? 'Bugün gönderdi.' : `${sessizGun} gün önce gönderdi.`,
+    aciklamaKod: sessizGun === 0 ? { kod: 'BUGUN' } : { kod: 'GUN_ONCE', gun: sessizGun },
   };
 }
 
