@@ -5,6 +5,8 @@ import { jetondanMusteri, portalVerisi } from '@/lib/portal';
 import { bayiMagazasi, musteriMagazaLinki } from '@/lib/magaza-baglanti';
 import CihazListesi from './CihazListesi';
 import AsamaCizelgesi from './AsamaCizelgesi';
+import { sozluk, doldur } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 
 /**
  * MÜŞTERİ PORTALI — /m/<jeton>
@@ -24,9 +26,6 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-const tl = (n: number) =>
-  n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
-const gun = (iso: string) => new Date(iso).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const DURUM_RENK: Record<string, string> = {
   NEW: 'bg-slate-100 text-slate-700 ring-slate-200',
@@ -43,6 +42,12 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   if (!musteri) notFound();
 
   const v = await portalVerisi(musteri);
+  // Dil ve para birimi BAYİDEN geliyor (portalVerisi döndürüyor): bu sayfayı
+  // bayinin müşterisi okuyor, panelde oturan kullanıcı değil.
+  const sz = sozluk(v.dil).portal;
+  const b = bicimYap(v.dil, v.birim);
+  const tl = (n: number) => b.para(n);
+  const gun = (iso: string) => b.tarih(iso);
 
   // "Müşteri kullanıyor mu" bayide görünsün. Sayfayı bekletmez.
   prisma.customer
@@ -64,7 +69,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
       {/* ── Başlık: bayinin adı öne çıkar. Müşteri bizi değil, bayisini tanır. ── */}
       <header className="bg-white border-b border-slate-200">
         <div className="mx-auto max-w-2xl px-5 py-5">
-          <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Müşteri Paneli</div>
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{sz.baslik}</div>
           <h1 className="mt-1 text-xl font-bold tracking-tight">{v.firma.ad}</h1>
           <p className="mt-1 text-sm text-slate-500">{v.musteri.ad}</p>
         </div>
@@ -75,14 +80,14 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
             Bayi mali bilgileri kapatmışsa bu bölüm hiç çizilmez. ── */}
         {v.mali && v.bakiye != null && (
           <section className={`rounded-2xl border p-5 ${v.bakiye > 0.005 ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
-            <div className="text-xs font-medium text-slate-600">Güncel bakiyeniz</div>
+            <div className="text-xs font-medium text-slate-600">{sz.bakiye}</div>
             <div className={`mt-1 text-3xl font-bold tabular-nums ${v.bakiye > 0.005 ? 'text-amber-900' : 'text-emerald-800'}`}>
               {tl(v.bakiye)}
             </div>
             <div className="mt-1.5 text-xs text-slate-600">
               {v.bakiye > 0.005
-                ? `${acikFaturalar.length} açık fatura`
-                : 'Ödenmemiş faturanız yok'}
+                ? doldur(sz.acikFatura, { n: acikFaturalar.length })
+                : sz.borcYok}
             </div>
           </section>
         )}
@@ -98,14 +103,11 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
             className="flex items-center gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 transition-colors hover:bg-blue-100"
           >
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-blue-900">Toner ve sarf siparişi</div>
-              <p className="mt-0.5 text-xs leading-relaxed text-blue-800/80">
-                Cihazlarınıza uyan ürünleri görün, tonerin ne zaman biteceğini takip edin
-                ve doğrudan sipariş verin.
-              </p>
+              <div className="text-sm font-semibold text-blue-900">{sz.magazaBaslik}</div>
+              <p className="mt-0.5 text-xs leading-relaxed text-blue-800/80">{sz.magazaAlt}</p>
             </div>
             <span className="shrink-0 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white">
-              Mağazaya git →
+              {sz.magazayaGit}
             </span>
           </a>
         )}
@@ -113,14 +115,14 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
         {/* ── Açık servis fişleri ── */}
         {acikFisler.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-sm font-semibold text-slate-700">Devam eden servis</h2>
+            <h2 className="mb-2.5 text-sm font-semibold text-slate-700">{sz.devamEden}</h2>
             <div className="space-y-2.5">
               {acikFisler.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-semibold text-sm">{f.cihaz ?? 'Cihaz'}</div>
-                      <div className="mt-0.5 text-xs text-slate-500">Fiş {f.no} · {gun(f.tarih)}</div>
+                      <div className="font-semibold text-sm">{f.cihaz ?? sz.cihaz}</div>
+                      <div className="mt-0.5 text-xs text-slate-500">{doldur(sz.fisNo, { n: f.no })} · {gun(f.tarih)}</div>
                     </div>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${DURUM_RENK[f.durum] ?? DURUM_RENK.NEW}`}>
                       {f.durumEtiket}
@@ -128,7 +130,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                   </div>
                   {f.ariza && <p className="mt-2.5 text-sm leading-relaxed text-slate-600">{f.ariza}</p>}
                   {/* Tek etiket "nerede olduğunu" söylemez; çizelge söyler. */}
-                  <AsamaCizelgesi cizelge={f.cizelge} />
+                  <AsamaCizelgesi cizelge={f.cizelge} dil={v.dil} />
                 </div>
               ))}
             </div>
@@ -138,37 +140,37 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
         {/* ── Cihazlar + talep düğmeleri ── */}
         <section>
           <h2 className="mb-2.5 text-sm font-semibold text-slate-700">
-            Cihazlarınız {v.cihazlar.length > 0 && <span className="font-normal text-slate-400">({v.cihazlar.length})</span>}
+            {sz.cihazlariniz} {v.cihazlar.length > 0 && <span className="font-normal text-slate-400">({v.cihazlar.length})</span>}
           </h2>
           {v.cihazlar.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-              Kayıtlı cihazınız görünmüyor.
+              {sz.cihazYok}
             </div>
           ) : (
-            <CihazListesi token={token} cihazlar={v.cihazlar} />
+            <CihazListesi token={token} cihazlar={v.cihazlar} dil={v.dil} />
           )}
         </section>
 
         {/* ── Müşterinin kendi talepleri: gönderdiği kayboldu sanmasın ── */}
         {v.talepler.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-sm font-semibold text-slate-700">Bildirimleriniz</h2>
+            <h2 className="mb-2.5 text-sm font-semibold text-slate-700">{sz.bildirimleriniz}</h2>
             <div className="space-y-2">
               {v.talepler.map((t) => (
                 <div key={t.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-medium">
-                      {t.tur === 'ARIZA' ? 'Arıza bildirimi' : 'Sayaç bildirimi'}
+                      {t.tur === 'ARIZA' ? sz.arizaBildirimi : sz.sayacBildirimi}
                     </span>
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
                       t.durum === 'ISLENDI' ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
                         : t.durum === 'REDDEDILDI' ? 'bg-slate-100 text-slate-500 ring-slate-200'
                           : 'bg-amber-50 text-amber-800 ring-amber-200'}`}>
-                      {t.durum === 'ISLENDI' ? 'İşleme alındı' : t.durum === 'REDDEDILDI' ? 'Kapatıldı' : 'İletildi'}
+                      {t.durum === 'ISLENDI' ? sz.islemeAlindi : t.durum === 'REDDEDILDI' ? sz.kapatildi : sz.iletildi}
                     </span>
                   </div>
                   <div className="mt-0.5 text-xs text-slate-500">{gun(t.tarih)}</div>
-                  {t.notu && <p className="mt-1.5 text-xs text-slate-600">Yanıt: {t.notu}</p>}
+                  {t.notu && <p className="mt-1.5 text-xs text-slate-600">{doldur(sz.yanit, { n: t.notu })}</p>}
                 </div>
               ))}
             </div>
@@ -178,7 +180,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
         {/* ── Faturalar ── */}
         {v.faturalar.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-sm font-semibold text-slate-700">Faturalar</h2>
+            <h2 className="mb-2.5 text-sm font-semibold text-slate-700">{sz.faturalar}</h2>
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               {v.faturalar.map((f, i) => (
                 <div key={f.no} className={`flex items-center justify-between gap-3 px-4 py-3 ${i > 0 ? 'border-t border-slate-100' : ''}`}>
@@ -189,8 +191,8 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                   <div className="shrink-0 text-right">
                     <div className="text-sm font-semibold tabular-nums">{tl(f.tutar)}</div>
                     {f.kalan > 0.005
-                      ? <div className="text-xs text-amber-700 tabular-nums">Kalan {tl(f.kalan)}</div>
-                      : <div className="text-xs text-emerald-700">Ödendi</div>}
+                      ? <div className="text-xs text-amber-700 tabular-nums">{doldur(sz.kalanKisa, { n: tl(f.kalan) })}</div>
+                      : <div className="text-xs text-emerald-700">{sz.odendi}</div>}
                   </div>
                 </div>
               ))}
@@ -202,16 +204,16 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
         {gecmisFisler.length > 0 && (
           <details className="group">
             <summary className="cursor-pointer list-none text-sm font-semibold text-slate-700 marker:hidden">
-              Geçmiş servisler ({gecmisFisler.length})
-              <span className="ml-1 font-normal text-slate-400 group-open:hidden">— göster</span>
+              {doldur(sz.gecmisServisler, { n: gecmisFisler.length })}
+              <span className="ml-1 font-normal text-slate-400 group-open:hidden">{sz.goster}</span>
             </summary>
             <div className="mt-2.5 space-y-2">
               {gecmisFisler.map((f) => (
                 <div key={f.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium">{f.cihaz ?? 'Cihaz'}</div>
-                      <div className="text-xs text-slate-500">Fiş {f.no} · {gun(f.tarih)}</div>
+                      <div className="text-sm font-medium">{f.cihaz ?? sz.cihaz}</div>
+                      <div className="text-xs text-slate-500">{doldur(sz.fisNo, { n: f.no })} · {gun(f.tarih)}</div>
                     </div>
                     <div className="shrink-0 text-right">
                       {f.tutar != null && f.tutar > 0 && <div className="text-sm font-semibold tabular-nums">{tl(f.tutar)}</div>}
@@ -235,14 +237,13 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
           {v.firma.adres && <div className="mt-1 text-xs text-slate-500">{v.firma.adres}</div>}
           {telHref && (
             <a href={telHref} className="mt-3 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700">
-              Servisi ara · {v.firma.telefon}
+              {doldur(sz.servisiAra, { n: v.firma.telefon })}
             </a>
           )}
         </section>
 
         <p className="pb-4 text-center text-[11px] leading-relaxed text-slate-400">
-          Bu sayfa size özeldir. Bağlantıyı paylaşmayın — bağlantıya sahip herkes
-          bu bilgileri görebilir.
+          {sz.gizlilik}
         </p>
       </main>
     </div>

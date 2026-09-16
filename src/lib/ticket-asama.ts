@@ -117,6 +117,12 @@ interface GecmisSatir {
 export function zamanCizelgesi(
   fis: { status: TicketStatus; createdAt: Date; statusUpdatedAt: Date },
   gecmis: GecmisSatir[],
+  /**
+   * Adım adlarını veren işlev. Verilmezse Türkçe sabitler kullanılır.
+   * Çizelge MÜŞTERİYE gösteriliyor: çağıran taraf bayinin dilindeki
+   * sözlüğü geçer (bkz. lib/i18n).
+   */
+  etiket: (st: TicketStatus) => string = (st) => ASAMA_ETIKET[st],
 ): ZamanCizelgesi {
   let turetilmis = false;
   let satirlar = gecmis;
@@ -176,7 +182,7 @@ export function zamanCizelgesi(
     const tamam = suankiIndex >= 0 && i <= suankiIndex;
     return {
       status: st,
-      etiket: ASAMA_ETIKET[st],
+      etiket: etiket(st),
       tamam,
       suan,
       // Zaman YALNIZCA ulaşılmış adımda gösterilir. Fiş geri alınmışsa
@@ -189,7 +195,7 @@ export function zamanCizelgesi(
 
   return {
     adimlar,
-    yanDurum: YAN_DURUM.includes(fis.status) ? ASAMA_ETIKET[fis.status] : null,
+    yanDurum: YAN_DURUM.includes(fis.status) ? etiket(fis.status) : null,
     iptal: null,
     turetilmis,
     araAsamalarEksik,

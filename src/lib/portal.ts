@@ -17,6 +17,8 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { sonOkumalar } from '@/lib/readings';
 import { zamanCizelgesi } from '@/lib/ticket-asama';
+import { sozluk, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 import { hasModule } from '@/lib/modules';
 
 /** 32 bayt = 64 karakter hex. Kaba kuvvetle bulunması pratikte imkânsız. */
@@ -71,15 +73,14 @@ const TL = (v: unknown) => Number(v ?? 0);
 /** Bu kadar gündür hareket görmemiş fiş artık "devam eden servis" sayılmaz. */
 const ACIK_FIS_GUN = 45;
 
-/** Fiş durumlarının müşteriye gösterilecek karşılıkları — iç kodu göstermeyiz. */
-export const DURUM_ETIKET: Record<string, string> = {
-  NEW: 'Talebiniz alındı',
-  IN_SERVICE: 'Serviste — işlem yapılıyor',
-  WAITING_FOR_PART: 'Parça bekleniyor',
-  READY: 'Hazır',
-  DELIVERED: 'Tamamlandı',
-  CANCELLED: 'İptal edildi',
-};
+/**
+ * Fiş durumlarının müşteriye gösterilecek karşılıkları — iç kodu göstermeyiz.
+ * Metinler sözlükte (durum.asamaMusteri); dil BAYİNİNKİ, çünkü bu sayfayı
+ * bayinin müşterisi okuyor.
+ */
+export function durumEtiketi(dil: Dil, status: string): string {
+  return (sozluk(dil).durum.asamaMusteri as Record<string, string>)[status] ?? status;
+}
 
 /**
  * Portalda gösterilecek her şey. Tek sorgu kümesi — sayfa hızlı açılsın,
@@ -89,7 +90,11 @@ export async function portalVerisi(m: PortalMusteri) {
   const [firma, cihazlar, acikFis, kapaliFis, faturalar, odemeler, faturaToplami, talepler] = await Promise.all([
     prisma.tenant.findUnique({
       where: { id: m.tenantId },
-      select: { name: true, phone: true, address: true, portalShowFinancials: true },
+      select: {
+        name: true, phone: true, address: true, portalShowFinancials: true,
+        // Portalı MÜŞTERİ okuyor: dil ve para birimi bayiden gelir.
+        locale: true, currency: true,
+      },
     }),
     prisma.device.findMany({
       where: { tenantId: m.tenantId, customerId: m.id },
@@ -173,6 +178,10 @@ export async function portalVerisi(m: PortalMusteri) {
   // verir — fatura listesi zaten bakiyeyi topla-çıkar ettirir.
   const mali = firma?.portalShowFinancials !== false;
 
+  // Portalın dili BAYİNİN dili: sayfayı bayinin müşterisi okuyor.
+  const dil: Dil = dilMi(firma?.locale) ? firma.locale : VARSAYILAN_DIL;
+  const bicim = bicimYap(dil, firma?.currency);
+
   // Açık fişlerde çizelge var, kapalılarda yok — tek listede birleştirirken
   // "acik" bayrağı 45 gün kuralını da uyguluyor (aylardır kapatılmamış fiş
   // "devam eden servis" başlığı altında görünmesin).
@@ -185,6 +194,9 @@ export async function portalVerisi(m: PortalMusteri) {
   const odenen = TL(faturaToplami._sum.paidAmount);
 
   return {
+    // Ekran bunları okuyup metinleri ve tutarları doğru dilde çiziyor.
+    dil,
+    birim: bicim.birim,
     firma: { ad: firma?.name ?? '', telefon: firma?.phone ?? '', adres: firma?.address ?? '' },
     musteri: { ad: m.name },
     cihazlar: cihazlar.map((c) => ({
@@ -204,7 +216,7 @@ export async function portalVerisi(m: PortalMusteri) {
       id: f.id,
       no: f.ticketNumber,
       durum: f.status,
-      durumEtiket: DURUM_ETIKET[f.status] ?? f.status,
+      durumEtiket: durumEtiketi(dil, f.status),
       // "Devam ediyor" DEMEK İÇİN kapanmamış olmak yetmez, YAKIN TARİHLİ de
       // olmalı. Gerçek veride aylar önce açılıp kapatılmamış onlarca fiş
       // birikiyor; hepsini "devam eden servis" diye göstermek müşteriyi
@@ -229,6 +241,7 @@ export async function portalVerisi(m: PortalMusteri) {
       cizelge: zamanCizelgesi(
         { status: f.status, createdAt: f.createdAt, statusUpdatedAt: f.statusUpdatedAt },
         f.gecmis,
+        (st) => durumEtiketi(dil, st),
       ),
     })),
     mali, // gösterim tarafı bunu okur; kapalıysa mali bölümler hiç çizilmez

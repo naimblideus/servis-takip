@@ -7,6 +7,9 @@
  * farkı telefon açmadan anlaması.
  */
 
+import { sozluk, type Dil } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
+
 interface Adim {
   status: string;
   etiket: string;
@@ -23,14 +26,18 @@ export interface Cizelge {
   araAsamalarEksik: boolean;
 }
 
-const anZaman = (iso: string) =>
-  new Date(iso).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-
-export default function AsamaCizelgesi({ cizelge }: { cizelge: Cizelge }) {
+/**
+ * Dil ve tarih biçimi BAYİDEN gelir: bu çizelgeyi müşteri okuyor.
+ * `dil` verilmezse Türkçe — portal dışındaki eski çağrılar bozulmasın.
+ */
+export default function AsamaCizelgesi({ cizelge, dil = 'tr' }: { cizelge: Cizelge; dil?: Dil }) {
+  const sz = sozluk(dil).portal;
+  const b = bicimYap(dil);
+  const anZaman = (iso: string) => b.tarihSaat(iso);
   if (cizelge.iptal) {
     return (
       <div className="mt-3 rounded-xl bg-slate-50 px-3.5 py-3 text-sm text-slate-500">
-        Bu servis kaydı iptal edildi
+        {sz.iptalEdildi}
         {cizelge.iptal.zaman && ` · ${anZaman(cizelge.iptal.zaman)}`}
       </div>
     );
@@ -78,7 +85,7 @@ export default function AsamaCizelgesi({ cizelge }: { cizelge: Cizelge }) {
                   : a.tamam
                     // Adım tamamlanmış ama geçiş anı kayıtlı değil — uydurma
                     // tarih yazmaktansa boş bırakıyoruz.
-                    ? <div className="mt-0.5 text-xs text-slate-400">tarih kayıtlı değil</div>
+                    ? <div className="mt-0.5 text-xs text-slate-400">{sz.tarihYok}</div>
                     : null}
               </div>
             </li>
@@ -88,7 +95,7 @@ export default function AsamaCizelgesi({ cizelge }: { cizelge: Cizelge }) {
 
       {cizelge.araAsamalarEksik && (
         <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-          Bu kayıt aşama takibi başlamadan önce açılmış; ara aşamaların saatleri tutulmamış.
+          {sz.araAsamaEksik}
         </p>
       )}
     </div>

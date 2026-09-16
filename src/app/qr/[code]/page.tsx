@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PublicFaultReport from '@/components/PublicFaultReport';
 import { bayiMagazasi } from '@/lib/magaza-baglanti';
+import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
 
 // Cihazdaki QR okutulunca buraya gelinir: /qr/DEV-8F3A12
 // - Personel (oturumlu) → cihaz detayına gider.
@@ -13,7 +14,8 @@ export default async function QRPage({ params }: { params: Promise<{ code: strin
 
   const device = await prisma.device.findUnique({
     where: { publicCode: code },
-    select: { id: true, brand: true, model: true, tenantId: true, tenant: { select: { name: true } } },
+    // Sayfayı MÜŞTERİ görüyor: dil bayiden.
+    select: { id: true, brand: true, model: true, tenantId: true, tenant: { select: { name: true, locale: true } } },
   });
 
   // Personel girişliyse cihaz detayına yönlendir
@@ -23,13 +25,16 @@ export default async function QRPage({ params }: { params: Promise<{ code: strin
   }
 
   // Oturumsuz (müşteri) → public arıza bildirimi
+  const dil: Dil = dilMi(device?.tenant?.locale) ? device.tenant.locale : VARSAYILAN_DIL;
+  const sz = sozluk(dil).qrSayfa;
+
   if (!device) {
     return (
       <div style={{ minHeight: '100vh', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', textAlign: 'center', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
         <div>
           <div style={{ fontSize: '2.5rem' }}>❓</div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#374151' }}>Geçersiz kod</h1>
-          <p style={{ color: '#6b7280' }}>Bu QR kod bir cihaza ait değil. Lütfen etiketteki kodu kontrol edin.</p>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#374151' }}>{sz.gecersizBaslik}</h1>
+          <p style={{ color: '#6b7280' }}>{sz.gecersizAlt}</p>
         </div>
       </div>
     );
@@ -53,17 +58,17 @@ export default async function QRPage({ params }: { params: Promise<{ code: strin
       {magazaLinki && (
         <div style={{ background: '#0b0e14', padding: '1rem 1.5rem', textAlign: 'center', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
           <div style={{ color: 'rgba(255,255,255,.7)', fontSize: '.8rem', marginBottom: '.5rem' }}>
-            {device.brand} {device.model} — toner ya da parça mı lazım?
+            {doldur(sz.sarfSoru, { cihaz: `${device.brand} ${device.model}` })}
           </div>
           <a
             href={magazaLinki}
             style={{ display: 'inline-block', background: '#1b4dff', color: '#fff', fontWeight: 700, padding: '.7rem 1.4rem', borderRadius: 8, textDecoration: 'none', fontSize: '.95rem' }}
           >
-            Bu yazıcı için sarf sipariş et →
+            {sz.sarfDugme}
           </a>
         </div>
       )}
-      <PublicFaultReport code={code} deviceName={`${device.brand} ${device.model}`} tenantName={device.tenant?.name || 'Servis'} />
+      <PublicFaultReport code={code} deviceName={`${device.brand} ${device.model}`} tenantName={device.tenant?.name || sz.servis} dil={dil} />
     </>
   );
 }

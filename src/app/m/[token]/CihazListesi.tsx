@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import TalepFormu from './TalepFormu';
+import { sozluk, doldur, type Dil } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 
 /**
  * Müşterinin cihaz listesi.
@@ -25,12 +27,6 @@ interface Cihaz {
  * elle yazdığı sayaç için cümle YOK — "bayi elle girdi" yazmak müşteriyi
  * itiraza davet eder; yalan da söylenmez, sadece susulur.
  */
-const KAYNAK_CUMLESI: Record<string, string> = {
-  CIHAZ_EPOSTA: 'cihazınız kendisi bildirdi',
-  FOTOGRAF: 'fotoğrafla doğrulandı',
-  WHATSAPP_FOTO: 'gönderdiğiniz fotoğraftan',
-  PORTAL: 'sizin girişiniz',
-};
 
 const ARAMA_ESIGI = 12;
 const ILK_GOSTERIM = 25;
@@ -38,7 +34,9 @@ const ILK_GOSTERIM = 25;
 /** Türkçe'ye duyarlı karşılaştırma: "İSTANBUL" ile "istanbul" eşleşsin. */
 const kucult = (s: string) => s.replace(/I/g, 'ı').replace(/İ/g, 'i').toLowerCase();
 
-export default function CihazListesi({ token, cihazlar }: { token: string; cihazlar: Cihaz[] }) {
+export default function CihazListesi({ token, cihazlar, dil = 'tr' }: { token: string; cihazlar: Cihaz[]; dil?: Dil }) {
+  const sz = sozluk(dil).portal;
+  const b = bicimYap(dil);
   const [q, setQ] = useState('');
   const [hepsi, setHepsi] = useState(false);
 
@@ -57,14 +55,14 @@ export default function CihazListesi({ token, cihazlar }: { token: string; cihaz
       {cihazlar.length >= ARAMA_ESIGI && (
         <input
           value={q} onChange={(e) => setQ(e.target.value)}
-          placeholder="Cihaz, seri no ya da konum ara…"
+          placeholder={sz.cihazAraYer}
           className="mb-2.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-slate-400"
         />
       )}
 
       {suzulmus.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-          Aramanıza uyan cihaz yok.
+          {sz.aramaSonucYok}
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -72,26 +70,26 @@ export default function CihazListesi({ token, cihazlar }: { token: string; cihaz
             <div key={c.id} className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="text-sm font-semibold">{c.ad}</div>
               <div className="mt-0.5 text-xs text-slate-500">
-                {c.yer ? `${c.yer} · ` : ''}Seri: {c.seri}
+                {c.yer ? `${c.yer} · ` : ''}{doldur(sz.seri, { n: c.seri })}
               </div>
               {c.sayacBlack != null && (
                 <div className="mt-2 text-xs text-slate-600">
                   <div className="flex gap-4">
-                    <span>S/B sayaç: <b className="tabular-nums">{c.sayacBlack.toLocaleString('tr-TR')}</b></span>
-                    {c.sayacColor != null && <span>Renkli: <b className="tabular-nums">{c.sayacColor.toLocaleString('tr-TR')}</b></span>}
+                    <span>{sz.sbSayac} <b className="tabular-nums">{b.sayi(c.sayacBlack)}</b></span>
+                    {c.sayacColor != null && <span>{sz.renkliSayac} <b className="tabular-nums">{b.sayi(c.sayacColor)}</b></span>}
                   </div>
                   {/* Tarih olmadan sayaç yanıltıcı: müşteri onu "şu anki" sanır. */}
                   {c.sayacTarih && (
                     <div className="mt-0.5 text-[11px] text-slate-400">
-                      {new Date(c.sayacTarih).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })} tarihinde okundu
-                      {c.sayacKaynak && KAYNAK_CUMLESI[c.sayacKaynak] && (
-                        <span className="text-emerald-700"> · {KAYNAK_CUMLESI[c.sayacKaynak]}</span>
+                      {doldur(sz.okunduTarih, { tarih: b.tarih(c.sayacTarih) })}
+                      {c.sayacKaynak && (sz.kaynak as Record<string, string>)[c.sayacKaynak] && (
+                        <span className="text-emerald-700"> · {(sz.kaynak as Record<string, string>)[c.sayacKaynak]}</span>
                       )}
                     </div>
                   )}
                 </div>
               )}
-              <TalepFormu token={token} cihazId={c.id} cihazAd={c.ad} kiralik={c.kiralik} />
+              <TalepFormu token={token} cihazId={c.id} cihazAd={c.ad} kiralik={c.kiralik} dil={dil} />
             </div>
           ))}
         </div>
@@ -100,7 +98,7 @@ export default function CihazListesi({ token, cihazlar }: { token: string; cihaz
       {gizli > 0 && (
         <button type="button" onClick={() => setHepsi(true)}
           className="mt-2.5 w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-600 transition hover:border-slate-400">
-          {gizli} cihaz daha göster
+          {doldur(sz.dahaGoster, { n: gizli })}
         </button>
       )}
     </>
