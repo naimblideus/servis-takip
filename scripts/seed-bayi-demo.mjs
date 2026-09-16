@@ -316,7 +316,18 @@ async function main() {
     const adet = mi < 3 ? rnd(5, 6) : mi < 8 ? rnd(3, 4) : rnd(1, 2);
     for (let i = 0; i < adet; i++) {
       const mdl = MODELLER[(mi + i) % MODELLER.length];
-      const kurulum = gunOnce(rnd(200, 1500));
+
+      // ── FİLO YAŞI ─────────────────────────────────────────────────────
+      // Önce bütün cihazlar 0,5-4 yaş arasındaydı ve hiçbiri yenileme
+      // ölçütünü (5 yaş + 12 ayda 3 arıza) geçmiyordu: Yenileme Fırsatları
+      // raporu demoda hep boş açılıyordu. Gerçek bir bayinin sahasında
+      // 6-8 yaşında, hâlâ çalışan ama sürekli servis yiyen makineler
+      // VARDIR — filoyu hepsi gençmiş gibi göstermek gerçekçi değildi.
+      //
+      // Her 7 cihazdan biri yaşlı. Deterministik (sayaçla), rastgele değil:
+      // demo her tohumlamada aynı hikâyeyi anlatsın.
+      const yasli = (seri + 1) % 7 === 0;
+      const kurulum = yasli ? gunOnce(rnd(2200, 3200)) : gunOnce(rnd(200, 1500));
 
       // Kira ve sayfa fiyatı müşteriden müşteriye biraz oynuyor — pazarlık
       // gerçek hayatta da böyle. Bir müşteri BİLEREK eski fiyatta bırakıldı
@@ -366,7 +377,7 @@ async function main() {
           // tonerYield BİLEREK BOŞ — sistem toner değişimlerinden ölçecek.
         },
       });
-      cihazlar.push({ ...cihaz, mdl, aylikSb, aylikRenkli, musteriAdi: m.ad, eskiSozlesme });
+      cihazlar.push({ ...cihaz, mdl, aylikSb, aylikRenkli, musteriAdi: m.ad, eskiSozlesme, yasli });
     }
   }
   console.log(`  ${musteriler.length} müşteri · ${cihazlar.length} cihaz`);
@@ -692,7 +703,13 @@ async function main() {
     // Cihaz başına 1-4 arıza (6 ayda). Daha azını üretince aşınma
     // parçaları model başına üç kullanıma ulaşmıyor ve fişteki "bu
     // modelde en çok kullanılanlar" önerisi yalnız toneri gösteriyordu.
-    const kac = rnd(1, 4);
+    //
+    // YAŞLI CİHAZ DAHA ÇOK BOZULUR. Bu bir süsleme değil, ürünün anlattığı
+    // şeyin ta kendisi: yenileme kararı "yaşlı" olduğu için değil, yaşlı
+    // OLDUĞU İÇİN sürekli servis yediği için verilir. Yaşı arızadan
+    // bağımsız dağıtsaydık demo yaşlı ama hiç bozulmayan makineler
+    // üretirdi ve yenileme raporu yine boş kalırdı.
+    const kac = c.yasli ? rnd(4, 7) : rnd(1, 4);
     for (let i = 0; i < kac; i++) {
       const a = secim(ARIZALAR);
       const kapali = rnd(0, 100) < 78;
