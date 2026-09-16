@@ -4,10 +4,11 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import UsersClient from '@/components/UsersClient';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
 
-const ROLE_LABELS: Record<string, string> = {
-    ADMIN: 'Yönetici', TECHNICIAN: 'Teknisyen', FRONT_DESK: 'Resepsiyon',
-};
+// Rol adları sözlükte (kullanici.roller); burada sıra.
+const ROLLER = ['ADMIN', 'TECHNICIAN', 'FRONT_DESK'] as const;
 const ROLE_COLORS: Record<string, string> = {
     ADMIN: '#fee2e2', TECHNICIAN: '#dbeafe', FRONT_DESK: '#d1fae5',
 };
@@ -18,6 +19,7 @@ export default async function UsersPage() {
 
     const me = await oturumKullanicisi(session);
     if (!me || me.role !== 'ADMIN') redirect('/dashboard');
+    const { sz } = await sunucuBicimi(me);
 
     const users = await prisma.user.findMany({
         where: { tenantId: me.tenantId },
@@ -35,17 +37,18 @@ export default async function UsersPage() {
         <div style={{ padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Kullanıcı Yönetimi</h1>
-                    <p style={{ color: '#6b7280' }}>Toplam {users.length} kullanıcı</p>
+                    <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{sz.kullanici.baslik}</h1>
+                    <p style={{ color: '#6b7280' }}>{doldur(sz.kullanici.toplam, { n: users.length })}</p>
                 </div>
-                <Link href="/users/new" style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem', borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500' }}>+ Yeni Kullanıcı</Link>
+                <Link href="/users/new" style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem', borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500' }}>{sz.kullanici.yeni}</Link>
             </div>
 
             {/* Rol Özeti */}
             {/* auto-fit: sabit üç sütun 375 px'te taşıyordu (ölçüldü: 264 px).
                 Rol kartları telefonda alt alta, masaüstünde yan yana. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(9rem,1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                {Object.entries(ROLE_LABELS).map(([role, label]) => {
+                {ROLLER.map((role) => {
+                    const label = (sz.kullanici.roller as Record<string, string>)[role];
                     const count = users.filter(u => u.role === role).length;
                     return (
                         <div key={role} style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 import TwoFactorCard from '@/components/TwoFactorCard';
 
 interface TenantInfo {
@@ -19,6 +21,8 @@ interface TenantInfo {
 
 export default function SettingsPage() {
     const router = useRouter();
+    const t = useT();
+    const b = useBicim();
     const fileRef = useRef<HTMLInputElement>(null);
     const [tenant, setTenant] = useState<TenantInfo | null>(null);
     const [form, setForm] = useState({ name: '', phone: '', address: '', pricePerBlack: '0.40', pricePerColor: '1.50', portalShowFinancials: true });
@@ -49,7 +53,7 @@ export default function SettingsPage() {
             body: JSON.stringify(form),
         });
         if (res.ok) {
-            setMsg('✅ Kaydedildi');
+            setMsg(t.ayarlar.kaydedildi);
             router.refresh();
         } else {
             const d = await res.json();
@@ -69,7 +73,7 @@ export default function SettingsPage() {
             // Base64 data URL'lerine ?t= eklenemez, sadece normal URL'lere cache-bust ekle
             const logoUrl = data.logo?.startsWith('data:') ? data.logo : (data.logo + '?t=' + Date.now());
             setTenant(prev => prev ? { ...prev, logo: logoUrl } : prev);
-            setMsg('✅ Logo yüklendi');
+            setMsg(t.ayarlar.logoYuklendi);
         } else {
             const d = await res.json();
             setMsg('❌ ' + d.error);
@@ -80,11 +84,11 @@ export default function SettingsPage() {
     const inp: React.CSSProperties = { width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' };
     const lbl: React.CSSProperties = { display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.375rem' };
 
-    if (!tenant) return <div style={{ padding: '2rem', color: '#9ca3af' }}>Yükleniyor...</div>;
+    if (!tenant) return <div style={{ padding: '2rem', color: '#9ca3af' }}>{t.genel.yukleniyor}</div>;
 
     return (
         <div style={{ padding: '2rem', maxWidth: '600px' }}>
-            <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>Firma Ayarları</h1>
+            <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>{t.ayarlar.baslik}</h1>
 
             {msg && <div style={{ padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem', backgroundColor: msg.startsWith('✅') ? '#d1fae5' : '#fee2e2' }}>{msg}</div>}
 
@@ -100,7 +104,7 @@ export default function SettingsPage() {
                         {tenant.logo ? (
                             <img src={tenant.logo} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                         ) : (
-                            <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>Logo yok</span>
+                            <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>{t.ayarlar.logoYok}</span>
                         )}
                     </div>
                     <div>
@@ -111,27 +115,27 @@ export default function SettingsPage() {
                             border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500', fontSize: '0.875rem',
                             opacity: uploading ? 0.6 : 1,
                         }}>
-                            {uploading ? 'Yükleniyor...' : '📁 Logo Yükle'}
+                            {uploading ? t.genel.yukleniyor : t.ayarlar.logoYukle}
                         </button>
-                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.5rem' }}>PNG, JPG, SVG veya WebP (önerilen: 300x100px)</p>
+                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.5rem' }}>{t.ayarlar.logoNot}</p>
                     </div>
                 </div>
             </div>
 
             {/* Firma Bilgileri */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-                <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Firma Bilgileri</h2>
+                <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{t.ayarlar.firmaBilgileri}</h2>
                 <div style={{ marginBottom: '1rem' }}>
-                    <label style={lbl}>Firma Adı</label>
+                    <label style={lbl}>{t.ayarlar.firmaAdi}</label>
                     <input style={inp} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
                 </div>
                 <div style={{ marginBottom: '1rem' }}>
-                    <label style={lbl}>Telefon</label>
-                    <input style={inp} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="0532 123 4567" />
+                    <label style={lbl}>{t.fisDetay.telefon}</label>
+                    <input style={inp} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder={t.ayarlar.telefonYer} />
                 </div>
                 <div style={{ marginBottom: '0' }}>
-                    <label style={lbl}>Adres</label>
-                    <textarea style={{ ...inp, minHeight: '80px', resize: 'vertical' } as React.CSSProperties} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Firma adresi" />
+                    <label style={lbl}>{t.fisYeni.adres}</label>
+                    <textarea style={{ ...inp, minHeight: '80px', resize: 'vertical' } as React.CSSProperties} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder={t.ayarlar.adresYer} />
                 </div>
             </div>
 
@@ -140,11 +144,9 @@ export default function SettingsPage() {
                 Kod bayi açılırken üretiliyor; burada yalnız gösteriliyor. */}
             {tenant?.sayacEpostaAdresi && (
                 <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-                    <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Cihazdan Otomatik Sayaç</h2>
+                    <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>{t.ayarlar.sayacEposta}</h2>
                     <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem', lineHeight: 1.6 }}>
-                        Çoğu fotokopi/yazıcı, sayaç raporunu ayın belirli günü e-postayla gönderebiliyor.
-                        Cihazlarınıza <b>aşağıdaki adresi</b> tanımlarsanız sayaçlar kendiliğinden düşer —
-                        kimse gezmez, kimse fotoğraf beklemez.
+                        {t.ayarlar.sayacEpostaAltOn} <b>{t.ayarlar.sayacEpostaAltVurgu}</b> {t.ayarlar.sayacEpostaAltSon}
                     </p>
 
                     <div style={{
@@ -158,41 +160,35 @@ export default function SettingsPage() {
                         <button
                             onClick={() => {
                                 navigator.clipboard?.writeText(tenant.sayacEpostaAdresi!);
-                                setMsg('✅ Adres kopyalandı');
+                                setMsg(t.ayarlar.adresKopyalandi);
                             }}
                             style={{ padding: '0.4rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #14b8a6', background: 'white', color: '#0f766e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
-                        >Kopyala</button>
+                        >{t.ayarlar.kopyala}</button>
                     </div>
 
                     <div style={{ marginTop: '0.9rem', fontSize: '0.8rem', color: '#374151', lineHeight: 1.7 }}>
-                        <b>Cihaza nasıl tanımlanır:</b> cihazın web arayüzü → e-posta/bildirim ayarları →
-                        sayaç raporu alıcısı olarak bu adresi girin, gönderim gününü ayın 1&apos;i yapın.
+                        <b>{t.ayarlar.nasilTanimlanirVurgu}</b> {t.ayarlar.nasilTanimlanir}
                     </div>
                     <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.6 }}>
-                        Adresteki kod <b>size özeldir</b> — sayacın hangi firmaya ait olduğunu o söyler.
-                        Tek e-postada onlarca cihaz gönderen filo raporları da desteklenir; okunamayan
-                        cihazlar <b>Cihazdan Sayaç</b> ekranında incelemenizi bekler, hiçbir değer tahmin edilmez.
+                        {t.ayarlar.kodOzelOn} <b>{t.ayarlar.kodOzelVurgu}</b> {t.ayarlar.kodOzelSon}{' '}
+                        <b>{t.ayarlar.kodOzelVurgu2}</b> {t.ayarlar.kodOzelSon2}
                     </div>
                 </div>
             )}
 
             {/* Müşteri Paneli — mali bilgi görünürlüğü */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Müşteri Paneli</h2>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>{t.ayarlar.portalBaslik}</h2>
                 <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>
-                    Müşterilerinize gönderdiğiniz panelde mali bilgiler görünsün mü? Kapatırsanız
-                    bakiye, fatura listesi ve servis tutarlarının <b>hepsi</b> gizlenir — biri açık
-                    kalırsa diğerini ele verir. Cihazlar, servis durumu ve bildirim gönderme çalışmaya devam eder.
+                    {t.ayarlar.portalAltOn} <b>{t.ayarlar.portalAltVurgu}</b> {t.ayarlar.portalAltSon}
                 </p>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer' }}>
                     <input type="checkbox" checked={form.portalShowFinancials} style={{ marginTop: '0.2rem', width: 18, height: 18, cursor: 'pointer' }}
                         onChange={e => setForm({ ...form, portalShowFinancials: e.target.checked })} />
                     <span style={{ fontSize: '0.875rem' }}>
-                        <b>Bakiye ve faturaları müşteriye göster</b>
+                        <b>{t.ayarlar.portalGoster}</b>
                         <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem' }}>
-                            {form.portalShowFinancials
-                                ? 'Müşteri kendi bakiyesini ve faturalarını görüyor.'
-                                : 'Müşteri hiçbir tutar görmüyor; yalnız cihazlarını ve servis durumunu görüyor.'}
+                            {form.portalShowFinancials ? t.ayarlar.portalAcikAlt : t.ayarlar.portalKapaliAlt}
                         </span>
                     </span>
                 </label>
@@ -200,22 +196,27 @@ export default function SettingsPage() {
 
             {/* Sayaç Birim Fiyatları */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Varsayılan Sayaç Birim Fiyatları</h2>
-                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>Cihaz bazında özel fiyat belirtilmemişse bu varsayılan fiyatlar kullanılır. Her cihaza özel fiyat vermek için cihaz düzenleme ekranını kullanın.</p>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>{t.ayarlar.fiyatBaslik}</h2>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>{t.ayarlar.fiyatAlt}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
-                        <label style={lbl}>⚫ Siyah Sayaç (TL/adet)</label>
+                        <label style={lbl}>{doldur(t.ayarlar.siyahBirim, { birim: b.simge })}</label>
                         <input type="number" step="0.01" min="0" style={inp} value={form.pricePerBlack}
                             onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} />
                     </div>
                     <div>
-                        <label style={lbl}>🟣 Renkli Sayaç (TL/adet)</label>
+                        <label style={lbl}>{doldur(t.ayarlar.renkliBirim, { birim: b.simge })}</label>
                         <input type="number" step="0.01" min="0" style={inp} value={form.pricePerColor}
                             onChange={e => setForm({ ...form, pricePerColor: e.target.value })} />
                     </div>
                 </div>
                 <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '0.5rem', fontSize: '0.8rem', color: '#1e40af' }}>
-                    💡 Örnek: 500 siyah × ₺{Number(form.pricePerBlack || 0).toFixed(2)} = ₺{(500 * Number(form.pricePerBlack || 0)).toFixed(2)} | 1500 renkli × ₺{Number(form.pricePerColor || 0).toFixed(2)} = ₺{(1500 * Number(form.pricePerColor || 0)).toFixed(2)}
+                    {doldur(t.ayarlar.ornek, {
+                        sb: b.para(Number(form.pricePerBlack || 0)),
+                        sbT: b.para(500 * Number(form.pricePerBlack || 0)),
+                        rk: b.para(Number(form.pricePerColor || 0)),
+                        rkT: b.para(1500 * Number(form.pricePerColor || 0)),
+                    })}
                 </div>
             </div>
 
@@ -225,7 +226,7 @@ export default function SettingsPage() {
                 border: 'none', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer', fontSize: '1rem',
                 opacity: saving ? 0.6 : 1,
             }}>
-                {saving ? 'Kaydediliyor...' : '💾 Tümünü Kaydet'}
+                {saving ? t.genel.kaydediliyor : t.ayarlar.tumunuKaydet}
             </button>
 
             <TwoFactorCard />
@@ -236,6 +237,7 @@ export default function SettingsPage() {
 
 /** Yedek alma — verinin bir kopyasını kendi bilgisayarına indir (ayda bir hatırlatır). */
 function BackupCard() {
+    const t = useT();
     const [last, setLast] = useState<string | null>(null);
     useEffect(() => { setLast(localStorage.getItem('nx_last_backup')); }, []);
 
@@ -256,27 +258,24 @@ function BackupCard() {
             // Her şey yolundayken yeşil bağırmak, gerçek uyarıyı zayıflatır.
             border: `1px solid ${overdue ? '#fcd34d' : '#e5e7eb'}`,
         }}>
-            <h2 style={{ fontWeight: '600', marginBottom: '0.35rem' }}>💾 Verinin Yedeği</h2>
+            <h2 style={{ fontWeight: '600', marginBottom: '0.35rem' }}>{t.ayarlar.yedekBaslik}</h2>
             <p style={{ fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.6, marginBottom: '0.9rem' }}>
-                Tüm müşteri, cihaz, fiş ve muhasebe kaydınızın kopyasını <b>kendi bilgisayarınıza</b> indirin.
-                Ayda bir almanız yeterli. {overdue
-                    ? <b style={{ color: '#b45309' }}>{days === null ? 'Henüz yedek almadınız.' : `Son yedek ${days} gün önce.`}</b>
-                    : <span style={{ color: '#059669' }}>Son yedek {days} gün önce ✓</span>}
+                {t.ayarlar.yedekAltOn} <b>{t.ayarlar.yedekAltVurgu}</b>{t.ayarlar.yedekAltSon} {overdue
+                    ? <b style={{ color: '#b45309' }}>{days === null ? t.ayarlar.yedekHic : doldur(t.ayarlar.yedekGecikti, { n: days })}</b>
+                    : <span style={{ color: '#059669' }}>{doldur(t.ayarlar.yedekTamam, { n: days ?? 0 })}</span>}
             </p>
             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
                 <button onClick={() => download(false)} style={{
                     padding: '0.6rem 1.1rem', backgroundColor: '#0f2253', color: 'white',
                     border: 'none', borderRadius: '0.5rem', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem',
-                }}>⬇️ Yedeği indir</button>
-                <button onClick={() => download(true)} title="Sayaç fotoğrafları dahil — dosya çok büyük olabilir" style={{
+                }}>{t.ayarlar.yedegiIndir}</button>
+                <button onClick={() => download(true)} title={t.ayarlar.fotograflarlaIpucu} style={{
                     padding: '0.6rem 1.1rem', backgroundColor: 'white', color: '#374151',
                     border: '1px solid #d1d5db', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem',
-                }}>Fotoğraflarla birlikte</button>
+                }}>{t.ayarlar.fotograflarla}</button>
             </div>
             <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.75rem', lineHeight: 1.5 }}>
-                Dosyayı silmeyin. Bu, verinizin okunabilir bir kopyasıdır (JSON) — bir sorun
-                yaşanırsa kayıtlarınız bu dosyadan geri getirilir. Uygulama içinde tek tuşla
-                geri yükleme yoktur; geri yükleme destek tarafından yapılır.
+                {t.ayarlar.yedekNot}
             </p>
         </div>
     );

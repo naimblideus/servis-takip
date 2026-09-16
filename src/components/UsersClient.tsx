@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
-const ROLE_LABELS: Record<string, string> = {
-    ADMIN: 'Yönetici', TECHNICIAN: 'Teknisyen', FRONT_DESK: 'Resepsiyon',
-};
+// Rol adları sözlükte (kullanici.roller); burada yalnız renk.
 const ROLE_COLORS: Record<string, string> = {
     ADMIN: '#fee2e2', TECHNICIAN: '#dbeafe', FRONT_DESK: '#d1fae5',
 };
@@ -21,6 +21,9 @@ interface Props {
 
 export default function UsersClient({ users, meId, ticketCounts }: Props) {
     const router = useRouter();
+    const t = useT();
+    const b = useBicim();
+    const rolAdi = (k: string) => (t.kullanici.roller as Record<string, string>)[k] ?? k;
     const [editId, setEditId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState({ name: '', email: '', role: '', password: '', isActive: true });
     const [saving, setSaving] = useState(false);
@@ -39,15 +42,15 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-        if (!res.ok) { const d = await res.json(); alert('Hata: ' + d.error); }
+        if (!res.ok) { const d = await res.json(); alert(doldur(t.fisler.hata, { n: d.error })); }
         else { setEditId(null); router.refresh(); }
         setSaving(false);
     };
 
     const deleteUser = async (id: string, name: string) => {
-        if (!confirm(`"${name}" pasife alınsın mı? Kullanıcı giriş yapamaz ancak fişleri korunur.`)) return;
+        if (!confirm(doldur(t.kullanici.pasifeAlSor, { n: name }))) return;
         const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
-        if (!res.ok) { const d = await res.json(); alert('Hata: ' + d.error); return; }
+        if (!res.ok) { const d = await res.json(); alert(doldur(t.fisler.hata, { n: d.error })); return; }
         router.refresh();
     };
 
@@ -58,7 +61,7 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
             <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                 <thead>
                     <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                        {['Ad Soyad', 'E-posta', 'Rol', 'Durum', 'Şifre', 'Atanan Fiş', 'Kayıt', 'İşlem'].map(h => (
+                        {[t.belge.fis.adSoyad, t.musteri.eposta, t.kullanici.rol, t.genel.durum, t.kullanici.sutunSifre, t.kullanici.sutunAtananFis, t.kullanici.sutunKayit, t.genel.islem].map(h => (
                             <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>{h}</th>
                         ))}
                     </tr>
@@ -79,15 +82,15 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
                                     </td>
                                     <td style={{ padding: '0.5rem 1rem' }}>
                                         <select style={inp} value={editForm.role} onChange={e => setEditForm({ ...editForm, role: e.target.value })}>
-                                            <option value="ADMIN">Yönetici</option>
-                                            <option value="TECHNICIAN">Teknisyen</option>
-                                            <option value="FRONT_DESK">Resepsiyon</option>
+                                            {(['ADMIN', 'TECHNICIAN', 'FRONT_DESK'] as const).map((r) => (
+                                                <option key={r} value={r}>{rolAdi(r)}</option>
+                                            ))}
                                         </select>
                                     </td>
                                     <td style={{ padding: '0.5rem 1rem' }}>
                                         <select style={inp} value={editForm.isActive ? 'true' : 'false'} onChange={e => setEditForm({ ...editForm, isActive: e.target.value === 'true' })}>
-                                            <option value="true">Aktif</option>
-                                            <option value="false">Pasif</option>
+                                            <option value="true">{t.kullanici.aktif}</option>
+                                            <option value="false">{t.kullanici.pasif}</option>
                                         </select>
                                     </td>
                                     <td style={{ padding: '0.5rem 1rem' }}>
@@ -97,8 +100,8 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
                                     <td style={{ padding: '0.5rem 1rem' }}>—</td>
                                     <td style={{ padding: '0.5rem 1rem' }}>
                                         <div style={{ display: 'flex', gap: '0.375rem' }}>
-                                            <button onClick={() => saveEdit(u.id)} disabled={saving} style={{ padding: '0.3rem 0.625rem', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>✓ Kaydet</button>
-                                            <button onClick={() => setEditId(null)} style={{ padding: '0.3rem 0.5rem', backgroundColor: 'white', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem' }}>İptal</button>
+                                            <button onClick={() => saveEdit(u.id)} disabled={saving} style={{ padding: '0.3rem 0.625rem', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>{t.kullanici.kaydet}</button>
+                                            <button onClick={() => setEditId(null)} style={{ padding: '0.3rem 0.5rem', backgroundColor: 'white', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem' }}>{t.genel.iptal}</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -119,7 +122,7 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
                                         </div>
                                         <div>
                                             <div style={{ fontWeight: '600', fontSize: '0.875rem', opacity: u.isActive ? 1 : 0.5 }}>
-                                                {u.name} {isMe && <span style={{ color: '#2563eb', fontSize: '0.7rem' }}>(Ben)</span>}
+                                                {u.name} {isMe && <span style={{ color: '#2563eb', fontSize: '0.7rem' }}>{t.kullanici.ben}</span>}
                                             </div>
                                         </div>
                                     </div>
@@ -127,20 +130,20 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
                                 <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: u.isActive ? '#374151' : '#9ca3af' }}>{u.email}</td>
                                 <td style={{ padding: '0.875rem 1rem' }}>
                                     <span style={{ backgroundColor: ROLE_COLORS[u.role] || '#f3f4f6', padding: '0.2rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>
-                                        {ROLE_LABELS[u.role] || u.role}
+                                        {rolAdi(u.role)}
                                     </span>
                                 </td>
                                 <td style={{ padding: '0.875rem 1rem' }}>
                                     <span style={{ backgroundColor: u.isActive ? '#d1fae5' : '#fee2e2', color: u.isActive ? '#065f46' : '#b91c1c', padding: '0.2rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>
-                                        {u.isActive ? '● Aktif' : '○ Pasif'}
+                                        {u.isActive ? t.kullanici.aktifNokta : t.kullanici.pasifNokta}
                                     </span>
                                 </td>
                                 <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#9ca3af' }}>••••••</td>
                                 <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', fontWeight: '600' }}>{ticketCounts[u.id] || 0}</td>
-                                <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#6b7280' }}>{new Date(u.createdAt).toLocaleDateString('tr-TR')}</td>
+                                <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#6b7280' }}>{b.tarih(u.createdAt)}</td>
                                 <td style={{ padding: '0.875rem 1rem' }}>
                                     <div style={{ display: 'flex', gap: '0.375rem' }}>
-                                        <button onClick={() => startEdit(u)} style={{ padding: '0.3rem 0.625rem', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem' }}>✏ Düzenle</button>
+                                        <button onClick={() => startEdit(u)} style={{ padding: '0.3rem 0.625rem', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem' }}>{t.kullanici.duzenle}</button>
                                         {!isMe && (
                                             <button onClick={() => deleteUser(u.id, u.name)} style={{ padding: '0.3rem 0.5rem', backgroundColor: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
                                         )}
