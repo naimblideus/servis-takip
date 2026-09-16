@@ -31,6 +31,19 @@ const BEYAZ_LISTE = [
   /postgres(ql)?:\/\/postgres:postgres123@localhost/i,   // yerel geliştirme
   /postgres(ql)?:\/\/(kullanici|user):(sifre|password)@/i, // belgelerdeki şablon
   /app\.notion\.(com|so)\//i,                            // Notion sayfa kimliği — kimlik bilgisi değil
+
+  // Testlerde KASTEN sahte bağlantı dizesi bulunur: "parola çıktıya sızmıyor"
+  // iddiasını kanıtlamanın başka yolu yok (scripts/test-db-hedef.mjs).
+  //
+  // Burada DOSYA bazlı muafiyet yok — gerçek sırlar tam da öyle saklanır.
+  // Sadece apaçık sahte olan parola ŞEKİLLERİ beyaz listede; gerçek görünümlü
+  // bir parola o testin içine girerse tarayıcı yine bağırır.
+  //
+  // Beyaz listeye almamak da seçenek değildi: 15 kalıcı yanlış alarm, bir
+  // süre sonra tarayıcının çıktısına kimsenin bakmaması demek.
+  /:\/\/[^:@\s/]+:\$\{[A-Za-z_$][\w$]*\}@/,              // parola yerine şablon değişkeni
+  /:\/\/[^:@\s/]+:(p|sifre|şifre|parola|bir|iki|yanlis|yanlisparola)@/i, // tek harf / apaçık kukla
+  /:\/\/[^:@\s/]+:(CokGizliParola123|GizliParola)@/,     // testteki iki sabit sahte değer
 ];
 
 const ATLA = /^(package-lock\.json|.*\.(png|jpg|jpeg|gif|ico|webp|mp4|woff2?|pdf|zip))$/i;
