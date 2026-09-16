@@ -94,7 +94,9 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   // Saf noktalama — çevrilecek kelime yok.
   'musteriMesaji.faturaDonem', 'musteriMesaji.odemeTarih',
   // Marka/model örnekleri — çevrilecek kelime yok.
-  'cihaz.markaYer', 'cihaz.modelYer']);
+  'cihaz.markaYer', 'cihaz.modelYer',
+  // Uygulama adı — çevrilmez.
+  'ikiAdim.adim1Vurgu']);
   const ayni = trY.filter(([p, v]) => !AYNI_OLABILIR.has(p) && String(v).length > 3 && oku(en, p) === v).map(([p]) => p);
   t('★ tr ile en birebir aynı metin yok (özel adlar dışında)', ayni.length === 0, ayni.slice(0, 8));
 }
