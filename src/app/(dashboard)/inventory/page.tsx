@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 import { PART_GROUPS } from '@/lib/part-groups';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Part {
     id: string;
@@ -20,6 +22,8 @@ type SortField = 'name' | 'sku' | 'stockQty' | 'sellPrice' | 'buyPrice' | 'group
 type StockFilter = 'all' | 'critical' | 'ok';
 
 export default function InventoryPage() {
+    const t = useT();
+    const b = useBicim();
     const [parts, setParts] = useState<Part[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -128,7 +132,7 @@ export default function InventoryPage() {
             load();
         } else {
             const d = await res.json();
-            alert('Hata: ' + d.error);
+            alert(doldur(t.fisler.hata, { n: d.error }));
         }
         setSaving(false);
     };
@@ -139,7 +143,7 @@ export default function InventoryPage() {
     // (barkod çakışması, yetersiz stok...).
     const hataVarsaSoyle = async (res: Response) => {
         if (res.ok) return false;
-        let mesaj = 'İşlem kaydedilemedi.';
+        let mesaj = t.stokSayfa.islemKaydedilemedi;
         try { const d = await res.json(); if (d?.error) mesaj = d.error; } catch { /* gövde yoksa genel mesaj */ }
         alert(mesaj);
         return true;
@@ -192,14 +196,14 @@ export default function InventoryPage() {
     };
 
     const deletePart = async (id: string, name: string) => {
-        if (!confirm(`"${name}" silinsin mi? Bu işlem geri alınamaz.`)) return;
+        if (!confirm(doldur(t.stokSayfa.silSor, { n: name }))) return;
         const res = await fetch(`/api/inventory/${id}`, { method: 'DELETE' });
         if (!res.ok) {
             const d = await res.json();
             if (d.error?.includes('Foreign key') || d.error?.includes('constraint')) {
-                alert(`"${name}" silinemedi: Bu parça bir veya daha fazla servis fişine bağlı. Önce fişlerdeki kullanımını kaldırın.`);
+                alert(doldur(t.stokSayfa.silinemezFis, { n: name }));
             } else {
-                alert('Silme hatası: ' + d.error);
+                alert(doldur(t.stokSayfa.silmeHatasi, { n: d.error }));
             }
             return;
         }
@@ -227,7 +231,7 @@ export default function InventoryPage() {
     // kârlılık olduğundan yüksek görünüyor. Sayısı gizlenmiyor.
     const maliyetsiz = parts.filter((p) => !maliyetOf(p)).length;
 
-    if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>Yükleniyor...</div>;
+    if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>{t.genel.yukleniyor}</div>;
 
     const SortIcon = ({ field }: { field: SortField }) => (
         <span style={{ marginLeft: '0.25rem', opacity: sortField === field ? 1 : 0.3, fontSize: '0.7rem' }}>
@@ -240,30 +244,30 @@ export default function InventoryPage() {
             {/* Başlık */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Stok Yönetimi</h1>
+                    <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{t.stokSayfa.baslik}</h1>
                     <p style={{ color: '#6b7280' }}>Toplam {parts.length} kalem • {filtered.length} gösteriliyor</p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <a href="/inventory/scan" style={{
                         backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '0.625rem 1rem',
                         borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
-                    }}>📦 Hızlı Giriş/Çıkış</a>
+                    }}>{t.stokSayfa.hizliGirisCikis}</a>
                     <a href="/inventory/labels" style={{
                         backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.625rem 1rem',
                         borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
-                    }}>🏷️ Etiket Yazdır</a>
+                    }}>{t.stokSayfa.etiketYazdir}</a>
                     {/* ALIŞ GİRİŞİ — maliyetin tek doğru kaynağı. Listedeki
                         "alış" alanını elle düzeltmek o parçanın geçmişini
                         eziyordu; burada her alış ayrı kayıt. */}
                     <a href="/inventory/alis" style={{
                         backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '0.625rem 1rem',
                         borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
-                    }}>Alış Gir</a>
+                    }}>{t.stokSayfa.alisGir}</a>
                     <button onClick={() => setShowForm(!showForm)} style={{
                         backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
                         borderRadius: '0.5rem', border: 'none', fontWeight: '500', cursor: 'pointer', fontSize: '0.875rem',
                     }}>
-                        {showForm ? '✕ İptal' : '+ Yeni Parça'}
+                        {showForm ? t.muhasebe.iptalKisa : t.stokSayfa.yeniParca}
                     </button>
                 </div>
             </div>
@@ -287,10 +291,10 @@ export default function InventoryPage() {
                 Bayi telefonda stoğunun ₺ değerini göremiyordu. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(9rem,1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
-                    { label: 'Toplam Kalem', value: parts.length, color: '#6b7280', icon: '📦', onClick: () => setStockFilter('all') },
+                    { label: t.stokSayfa.toplamKalem, value: parts.length, color: '#6b7280', icon: '📦', onClick: () => setStockFilter('all') },
                     { label: 'Kritik Stok', value: lowStock.length, color: lowStock.length > 0 ? '#ef4444' : '#10b981', icon: '⚠️', onClick: () => setStockFilter('critical') },
-                    { label: 'Stok Değeri', value: `₺${totalValue.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`, color: '#10b981', icon: '💰', onClick: () => setStockFilter('all') },
-                    { label: 'Maliyeti Girilmemiş', value: String(maliyetsiz), color: maliyetsiz ? '#b45309' : '#9ca3af', icon: '?', onClick: () => setStockFilter('all') },
+                    { label: t.stokSayfa.stokDegeri, value: b.para(totalValue, 0), color: '#10b981', icon: '💰', onClick: () => setStockFilter('all') },
+                    { label: t.stokSayfa.maliyetsiz, value: String(maliyetsiz), color: maliyetsiz ? '#b45309' : '#9ca3af', icon: '?', onClick: () => setStockFilter('all') },
                 ].map(c => (
                     <div key={c.label} onClick={c.onClick} style={{
                         backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
@@ -317,7 +321,7 @@ export default function InventoryPage() {
                     <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}>🔍</span>
                     <input
                         type="text"
-                        placeholder="SKU veya parça adı ile ara..."
+                        placeholder={t.stokSayfa.araYer}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         style={{
@@ -337,9 +341,9 @@ export default function InventoryPage() {
                 {/* Durum Filtresi */}
                 <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: '#f3f4f6', borderRadius: '0.5rem', padding: '0.25rem' }}>
                     {([
-                        { key: 'all' as StockFilter, label: 'Tümü' },
-                        { key: 'critical' as StockFilter, label: `⚠ Kritik (${lowStock.length})` },
-                        { key: 'ok' as StockFilter, label: '✓ Yeterli' },
+                        { key: 'all' as StockFilter, label: t.genel.tumu },
+                        { key: 'critical' as StockFilter, label: doldur(t.stokSayfa.filtreKritik, { n: lowStock.length }) },
+                        { key: 'ok' as StockFilter, label: t.stokSayfa.filtreYeterli },
                     ]).map(f => (
                         <button key={f.key} onClick={() => setStockFilter(f.key)} style={{
                             padding: '0.375rem 0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer',
@@ -367,54 +371,54 @@ export default function InventoryPage() {
                         backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc',
                         padding: '0.3rem 0.7rem', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 600,
                     }}>
-                    <span>▮▮▯▮</span> Barkod okuyucu hazır
+                    <span>▮▮▯▮</span> {t.stokSayfa.okuyucuHazir}
                 </span>
             </div>
 
             {/* Yeni Parça Formu */}
             {showForm && (
                 <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-                    <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>Yeni Parça Ekle</h2>
+                    <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{t.stokSayfa.yeniParcaBaslik}</h2>
                     <form onSubmit={handleSubmit}>
                         {/* auto-fit: telefonda üç sütun sıkışıyordu (SKU/Ad/Grup).
                             minmax ile dar ekranda alt alta iner. */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(9rem,1fr))', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
-                                <label style={lbl}>SKU / Kod</label>
-                                <input style={inp} value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="Otomatik" />
-                                <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>Boş bırakırsanız otomatik üretilir</span>
+                                <label style={lbl}>{t.stokSayfa.skuKod}</label>
+                                <input style={inp} value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder={t.stokSayfa.skuOtomatik} />
+                                <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{t.stokSayfa.skuNot}</span>
                             </div>
                             <div>
-                                <label style={lbl}>Parça Adı *</label>
-                                <input required style={inp} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Canon 2525 Toner" />
+                                <label style={lbl}>{t.stokSayfa.parcaAdi}</label>
+                                <input required style={inp} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t.stokSayfa.parcaAdiYer} />
                             </div>
                             <div>
-                                <label style={lbl}>Ürün Grubu</label>
+                                <label style={lbl}>{t.stokSayfa.urunGrubu}</label>
                                 <select style={inp} value={form.group} onChange={e => setForm({ ...form, group: e.target.value })}>
-                                    <option value="">Grup seçin...</option>
+                                    <option value="">{t.stokSayfa.grupSecin}</option>
                                     {PART_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                                 </select>
                             </div>
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>Barkod (opsiyonel)</label>
+                            <label style={lbl}>{t.stokSayfa.barkod}</label>
                             <input
                                 style={inp}
                                 value={form.barcode}
                                 onChange={e => setForm({ ...form, barcode: e.target.value })}
-                                placeholder="📷 Okuyucuyla okutun veya elle girin (EAN-13 / Code 128)"
+                                placeholder={t.stokSayfa.barkodYer}
                             />
                             <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>USB barkod okuyucu (Symbol/Zebra LS2208 vb.) ile okutabilirsiniz</span>
                         </div>
                         {/* Üretici parça kodu — isteğe bağlı, sürtünme eklemez.
                             Kendi stok kodun sana özeldir; üreticinin kodu aynı parçayı her bayide aynı şey yapar. */}
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>Üretici Parça Kodu (opsiyonel)</label>
+                            <label style={lbl}>{t.stokSayfa.oemKodu}</label>
                             <input
                                 style={inp}
                                 value={form.oemCode}
                                 onChange={e => setForm({ ...form, oemCode: e.target.value })}
-                                placeholder="Örn. FM1-A606-000 — kutunun veya faturanın üstündeki orijinal kod"
+                                placeholder={t.stokSayfa.oemYer}
                             />
                             <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
                                 Girerseniz aynı parçayı farklı isimle kaydetseniz bile sistem tek parça olarak tanır. Marka, parça adından otomatik algılanır.
@@ -425,19 +429,19 @@ export default function InventoryPage() {
                             iki sütuna düşüp ~120 px'e çıkıyor. */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(7.5rem,1fr))', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
-                                <label style={lbl}>Alış Fiyatı (₺)</label>
+                                <label style={lbl}>{doldur(t.stokSayfa.alisFiyati, { birim: b.simge })}</label>
                                 <input type="number" step="0.01" style={inp} value={form.buyPrice} onChange={e => setForm({ ...form, buyPrice: e.target.value })} placeholder="0" />
                             </div>
                             <div>
-                                <label style={lbl}>Satış Fiyatı (₺)</label>
+                                <label style={lbl}>{doldur(t.stokSayfa.satisFiyati, { birim: b.simge })}</label>
                                 <input type="number" step="0.01" style={inp} value={form.sellPrice} onChange={e => setForm({ ...form, sellPrice: e.target.value })} placeholder="0" />
                             </div>
                             <div>
-                                <label style={lbl}>Stok Miktarı</label>
+                                <label style={lbl}>{t.stokSayfa.stokMiktari}</label>
                                 <input type="number" style={inp} value={form.stockQty} onChange={e => setForm({ ...form, stockQty: e.target.value })} placeholder="0" />
                             </div>
                             <div>
-                                <label style={lbl}>Min. Stok</label>
+                                <label style={lbl}>{t.stokSayfa.minStok}</label>
                                 <input type="number" style={inp} value={form.minStock} onChange={e => setForm({ ...form, minStock: e.target.value })} placeholder="5" />
                             </div>
                         </div>
@@ -446,7 +450,7 @@ export default function InventoryPage() {
                             borderRadius: '0.5rem', border: 'none', fontWeight: '600', cursor: 'pointer',
                             opacity: saving ? 0.7 : 1,
                         }}>
-                            {saving ? 'Kaydediliyor...' : 'Parça Ekle'}
+                            {saving ? t.genel.kaydediliyor : t.stokSayfa.parcaEkle}
                         </button>
                     </form>
                 </div>
@@ -461,22 +465,22 @@ export default function InventoryPage() {
                                 SKU <SortIcon field="sku" />
                             </th>
                             <th onClick={() => toggleSort('name')} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
-                                Parça Adı <SortIcon field="name" />
+                                {t.parcalar.sutun.parca} <SortIcon field="name" />
                             </th>
                             <th onClick={() => toggleSort('buyPrice')} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
-                                Alış <SortIcon field="buyPrice" />
+                                {t.stokSayfa.sutunAlis} <SortIcon field="buyPrice" />
                             </th>
                             <th onClick={() => toggleSort('sellPrice')} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
-                                Satış <SortIcon field="sellPrice" />
+                                {t.stokSayfa.sutunSatis} <SortIcon field="sellPrice" />
                             </th>
                             <th onClick={() => toggleSort('stockQty')} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
-                                Stok <SortIcon field="stockQty" />
+                                {t.stokSayfa.sutunStok} <SortIcon field="stockQty" />
                             </th>
-                            <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>Durum</th>
+                            <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>{t.genel.durum}</th>
                             <th onClick={() => toggleSort('group')} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
-                                Grup <SortIcon field="group" />
+                                {t.stokSayfa.sutunGrup} <SortIcon field="group" />
                             </th>
-                            <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>İşlem</th>
+                            <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '600', color: '#374151' }}>{t.genel.islem}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -500,7 +504,7 @@ export default function InventoryPage() {
                                                 style={{ ...inp, width: '100%', padding: '0.3rem 0.5rem', marginTop: '0.35rem', fontFamily: 'monospace', fontSize: '0.75rem' }}
                                                 value={editRow.barcode}
                                                 onChange={e => setEditRow({ ...editRow, barcode: e.target.value })}
-                                                placeholder="📷 Barkod (okutun veya girin)"
+                                                placeholder={t.stokSayfa.barkodKisaYer}
                                             />
                                         </td>
                                         <td style={{ padding: '0.5rem 0.75rem' }}>
@@ -546,11 +550,11 @@ export default function InventoryPage() {
                                                 <button onClick={() => updatePart(p.id)} style={{
                                                     padding: '0.3rem 0.75rem', backgroundColor: '#059669', color: 'white',
                                                     border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
-                                                }}>✓ Kaydet</button>
+                                                }}>{t.kullanici.kaydet}</button>
                                                 <button onClick={() => setEditingId(null)} style={{
                                                     padding: '0.3rem 0.5rem', backgroundColor: 'white', color: '#374151',
                                                     border: '1px solid #d1d5db', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem',
-                                                }}>İptal</button>
+                                                }}>{t.genel.iptal}</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -576,8 +580,8 @@ export default function InventoryPage() {
                                             </div>
                                         )}
                                     </td>
-                                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>₺{Number(p.buyPrice).toFixed(2)}</td>
-                                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', fontWeight: '600', color: '#059669' }}>₺{Number(p.sellPrice).toFixed(2)}</td>
+                                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>{b.para(Number(p.buyPrice))}</td>
+                                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', fontWeight: '600', color: '#059669' }}>{b.para(Number(p.sellPrice))}</td>
                                     <td style={{ padding: '0.75rem 1rem' }}>
                                         {/* Stoka t\u0131klay\u0131nca inline input a\u00e7\u0131l\u0131r */}
                                         {editStockId === p.id ? (
@@ -620,7 +624,7 @@ export default function InventoryPage() {
                                             color: isZero ? '#b91c1c' : isLow ? '#92400e' : '#065f46',
                                             padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600',
                                         }}>
-                                            {isZero ? '🔴 Tükendi' : isLow ? '🟡 Kritik' : '🟢 Yeterli'}
+                                            {isZero ? t.stokSayfa.tukendi : isLow ? t.stokSayfa.kritik : t.stokSayfa.yeterli}
                                         </span>
                                     </td>
                                     <td style={{ padding: '0.75rem 1rem' }}>
@@ -638,13 +642,13 @@ export default function InventoryPage() {
                                             {/* Stok 0'ken azaltma kapalı: eskiden basılabiliyor ve
                                                 stok eksiye düşüyordu (kritik-stok uyarısını ve
                                                 sipariş listesini bozar). Sunucu da artık reddediyor. */}
-                                            <button onClick={() => adjustStock(p.id, -1)} title={p.stockQty <= 0 ? 'Stok zaten 0' : 'Azalt'}
+                                            <button onClick={() => adjustStock(p.id, -1)} title={p.stockQty <= 0 ? t.stokSayfa.stokZatenSifir : t.stokSayfa.azalt}
                                                 disabled={p.stockQty <= 0}
                                                 style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: p.stockQty <= 0 ? '#f3f4f6' : 'white', color: p.stockQty <= 0 ? '#9ca3af' : 'inherit', cursor: p.stockQty <= 0 ? 'not-allowed' : 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                                            <button onClick={() => adjustStock(p.id, 1)} title="Artır"
+                                            <button onClick={() => adjustStock(p.id, 1)} title={t.stokSayfa.artir}
                                                 style={{ width: '26px', height: '26px', borderRadius: '0.375rem', border: '1px solid #e5e7eb', backgroundColor: '#f0fdf4', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                                             <button
-                                                title="Düzenle"
+                                                title={t.genel.duzenle}
                                                 onClick={() => {
                                                     setEditingId(p.id);
                                                     setEditStockId(null);
@@ -669,7 +673,7 @@ export default function InventoryPage() {
                         {filtered.length === 0 && (
                             <tr>
                                 <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>
-                                    {search ? `"${search}" ile eşleşen parça bulunamadı` : 'Henüz parça yok — + Yeni Parça ile ekleyin'}
+                                    {search ? doldur(t.stokSayfa.eslesmeYok, { q: search }) : t.stokSayfa.parcaYok}
                                 </td>
                             </tr>
                         )}

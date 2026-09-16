@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { bugununTarihi } from '@/lib/utils';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 /**
  * PARÇA ALIŞI — stoğun nereden, kaça geldiği.
@@ -21,13 +23,16 @@ type Parca = { id: string; sku: string; name: string; stockQty: number; buyPrice
 type Alis = { id: string; quantity: number; unitCost: number; supplier: string | null; invoiceNo: string | null; purchasedAt: string; avgAfter: number | null; note: string | null };
 type Tedarikci = { tedarikci: string; alisSayisi: number; toplamAdet: number; ortalamaFiyat: number; enUcuz: number; enPahali: number; sonAlis: string };
 
-const tl = (n: number) => `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const gg = (s: string) => new Date(s).toLocaleDateString('tr-TR');
 // Yerel takvim: UTC'den türetilirse gece 00:00-03:00 arasında DÜNÜ verir
 // ve alış bir gün önceye yazılır (bkz. bugununTarihi).
 const bugun = () => bugununTarihi();
 
 export default function ParcaAlisPage() {
+  // `sz`: tedarikçi döngüsü `t` adını kullanıyor.
+  const sz = useT();
+  const b = useBicim();
+  const tl = (n: number) => b.para(n);
+  const gg = (d: string) => b.tarih(d);
   const [parcalar, setParcalar] = useState<Parca[]>([]);
   const [arama, setArama] = useState('');
   const [secili, setSecili] = useState<Parca | null>(null);
@@ -62,7 +67,7 @@ export default function ParcaAlisPage() {
       body: JSON.stringify({ partId: secili.id, ...form }),
     });
     const d = await r.json();
-    if (!r.ok) alert(d.error || 'Kaydedilemedi');
+    if (!r.ok) alert(d.error || sz.alis.kaydedilemedi);
     else {
       setSonuc(d);
       setForm({ adet: '1', birimAlis: '', tedarikci: form.tedarikci, faturaNo: '', tarih: bugun(), not: '' });
@@ -84,16 +89,15 @@ export default function ParcaAlisPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1100 }}>
-      <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Parça Alışı</h1>
+      <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>{sz.alis.baslik}</h1>
       <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-        Her alışı ayrı kaydet. Elindeki stoğun gerçek ortalama maliyeti buradan çıkıyor —
-        ve aynı parçayı kimden kaça aldığın. <Link href="/inventory" style={{ color: '#2563eb' }}>Stok listesi →</Link>
+        {sz.alis.altOn} <Link href="/inventory" style={{ color: '#2563eb' }}>{sz.alis.stokListesi}</Link>
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(16rem, 1fr) 2fr', gap: '1.25rem', alignItems: 'start' }}>
         {/* ── PARÇA SEÇ ── */}
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '0.9rem' }}>
-          <input value={arama} onChange={(e) => setArama(e.target.value)} placeholder="Parça ara (ad ya da kod)…" style={inp} />
+          <input value={arama} onChange={(e) => setArama(e.target.value)} placeholder={sz.alis.araYer} style={inp} />
           <div style={{ marginTop: '0.6rem', maxHeight: '26rem', overflowY: 'auto' }}>
             {suzulen.map((p) => (
               <button key={p.id} onClick={() => detayYukle(p)} style={{
@@ -103,14 +107,14 @@ export default function ParcaAlisPage() {
               }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>{p.name}</div>
                 <div style={{ fontSize: '0.73rem', color: '#6b7280' }}>
-                  {p.sku} · stok {p.stockQty}
+                  {p.sku} · {doldur(sz.alis.stokKisa, { n: p.stockQty })}
                   {/* MALİYETİ BİLİNMEYEN PARÇA burada işaretleniyor: bayi hangi
                       satırları doldurması gerektiğini listeye bakarak görsün. */}
-                  {!p.avgCost && !Number(p.buyPrice) && <span style={{ color: '#b45309', fontWeight: 700 }}> · maliyet yok</span>}
+                  {!p.avgCost && !Number(p.buyPrice) && <span style={{ color: '#b45309', fontWeight: 700 }}>{sz.alis.maliyetYok}</span>}
                 </div>
               </button>
             ))}
-            {suzulen.length === 0 && <p style={{ fontSize: '0.85rem', color: '#9ca3af', padding: '0.5rem' }}>Parça bulunamadı.</p>}
+            {suzulen.length === 0 && <p style={{ fontSize: '0.85rem', color: '#9ca3af', padding: '0.5rem' }}>{sz.alis.parcaBulunamadi}</p>}
           </div>
         </div>
 
@@ -118,7 +122,7 @@ export default function ParcaAlisPage() {
         <div>
           {!secili ? (
             <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '2.5rem', textAlign: 'center', color: '#6b7280' }}>
-              Soldan bir parça seç.
+              {sz.alis.soldanSec}
             </div>
           ) : (
             <>
@@ -130,17 +134,17 @@ export default function ParcaAlisPage() {
                   </div>
                   <div style={{ display: 'flex', gap: '1.4rem', textAlign: 'right' }}>
                     <div>
-                      <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>Stok</div>
+                      <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{sz.alis.stok}</div>
                       <div style={{ fontWeight: 700 }}>{secili.stockQty}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>Ortalama maliyet</div>
+                      <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{sz.alis.ortalamaMaliyet}</div>
                       <div style={{ fontWeight: 700, color: secili.avgCost ? '#111827' : '#b45309' }}>
-                        {secili.avgCost ? tl(secili.avgCost) : 'bilinmiyor'}
+                        {secili.avgCost ? tl(secili.avgCost) : sz.alis.bilinmiyor}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>Son alış</div>
+                      <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{sz.alis.sonAlis}</div>
                       <div style={{ fontWeight: 700 }}>{Number(secili.buyPrice) ? tl(Number(secili.buyPrice)) : '—'}</div>
                     </div>
                   </div>
@@ -148,23 +152,23 @@ export default function ParcaAlisPage() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(8rem, 1fr))', gap: '0.7rem' }}>
                   <div>
-                    <label style={lbl}>Adet</label>
+                    <label style={lbl}>{sz.alis.adet}</label>
                     <input value={form.adet} onChange={(e) => setForm({ ...form, adet: e.target.value })} inputMode="numeric" style={inp} />
                   </div>
                   <div>
-                    <label style={lbl}>Birim alış (KDV hariç)</label>
+                    <label style={lbl}>{sz.alis.birimAlis}</label>
                     <input value={form.birimAlis} onChange={(e) => setForm({ ...form, birimAlis: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} />
                   </div>
                   <div>
-                    <label style={lbl}>Tedarikçi</label>
-                    <input value={form.tedarikci} onChange={(e) => setForm({ ...form, tedarikci: e.target.value })} placeholder="kimden aldın" style={inp} />
+                    <label style={lbl}>{sz.alis.tedarikci}</label>
+                    <input value={form.tedarikci} onChange={(e) => setForm({ ...form, tedarikci: e.target.value })} placeholder={sz.alis.tedarikciYer} style={inp} />
                   </div>
                   <div>
-                    <label style={lbl}>Fatura no</label>
+                    <label style={lbl}>{sz.alis.faturaNo}</label>
                     <input value={form.faturaNo} onChange={(e) => setForm({ ...form, faturaNo: e.target.value })} style={inp} />
                   </div>
                   <div>
-                    <label style={lbl}>Tarih</label>
+                    <label style={lbl}>{sz.genel.tarih}</label>
                     <input type="date" value={form.tarih} onChange={(e) => setForm({ ...form, tarih: e.target.value })} style={inp} />
                   </div>
                 </div>
@@ -175,16 +179,16 @@ export default function ParcaAlisPage() {
                     background: form.birimAlis ? '#0f2253' : '#9ca3af', color: 'white', fontWeight: 700,
                     fontSize: '0.88rem', cursor: form.birimAlis ? 'pointer' : 'not-allowed',
                   }}>
-                  {kaydediliyor ? 'Kaydediliyor…' : 'Alışı kaydet ve stoğa ekle'}
+                  {kaydediliyor ? sz.genel.kaydediliyor : sz.alis.kaydet}
                 </button>
 
                 {sonuc && (
                   <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857', borderRadius: '0.5rem', padding: '0.65rem 0.85rem', marginTop: '0.8rem', fontSize: '0.84rem' }}>
-                    ✓ Kaydedildi. Stok <b>{sonuc.yeniStok}</b>.{' '}
+                    {sz.alis.sonucOn} <b>{sonuc.yeniStok}</b>.{' '}
                     {sonuc.eskiOrtalama
-                      ? <>Ortalama maliyet <b>{tl(sonuc.eskiOrtalama)} → {tl(sonuc.yeniOrtalama)}</b>
-                        {sonuc.degisimYuzde !== null && <> (%{(sonuc.degisimYuzde * 100).toFixed(1).replace('.', ',')})</>}</>
-                      : <>İlk alış — ortalama maliyet <b>{tl(sonuc.yeniOrtalama)}</b>.</>}
+                      ? <>{sz.alis.sonucOrtalamaOn} <b>{tl(sonuc.eskiOrtalama)} → {tl(sonuc.yeniOrtalama)}</b>
+                        {sonuc.degisimYuzde !== null && <> ({b.yuzde(sonuc.degisimYuzde * 100, 1)})</>}</>
+                      : <>{sz.alis.sonucIlk} <b>{tl(sonuc.yeniOrtalama)}</b>.</>}
                   </div>
                 )}
               </div>
@@ -194,7 +198,7 @@ export default function ParcaAlisPage() {
                   yan yana konunca görünüyor. En ucuz üstte. */}
               {detay && detay.tedarikciler.length > 0 && (
                 <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1rem' }}>
-                  <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.7rem' }}>Bu parçayı kimden kaça alıyorsun</h2>
+                  <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.7rem' }}>{sz.alis.tedarikciBaslik}</h2>
                   <div style={{ display: 'grid', gap: '0.35rem', fontSize: '0.84rem' }}>
                     {detay.tedarikciler.map((t, i) => (
                       <div key={t.tedarikci} style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', alignItems: 'baseline' }}>
@@ -203,7 +207,7 @@ export default function ParcaAlisPage() {
                         </span>
                         <span style={{ fontWeight: 700 }}>{tl(t.ortalamaFiyat)}</span>
                         <span style={{ color: '#6b7280' }}>
-                          {t.alisSayisi} alış · {t.toplamAdet} adet
+                          {doldur(sz.alis.alisSayisi, { alis: t.alisSayisi, adet: t.toplamAdet })}
                           {t.enUcuz !== t.enPahali && <> · {tl(t.enUcuz)}–{tl(t.enPahali)}</>}
                         </span>
                       </div>
@@ -211,7 +215,7 @@ export default function ParcaAlisPage() {
                   </div>
                   {detay.tedarikciler.length > 1 && (
                     <p style={{ fontSize: '0.76rem', color: '#6b7280', margin: '0.6rem 0 0' }}>
-                      En ucuzla en pahalı arasındaki fark adet başına{' '}
+                      {sz.alis.farkOn}{' '}
                       <b>{tl(detay.tedarikciler[detay.tedarikciler.length - 1].ortalamaFiyat - detay.tedarikciler[0].ortalamaFiyat)}</b>.
                     </p>
                   )}
@@ -221,22 +225,22 @@ export default function ParcaAlisPage() {
               {/* ── ALIŞ GEÇMİŞİ ── */}
               {detay && (
                 <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem' }}>
-                  <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.7rem' }}>Alış geçmişi</h2>
+                  <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.7rem' }}>{sz.alis.gecmisBaslik}</h2>
                   {detay.alislar.length === 0 ? (
                     <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: 0 }}>
-                      Henüz alış kaydı yok. Bu parçanın maliyeti
-                      {Number(secili.buyPrice) ? ' son alış fiyatından tahmin ediliyor' : ' hiç bilinmiyor ve kârlılık hesabına girmiyor'}.
+                      {sz.alis.gecmisYokOn}
+                      {Number(secili.buyPrice) ? sz.alis.gecmisYokTahmin : sz.alis.gecmisYokHic}.
                     </p>
                   ) : (
                     <div style={{ display: 'grid', gap: '0.3rem', fontSize: '0.83rem' }}>
                       {detay.alislar.map((a) => (
                         <div key={a.id} style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
                           <span style={{ color: '#6b7280', minWidth: '5.5rem' }}>{gg(a.purchasedAt)}</span>
-                          <span style={{ minWidth: '3rem' }}>{a.quantity} ad.</span>
+                          <span style={{ minWidth: '3rem' }}>{doldur(sz.alis.adetKisa, { n: a.quantity })}</span>
                           <span style={{ fontWeight: 700, minWidth: '5.5rem' }}>{tl(a.unitCost)}</span>
                           <span style={{ color: '#374151', minWidth: '8rem' }}>{a.supplier || '—'}</span>
                           {a.invoiceNo && <span style={{ color: '#9ca3af' }}>{a.invoiceNo}</span>}
-                          {a.avgAfter !== null && <span style={{ color: '#6b7280' }}>ort. {tl(a.avgAfter)}</span>}
+                          {a.avgAfter !== null && <span style={{ color: '#6b7280' }}>{doldur(sz.alis.ortKisa, { n: tl(a.avgAfter) })}</span>}
                         </div>
                       ))}
                     </div>
@@ -249,10 +253,8 @@ export default function ParcaAlisPage() {
       </div>
 
       <p style={{ marginTop: '1.5rem', fontSize: '0.78rem', color: '#6b7280', lineHeight: 1.7 }}>
-        Ortalama maliyet her alışta yeniden hesaplanıyor:
-        <code style={{ margin: '0 0.3rem' }}>(eski stok × eski ortalama + adet × birim alış) ÷ (eski stok + adet)</code>.
-        Parça kullanmak ortalamayı değiştirmiyor. Fişe parça eklendiğinde o günün maliyeti
-        fişin içine yazılıyor — sonraki alışlar geçmiş kârlılığı değiştirmesin diye.
+        {sz.alis.formulOn}
+        <code style={{ margin: '0 0.3rem' }}>{sz.alis.formul}</code>{sz.alis.formulSon}
       </p>
     </div>
   );

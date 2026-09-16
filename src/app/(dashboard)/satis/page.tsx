@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 import { useSession } from 'next-auth/react';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 import CameraScanner from '@/components/CameraScanner';
@@ -10,9 +12,12 @@ interface StockItem { id: string; source: 'PART' | 'PRINTER'; name: string; sku?
 interface Customer { id: string; name: string; phone: string; }
 interface CartLine { key: string; kind: 'PART' | 'PRINTER'; id: string; name: string; unitPrice: number; qty: number; stockQty: number; }
 
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
 export default function SatisPage() {
+  const t = useT();
+  const b = useBicim();
+  const fmt = (n: number) => b.para(n);
   const { data: session } = useSession();
   const [stock, setStock] = useState<StockItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -71,8 +76,8 @@ export default function SatisPage() {
   const filteredCusts = customers.filter((c) => c.name.toLowerCase().includes(custSearch.toLowerCase()) || c.phone.includes(custSearch)).slice(0, 12);
 
   const complete = async () => {
-    if (!sel) { setMsg({ text: 'Önce müşteri seçin', ok: false }); return; }
-    if (cart.length === 0) { setMsg({ text: 'Sepet boş', ok: false }); return; }
+    if (!sel) { setMsg({ text: t.satis.musteriSecin, ok: false }); return; }
+    if (cart.length === 0) { setMsg({ text: t.satis.sepetBosUyari, ok: false }); return; }
     setSaving(true); setMsg(null);
     try {
       const res = await fetch('/api/sales', {
@@ -86,10 +91,16 @@ export default function SatisPage() {
       });
       const d = await res.json();
       if (res.ok) {
-        setMsg({ text: `✓ Satış kaydedildi: ${d.count} kalem · ${fmt(d.total)} ${paid ? '(peşin — tahsil edildi)' : '(açık hesap — cariye işlendi)'}`, ok: true });
+        setMsg({
+          text: doldur(t.satis.kaydedildi, {
+            adet: d.count, tutar: fmt(d.total),
+            sekil: paid ? t.satis.pesinEki : t.satis.acikEki,
+          }),
+          ok: true,
+        });
         setCart([]); load();
       } else setMsg({ text: '❌ ' + (d.error || 'Hata'), ok: false });
-    } catch { setMsg({ text: '❌ Sunucuya bağlanılamadı', ok: false }); }
+    } catch { setMsg({ text: t.satis.sunucuYok, ok: false }); }
     setSaving(false);
   };
 
@@ -98,7 +109,7 @@ export default function SatisPage() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: 900, margin: '0 auto' }}>
       <div style={{ marginBottom: '1rem' }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>🛒 Barkodla Satış</h1>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.satis.baslik}</h1>
         <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
           Ürünü okut → sepete düşer → müşteri + ödeme seç → tamamla. Stok otomatik düşer, muhasebeye işlenir.
         </p>
@@ -114,14 +125,14 @@ export default function SatisPage() {
       {/* Müşteri + mod */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
         <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 }}>Müşteri *</label>
-          <input style={inp} value={custSearch} placeholder="Müşteri ara…"
+          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 }}>{t.satis.musteriZorunlu}</label>
+          <input style={inp} value={custSearch} placeholder={t.satis.musteriAraYer}
             onChange={(e) => { setCustSearch(e.target.value); setShowCustDrop(true); setSel(null); }}
             onFocus={() => setShowCustDrop(true)} autoComplete="off" />
           {sel && <span style={{ position: 'absolute', right: 10, top: 32, color: '#10b981' }}>✓</span>}
           {showCustDrop && custSearch && !sel && (
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', borderRadius: 8, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
-              {filteredCusts.length === 0 ? <div style={{ padding: '0.5rem 0.75rem', color: '#9ca3af', fontSize: '0.85rem' }}>Bulunamadı</div> :
+              {filteredCusts.length === 0 ? <div style={{ padding: '0.5rem 0.75rem', color: '#9ca3af', fontSize: '0.85rem' }}>{t.satis.bulunamadi}</div> :
                 filteredCusts.map((c) => (
                   <div key={c.id} onClick={() => { setSel(c); setCustSearch(c.name); setShowCustDrop(false); }}
                     style={{ padding: '0.45rem 0.75rem', cursor: 'pointer', fontSize: '0.85rem', borderBottom: '1px solid #f3f4f6' }}>
@@ -132,7 +143,7 @@ export default function SatisPage() {
           )}
         </div>
         <div>
-          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 }}>Ödeme</label>
+          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 }}>{t.satis.odeme}</label>
           <div style={{ display: 'flex', gap: 6 }}>
             <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 3, flex: 1 }}>
               <button type="button" onClick={() => setPaid(true)} style={{ flex: 1, padding: '0.45rem', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', background: paid ? '#16a34a' : 'transparent', color: paid ? 'white' : '#6b7280' }}>Peşin</button>
@@ -140,9 +151,9 @@ export default function SatisPage() {
             </div>
             {paid && (
               <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...inp, width: 'auto' }}>
-                <option value="CASH">💵 Nakit</option>
-                <option value="CARD">💳 Kart</option>
-                <option value="TRANSFER">🏦 Havale</option>
+                <option value="CASH">{t.gider.yontem.CASH}</option>
+                <option value="CARD">{t.gider.yontem.CARD}</option>
+                <option value="TRANSFER">{t.gider.yontem.TRANSFER}</option>
               </select>
             )}
           </div>
@@ -151,18 +162,18 @@ export default function SatisPage() {
 
       {/* Satışı yapan (teknisyen) — otomatik gelir, elle değiştirilebilir */}
       <div style={{ marginBottom: '1rem' }}>
-        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 }}>Satışı yapan (teknisyen)</label>
-        <input list="seller-list" value={seller} onChange={(e) => setSeller(e.target.value)} placeholder="Adı yaz veya listeden seç" style={inp} />
+        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 }}>{t.satis.satisiYapan}</label>
+        <input list="seller-list" value={seller} onChange={(e) => setSeller(e.target.value)} placeholder={t.satis.satisiYapanYer} style={inp} />
         <datalist id="seller-list">
           {users.map((u) => <option key={u.id} value={u.name} />)}
         </datalist>
-        <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>Varsayılan giriş yapan kişidir; satışı başka teknisyen yaptıysa elle yaz veya seç.</div>
+        <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{t.satis.satisiYapanNot}</div>
       </div>
 
       {/* Okutma kutusu — <form> YOK: Enter doğrudan yakalanır (hiçbir koşulda sayfa gönderimi/yenilenmesi olmaz) */}
       <div style={{ border: '2px dashed #16a34a', borderRadius: 12, padding: '1rem', textAlign: 'center', marginBottom: '1rem', background: '#f0fdf4' }}>
-        <div style={{ fontWeight: 700, color: '#15803d', marginBottom: 8, fontSize: '0.95rem' }}>📷 Ürünü okut veya kodu yaz</div>
-        <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Barkod/SKU + Enter"
+        <div style={{ fontWeight: 700, color: '#15803d', marginBottom: 8, fontSize: '0.95rem' }}>{t.satis.okutBaslik}</div>
+        <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder={t.satis.okutYer}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (manual.trim()) { addByCode(manual); setManual(''); } } }}
           style={{ width: '100%', maxWidth: 340, padding: '0.55rem 0.9rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.95rem', textAlign: 'center' }} />
         <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
@@ -174,10 +185,10 @@ export default function SatisPage() {
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: '1rem' }}>
         <div style={{ padding: '0.6rem 1rem', borderBottom: '1px solid #f3f4f6', fontWeight: 700, fontSize: '0.85rem', color: '#374151', display: 'flex', justifyContent: 'space-between' }}>
           <span>Sepet ({cart.length} kalem)</span>
-          {cart.length > 0 && <button onClick={() => setCart([])} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Temizle</button>}
+          {cart.length > 0 && <button onClick={() => setCart([])} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>{t.satis.temizle}</button>}
         </div>
         {cart.length === 0 ? (
-          <p style={{ color: '#9ca3af', textAlign: 'center', padding: '1.5rem', fontSize: '0.875rem' }}>Henüz ürün okutulmadı.</p>
+          <p style={{ color: '#9ca3af', textAlign: 'center', padding: '1.5rem', fontSize: '0.875rem' }}>{t.satis.sepetBos}</p>
         ) : (
           <div>
             {cart.map((l) => (
@@ -193,7 +204,7 @@ export default function SatisPage() {
                 <input type="number" min={0} step="0.01" value={l.unitPrice} onChange={(e) => { const p = Math.max(0, parseFloat(e.target.value) || 0); setCart((c) => c.map((x) => x.key === l.key ? { ...x, unitPrice: p } : x)); }}
                   style={{ width: 86, padding: '0.35rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.85rem', textAlign: 'right' }} />
                 <span style={{ width: 90, textAlign: 'right', fontWeight: 700, fontSize: '0.875rem' }}>{fmt(l.qty * l.unitPrice)}</span>
-                <button onClick={() => setCart((c) => c.filter((x) => x.key !== l.key))} title="Çıkar" style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
+                <button onClick={() => setCart((c) => c.filter((x) => x.key !== l.key))} title={t.satis.cikar} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
               </div>
             ))}
           </div>
@@ -202,12 +213,12 @@ export default function SatisPage() {
 
       {/* Alt bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', position: 'sticky', bottom: 0, background: '#fff', padding: '0.75rem 0' }}>
-        <div style={{ fontSize: '1.3rem', fontWeight: 800 }}>Toplam: <span style={{ color: '#16a34a' }}>{fmt(total)}</span></div>
+        <div style={{ fontSize: '1.3rem', fontWeight: 800 }}>{t.satis.toplam}<span style={{ color: '#16a34a' }}>{fmt(total)}</span></div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <Link href="/accounting" style={{ padding: '0.7rem 1rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 10, fontWeight: 600, color: '#374151', textDecoration: 'none', fontSize: '0.9rem' }}>📊 Muhasebe</Link>
+          <Link href="/accounting" style={{ padding: '0.7rem 1rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 10, fontWeight: 600, color: '#374151', textDecoration: 'none', fontSize: '0.9rem' }}>{t.satis.muhasebe}</Link>
           <button onClick={complete} disabled={saving || cart.length === 0 || !sel}
             style={{ padding: '0.7rem 1.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: 10, fontWeight: 800, cursor: 'pointer', fontSize: '0.95rem', opacity: (saving || cart.length === 0 || !sel) ? 0.5 : 1 }}>
-            {saving ? 'Kaydediliyor…' : '✅ Satışı Tamamla'}
+            {saving ? t.genel.kaydediliyor : t.satis.tamamla}
           </button>
         </div>
       </div>
