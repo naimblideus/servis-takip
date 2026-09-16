@@ -67,36 +67,43 @@ export function faturaYolu(m: { eInvoiceUser?: boolean | null }): 'e-Fatura' | '
 }
 
 /**
- * Eksik olanlar — bayinin okuyup DOLDURABİLECEĞİ cümlelerle.
+ * Eksik olanlar — cümle DEĞİL kod.
+ *
+ * Eskiden burada Türkçe cümleler vardı ve İngilizce arayüzde ekranın
+ * yarısı Türkçe kalıyordu. Kod dönüyoruz; cümleyi `lib/fatura-eksik.ts`
+ * okuyanın dilinde kuruyor.
+ *
  * Sıra önemli: en çok tıkayan eksik başta.
  */
-export function faturaEksikleri(m: FaturaMusterisi): string[] {
-  const eksik: string[] = [];
+export type AliciEksigi =
+  | 'VKN_TCKN_HATALI' | 'VKN_TCKN_YOK' | 'UNVAN_YOK' | 'VERGI_DAIRESI_YOK'
+  | 'ADRES_YOK' | 'IL_YOK' | 'ILCE_YOK' | 'MUKELLEF_SORGULANMADI' | 'EARSIV_EPOSTA_YOK';
+
+export function faturaEksikleri(m: FaturaMusterisi): AliciEksigi[] {
+  const eksik: AliciEksigi[] = [];
   const tur = vergiKimlikTuru(m.taxNo);
 
   if (!tur) {
-    eksik.push((m.taxNo ?? '').trim()
-      ? 'Vergi/TC kimlik no 10 hane (kurum) ya da 11 hane (şahıs) olmalı'
-      : 'Vergi no ya da TC kimlik no yok');
+    eksik.push((m.taxNo ?? '').trim() ? 'VKN_TCKN_HATALI' : 'VKN_TCKN_YOK');
   }
 
   // Unvan yalnız KURUM için ayrıca isteniyor. Şahısta faturaya yazılan ad
   // zaten kişinin kendi adı — ikinci bir alan doldurtmak boşuna iş olurdu.
   if (tur === 'VKN') {
-    if (!(m.legalName ?? '').trim()) eksik.push('Ticari unvan yok (faturada yazacak ad)');
-    if (!(m.taxOffice ?? '').trim()) eksik.push('Vergi dairesi yok');
+    if (!(m.legalName ?? '').trim()) eksik.push('UNVAN_YOK');
+    if (!(m.taxOffice ?? '').trim()) eksik.push('VERGI_DAIRESI_YOK');
   }
 
-  if (!(m.address ?? '').trim()) eksik.push('Adres yok');
-  if (!(m.city ?? '').trim()) eksik.push('İl yok');
-  if (!(m.district ?? '').trim()) eksik.push('İlçe yok');
+  if (!(m.address ?? '').trim()) eksik.push('ADRES_YOK');
+  if (!(m.city ?? '').trim()) eksik.push('IL_YOK');
+  if (!(m.district ?? '').trim()) eksik.push('ILCE_YOK');
 
   if (m.eInvoiceUser === null || m.eInvoiceUser === undefined) {
-    eksik.push('e-Fatura mükellefi mi sorgulanmamış');
+    eksik.push('MUKELLEF_SORGULANMADI');
   } else if (m.eInvoiceUser === false && !(m.email ?? '').trim()) {
     // e-Arşiv müşteriye iletiliyor; iletilecek adres yoksa fatura kesilse
     // bile eline geçmiyor.
-    eksik.push('e-Arşiv için e-posta adresi yok');
+    eksik.push('EARSIV_EPOSTA_YOK');
   }
 
   return eksik;

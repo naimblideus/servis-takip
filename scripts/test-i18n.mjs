@@ -99,6 +99,10 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   'ikiAdim.adim1Vurgu',
   // 'SN' seri numarasinin iki dilde de kullanilan kisaltmasi.
   'etiket.seri',
+  // 'Test' iki dilde de ayni kelime.
+  'eFatura.testVurgu',
+  // Urun adi ve saf noktalama.
+  'icmal.firmaVarsayilan', 'icmal.tarihArasi',
   // Urun adi — cevrilmez.
   'dokum.firmaVarsayilan',
   'barkodEtiket.seri',

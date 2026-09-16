@@ -4,8 +4,9 @@ import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { csvMetni, csvSayi, csvTarih, csvDosyaAdi, csvBasliklari } from '@/lib/csv';
 import { tumBakiyeler } from '@/lib/musteri-bakiye';
 import { faturaEksikleri, faturaAdi, faturaYolu } from '@/lib/fatura-kimlik';
-import { DURUM_ADI, ONCELIK_ADI } from '@/lib/rapor-ozeti';
-import { getPaymentStatusLabel } from '@/lib/utils';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
+import { aliciEksikMetni } from '@/lib/fatura-eksik';
 
 /**
  * GET /api/disa-aktar?tur=musteri|cihaz|fis|cari
@@ -38,11 +39,14 @@ const FIS_TAVANI = 10000;
 
 export async function GET(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { user, tenantId } = await requireTenantUser();
+    // Dosyayı indiren KULLANICI: başlıklar ve değerler onun dilinde,
+    // tutarlar bayinin para biriminde.
+    const { sz, b } = await sunucuBicimi(user);
     const tur = (req.nextUrl.searchParams.get('tur') || '') as Tur;
     if (!TURLER.includes(tur)) {
       return NextResponse.json(
-        { error: `Bilinmeyen liste. Seçenekler: ${TURLER.join(', ')}` },
+        { error: doldur(sz.disaAktar.bilinmeyenListe, { n: TURLER.join(', ') }) },
         { status: 400 },
       );
     }
@@ -67,17 +71,17 @@ export async function GET(req: NextRequest) {
       // Borç da bu listede: muhasebeciye giden dosyada en çok sorulan şey bu
       // ve iki ayrı dosyayı elle birleştirmeye gerek kalmıyor.
       basliklar = [
-        'Müşteri', 'Ticari unvan', 'Telefon', 'E-posta', 'Vergi/TC No',
-        'Vergi dairesi', 'İl', 'İlçe', 'Adres', 'Yetkili', 'Cihaz adedi',
-        'Toplam borç (₺)', 'Fatura yolu', 'Fatura eksikleri', 'Sözleşme bitişi',
+        sz.disaAktar.musteri, sz.disaAktar.ticariUnvan, sz.disaAktar.telefon, sz.disaAktar.eposta, sz.disaAktar.vergiNo,
+        sz.disaAktar.vergiDairesi, sz.disaAktar.il, sz.disaAktar.ilce, sz.disaAktar.adres, sz.disaAktar.yetkili, sz.disaAktar.cihazAdedi,
+        doldur(sz.disaAktar.toplamBorc, { s: b.simge }), sz.disaAktar.faturaYolu, sz.disaAktar.faturaEksikleri, sz.disaAktar.sozlesmeBitisi,
       ];
       satirlar = musteriler.map((m) => [
         m.name, m.legalName ?? '', m.phone, m.email ?? '', m.taxNo ?? '',
         m.taxOffice ?? '', m.city ?? '', m.district ?? '', m.address ?? '',
         m.contactPerson ?? '', m._count.devices,
         csvSayi(bakiyeler.get(m.id)?.toplamBorc ?? 0),
-        faturaYolu(m) ?? 'bilinmiyor',
-        faturaEksikleri(m).join(' · '),
+        faturaYolu(m) ?? sz.disaAktar.bilinmiyor,
+        faturaEksikleri(m).map((k) => aliciEksikMetni(sz, k)).join(' · '),
         csvTarih(m.contractEndDate),
       ]);
     }
@@ -98,15 +102,16 @@ export async function GET(req: NextRequest) {
         },
       });
       basliklar = [
-        'Müşteri', 'Marka', 'Model', 'Seri No', 'Barkod', 'Konum', 'Kiralık',
-        'Aylık kira (₺)', 'Dahil S/B', 'Dahil Renkli', 'S/B birim (₺)', 'Renkli birim (₺)',
-        'Sayaç S/B', 'Sayaç Renkli', 'Son okuma', 'Kurulum',
+        sz.disaAktar.musteri, sz.disaAktar.marka, sz.disaAktar.model, sz.disaAktar.seriNo, sz.disaAktar.barkod, sz.disaAktar.konum, sz.disaAktar.kiralik,
+        doldur(sz.disaAktar.aylikKira, { s: b.simge }), sz.disaAktar.dahilSb, sz.disaAktar.dahilRenkli,
+        doldur(sz.disaAktar.sbBirim, { s: b.simge }), doldur(sz.disaAktar.renkliBirim, { s: b.simge }),
+        sz.disaAktar.sayacSb, sz.disaAktar.sayacRenkli, sz.disaAktar.sonOkuma, sz.disaAktar.kurulum,
       ];
       satirlar = cihazlar.map((d) => {
         const son = d.counterReadings[0];
         return [
           d.customer?.name ?? '', d.brand, d.model, d.serialNo, d.barcode ?? '',
-          d.location ?? '', d.isRental ? 'Evet' : 'Hayır',
+          d.location ?? '', d.isRental ? sz.genel.evet : sz.genel.hayir,
           csvSayi(Number(d.monthlyRent)), d.includedBlack, d.includedColor,
           d.pricePerBlack === null ? '' : csvSayi(Number(d.pricePerBlack), 4),
           d.pricePerColor === null ? '' : csvSayi(Number(d.pricePerColor), 4),
@@ -136,15 +141,17 @@ export async function GET(req: NextRequest) {
         },
       });
       basliklar = [
-        'Fiş No', 'Tarih', 'Müşteri', 'Cihaz', 'Seri No', 'Teknisyen',
-        'Durum', 'Öncelik', 'Ödeme', 'Arıza', 'Yapılan', 'İşçilik (₺)', 'Tutar (₺)',
+        sz.disaAktar.fisNo, sz.disaAktar.tarih, sz.disaAktar.musteri, sz.disaAktar.cihaz, sz.disaAktar.seriNo, sz.disaAktar.teknisyen,
+        sz.disaAktar.durum, sz.disaAktar.oncelik, sz.disaAktar.odeme, sz.disaAktar.ariza, sz.disaAktar.yapilan,
+        doldur(sz.disaAktar.iscilik, { s: b.simge }), doldur(sz.disaAktar.tutar, { s: b.simge }),
       ];
       satirlar = fisler.map((f) => [
         f.ticketNumber, csvTarih(f.createdAt), f.device?.customer?.name ?? '',
         [f.device?.brand, f.device?.model].filter(Boolean).join(' '),
         f.device?.serialNo ?? '', f.assignedUser?.name ?? '',
-        DURUM_ADI[f.status] ?? f.status, ONCELIK_ADI[f.priority] ?? f.priority,
-        getPaymentStatusLabel(f.paymentStatus),
+        (sz.durum.fisKisa as Record<string, string>)[f.status] ?? f.status,
+        (sz.durum.oncelik as Record<string, string>)[f.priority] ?? f.priority,
+        (sz.durum.odeme as Record<string, string>)[f.paymentStatus] ?? f.paymentStatus,
         f.issueText ?? '', f.actionText ?? '',
         csvSayi(Number(f.laborCost)), csvSayi(Number(f.totalCost)),
       ]);
@@ -152,7 +159,7 @@ export async function GET(req: NextRequest) {
       // içinde yazsın ki bayi eksik bir listeyi tam sansın diye bir şey olmasın.
       if (fisler.length === FIS_TAVANI) {
         satirlar.push([
-          `NOT: En yeni ${FIS_TAVANI} fiş aktarıldı, daha eskiler bu dosyada yok.`,
+          doldur(sz.disaAktar.tavanNotu, { n: FIS_TAVANI }),
           ...Array(basliklar.length - 1).fill(''),
         ]);
       }
@@ -169,8 +176,10 @@ export async function GET(req: NextRequest) {
         tumBakiyeler(tenantId),
       ]);
       basliklar = [
-        'Müşteri', 'Faturadaki ad', 'Telefon', 'Vergi/TC No',
-        'Servis borcu (₺)', 'Kira/sayaç borcu (₺)', 'Toplam borç (₺)',
+        sz.disaAktar.musteri, sz.disaAktar.faturadakiAd, sz.disaAktar.telefon, sz.disaAktar.vergiNo,
+        doldur(sz.disaAktar.servisBorcu, { s: b.simge }),
+        doldur(sz.disaAktar.kiraBorcu, { s: b.simge }),
+        doldur(sz.disaAktar.toplamBorc, { s: b.simge }),
       ];
       satirlar = musteriler.map((m) => {
         const b = bakiyeler.get(m.id);

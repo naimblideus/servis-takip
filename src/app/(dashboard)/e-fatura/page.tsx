@@ -1,6 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
+import { saticiEksikMetni, belgeEksikMetni, anahtardanEksik } from '@/lib/fatura-eksik';
+import type { SaticiEksigi } from '@/lib/fatura-belgesi';
+import type { BelgeEksigi } from '@/lib/fatura-belgesi';
 
 /**
  * e-FATURA HAZIRLIK EKRANI
@@ -16,18 +21,15 @@ import { useEffect, useState } from 'react';
 
 type Fatura = {
   id: string; invoiceNumber: string; tarih: string; musteri: string;
-  tutar: number; hazir: boolean; eksikSayisi: number; eksikler: string[];
+  tutar: number; hazir: boolean; eksikSayisi: number; eksikler: BelgeEksigi[];
   senaryo: string | null; durum: string | null; gibNo: string | null;
 };
 type Ozet = {
-  saticiEksikleri: string[];
+  saticiEksikleri: SaticiEksigi[];
   toplam: number; hazir: number; eksik: number;
   enSikEksikler: { eksik: string; adet: number }[];
   faturalar: Fatura[];
 };
-
-const tl = (n: number) => `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const gg = (s: string) => new Date(s).toLocaleDateString('tr-TR');
 
 /**
  * Gönderim durumunun rozet karşılığı. Gönderilmiş belge YEŞİL değil MAVİ:
@@ -39,15 +41,20 @@ const GONDERILEBILIR: (string | null)[] = [null, 'HAZIR', 'HATA'];
 // Eski (kağıt/başka sistem) faturalar bu ekranın konusu değil.
 const ESKI = 'ESKI_SISTEM';
 
-const ROZET = {
-  GONDERILIYOR: { etiket: 'gönderiliyor…', zemin: '#e0e7ff', yazi: '#3730a3' },
-  GONDERILDI: { etiket: '✓ gönderildi', zemin: '#dbeafe', yazi: '#1e40af' },
-  KABUL: { etiket: '✓ kabul edildi', zemin: '#dbeafe', yazi: '#1e40af' },
-  RED: { etiket: '✗ RED', zemin: '#fef2f2', yazi: '#991b1b' },
-  HATA: { etiket: '✗ hata', zemin: '#fef2f2', yazi: '#991b1b' },
-};
+const rozetler = (t: Sozluk) => ({
+  GONDERILIYOR: { etiket: t.eFatura.rozetGonderiliyor, zemin: '#e0e7ff', yazi: '#3730a3' },
+  GONDERILDI: { etiket: t.eFatura.rozetGonderildi, zemin: '#dbeafe', yazi: '#1e40af' },
+  KABUL: { etiket: t.eFatura.rozetKabul, zemin: '#dbeafe', yazi: '#1e40af' },
+  RED: { etiket: t.eFatura.rozetRed, zemin: '#fef2f2', yazi: '#991b1b' },
+  HATA: { etiket: t.eFatura.rozetHata, zemin: '#fef2f2', yazi: '#991b1b' },
+});
 
 export default function EFaturaPage() {
+  const t = useT();
+  const b = useBicim();
+  const tl = (n: number) => b.para(n);
+  const gg = (s: string) => b.tarih(s);
+  const ROZET = rozetler(t);
   const [veri, setVeri] = useState<Ozet | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hata, setHata] = useState<string | null>(null);
@@ -65,7 +72,7 @@ export default function EFaturaPage() {
     fetch('/api/invoices/e-belge')
       .then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'Yüklenemedi');
+        if (!r.ok) throw new Error(d.error || t.genel.hata);
         setVeri(d);
       })
       .catch((e) => setHata(e.message))
@@ -77,13 +84,11 @@ export default function EFaturaPage() {
    * gönderilecek belge numarasını olduğu gibi yazıyor; "emin misiniz"
    * diye sormak bayiye hiçbir şey söylemez.
    */
-  const gonder = async (id: string, b: any, islem?: 'durum') => {
+  const gonder = async (id: string, belgeVeri: any, islem?: 'durum') => {
     if (islem !== 'durum') {
-      const no = b?.numaraOnizleme || '(gönderimde atanacak)';
-      const kim = b?.belge?.alici?.unvan || b?.musteri || 'müşteri';
-      const mesaj = ayar?.testModu
-        ? `TEST gönderimi yapılacak.\n\n${kim} · ${no}\n\nBu belge GİB\u2019e ULAŞMAZ ve müşteriye fatura GİTMEZ. Devam edilsin mi?`
-        : `CANLI e-Fatura gönderilecek — GERİ ALINAMAZ.\n\n${kim} · ${no}\n\nBelge müşteriye ulaşır. Devam edilsin mi?`;
+      const no = belgeVeri?.numaraOnizleme || t.eFatura.numaraGonderimde;
+      const kim = belgeVeri?.belge?.alici?.unvan || belgeVeri?.musteri || t.eFatura.musteriVarsayilan;
+      const mesaj = doldur(ayar?.testModu ? t.eFatura.onayTest : t.eFatura.onayCanli, { kim, no });
       if (!confirm(mesaj)) return;
     }
     setGonderiliyor(true);
@@ -94,7 +99,10 @@ export default function EFaturaPage() {
       });
       const d = await r.json();
       if (!d.ok) {
-        alert(`Gönderilemedi:\n\n${d.hata || 'bilinmeyen hata'}` + (d.eksikler?.length ? `\n\n· ${d.eksikler.join('\n· ')}` : ''));
+        alert(
+          doldur(t.eFatura.gonderilemediBaslik, { h: d.hata || t.eFatura.bilinmeyenHata })
+          + (d.eksikler?.length ? `\n\n· ${d.eksikler.map((x: BelgeEksigi) => belgeEksikMetni(t, x)).join('\n· ')}` : ''),
+        );
       }
       // Başarılı da olsa başarısız da olsa listeyi ve belgeyi tazele:
       // durum ve numara değişmiş olabilir.
@@ -103,7 +111,7 @@ export default function EFaturaPage() {
       const y2 = await fetch(`/api/invoices/e-belge?id=${id}`);
       setBelge(await y2.json());
     } catch {
-      alert('Sunucuya bağlanılamadı');
+      alert(t.excelAktar.sunucuYok);
     }
     setGonderiliyor(false);
   };
@@ -118,10 +126,8 @@ export default function EFaturaPage() {
    */
   const topluGonder = async () => {
     const hazirlar = veri!.faturalar.filter((f) => f.hazir && GONDERILEBILIR.includes(f.durum));
-    if (!hazirlar.length) { alert('Gönderilmeye hazır, henüz gönderilmemiş fatura yok.'); return; }
-    const mesaj = ayar?.testModu
-      ? `${hazirlar.length} fatura TEST olarak gönderilecek.\n\nBu belgeler GİB\u2019e ULAŞMAZ ve müşterilere fatura GİTMEZ. Devam edilsin mi?`
-      : `${hazirlar.length} fatura CANLI gönderilecek — GERİ ALINAMAZ.\n\nHer biri müşterisine ulaşır. Devam edilsin mi?`;
+    if (!hazirlar.length) { alert(t.eFatura.hazirYok); return; }
+    const mesaj = doldur(ayar?.testModu ? t.eFatura.onayTopluTest : t.eFatura.onayTopluCanli, { n: hazirlar.length });
     if (!confirm(mesaj)) return;
 
     setGonderiliyor(true); setTopluSonuc(null);
@@ -131,11 +137,11 @@ export default function EFaturaPage() {
         body: JSON.stringify({ ids: hazirlar.map((f) => f.id) }),
       });
       const d = await r.json();
-      if (!r.ok) { alert(d.error || 'Gönderilemedi'); }
+      if (!r.ok) { alert(d.error || t.eFatura.gonderilemedi); }
       else setTopluSonuc(d);
       const y = await fetch('/api/invoices/e-belge');
       setVeri(await y.json());
-    } catch { alert('Sunucuya bağlanılamadı'); }
+    } catch { alert(t.excelAktar.sunucuYok); }
     setGonderiliyor(false);
   };
 
@@ -146,7 +152,7 @@ export default function EFaturaPage() {
     setBelge(await r.json());
   };
 
-  if (yukleniyor) return <div style={{ padding: '2rem', color: '#6b7280' }}>Yükleniyor…</div>;
+  if (yukleniyor) return <div style={{ padding: '2rem', color: '#6b7280' }}>{t.genel.yukleniyor}</div>;
   if (hata) return <div style={{ padding: '2rem', color: '#b91c1c' }}>{hata}</div>;
   if (!veri) return null;
 
@@ -163,10 +169,8 @@ export default function EFaturaPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1100 }}>
-      <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>e-Fatura Hazırlığı</h1>
-      <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-        Faturaların elektronik belge olarak hazır mı, ve gönderim durumu ne.
-      </p>
+      <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>{t.eFatura.baslik}</h1>
+      <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>{t.eFatura.alt}</p>
 
 
       {/* SAĞLAYICI DURUMU — gönderim buna bağlı. Ayar yoksa hiçbir
@@ -180,25 +184,22 @@ export default function EFaturaPage() {
         }}>
           {!ayar.saglayici ? (
             <>
-              <b>e-Fatura sağlayıcısı seçilmemiş.</b> Gönderim için bir servis sağlayıcı
-              (özel entegratör) sözleşmesi ve ayarları gerekiyor.{' '}
-              <a href="/settings/e-fatura" style={{ color: '#2563eb' }}>Ayarlara git →</a>
+              <b>{t.eFatura.saglayiciYokVurgu}</b> {t.eFatura.saglayiciYokSon}{' '}
+              <a href="/settings/e-fatura" style={{ color: '#2563eb' }}>{t.eFatura.ayarlaraGit}</a>
             </>
           ) : ayar.testModu ? (
             <>
-              <b>TEST MODU açık ({ayar.saglayici}).</b> Gönderilen belge GİB&apos;e ULAŞMAZ ve
-              müşteriye fatura GİTMEZ. Gerçek gönderim için Ayarlar&apos;dan test modunu kapat.{' '}
-              <a href="/settings/e-fatura" style={{ color: '#2563eb' }}>Ayarlar →</a>
+              <b>{doldur(t.eFatura.testAcikVurgu, { s: ayar.saglayici })}</b> {t.eFatura.testAcikSon}{' '}
+              <a href="/settings/e-fatura" style={{ color: '#2563eb' }}>{t.eFatura.ayarlar}</a>
             </>
           ) : (
             <>
-              <b>Canlı gönderim açık ({ayar.saglayici}).</b> Gönderdiğin belge müşteriye ULAŞIR
-              ve geri alınamaz.
+              <b>{doldur(t.eFatura.canliVurgu, { s: ayar.saglayici })}</b> {t.eFatura.canliSon}
             </>
           )}
           {ayar.parolaOkunamiyor && (
             <div style={{ marginTop: '0.35rem', color: '#991b1b' }}>
-              Kayıtlı parola okunamıyor (şifreleme anahtarı değişmiş olabilir) — yeniden girin.
+              {t.eFatura.parolaOkunamiyor}
             </div>
           )}
         </div>
@@ -209,19 +210,19 @@ export default function EFaturaPage() {
           background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.75rem',
           padding: '0.85rem 1rem', marginBottom: '1.5rem', fontSize: '0.85rem', color: '#991b1b',
         }}>
-          <b>Kendi bilgilerinde eksik var — bunlar kapanmadan hiçbir fatura hazır olamaz:</b>
+          <b>{t.eFatura.saticiEksikBaslik}</b>
           <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.2rem' }}>
-            {veri.saticiEksikleri.map((x) => <li key={x}>{x.replace(/^Satıcı: /, '')}</li>)}
+            {veri.saticiEksikleri.map((x) => <li key={x}>{saticiEksikMetni(t, x)}</li>)}
           </ul>
         </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9.5rem, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         {[
-          ['Fatura', veri.toplam, '#374151'],
-          ['Gönderildi', gonderilmis.length, gonderilmis.length ? '#1e40af' : '#9ca3af'],
-          ['Gönderilmeyi bekleyen', bekleyen.length, bekleyen.length ? '#15803d' : '#9ca3af'],
-          ['Bilgisi eksik', veri.eksik, veri.eksik ? '#b45309' : '#9ca3af'],
+          [t.eFatura.kartFatura, veri.toplam, '#374151'],
+          [t.eFatura.kartGonderildi, gonderilmis.length, gonderilmis.length ? '#1e40af' : '#9ca3af'],
+          [t.eFatura.kartBekleyen, bekleyen.length, bekleyen.length ? '#15803d' : '#9ca3af'],
+          [t.eFatura.kartEksik, veri.eksik, veri.eksik ? '#b45309' : '#9ca3af'],
         ].map(([l, v, c]: any) => (
           <div key={l} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '0.9rem' }}>
             <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{l}</div>
@@ -234,17 +235,17 @@ export default function EFaturaPage() {
           hazır edeceği yeri görsün. */}
       {veri.enSikEksikler.length > 0 && (
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.6rem' }}>En çok tekrar eden eksikler</h2>
+          <h2 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.6rem' }}>{t.eFatura.enSikBaslik}</h2>
           <div style={{ display: 'grid', gap: '0.4rem' }}>
             {veri.enSikEksikler.slice(0, 8).map((x) => (
               <div key={x.eksik} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', fontSize: '0.85rem' }}>
-                <span style={{ color: '#374151' }}>{x.eksik}</span>
-                <span style={{ fontWeight: 700, color: '#b45309', whiteSpace: 'nowrap' }}>{x.adet} fatura</span>
+                <span style={{ color: '#374151' }}>{(() => { const e = anahtardanEksik(x.eksik); return e ? belgeEksikMetni(t, e) : x.eksik; })()}</span>
+                <span style={{ fontWeight: 700, color: '#b45309', whiteSpace: 'nowrap' }}>{doldur(t.eFatura.faturaAdet, { n: x.adet })}</span>
               </div>
             ))}
           </div>
           <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.7rem', marginBottom: 0 }}>
-            Alıcı eksikleri müşteri kartındaki <b>Fatura bilgileri</b> bölümünden kapatılıyor.
+            {t.eFatura.enSikDipnotOn} <b>{t.eFatura.enSikDipnotVurgu}</b> {t.eFatura.enSikDipnotSon}
           </p>
         </div>
       )}
@@ -262,10 +263,12 @@ export default function EFaturaPage() {
                 fontSize: '0.88rem', cursor: 'pointer', color: 'white',
                 background: ayar.testModu ? '#b45309' : '#0f2253',
               }}>
-              {gonderiliyor ? 'Gönderiliyor…' : `${hazirlar.length} hazır faturayı ${ayar.testModu ? 'TEST olarak ' : ''}gönder`}
+              {gonderiliyor
+                ? t.eFatura.gonderiliyor
+                : doldur(ayar.testModu ? t.eFatura.topluGonderTest : t.eFatura.topluGonderCanli, { n: hazirlar.length })}
             </button>
             <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>
-              Sırayla gönderilir; biri hata verirse diğerleri devam eder ve her sonuç tek tek gösterilir.
+              {t.eFatura.topluDipnot}
             </span>
           </div>
         );
@@ -278,10 +281,10 @@ export default function EFaturaPage() {
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
           <a href={`/api/invoices/e-belge/ubl?ids=${gonderilmis.map((f) => f.id).join(',')}`}
             style={{ padding: '0.55rem 1rem', borderRadius: '0.5rem', border: '1px solid #0f2253', background: 'white', color: '#0f2253', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>
-            {gonderilmis.length} belgenin UBL XML&apos;ini indir (ZIP)
+            {doldur(t.eFatura.ublIndir, { n: gonderilmis.length })}
           </a>
           <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>
-            Entegratör portalına toplu yüklemek ya da muhasebeciye vermek için.
+            {t.eFatura.ublDipnot}
           </span>
         </div>
       )}
@@ -289,8 +292,8 @@ export default function EFaturaPage() {
       {topluSonuc && (
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.25rem' }}>
           <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.5rem' }}>
-            Gönderim sonucu: {topluSonuc.gonderilen} gönderildi
-            {topluSonuc.basarisiz > 0 && <span style={{ color: '#b91c1c' }}>, {topluSonuc.basarisiz} başarısız</span>}
+            {doldur(t.eFatura.sonucBaslik, { n: topluSonuc.gonderilen })}
+            {topluSonuc.basarisiz > 0 && <span style={{ color: '#b91c1c' }}>{doldur(t.eFatura.sonucBasarisiz, { n: topluSonuc.basarisiz })}</span>}
           </h2>
           <div style={{ display: 'grid', gap: '0.25rem', fontSize: '0.8rem', maxHeight: '16rem', overflowY: 'auto' }}>
             {topluSonuc.sonuclar.map((x: any) => (
@@ -307,7 +310,7 @@ export default function EFaturaPage() {
       )}
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-        {([['Tümü', 'hepsi', veri.toplam], ['Bekleyen', 'bekleyen', bekleyen.length], ['Gönderilen', 'gonderildi', gonderilmis.length], ['Eksik', 'eksik', veri.eksik]] as const).map(([l, v, n]) => (
+        {([[t.eFatura.sekmeTumu, 'hepsi', veri.toplam], [t.eFatura.sekmeBekleyen, 'bekleyen', bekleyen.length], [t.eFatura.sekmeGonderilen, 'gonderildi', gonderilmis.length], [t.eFatura.sekmeEksik, 'eksik', veri.eksik]] as const).map(([l, v, n]) => (
           <button key={l} onClick={() => setSuzgec(v)}
             style={{
               padding: '0.4rem 0.9rem', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
@@ -321,10 +324,10 @@ export default function EFaturaPage() {
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', overflow: 'hidden' }}>
         {liste.length === 0 && (
           <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.9rem' }}>
-            {suzgec === 'eksik' ? 'Eksiği olan fatura yok — hepsinin bilgisi tam.'
-              : suzgec === 'bekleyen' ? 'Gönderilmeyi bekleyen fatura yok.'
-              : suzgec === 'gonderildi' ? 'Henüz gönderilmiş fatura yok.'
-              : 'Henüz fatura yok.'}
+            {suzgec === 'eksik' ? t.eFatura.bosEksik
+              : suzgec === 'bekleyen' ? t.eFatura.bosBekleyen
+              : suzgec === 'gonderildi' ? t.eFatura.bosGonderilen
+              : t.eFatura.bosHepsi}
           </div>
         )}
         {liste.map((f) => (
@@ -339,7 +342,7 @@ export default function EFaturaPage() {
               {(() => {
                 const d = f.durum && f.durum !== 'ESKI_SISTEM' ? f.durum : null;
                 const g = ROZET[d as keyof typeof ROZET];
-                const etiket = g ? g.etiket : f.hazir ? 'hazır' : `${f.eksikSayisi} eksik`;
+                const etiket = g ? g.etiket : f.hazir ? t.eFatura.rozetHazir : doldur(t.eFatura.rozetEksik, { n: f.eksikSayisi });
                 const zemin = g ? g.zemin : f.hazir ? '#dcfce7' : '#fef3c7';
                 const yazi = g ? g.yazi : f.hazir ? '#166534' : '#92400e';
                 return (
@@ -361,7 +364,7 @@ export default function EFaturaPage() {
 
             {acik === f.id && (
               <div style={{ padding: '0 1rem 1rem', fontSize: '0.83rem' }}>
-                {!belge && <p style={{ color: '#6b7280' }}>Hazırlanıyor…</p>}
+                {!belge && <p style={{ color: '#6b7280' }}>{t.eFatura.hazirlaniyor}</p>}
                 {/* GÖNDERİM DURUMU — gönderilmişse numarası ve sonucu. */}
                 {belge?.gonderimDurumu?.durum && belge.gonderimDurumu.durum !== 'ESKI_SISTEM' && (
                   <div style={{
@@ -376,7 +379,7 @@ export default function EFaturaPage() {
                       {belge.gonderimDurumu.durum === 'GONDERILDI' && (
                         <button onClick={() => gonder(f.id, belge, 'durum')} disabled={gonderiliyor}
                           style={{ padding: '0.25rem 0.7rem', fontSize: '0.76rem', fontWeight: 600, borderRadius: '0.4rem', border: '1px solid #d1d5db', background: 'white', cursor: 'pointer' }}>
-                          Durumu sor (kabul/red)
+                          {t.eFatura.durumuSor}
                         </button>
                       )}
                       {/* UBL XML — entegratör portalına yüklenecek asıl dosya.
@@ -384,7 +387,7 @@ export default function EFaturaPage() {
                       {belge.gonderimDurumu.gibNo && (
                         <a href={`/api/invoices/e-belge/ubl?id=${f.id}`}
                           style={{ padding: '0.25rem 0.7rem', fontSize: '0.76rem', fontWeight: 600, borderRadius: '0.4rem', border: '1px solid #d1d5db', background: 'white', color: '#111827', textDecoration: 'none' }}>
-                          UBL XML indir
+                          {t.eFatura.ublTek}
                         </a>
                       )}
                     </div>
@@ -392,9 +395,9 @@ export default function EFaturaPage() {
                 )}
                 {belge && belge.eksikler?.length > 0 && (
                   <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.5rem', padding: '0.7rem', color: '#92400e' }}>
-                    <b>Eksikler:</b>
+                    <b>{t.eFatura.eksiklerBaslik}</b>
                     <ul style={{ margin: '0.3rem 0 0', paddingLeft: '1.1rem' }}>
-                      {belge.eksikler.map((x: string) => <li key={x}>{x}</li>)}
+                      {belge.eksikler.map((x: BelgeEksigi) => <li key={`${x.taraf}/${x.kod}`}>{belgeEksikMetni(t, x)}</li>)}
                     </ul>
                   </div>
                 )}
@@ -406,15 +409,15 @@ export default function EFaturaPage() {
                 {belge?.belge && (
                   <div style={{ display: 'grid', gap: '0.6rem' }}>
                     <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', color: '#374151' }}>
-                      <span>Senaryo: <b>{belge.belge.senaryo === 'TEMELFATURA' ? 'e-Fatura' : 'e-Arşiv'}</b></span>
-                      <span>Belge no: <b style={{ fontFamily: 'monospace' }}>{belge.numaraOnizleme || '—'}</b></span>
-                      <span>Alıcı: <b>{belge.belge.alici.unvan}</b></span>
+                      <span>{t.eFatura.senaryo} <b>{belge.belge.senaryo === 'TEMELFATURA' ? 'e-Fatura' : 'e-Arşiv'}</b></span>
+                      <span>{t.eFatura.belgeNo} <b style={{ fontFamily: 'monospace' }}>{belge.numaraOnizleme || '—'}</b></span>
+                      <span>{t.eFatura.alici} <b>{belge.belge.alici.unvan}</b></span>
                       <span>{belge.belge.alici.kimlikTuru}: <b style={{ fontFamily: 'monospace' }}>{belge.belge.alici.kimlikNo}</b></span>
                     </div>
                     <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}>
                       <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
                         <thead style={{ background: '#f9fafb' }}>
-                          <tr>{['#', 'Açıklama', 'Miktar', 'Birim fiyat', 'Tutar', 'KDV', 'KDV tutarı'].map((h) => (
+                          <tr>{['#', t.eFatura.sutunAciklama, t.eFatura.sutunMiktar, t.eFatura.sutunBirimFiyat, t.eFatura.sutunTutar, t.eFatura.sutunKdv, t.eFatura.sutunKdvTutari].map((h) => (
                             <th key={h} style={{ padding: '0.4rem 0.5rem', textAlign: 'left', fontWeight: 600, color: '#6b7280' }}>{h}</th>
                           ))}</tr>
                         </thead>
@@ -426,7 +429,7 @@ export default function EFaturaPage() {
                               <td style={{ padding: '0.35rem 0.5rem' }}>{s.miktar}</td>
                               <td style={{ padding: '0.35rem 0.5rem' }}>{tl(s.birimFiyat)}</td>
                               <td style={{ padding: '0.35rem 0.5rem' }}>{tl(s.tutar)}</td>
-                              <td style={{ padding: '0.35rem 0.5rem' }}>%{s.kdvOrani}</td>
+                              <td style={{ padding: '0.35rem 0.5rem' }}>{b.yuzde(s.kdvOrani)}</td>
                               <td style={{ padding: '0.35rem 0.5rem' }}>{tl(s.kdvTutari)}</td>
                             </tr>
                           ))}
@@ -434,9 +437,9 @@ export default function EFaturaPage() {
                       </table>
                     </div>
                     <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', justifyContent: 'flex-end', fontWeight: 600 }}>
-                      <span>Matrah: {tl(belge.belge.toplamlar.matrah)}</span>
-                      <span>KDV: {tl(belge.belge.toplamlar.kdv)}</span>
-                      <span style={{ color: '#0f2253' }}>Toplam: {tl(belge.belge.toplamlar.genelToplam)}</span>
+                      <span>{t.eFatura.matrah} {tl(belge.belge.toplamlar.matrah)}</span>
+                      <span>{t.eFatura.kdv} {tl(belge.belge.toplamlar.kdv)}</span>
+                      <span style={{ color: '#0f2253' }}>{t.eFatura.toplam} {tl(belge.belge.toplamlar.genelToplam)}</span>
                     </div>
 
                     {/* GÖNDER — geri alınamaz. Onay metni test/canlı ayrımını
@@ -451,10 +454,10 @@ export default function EFaturaPage() {
                           background: ayar?.saglayici ? (ayar.testModu ? '#b45309' : '#0f2253') : '#d1d5db',
                           color: 'white',
                         }}>
-                        {gonderiliyor ? 'Gönderiliyor…' : ayar?.testModu ? 'Test gönderimi' : 'Gönder'}
+                        {gonderiliyor ? t.eFatura.gonderiliyor : ayar?.testModu ? t.eFatura.testGonderimi : t.eFatura.gonder}
                       </button>
                       {!ayar?.saglayici && (
-                        <span style={{ fontSize: '0.76rem', color: '#9ca3af' }}>Önce sağlayıcı ayarlarını yap.</span>
+                        <span style={{ fontSize: '0.76rem', color: '#9ca3af' }}>{t.eFatura.saglayiciGerek}</span>
                       )}
                     </div>
                   </div>

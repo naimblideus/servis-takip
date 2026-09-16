@@ -84,7 +84,7 @@ console.log('\n★ "SORULMADI" İLE "MÜKELLEF DEĞİL" AYRI ŞEYLER\n');
   t('null → yol bilinmiyor (e-Arşiv SAYILMIYOR)', faturaYolu({ ...KURUM, eInvoiceUser: null }) === null);
   t('alan hiç yoksa da yol bilinmiyor', faturaYolu({ ...KURUM, eInvoiceUser: undefined }) === null);
   const e = faturaEksikleri({ ...KURUM, eInvoiceUser: null });
-  t('sorulmamışsa eksik sayılıyor', e.some((x) => /sorgulanmam/.test(x)), e);
+  t('sorulmamışsa eksik sayılıyor', e.includes('MUKELLEF_SORGULANMADI'), e);
   t('★ sorulmamış müşteri HAZIR görünmüyor', !faturaHazir({ ...KURUM, eInvoiceUser: null }));
 }
 
@@ -97,11 +97,11 @@ console.log('\nHAZIR MÜŞTERİLER\n');
 console.log('\n★ ŞAHISTAN KURUM ALANI İSTENMİYOR\n');
 {
   const e = faturaEksikleri(SAHIS);
-  t('şahıstan ticari unvan istenmiyor', !e.some((x) => /unvan/i.test(x)), e);
-  t('şahıstan vergi dairesi istenmiyor', !e.some((x) => /vergi dairesi/i.test(x)), e);
+  t('şahıstan ticari unvan istenmiyor', !e.includes('UNVAN_YOK'), e);
+  t('şahıstan vergi dairesi istenmiyor', !e.includes('VERGI_DAIRESI_YOK'), e);
   const k = faturaEksikleri({ ...KURUM, legalName: null, taxOffice: null });
-  t('kurumdan ticari unvan isteniyor', k.some((x) => /unvan/i.test(x)), k);
-  t('kurumdan vergi dairesi isteniyor', k.some((x) => /vergi dairesi/i.test(x)), k);
+  t('kurumdan ticari unvan isteniyor', k.includes('UNVAN_YOK'), k);
+  t('kurumdan vergi dairesi isteniyor', k.includes('VERGI_DAIRESI_YOK'), k);
 }
 
 console.log('\nADRES PARÇALARI AYRI AYRI İSTENİYOR\n');
@@ -109,15 +109,15 @@ console.log('\nADRES PARÇALARI AYRI AYRI İSTENİYOR\n');
   // Serbest metin adres dolu olsa BİLE il/ilçe ayrı isteniyor: fatura
   // biçiminde bunlar ayrı alanlar, serbest metinden ayrıştırmak tahmindir.
   const e = faturaEksikleri({ ...KURUM, city: null, district: null });
-  t('adres dolu olsa da il isteniyor', e.some((x) => /İl yok/.test(x)), e);
-  t('adres dolu olsa da ilçe isteniyor', e.some((x) => /İlçe yok/.test(x)), e);
-  t('adres boşsa adres de isteniyor', faturaEksikleri({ ...KURUM, address: '  ' }).some((x) => /Adres yok/.test(x)));
+  t('adres dolu olsa da il isteniyor', e.includes('IL_YOK'), e);
+  t('adres dolu olsa da ilçe isteniyor', e.includes('ILCE_YOK'), e);
+  t('adres boşsa adres de isteniyor', faturaEksikleri({ ...KURUM, address: '  ' }).includes('ADRES_YOK'));
 }
 
 console.log('\ne-ARŞİV MÜŞTERİSİNE ULAŞILABİLMELİ\n');
 {
   const e = faturaEksikleri({ ...SAHIS, email: null });
-  t('e-Arşiv müşterisinde e-posta isteniyor', e.some((x) => /e-posta/i.test(x)), e);
+  t('e-Arşiv müşterisinde e-posta isteniyor', e.includes('EARSIV_EPOSTA_YOK'), e);
   // e-Fatura sistem üzerinden gidiyor; e-posta olmaması engel değil.
   t('e-Fatura müşterisinde e-posta zorunlu değil', faturaHazir({ ...KURUM, email: null }), faturaEksikleri({ ...KURUM, email: null }));
 }
@@ -126,8 +126,8 @@ console.log('\nVERGİ NO HATA MESAJI AYIRT EDİCİ\n');
 {
   const bos = faturaEksikleri({ ...KURUM, taxNo: null });
   const bozuk = faturaEksikleri({ ...KURUM, taxNo: '12345' });
-  t('numara hiç yoksa "yok" diyor', bos.some((x) => /Vergi no ya da TC kimlik no yok/.test(x)), bos);
-  t('numara bozuksa hane sayısını söylüyor', bozuk.some((x) => /10 hane.*11 hane/.test(x)), bozuk);
+  t('numara hiç yoksa "yok" diyor', bos.includes('VKN_TCKN_YOK'), bos);
+  t('numara bozuksa ayrı kod dönüyor', bozuk.includes('VKN_TCKN_HATALI'), bozuk);
 }
 
 // GİB numara biçiminin testi test-fatura-belgesi.mjs'te (yıl dönüşü ve
@@ -150,9 +150,9 @@ console.log('\nGÖÇ SONRASI ÖZET — BAYİ NEREDEN BAŞLASIN\n');
   t('eksik sayısı doğru', o.eksik === 4, o);
   // Sorgulanmamış 3, vergi dairesi 2 — bayi tek işle en çok müşteriyi
   // hazır edeceği yeri en üstte görmeli.
-  t('★ en sık eksik başta (sorgulanmamış ×3)', o.enSikEksikler[0].adet === 3 && /sorgulanmam/.test(o.enSikEksikler[0].eksik), o.enSikEksikler);
+  t('★ en sık eksik başta (sorgulanmamış ×3)', o.enSikEksikler[0].adet === 3 && o.enSikEksikler[0].eksik === 'MUKELLEF_SORGULANMADI', o.enSikEksikler);
   t('sıra azalan', o.enSikEksikler.every((x, i, a) => i === 0 || a[i - 1].adet >= x.adet), o.enSikEksikler);
-  t('vergi dairesi eksiği de sayılmış', o.enSikEksikler.some((x) => /vergi dairesi/i.test(x.eksik) && x.adet === 2), o.enSikEksikler);
+  t('vergi dairesi eksiği de sayılmış', o.enSikEksikler.some((x) => x.eksik === 'VERGI_DAIRESI_YOK' && x.adet === 2), o.enSikEksikler);
   t('boş listede patlamıyor', faturaHazirlikOzeti([]).toplam === 0 && faturaHazirlikOzeti([]).hazir === 0);
 }
 

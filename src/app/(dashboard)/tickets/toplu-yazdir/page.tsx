@@ -3,14 +3,9 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import TopluPrintButton from '@/components/TopluPrintButton';
 import { oturumKullanicisi } from '@/lib/api-auth';
-
-const STATUS_TR: Record<string, string> = {
-    NEW: 'Yeni', IN_SERVICE: 'Serviste', WAITING_FOR_PART: 'Parça Bkl.',
-    READY: 'Hazır', DELIVERED: 'Teslim', CANCELLED: 'İptal',
-};
-
-const fmt = (n: number) => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const shortDate = (d: Date) => d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
+import { bicimYap } from '@/lib/bicim';
 
 export default async function TopluYazdirPage({
     searchParams,
@@ -22,6 +17,14 @@ export default async function TopluYazdirPage({
     if (!session) redirect('/login');
     const user = await oturumKullanicisi(session);
     if (!user) redirect('/login');
+
+    // Kâğıdı MÜŞTERİ imzalıyor ("Müşteri İmzası"): dil, para birimi ve
+    // tarih biçimi bayiden geliyor, ekranı açan kullanıcıdan değil.
+    const { bayiDili, bayiSz: sz } = await sunucuBicimi(user);
+    const bayi = await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { currency: true } });
+    const b = bicimYap(bayiDili, bayi?.currency);
+    const fmt = (n: number) => b.sayi(n, 2);
+    const shortDate = (d: Date) => b.kisaTarih(d);
 
     // Filtreler — /tickets liste sayfasıyla BİREBİR aynı mantık (tenant + soft-delete güvenli)
     const where: any = { tenantId: user.tenantId, deletedAt: null };
@@ -94,12 +97,12 @@ export default async function TopluYazdirPage({
     const singleCustomer = uniqueCustomers.length === 1 && tickets[0] ? tickets[0].device.customer : null;
 
     const rangeLabel = (() => {
-        const from = sp.dateFrom ? new Date(sp.dateFrom).toLocaleDateString('tr-TR') : null;
-        const to = sp.dateTo ? new Date(sp.dateTo).toLocaleDateString('tr-TR') : null;
-        if (from && to) return `${from} — ${to}`;
-        if (from) return `${from}'den itibaren`;
-        if (to) return `${to}'ye kadar`;
-        return 'Tüm tarihler';
+        const from = sp.dateFrom ? b.tarih(sp.dateFrom) : null;
+        const to = sp.dateTo ? b.tarih(sp.dateTo) : null;
+        if (from && to) return doldur(sz.icmal.tarihArasi, { a: from, b: to });
+        if (from) return doldur(sz.icmal.tarihtenItibaren, { t: from });
+        if (to) return doldur(sz.icmal.tariheKadar, { t: to });
+        return sz.icmal.tumTarihler;
     })();
 
     return (
@@ -226,7 +229,7 @@ export default async function TopluYazdirPage({
 
             <TopluPrintButton count={tickets.length} />
 
-            <div className="print-wrapper">
+            <div className="print-wrapper" lang={bayiDili}>
                 <div className="icmal-card">
 
                     {/* HEADER */}
@@ -234,7 +237,7 @@ export default async function TopluYazdirPage({
                         <div className="head-left">
                             {tenant?.logo && <img src={tenant.logo} alt="Logo" className="logo" />}
                             <div>
-                                <div className="company">{tenant?.name || 'Nextus Servis'}</div>
+                                <div className="company">{tenant?.name || sz.icmal.firmaVarsayilan}</div>
                                 <div className="company-sub">
                                     {tenant?.phone && <>📞 {tenant.phone}<br /></>}
                                     {tenant?.address}
@@ -242,10 +245,10 @@ export default async function TopluYazdirPage({
                             </div>
                         </div>
                         <div className="head-right">
-                            <div className="title">Servis İcmali</div>
+                            <div className="title">{sz.icmal.baslik}</div>
                             <div className="range">{rangeLabel}</div>
                             <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 3 }}>
-                                {tickets.length} kayıt · {new Date().toLocaleDateString('tr-TR')} tarihinde düzenlendi
+                                {doldur(sz.icmal.kayitDuzenlendi, { n: tickets.length, t: b.tarih(new Date()) })}
                             </div>
                         </div>
                     </div>
@@ -253,7 +256,7 @@ export default async function TopluYazdirPage({
                     {/* MÜŞTERİ ŞERİDİ (tek müşteriyse) */}
                     {singleCustomer && (
                         <div className="customer-strip">
-                            <b>Müşteri:</b> {singleCustomer.name}
+                            <b>{sz.icmal.musteri}</b> {singleCustomer.name}
                             {singleCustomer.phone && <> · 📞 {singleCustomer.phone}</>}
                         </div>
                     )}
@@ -261,21 +264,21 @@ export default async function TopluYazdirPage({
                     {/* TABLO */}
                     {rows.length === 0 ? (
                         <div className="empty">
-                            Bu filtrelerle eşleşen fiş yok.
+                            {sz.icmal.bos}
                         </div>
                     ) : (
                         <table className="icmal">
                             <thead>
                                 <tr>
                                     <th className="col-no">#</th>
-                                    <th className="col-date">Tarih</th>
-                                    <th className="col-fis">Fiş No</th>
-                                    <th className="col-device">Cihaz</th>
-                                    <th>Arıza / Yapılan İşlem</th>
-                                    <th className="col-sayac">Sayaç</th>
-                                    <th className="col-money">Tutar</th>
-                                    <th className="col-money">Ödenen</th>
-                                    <th className="col-money">Kalan</th>
+                                    <th className="col-date">{sz.icmal.sutunTarih}</th>
+                                    <th className="col-fis">{sz.icmal.sutunFisNo}</th>
+                                    <th className="col-device">{sz.icmal.sutunCihaz}</th>
+                                    <th>{sz.icmal.sutunAriza}</th>
+                                    <th className="col-sayac">{sz.icmal.sutunSayac}</th>
+                                    <th className="col-money">{sz.icmal.sutunTutar}</th>
+                                    <th className="col-money">{sz.icmal.sutunOdenen}</th>
+                                    <th className="col-money">{sz.icmal.sutunKalan}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -284,7 +287,7 @@ export default async function TopluYazdirPage({
                                         <td className="col-no">{i + 1}</td>
                                         <td className="col-date num">{shortDate(new Date(t.createdAt))}</td>
                                         <td className="col-fis"><span className="fis-no">{t.ticketNumber}</span>
-                                            <div className="status-mini">{STATUS_TR[t.status] || t.status}</div>
+                                            <div className="status-mini">{(sz.durum.fisKisa as Record<string, string>)[t.status] || t.status}</div>
                                         </td>
                                         <td className="col-device">
                                             <div className="device-brand">{t.device.brand}</div>
@@ -297,10 +300,10 @@ export default async function TopluYazdirPage({
                                         </td>
                                         <td className="col-sayac num">
                                             {reading?.b != null ? (
-                                                <>⚫ {reading.b.toLocaleString('tr-TR')}</>
+                                                <>⚫ {b.sayi(reading.b)}</>
                                             ) : <span style={{ color: '#9ca3af' }}>—</span>}
                                             {reading?.c != null && reading.c > 0 && (
-                                                <div style={{ color: '#7c3aed', fontSize: 9 }}>🟣 {reading.c.toLocaleString('tr-TR')}</div>
+                                                <div style={{ color: '#7c3aed', fontSize: 9 }}>🟣 {b.sayi(reading.c)}</div>
                                             )}
                                         </td>
                                         <td className="col-money money">{fmt(cost)}</td>
@@ -316,20 +319,20 @@ export default async function TopluYazdirPage({
                     {rows.length > 0 && (
                         <div className="totals">
                             <div className="totals-left">
-                                <b>{tickets.length}</b> servis fişi<br />
-                                Dönem: <b>{rangeLabel}</b>
+                                <b>{tickets.length}</b> {sz.icmal.fisSayisi}<br />
+                                {sz.icmal.donem} <b>{rangeLabel}</b>
                             </div>
                             <div className="total-box">
-                                <div className="total-label">Toplam</div>
-                                <div className="total-value">₺{fmt(totalSum)}</div>
+                                <div className="total-label">{sz.icmal.toplam}</div>
+                                <div className="total-value">{b.para(totalSum)}</div>
                             </div>
                             <div className="total-box">
-                                <div className="total-label">Ödenen</div>
-                                <div className="total-value green">₺{fmt(paidSum)}</div>
+                                <div className="total-label">{sz.icmal.odenen}</div>
+                                <div className="total-value green">{b.para(paidSum)}</div>
                             </div>
                             <div className="total-box">
-                                <div className="total-label">Kalan Bakiye</div>
-                                <div className={`total-value ${remainingSum > 0 ? 'red' : 'green'}`}>₺{fmt(remainingSum)}</div>
+                                <div className="total-label">{sz.icmal.kalanBakiye}</div>
+                                <div className={`total-value ${remainingSum > 0 ? 'red' : 'green'}`}>{b.para(remainingSum)}</div>
                             </div>
                         </div>
                     )}
@@ -339,17 +342,17 @@ export default async function TopluYazdirPage({
                         <div className="footer-sign">
                             <div className="sig">
                                 <div className="sig-area" />
-                                <div className="sig-label">Müşteri İmzası</div>
+                                <div className="sig-label">{sz.icmal.imzaMusteri}</div>
                             </div>
                             <div className="sig">
                                 <div className="sig-area" />
-                                <div className="sig-label">Yetkili İmza</div>
+                                <div className="sig-label">{sz.icmal.imzaYetkili}</div>
                             </div>
                         </div>
                     )}
 
                     <div className="footer-note">
-                        {tenant?.name || 'Nextus Servis'} · Servis icmal raporu · {new Date().toLocaleDateString('tr-TR')}
+                        {doldur(sz.icmal.altbilgi, { firma: tenant?.name || sz.icmal.firmaVarsayilan, tarih: b.tarih(new Date()) })}
                     </div>
                 </div>
             </div>

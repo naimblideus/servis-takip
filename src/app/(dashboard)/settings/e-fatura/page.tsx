@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 
 /**
  * e-FATURA SAĞLAYICI AYARLARI
@@ -18,12 +20,15 @@ import { useEffect, useState } from 'react';
  */
 
 /** Seçim listesinde kod değil bayinin anlayacağı ad görünsün. */
-const SAGLAYICI_ADI: Record<string, string> = {
-  ELDEN: 'Elden gönderim (XML indir, portala yükle)',
-  TEST: 'Test (hiçbir yere gitmez)',
-};
+const saglayiciAdi = (t: Sozluk): Record<string, string> => ({
+  ELDEN: t.eFatura.saglayiciElden,
+  TEST: t.eFatura.saglayiciTest,
+});
 
 export default function EFaturaAyarPage() {
+  const t = useT();
+  const b = useBicim();
+  const SAGLAYICI_ADI = saglayiciAdi(t);
   const [d, setD] = useState<any>(null);
   const [f, setF] = useState<any>({ saglayici: '', kullanici: '', parola: '', onEk: '', etiket: '', testModu: true });
   const [mesgul, setMesgul] = useState(false);
@@ -33,7 +38,7 @@ export default function EFaturaAyarPage() {
   const yukle = async () => {
     const r = await fetch('/api/settings/e-fatura');
     const j = await r.json();
-    if (!r.ok) { setHata(j.error || 'Yüklenemedi'); return; }
+    if (!r.ok) { setHata(j.error || t.genel.hata); return; }
     setD(j);
     setF({
       saglayici: j.saglayici || '', kullanici: j.kullanici || '', parola: '',
@@ -45,11 +50,7 @@ export default function EFaturaAyarPage() {
   const kaydet = async () => {
     // Test modunu KAPATMAK geri alınamaz sonuçlar doğurur: açıkça soruluyor.
     if (d?.testModu && !f.testModu) {
-      if (!confirm(
-        'TEST MODU KAPATILIYOR.\n\n'
-        + 'Bundan sonra gönderdiğin her belge GERÇEKTEN müşteriye ulaşır ve geri alınamaz.\n\n'
-        + 'Sağlayıcı bilgilerinin doğru olduğundan emin misin?',
-      )) return;
+      if (!confirm(t.eFatura.testKapatmaOnay)) return;
     }
     setMesgul(true); setHata(null); setTamam(false);
     const r = await fetch('/api/settings/e-fatura', {
@@ -58,88 +59,81 @@ export default function EFaturaAyarPage() {
     });
     const j = await r.json();
     setMesgul(false);
-    if (!r.ok) { setHata(j.error || 'Kaydedilemedi'); return; }
+    if (!r.ok) { setHata(j.error || t.sozlesmeler.kaydedilemedi); return; }
     setTamam(true);
     await yukle();
   };
 
   if (hata && !d) return <div style={{ padding: '2rem', color: '#b91c1c' }}>{hata}</div>;
-  if (!d) return <div style={{ padding: '2rem', color: '#6b7280' }}>Yükleniyor…</div>;
+  if (!d) return <div style={{ padding: '2rem', color: '#6b7280' }}>{t.genel.yukleniyor}</div>;
 
   const inp: any = { width: '100%', padding: '0.55rem 0.7rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.9rem' };
   const lbl: any = { display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#4b5563', marginBottom: '0.25rem' };
 
   return (
     <div style={{ padding: '2rem', maxWidth: 660 }}>
-      <a href="/e-fatura" style={{ fontSize: '0.82rem', color: '#2563eb' }}>← e-Fatura Hazırlığı</a>
-      <h1 style={{ fontSize: '1.6rem', fontWeight: 'bold', margin: '0.5rem 0 0.25rem' }}>e-Fatura Sağlayıcı Ayarları</h1>
+      <a href="/e-fatura" style={{ fontSize: '0.82rem', color: '#2563eb' }}>{t.eFatura.ayarGeri}</a>
+      <h1 style={{ fontSize: '1.6rem', fontWeight: 'bold', margin: '0.5rem 0 0.25rem' }}>{t.eFatura.ayarBaslik}</h1>
       <p style={{ color: '#6b7280', margin: '0 0 1.25rem', fontSize: '0.88rem' }}>
-        Faturayı GİB&apos;e ulaştıran servis sağlayıcı (özel entegratör) bilgileri.
+        {t.eFatura.ayarAlt}
       </p>
 
       {!d.anahtarVar && (
         <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.75rem', padding: '0.85rem 1rem', marginBottom: '1.25rem', fontSize: '0.84rem', color: '#991b1b' }}>
-          <b>Şifreleme anahtarı tanımlı değil.</b> Parola şifrelenemediği için KAYDEDİLMEZ —
-          düz metin olarak yazmıyoruz. Sunucuda <code>SIR_ANAHTARI</code> ortam değişkenini
-          tanımlayın (64 karakterlik onaltılık bir değer).
+          <b>{t.eFatura.anahtarYokVurgu}</b> {t.eFatura.anahtarYokSon}
         </div>
       )}
 
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1.25rem' }}>
         <div style={{ marginBottom: '0.9rem' }}>
-          <label style={lbl}>Sağlayıcı</label>
+          <label style={lbl}>{t.eFatura.saglayici}</label>
           <select style={inp} value={f.saglayici} onChange={(e) => setF({ ...f, saglayici: e.target.value })}>
-            <option value="">Seçilmemiş — gönderim kapalı</option>
+            <option value="">{t.eFatura.saglayiciSecilmemis}</option>
             {(d.saglayicilar || []).map((x: string) => <option key={x} value={x}>{SAGLAYICI_ADI[x] || x}</option>)}
           </select>
           <div style={{ fontSize: '0.73rem', color: '#6b7280', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
-            <div><b>Elden gönderim</b> — entegratör bağlantısı olmadan çalışır. Sistem belgeye numarasını verir,
-            UBL XML dosyasını üretir; siz o dosyayı kendi entegratör portalınıza yükleyip faturayı kesersiniz.
-            Kullanıcı adı/parola gerekmez.</div>
-            <div style={{ marginTop: '0.2rem' }}><b>Test</b> — hiçbir yere bağlanmaz, gönderim hattını denemek içindir.</div>
+            <div><b>{t.eFatura.eldenVurgu}</b> {t.eFatura.eldenSon}</div>
+            <div style={{ marginTop: '0.2rem' }}><b>{t.eFatura.testVurgu}</b> {t.eFatura.testSon}</div>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))', gap: '0.7rem', marginBottom: '0.9rem' }}>
           <div>
-            <label style={lbl}>Kullanıcı adı</label>
+            <label style={lbl}>{t.eFatura.kullaniciAdi}</label>
             <input style={inp} value={f.kullanici} onChange={(e) => setF({ ...f, kullanici: e.target.value })} />
           </div>
           <div>
-            <label style={lbl}>Parola</label>
+            <label style={lbl}>{t.eFatura.parola}</label>
             <input type="password" style={inp} value={f.parola}
-              placeholder={d.parolaMaske || 'girilmemiş'}
+              placeholder={d.parolaMaske || t.eFatura.parolaGirilmemis}
               onChange={(e) => setF({ ...f, parola: e.target.value })} />
             <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0.25rem 0 0' }}>
-              {d.parolaOkunamiyor
-                ? 'Kayıtlı parola okunamıyor — yeniden girin.'
-                : 'Boş bırakırsan mevcut parola korunur. Kayıtlı parola geri gösterilmez.'}
+              {d.parolaOkunamiyor ? t.eFatura.parolaOkunamiyorKisa : t.eFatura.parolaKorunur}
             </p>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))', gap: '0.7rem', marginBottom: '0.9rem' }}>
           <div>
-            <label style={lbl}>Belge ön eki (3 harf)</label>
+            <label style={lbl}>{t.eFatura.onEk}</label>
             <input style={inp} maxLength={3} value={f.onEk}
               onChange={(e) => setF({ ...f, onEk: e.target.value.toLocaleUpperCase('tr-TR') })} />
             <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0.25rem 0 0' }}>
-              GİB&apos;e kayıtlı ön ek. Belge numarası <code>{(f.onEk || 'XXX')}2026000000001</code> gibi olur.
+              {t.eFatura.onEkIpucuOn} <code>{(f.onEk || 'XXX')}2026000000001</code> {t.eFatura.onEkIpucuSon}
             </p>
           </div>
           <div>
-            <label style={lbl}>Gönderici etiketi</label>
+            <label style={lbl}>{t.eFatura.etiket}</label>
             <input style={inp} value={f.etiket} onChange={(e) => setF({ ...f, etiket: e.target.value })} />
           </div>
         </div>
 
         {/* ── BELGE SIRASI: GÖSTERİLİYOR, DEĞİŞTİRİLEMİYOR ──────────── */}
         <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '0.5rem', padding: '0.7rem 0.85rem', marginBottom: '0.9rem', fontSize: '0.82rem' }}>
-          <b>Son kullanılan belge sırası:</b>{' '}
-          {d.sonSira > 0 ? `${d.sonSiraYil} yılı · ${d.sonSira}. belge` : 'henüz belge gönderilmedi'}
+          <b>{t.eFatura.siraBaslik}</b>{' '}
+          {d.sonSira > 0 ? doldur(t.eFatura.siraDeger, { yil: d.sonSiraYil, n: d.sonSira }) : t.eFatura.siraYok}
           <p style={{ fontSize: '0.73rem', color: '#9ca3af', margin: '0.3rem 0 0' }}>
-            Bu sayı elle değiştirilemez: geri alınırsa aynı numaradan iki belge çıkar,
-            ileri alınırsa sırada boşluk kalır. İkisi de düzeltilemez.
+            {t.eFatura.siraIpucu}
           </p>
         </div>
 
@@ -153,22 +147,20 @@ export default function EFaturaAyarPage() {
             <input type="checkbox" checked={f.testModu} style={{ marginTop: '0.2rem' }}
               onChange={(e) => setF({ ...f, testModu: e.target.checked })} />
             <span style={{ fontSize: '0.84rem', color: f.testModu ? '#92400e' : '#991b1b' }}>
-              <b>Test modu</b>
+              <b>{t.eFatura.testModu}</b>
               <div style={{ marginTop: '0.2rem' }}>
-                {f.testModu
-                  ? 'Açık: gönderilen belge GİB’e ulaşmaz, müşteriye fatura gitmez. Güvenle deneyebilirsin.'
-                  : 'KAPALI: gönderdiğin her belge GERÇEKTEN müşteriye ulaşır ve GERİ ALINAMAZ.'}
+                {f.testModu ? t.eFatura.testModuAcik : t.eFatura.testModuKapali}
               </div>
             </span>
           </label>
         </div>
 
         {hata && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', fontSize: '0.82rem', marginBottom: '0.8rem' }}>{hata}</div>}
-        {tamam && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', fontSize: '0.82rem', marginBottom: '0.8rem' }}>Kaydedildi.</div>}
+        {tamam && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', fontSize: '0.82rem', marginBottom: '0.8rem' }}>{t.eFatura.kaydedildi}</div>}
 
         <button onClick={kaydet} disabled={mesgul}
           style={{ width: '100%', padding: '0.7rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', opacity: mesgul ? 0.7 : 1 }}>
-          {mesgul ? 'Kaydediliyor…' : 'Kaydet'}
+          {mesgul ? t.genel.kaydediliyor : t.genel.kaydet}
         </button>
       </div>
     </div>

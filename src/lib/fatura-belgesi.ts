@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { faturaAdi, faturaEksikleri, faturaYolu, vergiKimlikTuru, type FaturaMusterisi } from '@/lib/fatura-kimlik';
+import { faturaAdi, faturaEksikleri, faturaYolu, vergiKimlikTuru, type FaturaMusterisi, type AliciEksigi } from '@/lib/fatura-kimlik';
 
 /**
  * e-BELGE — entegratöre gidecek kanonik fatura nesnesi.
@@ -135,16 +135,20 @@ export function gibNumarasiUret(
 
 // ── EKSİK KONTROLÜ ───────────────────────────────────────────────────────
 
-/** Satıcı tarafında eksik olanlar — bayi Ayarlar'dan doldurur. */
-export function saticiEksikleri(s: BelgeSaticisi): string[] {
-  const eksik: string[] = [];
-  if (!(s.name ?? '').trim()) eksik.push('Bayi adı yok');
-  if (vergiKimlikTuru(s.taxNumber) === null) eksik.push('Bayi vergi numarası yok ya da hatalı');
-  if (!(s.taxOffice ?? '').trim()) eksik.push('Bayi vergi dairesi yok');
-  if (!(s.address ?? '').trim()) eksik.push('Bayi adresi yok');
-  if (!(s.city ?? '').trim()) eksik.push('Bayi ili yok');
-  if (!(s.district ?? '').trim()) eksik.push('Bayi ilçesi yok');
-  if (!(s.eFaturaEtiket ?? '').trim()) eksik.push('e-Fatura ön eki/etiketi tanımlı değil (Ayarlar → e-Fatura)');
+/** Satıcı tarafında eksik olanlar — bayi Ayarlar'dan doldurur. Cümle değil KOD. */
+export type SaticiEksigi =
+  | 'BAYI_AD_YOK' | 'BAYI_VKN_HATALI' | 'BAYI_VERGI_DAIRESI_YOK'
+  | 'BAYI_ADRES_YOK' | 'BAYI_IL_YOK' | 'BAYI_ILCE_YOK' | 'EFATURA_ETIKET_YOK';
+
+export function saticiEksikleri(s: BelgeSaticisi): SaticiEksigi[] {
+  const eksik: SaticiEksigi[] = [];
+  if (!(s.name ?? '').trim()) eksik.push('BAYI_AD_YOK');
+  if (vergiKimlikTuru(s.taxNumber) === null) eksik.push('BAYI_VKN_HATALI');
+  if (!(s.taxOffice ?? '').trim()) eksik.push('BAYI_VERGI_DAIRESI_YOK');
+  if (!(s.address ?? '').trim()) eksik.push('BAYI_ADRES_YOK');
+  if (!(s.city ?? '').trim()) eksik.push('BAYI_IL_YOK');
+  if (!(s.district ?? '').trim()) eksik.push('BAYI_ILCE_YOK');
+  if (!(s.eFaturaEtiket ?? '').trim()) eksik.push('EFATURA_ETIKET_YOK');
   return eksik;
 }
 
@@ -153,19 +157,24 @@ export function saticiEksikleri(s: BelgeSaticisi): string[] {
  * Alıcı eksikleri lib/fatura-kimlik.ts'ten geliyor — müşteri formundaki
  * liste ile birebir aynı olsun diye; iki ayrı liste iki farklı cevap verirdi.
  */
+export type BelgeEksigi =
+  | { taraf: 'SATICI'; kod: SaticiEksigi }
+  | { taraf: 'ALICI'; kod: AliciEksigi }
+  | { taraf: 'FATURA'; kod: 'KALEM_YOK' | 'TUTAR_SIFIR' };
+
 export function belgeEksikleri(
   satici: BelgeSaticisi,
   alici: FaturaMusterisi,
   fatura: Pick<BelgeFaturasi, 'totalAmount'>,
   satirlar: BelgeSatiri[],
-): string[] {
-  const eksik = [
-    ...saticiEksikleri(satici).map((x) => `Satıcı: ${x}`),
-    ...faturaEksikleri(alici).map((x) => `Alıcı: ${x}`),
+): BelgeEksigi[] {
+  const eksik: BelgeEksigi[] = [
+    ...saticiEksikleri(satici).map((kod) => ({ taraf: 'SATICI' as const, kod })),
+    ...faturaEksikleri(alici).map((kod) => ({ taraf: 'ALICI' as const, kod })),
   ];
-  if (!satirlar.length) eksik.push('Faturada hiç kalem yok');
+  if (!satirlar.length) eksik.push({ taraf: 'FATURA', kod: 'KALEM_YOK' });
   // Sıfır tutarlı belge göndermenin anlamı yok ve çoğu entegratör reddeder.
-  if (!(fatura.totalAmount > 0)) eksik.push('Fatura tutarı sıfır');
+  if (!(fatura.totalAmount > 0)) eksik.push({ taraf: 'FATURA', kod: 'TUTAR_SIFIR' });
   return eksik;
 }
 
@@ -220,7 +229,7 @@ export function eBelgeUret(args: {
 
   const eksik = belgeEksikleri(satici, alici, fatura, satirlar);
   if (eksik.length) {
-    throw new Error(`Belge üretilemedi — eksik bilgi:\n· ${eksik.join('\n· ')}`);
+    throw new Error(`Belge üretilemedi — eksik bilgi:\n· ${eksik.map((e) => `${e.taraf}/${e.kod}`).join('\n· ')}`);
   }
   const senaryo = belgeSenaryosu(alici);
   if (!senaryo) throw new Error('Alıcının e-Fatura mükellefliği sorgulanmamış — senaryo belirlenemiyor');

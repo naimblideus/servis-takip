@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import {
   eBelgeUret, belgeEksikleri, ettnUret, gibNumarasiUret, saticiEksikleri,
-  type BelgeSaticisi, type BelgeDurumu,
+  type BelgeSaticisi, type BelgeDurumu, type BelgeEksigi,
 } from '@/lib/fatura-belgesi';
 import { entegratorBul } from '@/lib/entegrator';
 import { sirCoz } from '@/lib/sir';
@@ -34,7 +34,8 @@ export type GonderimCevabi = {
   gibNo: string | null;
   ettn: string | null;
   hata?: string;
-  eksikler?: string[];
+  /** Eksik KODLARI — cümleyi ekran kendi dilinde kuruyor. */
+  eksikler?: BelgeEksigi[];
   tekrarDenenebilir?: boolean;
   testModu?: boolean;
 };
@@ -65,7 +66,7 @@ export async function eBelgeGonder(tenantId: string, invoiceId: string): Promise
   const satici = saticiyaCevir(tenant);
   const sEksik = saticiEksikleri(satici);
   if (sEksik.length) {
-    return { ok: false, durum: null, gibNo: null, ettn: null, eksikler: sEksik.map((x) => `Satıcı: ${x}`), hata: 'Bayi bilgileri eksik' };
+    return { ok: false, durum: null, gibNo: null, ettn: null, eksikler: sEksik.map((kod) => ({ taraf: 'SATICI' as const, kod })), hata: 'Bayi bilgileri eksik' };
   }
 
   // ── ENTEGRATÖR ────────────────────────────────────────────────────────

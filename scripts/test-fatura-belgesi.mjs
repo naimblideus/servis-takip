@@ -108,23 +108,24 @@ console.log('\n★ GİB SIRASI — BOŞLUK YOK, YIL DÖNÜNCE SIFIRLANIYOR\n');
 console.log('\nSATICI EKSİKLERİ\n');
 {
   t('eksiksiz satıcıda eksik yok', saticiEksikleri(SATICI).length === 0, saticiEksikleri(SATICI));
-  t('vergi dairesi eksiği yakalanıyor', saticiEksikleri({ ...SATICI, taxOffice: null }).some((x) => /vergi dairesi/i.test(x)));
-  t('ön ek/etiket eksiği yakalanıyor', saticiEksikleri({ ...SATICI, eFaturaEtiket: null }).some((x) => /etiket/i.test(x)));
-  t('hatalı VKN yakalanıyor', saticiEksikleri({ ...SATICI, taxNumber: '123' }).some((x) => /vergi numaras/i.test(x)));
+  // Cümle degil KOD donuyor; dogrulama kodun kendisiyle.
+  t('vergi dairesi eksiği yakalanıyor', saticiEksikleri({ ...SATICI, taxOffice: null }).includes('BAYI_VERGI_DAIRESI_YOK'));
+  t('ön ek/etiket eksiği yakalanıyor', saticiEksikleri({ ...SATICI, eFaturaEtiket: null }).includes('EFATURA_ETIKET_YOK'));
+  t('hatalı VKN yakalanıyor', saticiEksikleri({ ...SATICI, taxNumber: '123' }).includes('BAYI_VKN_HATALI'));
 }
 
 console.log('\n★ EKSİK BİLGİYLE BELGE ÜRETİLMİYOR\n');
 {
   const h1 = patla(() => uret({ alici: { ...ALICI, taxOffice: null } }));
-  t('alıcının vergi dairesi yoksa üretilmiyor', h1 !== null && /Alıcı/.test(h1), h1);
+  t('alıcının vergi dairesi yoksa üretilmiyor', h1 !== null && /ALICI\/VERGI_DAIRESI_YOK/.test(h1), h1);
   const h2 = patla(() => uret({ satici: { ...SATICI, city: null } }));
-  t('satıcının ili yoksa üretilmiyor', h2 !== null && /Satıcı/.test(h2), h2);
+  t('satıcının ili yoksa üretilmiyor', h2 !== null && /SATICI\/BAYI_IL_YOK/.test(h2), h2);
   const h3 = patla(() => uret({ satirlar: [] }));
-  t('kalemsiz fatura üretilmiyor', h3 !== null && /kalem/.test(h3), h3);
+  t('kalemsiz fatura üretilmiyor', h3 !== null && /KALEM_YOK/.test(h3), h3);
   const h4 = patla(() => uret({
     fatura: { ...FATURA, subtotal: 0, vatAmount: 0, totalAmount: 0 }, satirlar: [{ ...SATIRLAR[0], tutar: 0, birimFiyat: 0 }],
   }));
-  t('sıfır tutarlı fatura üretilmiyor', h4 !== null && /sıfır/.test(h4), h4);
+  t('sıfır tutarlı fatura üretilmiyor', h4 !== null && /TUTAR_SIFIR/.test(h4), h4);
   // Eksikler TEK TEK yazılmalı: "eksik var" demek bayiye hiçbir şey söylemez.
   const h5 = patla(() => uret({ alici: { ...ALICI, taxOffice: null, city: null, district: null } }));
   t('eksiklerin hepsi tek tek listeleniyor', (h5.match(/·/g) || []).length >= 3, h5);

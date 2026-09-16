@@ -166,8 +166,9 @@ try {
     t('hazır değil', d.hazir === false, d);
     t('★ belge ÜRETİLMEDİ', d.belge === null, d.belge);
     t('eksikler tek tek yazıyor', d.eksikler.length >= 4, d.eksikler);
-    t('vergi no eksiği var', d.eksikler.some((x) => /Vergi no/i.test(x)), d.eksikler);
-    t('mükelleflik sorgusu eksiği var', d.eksikler.some((x) => /sorgulanmam/i.test(x)), d.eksikler);
+    // Uc nokta artik cumle degil KOD donuyor.
+    t('vergi no eksiği var', d.eksikler.some((x) => x.kod === 'VKN_TCKN_YOK'), d.eksikler);
+    t('mükelleflik sorgusu eksiği var', d.eksikler.some((x) => x.kod === 'MUKELLEF_SORGULANMADI'), d.eksikler);
   }
 
   console.log('\nSATICI EKSİĞİ HER FATURAYI ETKİLİYOR\n');
@@ -181,7 +182,7 @@ try {
     t('★ satıcı eksiği yapılacaklar listesini doldurmuyor',
       d.enSikEksikler.every((x) => !x.eksik.startsWith('Satıcı: ')), d.enSikEksikler);
     const tek = await (await al(`?id=${hazirFatura.id}`)).json();
-    t('tek faturada da satıcı eksiği görünüyor', tek.eksikler.some((x) => /^Satıcı/.test(x)), tek.eksikler);
+    t('tek faturada da satıcı eksiği görünüyor', tek.eksikler.some((x) => x.taraf === 'SATICI'), tek.eksikler);
     t('ön ek yokken numara önizlemesi de yok', tek.numaraOnizleme === null, tek.numaraOnizleme);
     await p.tenant.update({ where: { id: tenant.id }, data: { eFaturaOnEk: 'NXS' } });
   }

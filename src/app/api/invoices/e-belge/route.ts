@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
+import { belgeEksikAnahtari } from '@/lib/fatura-eksik';
 import {
   eBelgeUret, belgeEksikleri, belgeSenaryosu, gibNumarasiUret, saticiEksikleri,
   ESKI_SISTEM, type BelgeSaticisi,
@@ -179,8 +180,8 @@ export async function GET(req: NextRequest) {
       // yapılacaklar (alıcı eksikleri) ekranın altına düşerdi. Satıcı
       // eksikleri zaten ayrı ve üstte gösteriliyor.
       for (const e of eksikler) {
-        if (e.startsWith('Satıcı: ')) continue;
-        sayac.set(e, (sayac.get(e) ?? 0) + 1);
+        if (e.taraf === 'SATICI') continue;
+        sayac.set(belgeEksikAnahtari(e), (sayac.get(belgeEksikAnahtari(e)) ?? 0) + 1);
       }
       return {
         id: f.id,
