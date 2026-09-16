@@ -304,7 +304,7 @@ export default function Onboarding() {
             <div style={{ width: '360px', maxWidth: 'calc(100vw - 2.5rem)', background: 'white', borderRadius: '0.9rem', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: '0.75rem' }}>
               <div style={{ background: 'linear-gradient(135deg,#0f2253,#2563eb)', color: 'white', padding: '1rem 1.1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>🚀 Başlangıç Rehberi</h3>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>Başlangıç Rehberi</h3>
                   <button onClick={() => setPanelOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: 26, height: 26, borderRadius: 7, cursor: 'pointer' }}>✕</button>
                 </div>
                 <p style={{ margin: '0.35rem 0 0.6rem', fontSize: '0.8rem', opacity: 0.85 }}>
@@ -387,7 +387,23 @@ export default function Onboarding() {
               color: 'white', fontWeight: 800, fontSize: '0.875rem', boxShadow: '0 8px 24px rgba(37,99,235,0.4)',
             }}
           >
-            <span style={{ fontSize: '1.05rem' }}>🚀</span>
+            {/* Markanin kendi CIZIK N isareti. Kesik, zemin rengiyle degil
+                MASKE ile aciliyor: dugmenin arkasi degisse bile isaret dogru
+                gorunur. currentColor sayesinde ayri varlik dosyasi gerekmiyor. */}
+            <svg width="19" height="17" viewBox="0 0 230 200" aria-hidden="true">
+              <defs>
+                <mask id="nxFabCut">
+                  <rect width="230" height="200" fill="#fff" />
+                  <path d="M14 154 C84 120 152 78 224 34" stroke="#000" strokeWidth={15}
+                    fill="none" strokeLinecap="round" />
+                </mask>
+              </defs>
+              <g fill="currentColor" mask="url(#nxFabCut)">
+                <rect x="30" y="20" width="38" height="160" />
+                <polygon points="68,20 106,20 150,180 112,180" />
+                <rect x="150" y="20" width="38" height="160" />
+              </g>
+            </svg>
             <span className="gs-fab-text">Başlangıç Rehberi</span>
             <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 999, padding: '0.05rem 0.5rem', fontSize: '0.78rem', fontWeight: 800 }}>
               {allDone ? '✓' : `${doneCount}/${total}`}

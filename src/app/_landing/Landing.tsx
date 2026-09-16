@@ -219,6 +219,18 @@ a.logo:hover .logo-mark{transform:translateY(-1px) scale(1.04)}
 }
 .nav-link:hover{color:#fff;background:rgba(255,255,255,0.05)}
 .nav-cta{display:flex;gap:10px;align-items:center}
+/* GIRIS BAGLANTISI. Landing'de hic yoktu: zaten odeme yapan bir bayi panele
+   girmek istediginde tutunacak bir yer bulamiyordu. "Demoyu Dene" butonunun
+   bilerek olmamasi AYRI bir karar — o, urunu henuz tanimayan ziyaretciyle
+   ilgili. Bu ise MEVCUT musteri icin ve onunla celismiyor. Bilerek sessiz
+   bir metin baglantisi: birincil eylem hala WhatsApp. */
+.nav-login{
+  color:#94a3b8;font-size:13px;font-weight:600;
+  text-decoration:none;padding:6px 10px;border-radius:8px;white-space:nowrap;
+  transition:color .18s ease,background .18s ease;
+}
+.nav-login:hover{color:#e2e8f0;background:rgba(255,255,255,0.06)}
+@media(max-width:860px){.nav-login{display:none}}
 .nav-mobile{display:none}
 
 @media (max-width:900px){
@@ -2137,6 +2149,11 @@ html.js .stepy.step-on{opacity:1;transform:translateY(-2px)}
   padding:6px 12px;border-radius:999px;
   margin-bottom:20px;width:fit-content;
 }
+/* Rozette ucan roket vardi. Roket herkesin kullandigi bir klise ve markanin
+   kendi isareti degil; ayni rozet ekran goruntusune alindiginda ortada Nextus'a
+   ait hicbir sey kalmiyordu. Yerine kendi N isaretimiz gectii — renk
+   currentColor, yani rozet hangi renkteyse isaret de o renkte. */
+.ba-n{width:1.2em;height:1.05em;flex:none;}
 .ba-side.before .ba-side-label{
   background:rgba(239,68,68,0.12);color:#fca5a5;
   border:1px solid rgba(239,68,68,0.25);
@@ -3949,6 +3966,7 @@ const BODY = `
            Demo hesabı DURUYOR (/login?demo=1 bilgileri doldurur) ama sahada,
            kurucunun yönettiği bir gösterim için. Buradaki yol WhatsApp: bir
            konuşma başlar, gösterimi kurucu yönetir, talep de kaybolmaz. -->
+      <a href="/login" class="nav-login">Giriş</a>
       <a href="#hesap" class="btn btn-ghost btn-sm">Hesapla</a>
       <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20demosu%20ve%20fiyat%20bilgisi%20istiyorum" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><span class="nav-cta-long">WhatsApp'tan&nbsp;</span>Demo →</a>
       <button class="menu-btn" id="menuBtn" aria-label="Menü" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
@@ -3962,6 +3980,7 @@ const BODY = `
   <a href="#nasil" class="nav-link-m">Nasıl Çalışır</a>
   <a href="#fiyatlandirma" class="nav-link-m">Fiyatlar</a>
   <a href="#sss" class="nav-link-m">SSS</a>
+  <a href="/login" class="nav-link-m">Giriş yap</a>
 </div>
 
 <!-- ========== HERO ========== -->
@@ -5058,7 +5077,7 @@ const BODY = `
       </div>
 
       <div class="ba-side after reveal reveal-right">
-        <span class="ba-side-label">🚀 NEXTUS SERVİS</span>
+        <span class="ba-side-label"><svg class="ba-n" viewBox="0 0 230 200" aria-hidden="true"><defs><mask id="nxBadgeCut"><rect width="230" height="200" fill="#fff"/><path d="M14 154 C84 120 152 78 224 34" stroke="#000" stroke-width="15" fill="none" stroke-linecap="round"/></mask></defs><g fill="currentColor" mask="url(#nxBadgeCut)"><rect x="30" y="20" width="38" height="160"/><polygon points="68,20 106,20 150,180 112,180"/><rect x="150" y="20" width="38" height="160"/></g></svg> NEXTUS SERVİS</span>
         <h3>Ay sonu kapanışı</h3>
         <ul class="ba-list">
           <li>Sayaç turu ile müşteri bazlı toplu giriş — teknisyen telefondan</li>
@@ -5367,7 +5386,8 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-9" role="region" aria-labelledby="faq-q-9" aria-hidden="true">
-          <p>Dürüst cevap: <strong>erken dönemdeyiz</strong> ve şu an kurucu müşterimizle sahada çalışıyoruz. Bu yüzden bu sayfada müşteri sayısı, yorum, yıldız puanı veya basın logosu göremezsiniz — <strong>uydurmamayı tercih ettik</strong>. İkna yöntemimiz canlı ekranı göstermek ve ilk ay sonu kapanışını birlikte yapmak.</p>
+          <p><strong>Erken dönemdeyiz</strong> ve şu an kurucu müşterimizle sahada çalışıyoruz — bu, size doğrudan avantaj sağlayan bir konum: <strong>yazılımı yazan kişiyle konuşursunuz</strong>, istediğiniz bir eksik varsa sıraya değil gündeme girer.</p>
+          <p>Bu sayfada müşteri sayısı, yıldız puanı ya da basın logosu yok; olsaydı kanıt değil dekor olurdu. Yerine ölçülebilir bir şey koyuyoruz: <strong>kendi verinizle canlı ekran</strong> ve <strong>ilk ay sonu kapanışını birlikte yapmak</strong>. O kapanışta kaç sayacın okunmadığını ve ne kadarının faturalanmadığını kendi rakamlarınızda görürsünüz.</p>
         </div>
       </div>
 
@@ -5377,7 +5397,9 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-10" role="region" aria-labelledby="faq-q-10" aria-hidden="true">
-          <p><strong>Hayır.</strong> Toner tükenme tahmini gibi hesaplar yapay zekâ değil, <strong>sayaç hızına dayalı düz aritmetik</strong>. Programın işi tahmin etmek değil, kaydı doğru tutup faturayı doğru kesmek.</p>
+          <p><strong>Sohbet eden bir yapay zekâ yok</strong> — ve bilerek yok. Bu ekranlardaki sayılar faturaya gidiyor; cümle üreten bir model burada yanlış yerde durur.</p>
+          <p>Ama sistem <strong>öğreniyor</strong>: her toner değişiminde iki değişim arasında kaç sayfa basıldığını ölçüyor ve o modelin <strong>sizin müşterinizdeki gerçek verimini</strong> çıkarıyor — kutunun üstünde yazan sayıyı değil. Kartuş alış fiyatınızla birleşince <strong>sayfa başına gerçek maliyetiniz</strong> ortaya çıkıyor; sözleşme kârlılığı ve teklif fiyatı bunun üstüne kuruluyor.</p>
+          <p>İkisi arasındaki fark şu: <strong>öğrenilen her sayının arkasında kaç ölçümden çıktığı yazıyor.</strong> Ölçüm yoksa sistem tahmin yürütmüyor, boş bırakıyor — çünkü bu işte uydurulmuş bir sayı, olmayan sayıdan pahalıdır.</p>
         </div>
       </div>
     </div>
@@ -5912,7 +5934,7 @@ document.documentElement.classList.add('js');
     if (mult < 1.5) return '🆗 İdare eder';
     if (mult < 3) return '✓ Çok iyi';
     if (mult < 6) return '⚡ Mükemmel';
-    return '🚀 Olağanüstü';
+    return '★ Olağanüstü';
   }
 
   /* Canli sayac durumu.
