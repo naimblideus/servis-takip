@@ -7,6 +7,9 @@ import BottomNav from '@/components/BottomNav';
 import ModuleGuard from '@/components/ModuleGuard';
 import AccessLock from '@/components/AccessLock';
 import Onboarding from '@/components/Onboarding';
+import { sunucuDili } from '@/lib/i18n/sunucu';
+import { LocaleProvider } from '@/lib/i18n/client';
+import { paraBirimiMi, VARSAYILAN_BIRIM } from '@/lib/bicim';
 
 export default async function DashboardLayout({
   children,
@@ -24,7 +27,7 @@ export default async function DashboardLayout({
     tenantId
       ? prisma.tenant.findUnique({
           where: { id: tenantId },
-          select: { plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true },
+          select: { plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true, locale: true, currency: true, country: true },
         })
       : Promise.resolve(null),
     prisma.platformSettings.findFirst({ select: { maintenanceMode: true, contactEmail: true } }).catch(() => null),
@@ -63,6 +66,18 @@ export default async function DashboardLayout({
     }
   }
 
+  // ── DİL, PARA BİRİMİ, ÜLKE ──────────────────────────────────────────
+  // Dil: çerez > kullanıcının kaydı > bayinin varsayılanı. Para birimi ve
+  // ülke bayiden; ekranlar bunları bağlamdan alır, kendileri karar vermez.
+  const kullaniciId = (session.user as any)?.id as string | undefined;
+  const kullanici = kullaniciId
+    ? await prisma.user.findUnique({ where: { id: kullaniciId }, select: { locale: true } }).catch(() => null)
+    : null;
+  const dil = await sunucuDili(kullanici?.locale, tenant?.locale);
+  const birimAday = tenant?.currency;
+  const birim = paraBirimiMi(birimAday) ? birimAday : VARSAYILAN_BIRIM;
+  const ulke = tenant?.country ?? 'TR';
+
   const modules = tenant ? Array.from(effectiveModules(tenant)) : [];
 
   // ── MENÜDE NE GÖRÜNSÜN ───────────────────────────────────────────────
@@ -89,6 +104,7 @@ export default async function DashboardLayout({
   };
 
   return (
+    <LocaleProvider dil={dil} birim={birim} ulke={ulke}>
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar modules={modules} durum={menuDurum} />
       <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
@@ -97,5 +113,6 @@ export default async function DashboardLayout({
       <BottomNav modules={modules} />
       <Onboarding />
     </div>
+    </LocaleProvider>
   );
 }

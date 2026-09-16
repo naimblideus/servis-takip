@@ -7,6 +7,8 @@ import { signOut, useSession } from 'next-auth/react';
 import GlobalSearch from '@/components/GlobalSearch';
 import { moduleForHref } from '@/lib/modules';
 import { useRozetler } from '@/lib/use-rozetler';
+import { useT, useDil } from '@/lib/i18n/client';
+import DilSecici from '@/components/DilSecici';
 
 const menuItems = [
   {
@@ -393,6 +395,11 @@ const MENU_ORDER = [
 ];
 const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i === -1 ? 999 : i; };
 
+// TÜRKİYE'YE ÖZGÜ modüller: GİB e-Fatura ve KDV özeti. Avrupalı bayide bu
+// ekranlar anlamsız (orada Peppol/XRechnung var, GİB yok). Ülkeye göre
+// gizleniyor; Türk bayi hiçbir şey kaybetmiyor.
+const TR_OZEL = ['/e-fatura', '/kdv'];
+
 // Az kullanılan / ileri özellikler — tek "Gelişmiş" başlığı altında toplanır (menü kalabalığını azaltır).
 // Az kullanılan / kurulum işleri — tek "Gelişmiş" başlığı altında toplanır.
 // /etiket ve /satis buraya taşındı: etiket cihaz-parça kurulumunda BİR KEZ
@@ -411,6 +418,12 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = (session?.user as any)?.role || '';
+  const t = useT();
+  const { ulke } = useDil();
+  // Menü etiketi sözlükten; sözlükte yoksa koddaki Türkçe kalır (yeni
+  // eklenen bir sayfa çevirisiz de olsa menüden düşmesin).
+  const etiket = (item: { href: string; label: string }) =>
+    (t.menu as Record<string, string>)[item.href] ?? item.label;
 
   const whatsappKurulu = durum?.whatsappKurulu ?? true;
   const sayacEpostaKullaniliyor = durum?.sayacEpostaKullaniliyor ?? true;
@@ -418,6 +431,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
 
   const visibleMenuItems = menuItems.filter(item => {
     if (SUPER_ADMIN_ONLY.includes(item.href) && role !== 'SUPER_ADMIN') return false;
+    if (TR_OZEL.includes(item.href) && ulke !== 'TR') return false;
     if (ADMIN_ONLY_ITEMS.includes(item.href) && role !== 'ADMIN' && role !== 'SUPER_ADMIN') return false;
     // Modül kapısı: eklenti modüle ait link, bayide kapalıysa gizle (CORE → her zaman görünür)
     const mod = moduleForHref(item.href);
@@ -532,7 +546,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
               className={`sidebar-link ${pathname === item.href || pathname.startsWith(item.href + '/') ? 'active' : ''}`}
             >
               {item.icon}
-              {item.label}
+              {etiket(item)}
               {rozetSayisi(item.href) > 0 && (
                 <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{rozetSayisi(item.href)}</span>
               )}
@@ -552,7 +566,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
                   </svg>
-                  Gelişmiş
+                  {t.menu.gelismis}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   {!advOpen && gizliRozet > 0 && (
@@ -570,7 +584,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
                   style={{ paddingLeft: '2.25rem' }}
                 >
                   {item.icon}
-                  {item.label}
+                  {etiket(item)}
                   {rozetSayisi(item.href) > 0 && (
                     <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{rozetSayisi(item.href)}</span>
                   )}
@@ -591,6 +605,9 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
               <p className="text-gray-400 text-xs truncate">{session?.user?.email}</p>
             </div>
           </div>
+          <div className="mb-3">
+            <DilSecici />
+          </div>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
             className="w-full text-left sidebar-link text-gray-400 hover:text-red-400"
@@ -598,7 +615,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            Çıkış Yap
+            {t.menu.cikis}
           </button>
         </div>
       </div>

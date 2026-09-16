@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useT } from '@/lib/i18n/client';
+import DilSecici from '@/components/DilSecici';
 
 // Landing'deki "Demoyu Dene" buraya /login?demo=1 ile gelir. Bilgiler ÖRNEK VERİLİ
 // demo hesabına aittir (scripts/seed-demo.mjs) — gerçek bir bayinin hesabı DEĞİLDİR.
@@ -10,34 +12,14 @@ const DEMO_EPOSTA = 'demo@nextusservis.com';
 const DEMO_SIFRE = 'demo1234';
 
 /**
- * Sağ paneldeki kutular — landing ile AYNI dürüstlük çizgisi.
- * Uydurma oran, yıldız puanı ya da müşteri sayısı YOK; hepsi ürünün
- * gerçekten yaptığı işler. Sayı vermek yerine yetenek anlatıyoruz.
+ * Sağ paneldeki kutular ve hata metinleri SÖZLÜKTEN geliyor (lib/i18n).
+ * Landing ile aynı dürüstlük çizgisi: uydurma oran, yıldız puanı ya da
+ * müşteri sayısı yok; hepsi ürünün gerçekten yaptığı işler.
+ *
+ * HATA DURUMU METİN DEĞİL ANAHTAR olarak tutuluyor ('sifre', 'kod', 'sso',
+ * ya da ?hata= parametresindeki sebep). Metin render anında dilden çözülüyor;
+ * böylece kullanıcı dili değiştirdiğinde hata da o dilde görünür.
  */
-const OZELLIKLER = [
-  { ust: '3 kanal', alt: 'Sayaç: cihaz e-postası, WhatsApp fotoğrafı, saha turu' },
-  { ust: 'Otomatik', alt: 'Sayaçtan faturaya, faturadan cariye' },
-  { ust: 'Tek tuş', alt: 'Verinizi istediğiniz an dışa aktarın' },
-  { ust: 'Kurulum', alt: 'Excel aktarımı ve eğitim bizden' },
-];
-
-/**
- * SSO reddedilme sebepleri. Kurumsal giriş kurulurken en sık karşılaşılan iki
- * durum: kullanıcı sistemde tanımlı değil, ya da aynı e-posta iki bayide var.
- * İkisinin de çözümü farklı — bu yüzden mesaj da farklı.
- */
-// Giriş ekranına ?hata= ile gelen sebepler. Hepsinin ortak kuralı: NE OLDUĞUNU
-// söyle. "Bir hata oluştu" diyen bir giriş ekranı, karşı taraftaki BT ekibinin
-// gününü yakar.
-const SSO_HATA: Record<string, string> = {
-  // Oturum jetonundaki bayi kaydı artık yok (taşıma, hesap tazeleme). Eskiden
-  // bu sessizce "modülsüz" bir panele düşürüyordu: kullanıcı içeride görünüp
-  // her özelliği "paketinizde yok" olarak görüyordu.
-  'oturum-bayat': 'Oturumunuz artık geçerli değil (hesabınız güncellenmiş olabilir). Lütfen tekrar giriş yapın.',
-  'sso-tanimsiz': 'Bu e-posta sistemde tanımlı değil ya da hesabınız kapatılmış. Kurumsal giriş yeni hesap açmaz; yöneticinizin sizi eklemesi gerekir.',
-  'sso-coklu': 'Bu e-posta birden fazla firmada tanımlı. Kurumsal giriş kullanılamıyor — lütfen e-posta ve şifrenizle girin.',
-  'sso-eposta-yok': 'Kurumsal hesabınız e-posta adresi paylaşmadı. E-posta ve şifrenizle girebilirsiniz.',
-};
 
 /** Marka işareti — landing'deki N monogramının aynısı (nexus-video kaynağından). */
 function Monogram({ size = 34 }: { size?: number }) {
@@ -60,9 +42,10 @@ function Monogram({ size = 34 }: { size?: number }) {
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useT();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [hata, setHata] = useState('');
   const [loading, setLoading] = useState(false);
   /**
    * Döngü videosu YALNIZ masaüstünde ve azaltılmış hareket kapalıyken render edilir.
@@ -103,9 +86,10 @@ export default function LoginPage() {
       setDemoMod(true);
     }
     // SSO reddi: sebebi söyle. "Bir hata oluştu" diyen bir giriş ekranı,
-    // karşı taraftaki BT ekibinin gününü yakar.
+    // karşı taraftaki BT ekibinin gününü yakar. Anahtar saklanır, metin
+    // render'da dilden çözülür.
     const h = sp.get('hata');
-    if (h) setError(SSO_HATA[h] ?? 'Kurumsal giriş tamamlanamadı.');
+    if (h) setHata(h);
   }, []);
 
   // Hangi kurumsal giriş açık? Anahtar tanımlı değilse düğme de görünmez.
@@ -115,10 +99,18 @@ export default function LoginPage() {
       .catch(() => {});
   }, []);
 
+  /** Hata anahtarı → o dildeki metin. Bilinmeyen anahtar genel SSO hatası. */
+  const hataMetni = (k: string): string => {
+    if (!k) return '';
+    if (k === 'sifre') return t.giris.hataSifre;
+    if (k === 'kod') return t.giris.hataKod;
+    return (t.giris.ssoHata as Record<string, string>)[k] ?? t.giris.hataSso;
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setHata('');
 
     // İki adımlı doğrulama açıksa önce kod alanını göster (şifre doğruysa)
     if (!needsTotp) {
@@ -137,9 +129,7 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
-      setError(needsTotp
-        ? 'Doğrulama kodu hatalı veya süresi geçti. Uygulamadaki güncel kodu girin.'
-        : 'E-posta veya şifre hatalı!');
+      setHata(needsTotp ? 'kod' : 'sifre');
       setLoading(false);
     } else {
       router.refresh();
@@ -157,12 +147,17 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#050508] text-white lg:grid lg:grid-cols-[1fr_1fr]">
       {/* ── SOL: giriş ── */}
       <div className="relative flex min-h-screen flex-col justify-center px-6 py-12 sm:px-12 lg:min-h-0 lg:px-16">
-        <a
-          href="/?demo=1#fiyat"
-          className="absolute right-6 top-6 rounded-full border border-white/12 px-4 py-2 text-[13px] font-medium text-white/70 transition hover:border-white/25 hover:text-white sm:right-12"
-        >
-          Fiyatlar
-        </a>
+        <div className="absolute right-6 top-6 flex items-center gap-2 sm:right-12">
+          {/* Dil seçici giriş sayfasında: Avrupalı ziyaretçinin ilk gördüğü
+              ekran burası; dili panele girmeden seçebilmeli. */}
+          <DilSecici />
+          <a
+            href="/?demo=1#fiyat"
+            className="rounded-full border border-white/12 px-4 py-2 text-[13px] font-medium text-white/70 transition hover:border-white/25 hover:text-white"
+          >
+            {t.giris.fiyatlar}
+          </a>
+        </div>
 
         <div className="mx-auto w-full max-w-[380px]">
           <div className="mb-10 flex items-center gap-3">
@@ -171,39 +166,36 @@ export default function LoginPage() {
           </div>
 
           <h1 className="text-[30px] font-bold leading-tight tracking-tight">
-            {demoMod ? 'Demo hesabı hazır' : 'Tekrar hoş geldiniz'}
+            {demoMod ? t.giris.demoBaslik : t.giris.baslik}
           </h1>
           <p className="mt-2 text-[15px] leading-relaxed text-white/45">
-            {demoMod
-              ? 'Bilgiler dolduruldu — Giriş Yap’a basmanız yeterli.'
-              : 'Servis ve sayaç panelinize erişmek için giriş yapın.'}
+            {demoMod ? t.giris.demoAlt : t.giris.alt}
           </p>
 
           {/* Demo uyarısı: ziyaretçi gördüğü rakamları gerçek sanmasın */}
           {demoMod && (
             <div className="mt-5 rounded-xl border border-teal-500/25 bg-teal-500/[0.07] px-4 py-3">
               <p className="text-[13px] leading-relaxed text-teal-100/85">
-                Bu hesaptaki tüm firma isimleri ve rakamlar <b className="text-teal-50">örnektir</b>.
-                Dilediğiniz gibi gezebilir, kayıt ekleyip silebilirsiniz.
+                {t.giris.demoUyariOn} <b className="text-teal-50">{t.giris.demoUyariVurgu}</b>{t.giris.demoUyariSon}
               </p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div>
-              <label htmlFor="eposta" className="mb-2 block text-[13px] font-medium text-white/60">E-posta adresi</label>
+              <label htmlFor="eposta" className="mb-2 block text-[13px] font-medium text-white/60">{t.giris.eposta}</label>
               <input id="eposta" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                className={alan} placeholder="ad@firma.com" autoComplete="email" required />
+                className={alan} placeholder={t.giris.epostaYer} autoComplete="email" required />
             </div>
 
             <div>
-              <label htmlFor="sifre" className="mb-2 block text-[13px] font-medium text-white/60">Şifre</label>
+              <label htmlFor="sifre" className="mb-2 block text-[13px] font-medium text-white/60">{t.giris.sifre}</label>
               <div className="relative">
                 <input id="sifre" type={sifreGoster ? 'text' : 'password'} value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={alan + ' pr-12'} placeholder="••••••••" autoComplete="current-password" required />
                 <button type="button" onClick={() => setSifreGoster(!sifreGoster)}
-                  aria-label={sifreGoster ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                  aria-label={sifreGoster ? t.giris.sifreGizle : t.giris.sifreGoster}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-white/35 transition hover:text-white/70">
                   {sifreGoster ? (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
@@ -216,26 +208,27 @@ export default function LoginPage() {
 
             {needsTotp && (
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <label htmlFor="kod" className="mb-2 block text-[13px] font-medium text-white/70">Doğrulama kodu</label>
+                <label htmlFor="kod" className="mb-2 block text-[13px] font-medium text-white/70">{t.giris.dogrulamaKodu}</label>
                 <input id="kod" type="text" inputMode="numeric" autoComplete="one-time-code" autoFocus
                   value={totp} onChange={(e) => setTotp(e.target.value)} maxLength={13}
                   className={alan + ' text-center font-mono text-lg tracking-[0.4em]'} placeholder="000000" />
                 <p className="mt-2 text-[12px] leading-relaxed text-white/40">
-                  Telefonunuzdaki doğrulama uygulamasındaki 6 haneli kod. Telefonunuz
-                  yanınızda değilse <b className="text-white/60">kurtarma kodlarından</b> birini yazabilirsiniz.
+                  {t.giris.dogrulamaAciklamaOn}{' '}
+                  <b className="text-white/60">{t.giris.dogrulamaAciklamaVurgu}</b>{' '}
+                  {t.giris.dogrulamaAciklamaSon}
                 </p>
               </div>
             )}
 
-            {error && (
+            {hata && (
               <div className="rounded-xl border border-red-500/25 bg-red-500/[0.08] px-4 py-3 text-[13px] text-red-200">
-                {error}
+                {hataMetni(hata)}
               </div>
             )}
 
             <button type="submit" disabled={loading}
               className="w-full rounded-xl bg-teal-500 py-3.5 text-[15px] font-bold text-[#04121a] transition hover:bg-teal-400 disabled:opacity-50">
-              {loading ? 'Giriş yapılıyor…' : needsTotp ? 'Doğrula ve gir' : 'Giriş yap'}
+              {loading ? t.giris.giriliyor : needsTotp ? t.giris.dogrulaVeGir : t.giris.gir}
             </button>
           </form>
 
@@ -244,7 +237,7 @@ export default function LoginPage() {
             <div className="mt-6">
               <div className="flex items-center gap-3">
                 <span className="h-px flex-1 bg-white/[0.07]" />
-                <span className="text-[12px] text-white/30">veya kurum hesabınızla</span>
+                <span className="text-[12px] text-white/30">{t.giris.veyaKurum}</span>
                 <span className="h-px flex-1 bg-white/[0.07]" />
               </div>
               <div className="mt-4 grid gap-2.5">
@@ -255,7 +248,7 @@ export default function LoginPage() {
                       <path fill="#f25022" d="M0 0h11v11H0z" /><path fill="#7fba00" d="M12 0h11v11H12z" />
                       <path fill="#00a4ef" d="M0 12h11v11H0z" /><path fill="#ffb900" d="M12 12h11v11H12z" />
                     </svg>
-                    Microsoft ile giriş
+                    {t.giris.microsoft}
                   </button>
                 )}
                 {sso.google && (
@@ -267,18 +260,18 @@ export default function LoginPage() {
                       <path fill="#fbbc05" d="M11.5 28.4c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4l-7.1-5.5C2.9 17 2 20.4 2 24s.9 7 2.4 9.9l7.1-5.5z" />
                       <path fill="#ea4335" d="M24 10.2c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 4 29.9 2 24 2 15.4 2 8 6.8 4.4 14.1l7.1 5.5c1.8-5.3 6.7-9.4 12.5-9.4z" />
                     </svg>
-                    Google ile giriş
+                    {t.giris.google}
                   </button>
                 )}
               </div>
               <p className="mt-3 text-center text-[12px] leading-relaxed text-white/30">
-                Kurumsal giriş yeni hesap açmaz — sistemde tanımlı kullanıcılar içindir.
+                {t.giris.kurumNot}
               </p>
             </div>
           )}
 
           <a href="/" className="mt-8 block text-center text-[13px] text-white/35 transition hover:text-white/70">
-            ← Ana sayfaya dön
+            {t.giris.anaSayfa}
           </a>
         </div>
       </div>
@@ -329,15 +322,14 @@ export default function LoginPage() {
 
         <div className="relative max-w-[460px]">
           <h2 className="text-[34px] font-bold leading-[1.2] tracking-tight">
-            Kiralık cihaz servisini<br />tek yerden yönetin
+            {t.giris.panelBaslik1}<br />{t.giris.panelBaslik2}
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed text-white/50">
-            Sayaç okumadan faturaya, servis fişinden tahsilata kadar tüm akış
-            burada. Okunmayan sayaç, kesilmeyen fatura kalmaz.
+            {t.giris.panelAlt}
           </p>
 
           <div className="mt-10 grid grid-cols-2 gap-3">
-            {OZELLIKLER.map((o) => (
+            {t.giris.ozellikler.map((o) => (
               <div key={o.ust} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
                 <div className="text-[20px] font-bold tracking-tight text-teal-300">{o.ust}</div>
                 <div className="mt-1.5 text-[13px] leading-snug text-white/45">{o.alt}</div>

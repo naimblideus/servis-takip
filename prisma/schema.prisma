@@ -33,6 +33,13 @@ model Tenant {
   // Müşteri faturalama (sıfır-dokunuş muhasebe) varsayılanları
   paymentTermDays    Int     @default(15) // Vade (gün)
   vatRate            Decimal @default(20) @db.Decimal(5, 2) // KDV %
+  // ── DİL / PARA BİRİMİ / ÜLKE (Avrupa pazarı) ──────────────────────
+  // Dil kişiye göre (User.locale); bu, yeni kullanıcının devraldığı bayi
+  // varsayılanı. Para birimi ve ülke bayiye göre: parayı şirket tutar,
+  // e-Fatura/KDV gibi TR'ye özgü modüller ülkeye göre kapılanır.
+  locale             String  @default("tr")  // tr | en
+  currency           String  @default("TRY") // ISO 4217: TRY | EUR | USD | GBP
+  country            String  @default("TR")  // ISO 3166-1 alpha-2
   autoInvoiceEnabled Boolean @default(true) // Otomatik dönem faturalama açık mı
   invoiceDayOfMonth  Int     @default(1) // Cron kesim günü
   nextInvoiceSeq     Int     @default(1) // Fatura sıra sayacı (atomik artar)
@@ -367,6 +374,7 @@ model User {
   role            UserRole  @default(TECHNICIAN)
   isActive        Boolean   @default(true)
   onboardedAt     DateTime? // İlk-giriş eğitim sihirbazı tamamlandı/atlandı mı (null=hiç görmedi)
+  locale          String? // Kişinin dil tercihi (tr | en); boşsa bayinin varsayılanı
   // İki adımlı doğrulama (TOTP — Google/Microsoft Authenticator)
   totpSecret      String? // base32 gizli anahtar (yalnız kurulum sırasında üretilir)
   totpEnabled     Boolean   @default(false)
