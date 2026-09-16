@@ -284,51 +284,107 @@ const CHAIN = [
   { i: '💰', t: 'Para' },
 ];
 
+/**
+ * ── KILAVUZ AİLELERE AYRILIYOR ───────────────────────────────────────────
+ * 23 bölüm birbirinin aynı beyaz satırı olarak alt alta duruyordu: aradığını
+ * bulmak için hepsini okumak gerekiyordu ve kimse okumuyordu. Bölümler artık
+ * işin sırasına göre dört aileye ayrılmış ve her ailenin kendi rengi var —
+ * "para" işini arayan yeşil bloğa, kurulum arayan turuncu bloğa gidiyor.
+ *
+ * EŞLEŞMEYEN BÖLÜM KAYBOLMUYOR: listede adı geçmeyen her bölüm en sondaki
+ * "Diğer" ailesine düşer. Yeni bir bölüm eklenip buraya yazılmak unutulursa
+ * ekrandan sessizce silinmesin diye.
+ */
+const GRUPLAR = [
+  {
+    ad: 'Başlangıç', aciklama: 'Bir kez yapılır, sonra unutulur',
+    cizgi: 'border-l-amber-400', etiket: 'text-amber-700', nokta: 'bg-amber-400',
+    idler: ['musteri', 'goc', 'disa-aktar', 'cihaz'],
+  },
+  {
+    ad: 'Günlük iş', aciklama: 'Her gün ve her ay dokunduğunuz yerler',
+    cizgi: 'border-l-blue-500', etiket: 'text-blue-700', nokta: 'bg-blue-500',
+    idler: ['fis', 'sayac', 'cihazdan-sayac', 'sayac-uyarilari', 'portal', 'saha', 'toner'],
+  },
+  {
+    ad: 'Para', aciklama: 'Fatura, tahsilat, sözleşme ve kârlılık',
+    cizgi: 'border-l-emerald-500', etiket: 'text-emerald-700', nokta: 'bg-emerald-500',
+    idler: ['fatura', 'e-fatura', 'kdv', 'tahsilat', 'sozlesme', 'karlilik', 'alis', 'teklif'],
+  },
+  {
+    ad: 'Yönetim', aciklama: 'Çıktılar, patron ekranı, pazar ve güvenlik',
+    cizgi: 'border-l-violet-500', etiket: 'text-violet-700', nokta: 'bg-violet-500',
+    idler: ['ciktilar', 'patron', 'pazar', 'guvenlik'],
+  },
+];
+
+const SON_AILE = {
+  ad: 'Diğer', aciklama: 'Henüz sınıflanmamış bölümler',
+  cizgi: 'border-l-gray-300', etiket: 'text-gray-600', nokta: 'bg-gray-400',
+  idler: [] as string[],
+};
+
 export default function YardimPage() {
   const [open, setOpen] = useState<string>('');
 
+  // Aileler kuruluyor; eşleşmeyenler sona düşüyor.
+  const yerlesen = new Set(GRUPLAR.flatMap((g) => g.idler));
+  const artan = SECTIONS.filter((s) => !yerlesen.has(s.id));
+  const aileler = [
+    ...GRUPLAR.map((g) => ({
+      ...g,
+      bolumler: g.idler.map((id) => SECTIONS.find((s) => s.id === id)).filter(Boolean) as Section[],
+    })),
+    ...(artan.length ? [{ ...SON_AILE, bolumler: artan }] : []),
+  ].filter((g) => g.bolumler.length > 0);
+
   return (
-    <div style={{ padding: '1.5rem 1.25rem 3rem', maxWidth: 820, margin: '0 auto' }}>
-      <div style={{ background: 'linear-gradient(135deg,#0f2253,#2563eb)', color: 'white', borderRadius: '1rem', padding: '1.4rem 1.6rem', marginBottom: '1rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>📘 Nasıl Kullanılır?</h1>
-        <p style={{ margin: '0.35rem 0 0', opacity: 0.9, fontSize: '0.92rem' }}>
-          Önce aşağıdaki <b>2 dakikalık özet</b> — sistemi anlamak için yeterli. Ayrıntı gerekirse altındaki başlıkları aç.
+    <div className="mx-auto max-w-5xl px-4 py-8 pb-16">
+      <div className="rounded-2xl bg-gradient-to-br from-[#0f2253] to-blue-600 p-6 text-white sm:p-8">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Nasıl kullanılır?</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-blue-100 sm:text-base">
+          Önce aşağıdaki <b className="text-white">2 dakikalık özet</b> — sistemi anlamak için yeterli.
+          Ayrıntı gerekirse altındaki başlıkları açın.
         </p>
       </div>
 
-      {/* ═══ 2 DAKİKADA SİSTEM (hep açık) ═══ */}
-      <div style={{ background: 'white', border: '2px solid #0f2253', borderRadius: 14, padding: '1.2rem 1.3rem', marginBottom: '1.25rem' }}>
-        <div style={{ fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 800, color: '#2563eb' }}>2 dakikada sistem</div>
+      {/* 2 DAKİKADA SİSTEM (hep açık) */}
+      <section className="mt-5 rounded-xl border-2 border-[#0f2253] bg-white p-6">
+        <div className="text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-blue-600">
+          2 dakikada sistem
+        </div>
 
-        <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '.6rem 0 .5rem', color: '#0f172a' }}>Her şey tek bir zincir</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: '1.1rem' }}>
+        <h2 className="mt-2 text-lg font-bold text-slate-900">Her şey tek bir zincir</h2>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {CHAIN.map((c, i) => (
-            <div key={c.t} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f1f5f9', borderRadius: 999, padding: '.35rem .8rem' }}>
+            <div key={c.t} className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5">
                 <span>{c.i}</span>
-                <span style={{ fontWeight: 700, fontSize: '.86rem', color: '#0f172a' }}>{c.t}</span>
-              </div>
-              {i < CHAIN.length - 1 && <span style={{ color: '#94a3b8', fontWeight: 700 }}>→</span>}
+                <span className="text-sm font-bold text-slate-900">{c.t}</span>
+              </span>
+              {i < CHAIN.length - 1 && <span className="font-bold text-slate-400">&rarr;</span>}
             </div>
           ))}
         </div>
-        <p style={{ fontSize: '.88rem', color: '#475569', margin: '0 0 1.1rem', lineHeight: 1.6 }}>
-          Müşteriyi ve cihazını bir kere kaydedersin. Sonra her serviste fiş açarsın; <b>fatura, cari hesap ve borç
-          takibini sistem kendi yapar</b>.
+        <p className="mt-4 max-w-2xl text-[0.95rem] leading-relaxed text-slate-600">
+          Müşteriyi ve cihazını bir kere kaydedersiniz. Sonra her serviste fiş açarsınız;{' '}
+          <b className="text-slate-900">fatura, cari hesap ve borç takibini sistem kendi yapar</b>.
         </p>
 
-        <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 .6rem', color: '#0f172a' }}>Günde yaptığın 3 şey</h2>
-        <div style={{ display: 'grid', gap: '.5rem', marginBottom: '1.1rem' }}>
+        <h2 className="mt-6 text-lg font-bold text-slate-900">Günde yaptığınız 3 şey</h2>
+        <div className="mt-2 grid gap-2">
           {QUICK.map((q) => (
-            <div key={q.t} style={{ display: 'flex', gap: '.7rem', alignItems: 'center', background: '#f8fafc', borderRadius: 10, padding: '.6rem .8rem' }}>
-              <span style={{ fontSize: '1.15rem' }}>{q.i}</span>
-              <span style={{ fontSize: '.9rem', color: '#0f172a' }}><b>{q.t}</b> <span style={{ color: '#64748b' }}>— {q.d}</span></span>
+            <div key={q.t} className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
+              <span className="text-lg">{q.i}</span>
+              <span className="text-[0.95rem] text-slate-900">
+                <b>{q.t}</b> <span className="text-slate-500">&mdash; {q.d}</span>
+              </span>
             </div>
           ))}
         </div>
 
-        <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 .6rem', color: '#0f172a' }}>Nerede ne var</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '.4rem', fontSize: '.85rem', color: '#334155' }}>
+        <h2 className="mt-6 text-lg font-bold text-slate-900">Nerede ne var</h2>
+        <div className="mt-2 grid gap-1.5 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
           {[
             ['Ana Sayfa', 'dikkat gereken her şey (duran iş, borç, sözleşme)'],
             ['Servis Fişleri', 'işler + icmal yazdırma'],
@@ -337,62 +393,104 @@ export default function YardimPage() {
             ['Stok / Barkodla Satış', 'parça ve tezgâh satışı'],
             ['Gelişmiş', 'fatura, rota, rapor, zam, kârlılık'],
           ].map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', gap: 6 }}>
-              <b style={{ whiteSpace: 'nowrap', color: '#0f2253' }}>{k}</b>
-              <span style={{ color: '#64748b' }}>— {v}</span>
+            <div key={k} className="flex gap-1.5">
+              <b className="whitespace-nowrap text-[#0f2253]">{k}</b>
+              <span className="text-slate-500">&mdash; {v}</span>
             </div>
           ))}
         </div>
 
-        <div style={{ marginTop: '1.1rem', display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-          <Link href="/import" style={{ padding: '.55rem 1rem', background: '#0f2253', color: 'white', borderRadius: 9, fontWeight: 700, fontSize: '.86rem', textDecoration: 'none' }}>
-            Excel’den verimi aktar →
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Link href="/import"
+            className="rounded-lg bg-[#0f2253] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#16306e]">
+            Excel&rsquo;den verimi aktar &rarr;
           </Link>
-          <Link href="/customers/new" style={{ padding: '.55rem 1rem', background: 'white', border: '1px solid #cbd5e1', color: '#334155', borderRadius: 9, fontWeight: 700, fontSize: '.86rem', textDecoration: 'none' }}>
+          <Link href="/customers/new"
+            className="rounded-lg border bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
             İlk müşteriyi ekle
           </Link>
         </div>
-      </div>
+      </section>
 
-      {/* ═══ AYRINTILI BÖLÜMLER (katlanır) ═══ */}
-      <div style={{ fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 800, color: '#94a3b8', margin: '0 0 .6rem .2rem' }}>
-        Ayrıntı gerekirse
-      </div>
-      <div style={{ display: 'grid', gap: '0.5rem' }}>
-        {SECTIONS.map((s) => {
-          const isOpen = open === s.id;
-          return (
-            <div key={s.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
-              <button
-                onClick={() => setOpen(isOpen ? '' : s.id)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.85rem 1.05rem', background: isOpen ? '#f8fafc' : 'white', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-              >
-                <span style={{ fontSize: '1.15rem' }}>{s.icon}</span>
-                <span style={{ flex: 1, fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>{s.title}</span>
-                <span style={{ color: '#9ca3af', fontSize: '1.1rem' }}>{isOpen ? '−' : '+'}</span>
-              </button>
-              {isOpen && (
-                <div style={{ padding: '0 1.05rem 1.05rem', borderTop: '1px solid #f3f4f6' }}>
-                  {s.intro && <p style={{ color: '#374151', fontSize: '0.89rem', lineHeight: 1.55, margin: '0.8rem 0 0.5rem' }}>{s.intro}</p>}
-                  <ol style={{ margin: '0.6rem 0 0', paddingLeft: '1.2rem', display: 'grid', gap: '0.45rem' }}>
-                    {s.steps.map((st, i) => (
-                      <li key={i} style={{ color: '#1e293b', fontSize: '0.89rem', lineHeight: 1.55 }}>{st}</li>
-                    ))}
-                  </ol>
-                  {s.tip && (
-                    <div style={{ marginTop: '0.8rem', background: '#ecfeff', border: '1px solid #a5f3fc', color: '#0e7490', borderRadius: 8, padding: '0.55rem 0.75rem', fontSize: '0.84rem', lineHeight: 1.5 }}>
-                      💡 {s.tip}
-                    </div>
-                  )}
-                </div>
-              )}
+      {/* AYRINTILI BÖLÜMLER */}
+      <div className="mt-8 lg:grid lg:grid-cols-[210px_1fr] lg:gap-8">
+        {/* İÇİNDEKİLER — 23 bölümü kaydırmadan gezmenin tek yolu. */}
+        <nav className="hidden lg:block">
+          <div className="sticky top-6">
+            <div className="text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+              İçindekiler
             </div>
-          );
-        })}
+            <ul className="mt-3 space-y-3">
+              {aileler.map((g) => (
+                <li key={g.ad}>
+                  <div className={`flex items-center gap-2 text-xs font-bold ${g.etiket}`}>
+                    <span className={`h-2 w-2 rounded-full ${g.nokta}`} />
+                    {g.ad}
+                  </div>
+                  <ul className="mt-1 space-y-0.5 border-l pl-3">
+                    {g.bolumler.map((b) => (
+                      <li key={b.id}>
+                        <a href={`#k-${b.id}`} onClick={() => setOpen(b.id)}
+                          className="block truncate py-0.5 text-xs text-slate-500 hover:text-slate-900">
+                          {b.title.split(/[\u2014(]/)[0].trim()}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </nav>
+
+        <div className="min-w-0 space-y-8">
+          {aileler.map((g) => (
+            <section key={g.ad}>
+              <div className="flex flex-wrap items-baseline gap-x-3">
+                <h2 className={`text-base font-extrabold ${g.etiket}`}>{g.ad}</h2>
+                <span className="text-sm text-slate-500">{g.aciklama}</span>
+              </div>
+
+              <div className="mt-3 grid gap-2">
+                {g.bolumler.map((s) => {
+                  const isOpen = open === s.id;
+                  return (
+                    <div key={s.id} id={`k-${s.id}`}
+                      className={`scroll-mt-6 overflow-hidden rounded-xl border border-l-4 bg-white ${g.cizgi}`}>
+                      <button type="button" onClick={() => setOpen(isOpen ? '' : s.id)}
+                        className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${isOpen ? 'bg-slate-50' : 'hover:bg-slate-50'}`}>
+                        <span className="text-lg">{s.icon}</span>
+                        <span className="flex-1 text-[0.95rem] font-bold text-gray-900">{s.title}</span>
+                        <span className="text-lg text-gray-400">{isOpen ? '−' : '+'}</span>
+                      </button>
+                      {isOpen && (
+                        <div className="border-t px-4 pb-4">
+                          {s.intro && (
+                            <p className="mt-3 max-w-2xl text-[0.93rem] leading-relaxed text-slate-700">{s.intro}</p>
+                          )}
+                          <ol className="mt-3 grid list-decimal gap-2 pl-5">
+                            {s.steps.map((st, i) => (
+                              <li key={i} className="max-w-2xl text-[0.93rem] leading-relaxed text-slate-800">{st}</li>
+                            ))}
+                          </ol>
+                          {s.tip && (
+                            <div className="mt-4 max-w-2xl rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2.5 text-[0.9rem] leading-relaxed text-cyan-900">
+                              {s.tip}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
       </div>
 
-      <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', marginTop: '1.5rem' }}>
-        Takıldığın bir yer olursa bize yazabilirsin — birlikte hallederiz.
+      <p className="mt-10 text-center text-sm text-slate-400">
+        Takıldığınız bir yer olursa bize yazabilirsiniz &mdash; birlikte hallederiz.
       </p>
     </div>
   );
