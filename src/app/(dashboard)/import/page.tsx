@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import ExcelImport from '@/components/ExcelImport';
 import SayacGecmisiImport from '@/components/SayacGecmisiImport';
 import CariDevirImport from '@/components/CariDevirImport';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 
 // ── Tipler ──
 interface ImportCounts {
@@ -45,17 +47,20 @@ function sumCounts(counts: ImportCounts | null): number {
 }
 
 // ── Kategori listesi ──
-const CATEGORIES = [
-    { key: 'firma', label: 'Firma Bilgileri', icon: '🏢' },
-    { key: 'urunler', label: 'Ürünler / Parçalar', icon: '📦' },
-    { key: 'musteriler', label: 'Müşteriler', icon: '👥' },
-    { key: 'cihazlar', label: 'Cihazlar', icon: '🔧' },
-    { key: 'servisler', label: 'Servis Kayıtları', icon: '📋' },
-    { key: 'servisurunler', label: 'Servis Ürünleri', icon: '🔩' },
-    { key: 'kasa', label: 'Kasa Hareketleri', icon: '💰' },
+const kategoriler = (t: Sozluk) => [
+    { key: 'firma', label: t.iceAktar.katFirma, icon: '🏢' },
+    { key: 'urunler', label: t.iceAktar.katUrunler, icon: '📦' },
+    { key: 'musteriler', label: t.iceAktar.katMusteriler, icon: '👥' },
+    { key: 'cihazlar', label: t.iceAktar.katCihazlar, icon: '🔧' },
+    { key: 'servisler', label: t.iceAktar.katServisler, icon: '📋' },
+    { key: 'servisurunler', label: t.iceAktar.katServisUrunler, icon: '🔩' },
+    { key: 'kasa', label: t.iceAktar.katKasa, icon: '💰' },
 ] as const;
 
 export default function ImportPage() {
+    const t = useT();
+    const b = useBicim();
+    const CATEGORIES = kategoriler(t);
     const { data: session, status: sessionStatus } = useSession();
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,10 +128,10 @@ export default function ImportPage() {
                 setFile(f);
                 setError(null);
             } else {
-                setError('Sadece .sql uzantılı dosyalar kabul edilir.');
+                setError(t.iceAktar.sadeceSql);
             }
         }
-    }, []);
+    }, [t.iceAktar.sadeceSql]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files?.[0]) {
@@ -135,7 +140,7 @@ export default function ImportPage() {
                 setFile(f);
                 setError(null);
             } else {
-                setError('Sadece .sql uzantılı dosyalar kabul edilir.');
+                setError(t.iceAktar.sadeceSql);
             }
         }
     };
@@ -158,7 +163,7 @@ export default function ImportPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || 'İçe aktarma başlatılamadı');
+                setError(data.error || t.iceAktar.baslatilamadi);
                 setUploading(false);
                 return;
             }
@@ -175,7 +180,7 @@ export default function ImportPage() {
                 setStep('processing');
             }
         } catch (e: any) {
-            setError(e.message || 'Bağlantı hatası');
+            setError(e.message || t.genel.baglantiHatasi);
         } finally {
             setUploading(false);
         }
@@ -240,7 +245,7 @@ export default function ImportPage() {
     if (role !== 'ADMIN') {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <p className="text-gray-500">Bu sayfaya erişim yetkiniz yok.</p>
+                <p className="text-gray-500">{t.iceAktar.yetkiYok}</p>
             </div>
         );
     }
@@ -251,16 +256,21 @@ export default function ImportPage() {
             <div className="mb-8">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
                     <span className="text-3xl">📥</span>
-                    Veri İçe Aktarma
+                    {t.iceAktar.baslik}
                 </h1>
-                <p className="text-gray-500 mt-1">Mevcut verinizi sisteme taşıyın — müşteri/cihaz listesi, sayaç geçmişi, borç devri ya da eski programın SQL yedeği</p>
+                <p className="text-gray-500 mt-1">{t.iceAktar.alt}</p>
             </div>
 
             {/* Kaynak seçimi */}
             <div className="flex gap-2 mb-6 flex-wrap">
                 {/* Sıra bilerek böyle: müşteri/cihaz aktarılmadan sayaç geçmişi
                     eşleşmez — seri no ile bağlanıyor. */}
-                {([['excel', '📊 Excel / CSV listesi'], ['sayac', '🔢 Sayaç geçmişi'], ['devir', '💰 Açılış / borç devri'], ['sql', '🗄️ SQL yedeği (eski program)']] as const).map(([k, label]) => (
+                {([
+                    ['excel', t.iceAktar.kaynakExcel],
+                    ['sayac', t.iceAktar.kaynakSayac],
+                    ['devir', t.iceAktar.kaynakDevir],
+                    ['sql', t.iceAktar.kaynakSql],
+                ] as const).map(([k, label]) => (
                     <button key={k} onClick={() => setSource(k)}
                         className={`px-4 py-2 rounded-full text-sm font-semibold border transition
                             ${source === k ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
@@ -279,7 +289,7 @@ export default function ImportPage() {
                     {/* Desteklenen formatlar */}
                     <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
                         <p className="text-sm text-blue-700 font-medium">
-                            Desteklenen Formatlar: Pazar Timi, ServisPlus, MySqlBackup, Genel MySQL dump
+                            {t.iceAktar.desteklenen}
                         </p>
                     </div>
 
@@ -309,21 +319,21 @@ export default function ImportPage() {
                                     <div className="text-5xl mb-3">✅</div>
                                     <p className="text-lg font-semibold text-green-700">{file.name}</p>
                                     <p className="text-sm text-green-600 mt-1">
-                                        {(file.size / 1024 / 1024).toFixed(2)} MB • Yüklemeye hazır
+                                        {doldur(t.iceAktar.hazir, { mb: b.sayi(file.size / 1024 / 1024, 2) })}
                                     </p>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setFile(null); }}
                                         className="mt-3 text-sm text-red-500 hover:text-red-700 underline"
                                     >
-                                        Dosyayı kaldır
+                                        {t.iceAktar.dosyayiKaldir}
                                     </button>
                                 </div>
                             ) : (
                                 <div>
                                     <div className="text-5xl mb-3">📂</div>
-                                    <p className="text-lg font-medium text-gray-700">SQL dosyasını buraya sürükleyin</p>
-                                    <p className="text-sm text-gray-500 mt-1">veya tıklayarak seçin</p>
-                                    <p className="text-xs text-gray-400 mt-3">Max 50MB, .sql uzantılı</p>
+                                    <p className="text-lg font-medium text-gray-700">{t.iceAktar.surukle}</p>
+                                    <p className="text-sm text-gray-500 mt-1">{t.iceAktar.veyaTikla}</p>
+                                    <p className="text-xs text-gray-400 mt-3">{t.iceAktar.maxBoyut}</p>
                                 </div>
                             )}
                         </div>
@@ -331,12 +341,12 @@ export default function ImportPage() {
                         {/* Import edilecek veriler */}
                         <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {[
-                                { icon: '👥', label: 'Müşteriler' },
-                                { icon: '📋', label: 'Servis kayıtları' },
-                                { icon: '🔧', label: 'Cihazlar' },
-                                { icon: '📦', label: 'Parçalar/Stok' },
-                                { icon: '💰', label: 'Kasa hareketleri' },
-                                { icon: '🏢', label: 'Firma bilgileri' },
+                                { icon: '👥', label: t.iceAktar.katMusteriler },
+                                { icon: '📋', label: t.iceAktar.katServisler },
+                                { icon: '🔧', label: t.iceAktar.katCihazlar },
+                                { icon: '📦', label: t.iceAktar.katUrunler },
+                                { icon: '💰', label: t.iceAktar.katKasa },
+                                { icon: '🏢', label: t.iceAktar.katFirma },
                             ].map((item) => (
                                 <div key={item.label} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
                                     <span>{item.icon}</span>
@@ -350,8 +360,8 @@ export default function ImportPage() {
                             <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 rounded-lg px-4 py-3">
                                 <span className="text-lg mt-[-2px]">⚠️</span>
                                 <div>
-                                    <p>Mevcut veriler <strong>silinmez</strong>, sadece eklenir.</p>
-                                    <p className="mt-1">Aynı müşteri/cihaz varsa <strong>güncellenir</strong> (upsert).</p>
+                                    <p>{t.iceAktar.uyari1On} <strong>{t.iceAktar.uyari1Vurgu}</strong>{t.iceAktar.uyari1Son}</p>
+                                    <p className="mt-1">{t.iceAktar.uyari2On} <strong>{t.iceAktar.uyari2Vurgu}</strong> {t.iceAktar.uyari2Son}</p>
                                 </div>
                             </div>
                         </div>
@@ -377,10 +387,10 @@ export default function ImportPage() {
                             {uploading ? (
                                 <span className="flex items-center justify-center gap-2">
                                     <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                                    Yükleniyor...
+                                    {t.iceAktar.yukleniyorNokta}
                                 </span>
                             ) : (
-                                '📥 İçe Aktarmayı Başlat'
+                                t.iceAktar.baslat
                             )}
                         </button>
                     </div>
@@ -393,7 +403,7 @@ export default function ImportPage() {
                     <div className="px-6 py-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-yellow-100">
                         <div className="flex items-center gap-3">
                             <svg className="animate-spin h-5 w-5 text-yellow-600" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                            <span className="font-semibold text-yellow-800">İçe Aktarılıyor...</span>
+                            <span className="font-semibold text-yellow-800">{t.iceAktar.aktariliyor}</span>
                             <span className="text-sm text-yellow-600 ml-auto">{importSession.fileName}</span>
                         </div>
                     </div>
@@ -408,9 +418,9 @@ export default function ImportPage() {
                                         <div className="flex items-center justify-between mb-1">
                                             <span className="text-sm font-medium text-gray-700">{label}</span>
                                             <span className="text-xs text-gray-500">
-                                                {p.status === 'done' && '✅ Tamamlandı'}
+                                                {p.status === 'done' && t.iceAktar.tamamlandiKisa}
                                                 {p.status === 'progress' && `${p.imported}/${p.total}`}
-                                                {p.status === 'waiting' && (p.total > 0 ? 'Bekliyor' : '—')}
+                                                {p.status === 'waiting' && (p.total > 0 ? t.iceAktar.bekliyor : '—')}
                                                 {p.status === 'skip' && '—'}
                                             </span>
                                         </div>
@@ -431,8 +441,8 @@ export default function ImportPage() {
                         {/* Genel ilerleme */}
                         <div className="mt-6 pt-4 border-t border-gray-100">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="font-semibold text-gray-700">Genel İlerleme</span>
-                                <span className="text-sm font-bold text-blue-600">{getOverallProgress()}%</span>
+                                <span className="font-semibold text-gray-700">{t.iceAktar.genelIlerleme}</span>
+                                <span className="text-sm font-bold text-blue-600">{b.yuzde(getOverallProgress())}</span>
                             </div>
                             <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                                 <div
@@ -457,11 +467,11 @@ export default function ImportPage() {
                             </span>
                             <div>
                                 <h2 className="text-xl font-bold text-gray-800">
-                                    {importSession.status === 'COMPLETED' ? 'İçe Aktarma Tamamlandı!' : 'İçe Aktarma Başarısız'}
+                                    {importSession.status === 'COMPLETED' ? t.iceAktar.sonucTamam : t.iceAktar.sonucHata}
                                 </h2>
                                 <p className="text-sm text-gray-500 mt-1">
                                     {importSession.fileName}
-                                    {importSession.completedAt && ` • ${new Date(importSession.completedAt).toLocaleString('tr-TR')}`}
+                                    {importSession.completedAt && ` • ${b.tarihSaat(importSession.completedAt)}`}
                                 </p>
                             </div>
                         </div>
@@ -472,10 +482,10 @@ export default function ImportPage() {
                         <table className="w-full min-w-[38rem]">
                             <thead>
                                 <tr className="bg-gray-50">
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tablo</th>
-                                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Toplam</th>
-                                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Başarılı</th>
-                                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Başarısız</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.iceAktar.sutunTablo}</th>
+                                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.iceAktar.sutunToplam}</th>
+                                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.iceAktar.sutunBasarili}</th>
+                                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.iceAktar.sutunBasarisiz}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -497,7 +507,7 @@ export default function ImportPage() {
                                 })}
                                 {/* Toplam satır */}
                                 <tr className="bg-gray-50 font-bold">
-                                    <td className="px-6 py-3 text-sm text-gray-800">TOPLAM</td>
+                                    <td className="px-6 py-3 text-sm text-gray-800">{t.iceAktar.toplamSatir}</td>
                                     <td className="px-6 py-3 text-center text-sm text-gray-800">
                                         {sumCounts(importSession.totalRows)}
                                     </td>
@@ -517,13 +527,13 @@ export default function ImportPage() {
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                             <div className="px-6 py-4 bg-red-50 border-b border-red-100 flex items-center justify-between">
                                 <span className="font-semibold text-red-800">
-                                    ⚠️ HATALAR ({importSession.errors.length} kayıt)
+                                    {doldur(t.iceAktar.hatalar, { n: importSession.errors.length })}
                                 </span>
                                 <button
                                     onClick={() => setShowAllErrors(!showAllErrors)}
                                     className="text-sm text-red-600 hover:text-red-800 underline"
                                 >
-                                    {showAllErrors ? 'Daralt' : 'Tümünü Göster'}
+                                    {showAllErrors ? t.iceAktar.daralt : t.iceAktar.tumunuGoster}
                                 </button>
                             </div>
                             <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
@@ -545,20 +555,20 @@ export default function ImportPage() {
                                 onClick={downloadReport}
                                 className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
                             >
-                                📥 Hata Raporunu İndir (CSV)
+                                {t.iceAktar.raporIndir}
                             </button>
                         )}
                         <button
                             onClick={() => router.push('/dashboard')}
                             className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
                         >
-                            📊 Dashboard&apos;a Git
+                            {t.iceAktar.dashboardaGit}
                         </button>
                         <button
                             onClick={resetImport}
                             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-sm font-medium text-white hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm"
                         >
-                            🔄 Tekrar Import Et
+                            {t.iceAktar.tekrar}
                         </button>
                     </div>
                 </div>

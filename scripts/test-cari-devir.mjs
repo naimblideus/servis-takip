@@ -111,7 +111,9 @@ try {
     t('önizleme 1 satır buluyor', d.yazilacak === 1, d);
     t('★ büyük harfli Türkçe başlık okunuyor (BAKİYE)', d.yazilacak === 1 && d.borcToplam === 5000, d);
     t('veritabanına hiçbir şey yazılmadı', (await bakiyeAl(borclu.id)) === 0);
-    t('gelir yazmayacağı önizlemede söyleniyor', /GELİR YAZMAZ/.test(d.not || ''), d.not);
+    // Uç nokta artık cümle değil KOD dönüyor; "gelir yazmaz" uyarısını
+    // ekran bu koddan kendi dilinde kuruyor.
+    t('gelir yazmayacağı önizlemede söyleniyor', d.notKod === 'BAKIYE', d.notKod);
   }
 
   console.log('\n★ AÇILIŞ BAKİYESİ — BORÇ DOĞRU, GELİR YOK\n');
@@ -204,7 +206,7 @@ try {
     const csv = 'Müşteri;Telefon;Bakiye\nYıldız Müşavirlik;5551110003;3.300,00';
     const d = await (await gonder(csv, 'bakiye', true)).json();
     t('★ açık devir faturası olan müşteriye bakiye yazılmıyor', d.yazilacak === 0 && d.hatali === 1, d);
-    t('sebebi açıkça yazıyor', /ikiye katlan/.test((d.hatalar || [])[0]?.hata || ''), (d.hatalar || [])[0]);
+    t('sebebi açıkça yazıyor', (d.hatalar || [])[0]?.hata === 'ACIK_DEVIR_FATURASI', (d.hatalar || [])[0]);
     t('borç değişmedi', (await bakiyeAl(faturali.id)) === 3300);
   }
   {
@@ -212,7 +214,7 @@ try {
     const csv = 'Müşteri;Telefon;Fatura No;Tarih;Tutar;Ödenen\nÇetin Kırtasiye;5551110001;ESKI-2026-009;15.08.2026;1.000,00;0';
     const d = await (await gonder(csv, 'fatura', true)).json();
     t('★ açılış bakiyesi olan müşteriye açık fatura yazılmıyor', d.yazilacak === 0 && d.hatali === 1, d);
-    t('sebebi açıkça yazıyor', /ikiye katlan/.test((d.hatalar || [])[0]?.hata || ''), (d.hatalar || [])[0]);
+    t('sebebi açıkça yazıyor', (d.hatalar || [])[0]?.hata === 'ACILIS_BAKIYESI_VAR', (d.hatalar || [])[0]);
   }
   {
     // TAMAMEN ÖDENMİŞ geçmiş fatura borç üretmiyor → çakışma SAYILMAMALI.
@@ -226,7 +228,7 @@ try {
     const csv = 'Müşteri;Bakiye\nİkiz Firma;1.000,00';
     const d = await (await gonder(csv, 'bakiye', true)).json();
     t('★ aynı adda iki müşteri varsa tahmin edilmiyor', d.yazilacak === 0 && d.hatali === 1, d);
-    t('telefon istenmesi söyleniyor', /telefon/i.test((d.hatalar || [])[0]?.hata || ''), (d.hatalar || [])[0]);
+    t('telefon istenmesi söyleniyor', (d.hatalar || [])[0]?.hata === 'AYNI_ADDA_COK', (d.hatalar || [])[0]);
   }
   {
     const csv = 'Müşteri;Bakiye\nOlmayan Firma;1.000,00';
@@ -254,7 +256,7 @@ try {
     const d = await (await gonder(csv, 'fatura', true)).json();
     t('fatura no / tarih / tutar / fazla ödeme / gelecek tarih ayıklanıyor', d.hatali === 6, d);
     t('var olan fatura numarası tekrar yazılmıyor',
-      (d.hatalar || []).some((h) => /zaten var/.test(h.hata)), d.hatalar);
+      (d.hatalar || []).some((h) => h.hata === 'FATURA_NO_VAR'), d.hatalar);
   }
   {
     const y = await gonder('Marka;Model\nKyocera;M2540', 'bakiye', true);

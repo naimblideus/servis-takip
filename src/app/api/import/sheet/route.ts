@@ -19,18 +19,18 @@ export async function POST(req: NextRequest) {
   try {
     const { user, tenantId } = await requireTenantUser();
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Veri aktarmak için yönetici yetkisi gerekir' }, { status: 403 });
+      return NextResponse.json({ error: 'Veri aktarmak için yönetici yetkisi gerekir', kod: 'YETKI' }, { status: 403 });
     }
 
     const { csv, mapping: userMapping, dryRun } = await req.json();
     if (typeof csv !== 'string' || !csv.trim()) {
-      return NextResponse.json({ error: 'Dosya boş görünüyor' }, { status: 400 });
+      return NextResponse.json({ error: 'Dosya boş görünüyor', kod: 'BOS_DOSYA' }, { status: 400 });
     }
 
     const delimiter = detectDelimiter(csv);
     const rows = parseCSV(csv, delimiter);
     if (rows.length < 2) {
-      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı' }, { status: 400 });
+      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı', kod: 'SATIR_YOK' }, { status: 400 });
     }
 
     const headers = rows[0].map((h) => h.trim());
@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     if (!hasCustomer && !hasDevice) {
       return NextResponse.json({
         error: 'Kolonlar tanınamadı. En azından "Müşteri" ya da "Marka/Model/Seri No" kolonu gerekli.',
+        kod: 'KOLON_TANINMADI',
         headers, mapping,
       }, { status: 400 });
     }
@@ -96,9 +97,10 @@ export async function POST(req: NextRequest) {
         pricePerColor: trNumber(get(r, 'pricePerColor')),
         errors: [],
       };
-      if (hasCustomer && !p.customerName) p.errors.push('Müşteri adı boş');
-      if (hasCustomer && !p.phone) p.errors.push('Telefon boş (müşteri telefonla eşleştiriliyor)');
-      if (hasDevice && !p.serialNo && !(p.brand || p.model)) p.errors.push('Cihaz bilgisi yok');
+      // Kod dönüyor, cümle değil: ekran bunu kullanıcının dilinde yazıyor.
+      if (hasCustomer && !p.customerName) p.errors.push('MUSTERI_ADI_BOS');
+      if (hasCustomer && !p.phone) p.errors.push('TELEFON_BOS');
+      if (hasDevice && !p.serialNo && !(p.brand || p.model)) p.errors.push('CIHAZ_BILGISI_YOK');
       return p;
     });
 
@@ -108,7 +110,8 @@ export async function POST(req: NextRequest) {
     // ── ÇAKIŞMA UYARILARI (aktarımı durdurmaz; kullanıcı önceden bilsin) ──
     // Sistem müşteriyi TELEFONLA, cihazı SERİ NO ile eşleştirir. Dosyada aynı telefon farklı
     // isimlerde geçiyorsa o kayıtlar TEK müşteride birleşir — bu sürpriz olmamalı.
-    const warnings: string[] = [];
+    // Uyarılar da yapısal: sayı ve örnek ayrı alanlarda, cümle ekranda kuruluyor.
+    const warnings: { kod: string; n: number; ornek?: string; isimler?: string }[] = [];
     const namesByPhone = new Map<string, Set<string>>();
     const custBySerial = new Map<string, Set<string>>();
     for (const p of valid) {
@@ -124,24 +127,19 @@ export async function POST(req: NextRequest) {
     const phoneClashes = [...namesByPhone.entries()].filter(([, names]) => names.size > 1);
     const serialClashes = [...custBySerial.entries()].filter(([, c]) => c.size > 1);
     if (phoneClashes.length) {
-      warnings.push(
-        `${phoneClashes.length} telefon numarası birden fazla farklı isimle geçiyor — bunlar TEK müşteride birleşecek ` +
-        `(ör. ${phoneClashes[0][0]}: ${[...phoneClashes[0][1]].slice(0, 2).join(' / ')}).`,
-      );
+      warnings.push({
+        kod: 'TELEFON_CAKISMASI',
+        n: phoneClashes.length,
+        ornek: phoneClashes[0][0],
+        isimler: [...phoneClashes[0][1]].slice(0, 2).join(' / '),
+      });
     }
     if (serialClashes.length) {
-      warnings.push(
-        `${serialClashes.length} seri no farklı müşterilerde geçiyor — cihaz son satırdaki müşteriye bağlanacak ` +
-        `(ör. ${serialClashes[0][0]}).`,
-      );
+      warnings.push({ kod: 'SERI_CAKISMASI', n: serialClashes.length, ornek: serialClashes[0][0] });
     }
     const noSerial = valid.filter((p) => (p.brand || p.model) && !p.serialNo).length;
     if (noSerial > 0) {
-      warnings.push(
-        `${noSerial} cihazda seri no yok. Bu cihazlara satır bilgisinden türetilen sabit bir kimlik verilecek ` +
-        `(aynı dosyayı tekrar yüklerseniz çoğalmazlar), ama cihazdan gelen sayaç e-postası SERİ NUMARASIYLA ` +
-        `eşleştiği için bu cihazların sayacı otomatik işlenemez — seri numaralarını sonradan girmeniz gerekir.`,
-      );
+      warnings.push({ kod: 'SERI_NO_YOK', n: noSerial });
     }
 
     // ── ÖNİZLEME ──
@@ -160,7 +158,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (valid.length === 0) {
-      return NextResponse.json({ error: 'Aktarılabilecek geçerli satır yok', invalidRows: invalid.length }, { status: 400 });
+      return NextResponse.json({ error: 'Aktarılabilecek geçerli satır yok', kod: 'GECERLI_SATIR_YOK', invalidRows: invalid.length }, { status: 400 });
     }
 
     // ── AKTAR ──
@@ -171,7 +169,7 @@ export async function POST(req: NextRequest) {
     let seriNosuz = 0;
     // Devredilen sayac icin yazilan acilis okumasi sayisi (faturalanmaz).
     let baslangicOkumasi = 0;
-    const failures: { row: number; error: string }[] = [];
+    const failures: { row: number; error: string; kod?: string }[] = [];
     const custIdByPhone = new Map<string, string>();
 
     for (const p of valid) {
@@ -219,7 +217,7 @@ export async function POST(req: NextRequest) {
         // 2) Cihaz (tenant+seriNo tekil)
         const wantsDevice = !!(p.serialNo || p.brand || p.model);
         if (wantsDevice) {
-          if (!customerId) { failures.push({ row: p.row, error: 'Cihaz için müşteri bulunamadı' }); continue; }
+          if (!customerId) { failures.push({ row: p.row, error: 'Cihaz için müşteri bulunamadı', kod: 'MUSTERI_BULUNAMADI' }); continue; }
 
           // ── SERİ NO YOKSA: RASTGELE DEĞİL, DETERMİNİSTİK KİMLİK ─────────
           // Eskiden `crypto.randomBytes` ile RASTGELE seri üretiliyordu. Rastgele

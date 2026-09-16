@@ -73,26 +73,26 @@ export async function POST(req: NextRequest) {
     const { user, tenantId } = await requireTenantUser();
     // Doğrudan borcu belirleyen veri — yönetici işi.
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Devir aktarmak için yönetici yetkisi gerekir' }, { status: 403 });
+      return NextResponse.json({ error: 'Devir aktarmak için yönetici yetkisi gerekir', kod: 'YETKI' }, { status: 403 });
     }
 
     const { csv, tur, tarih, dryRun } = await req.json();
     if (tur !== 'bakiye' && tur !== 'fatura') {
-      return NextResponse.json({ error: 'Aktarım türü "bakiye" ya da "fatura" olmalı' }, { status: 400 });
+      return NextResponse.json({ error: 'Aktarım türü "bakiye" ya da "fatura" olmalı', kod: 'TUR_GECERSIZ' }, { status: 400 });
     }
     if (typeof csv !== 'string' || !csv.trim()) {
-      return NextResponse.json({ error: 'Dosya boş görünüyor' }, { status: 400 });
+      return NextResponse.json({ error: 'Dosya boş görünüyor', kod: 'BOS_DOSYA' }, { status: 400 });
     }
 
     const devirTarihi = tarih ? parseDate(String(tarih)) : new Date();
-    if (!devirTarihi) return NextResponse.json({ error: 'Devir tarihi okunamadı' }, { status: 400 });
+    if (!devirTarihi) return NextResponse.json({ error: 'Devir tarihi okunamadı', kod: 'DEVIR_TARIHI_OKUNAMADI' }, { status: 400 });
     if (devirTarihi.getTime() > Date.now() + 86400000) {
-      return NextResponse.json({ error: 'Devir tarihi gelecekte olamaz' }, { status: 400 });
+      return NextResponse.json({ error: 'Devir tarihi gelecekte olamaz', kod: 'DEVIR_TARIHI_GELECEK' }, { status: 400 });
     }
 
     const ham = parseCSV(csv, detectDelimiter(csv));
     if (ham.length < 2) {
-      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı' }, { status: 400 });
+      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı', kod: 'SATIR_YOK' }, { status: 400 });
     }
     const basliklar = ham[0].map((h) => h.trim());
     const veri = ham.slice(1);
@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
     if (tur === 'fatura' && (s.faturaNo < 0 || s.tarih < 0)) {
       return NextResponse.json({
         error: 'Fatura geçmişi için "Fatura No" ve "Tarih" sütunları da gerekli.',
+        kod: 'FATURA_KOLON_EKSIK',
         bulunanBasliklar: basliklar,
       }, { status: 400 });
     }
@@ -130,16 +131,17 @@ export async function POST(req: NextRequest) {
         tarih: tarihH ? parseDate(tarihH) : (tur === 'bakiye' ? devirTarihi : null),
         tutar, odenen, hata: null,
       };
-      if (!musteri && !telefon) t.hata = 'Müşteri adı ve telefon boş';
-      else if (tutar === null) t.hata = 'Tutar okunamadı';
+      // Hata METNİ değil KODU tutuluyor; cümleyi ekran kendi dilinde kuruyor.
+      if (!musteri && !telefon) t.hata = 'MUSTERI_TELEFON_BOS';
+      else if (tutar === null) t.hata = 'TUTAR_OKUNAMADI';
       else if (tur === 'fatura') {
-        if (!faturaNo) t.hata = 'Fatura no boş';
-        else if (!t.tarih) t.hata = 'Tarih okunamadı';
-        else if (tutar <= 0) t.hata = 'Fatura tutarı sıfır ya da negatif';
-        else if (odenen < 0) t.hata = 'Ödenen negatif olamaz';
-        else if (odenen > tutar + 0.001) t.hata = 'Ödenen tutardan büyük olamaz';
+        if (!faturaNo) t.hata = 'FATURA_NO_BOS';
+        else if (!t.tarih) t.hata = 'TARIH_OKUNAMADI';
+        else if (tutar <= 0) t.hata = 'TUTAR_SIFIR';
+        else if (odenen < 0) t.hata = 'ODENEN_NEGATIF';
+        else if (odenen > tutar + 0.001) t.hata = 'ODENEN_BUYUK';
       }
-      if (!t.hata && t.tarih && t.tarih.getTime() > Date.now() + 86400000) t.hata = 'Tarih gelecekte';
+      if (!t.hata && t.tarih && t.tarih.getTime() > Date.now() + 86400000) t.hata = 'TARIH_GELECEKTE';
       return t;
     });
 
@@ -165,9 +167,9 @@ export async function POST(req: NextRequest) {
         // Aynı adda iki müşteri varsa TAHMİN ETMİYORUZ: yanlış müşteriye
         // borç yazmak, borç yazmamaktan daha kötü.
         if (aday.length === 1) id = aday[0];
-        else if (aday.length > 1) { x.hata = 'Aynı adda birden çok müşteri var — telefon kolonu ekleyin'; continue; }
+        else if (aday.length > 1) { x.hata = 'AYNI_ADDA_COK'; continue; }
       }
-      if (!id) { x.hata = 'Bu müşteri sistemde bulunamadı'; continue; }
+      if (!id) { x.hata = 'MUSTERI_BULUNAMADI'; continue; }
       x.customerId = id;
     }
 
@@ -209,14 +211,14 @@ export async function POST(req: NextRequest) {
     for (const x of gecerli) {
       if (tur === 'bakiye') {
         if (Number(x.tutar) > 0 && faturaBorclu.has(x.customerId!)) {
-          x.hata = 'Bu müşterinin açık devir faturası var — bakiye de yazılırsa borç ikiye katlanır';
+          x.hata = 'ACIK_DEVIR_FATURASI';
         }
       } else {
         const acik = Number(x.tutar) - x.odenen;
         if (acik > 0.001 && acilisBorclu.has(x.customerId!)) {
-          x.hata = 'Bu müşteride açılış bakiyesi var — fatura da yazılırsa borç ikiye katlanır';
+          x.hata = 'ACILIS_BAKIYESI_VAR';
         } else if (tumFaturaNo.has(x.faturaNo)) {
-          x.hata = 'Bu fatura numarası sistemde zaten var';
+          x.hata = 'FATURA_NO_VAR';
         }
       }
     }
@@ -227,7 +229,7 @@ export async function POST(req: NextRequest) {
     for (const x of satirlar) {
       if (x.hata || !x.customerId) continue;
       const k = tur === 'bakiye' ? x.customerId : x.faturaNo;
-      if (gorulen.has(k)) { x.hata = tur === 'bakiye' ? 'Aynı müşteri dosyada iki kez' : 'Aynı fatura no dosyada iki kez'; tekrar++; }
+      if (gorulen.has(k)) { x.hata = tur === 'bakiye' ? 'DOSYADA_TEKRAR_MUSTERI' : 'DOSYADA_TEKRAR_FATURA'; tekrar++; }
       gorulen.add(k);
     }
 
@@ -245,7 +247,7 @@ export async function POST(req: NextRequest) {
       musteriSayisi: new Set(yazilacak.map((x) => x.customerId)).size,
       borcToplam: Math.round(borcToplam * 100) / 100,
       eslesmeyenMusteri: [...new Set(
-        satirlar.filter((x) => x.hata === 'Bu müşteri sistemde bulunamadı').map((x) => x.musteri || x.telefon),
+        satirlar.filter((x) => x.hata === 'MUSTERI_BULUNAMADI').map((x) => x.musteri || x.telefon),
       )].slice(0, 20),
     };
 
@@ -261,9 +263,7 @@ export async function POST(req: NextRequest) {
           odenen: tur === 'fatura' ? x.odenen : null,
         })),
         hatalar: hatali.slice(0, 30).map((x) => ({ satir: x.no, musteri: x.musteri || x.telefon, hata: x.hata })),
-        not: tur === 'bakiye'
-          ? 'Açılış bakiyesi GELİR YAZMAZ — devreden borçtur, satış değil. Aynı dosyayı tekrar yüklerseniz borç ikiye katlanmaz, mevcut açılış kaydı güncellenir.'
-          : 'Geçmiş faturalar "eski sistemde kesildi" olarak işaretlenir: e-Fatura ekranında gönderilecekler arasında ÇIKMAZ ve gelir yazmazlar.',
+        notKod: tur === 'bakiye' ? 'BAKIYE' : 'FATURA',
       });
     }
 

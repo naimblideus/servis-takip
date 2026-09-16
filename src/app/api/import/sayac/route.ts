@@ -65,17 +65,17 @@ export async function POST(req: NextRequest) {
     const { user, tenantId } = await requireTenantUser();
     // Sayaç geçmişi doğrudan faturayı belirleyen veridir — yönetici işi.
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Sayaç geçmişi aktarmak için yönetici yetkisi gerekir' }, { status: 403 });
+      return NextResponse.json({ error: 'Sayaç geçmişi aktarmak için yönetici yetkisi gerekir', kod: 'YETKI' }, { status: 403 });
     }
 
     const { csv, dryRun } = await req.json();
     if (typeof csv !== 'string' || !csv.trim()) {
-      return NextResponse.json({ error: 'Dosya boş görünüyor' }, { status: 400 });
+      return NextResponse.json({ error: 'Dosya boş görünüyor', kod: 'BOS_DOSYA' }, { status: 400 });
     }
 
     const satirlarHam = parseCSV(csv, detectDelimiter(csv));
     if (satirlarHam.length < 2) {
-      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı' }, { status: 400 });
+      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı', kod: 'SATIR_YOK' }, { status: 400 });
     }
     const basliklar = satirlarHam[0].map((h) => h.trim());
     const veri = satirlarHam.slice(1);
@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
     if (s.seri < 0 || s.tarih < 0 || s.siyah < 0) {
       return NextResponse.json({
         error: 'Gerekli sütunlar bulunamadı. Dosyada en az şunlar olmalı: Seri No, Tarih, Siyah Sayaç (Renkli isteğe bağlı).',
+        kod: 'KOLON_EKSIK',
         bulunanBasliklar: basliklar,
       }, { status: 400 });
     }
@@ -98,11 +99,12 @@ export async function POST(req: NextRequest) {
       const siyah = trInt(al(r, s.siyah));
       const renkli = trInt(al(r, s.renkli)) ?? 0;
       let hata: string | null = null;
-      if (!seri) hata = 'Seri no boş';
-      else if (!tarih) hata = 'Tarih okunamadı';
-      else if (siyah === null) hata = 'Siyah sayaç okunamadı';
-      else if (siyah < 0 || renkli < 0) hata = 'Sayaç negatif olamaz';
-      else if (tarih.getTime() > Date.now()) hata = 'Tarih gelecekte';
+      // Hata METNİ değil KODU: cümleyi ekran kendi dilinde kuruyor.
+      if (!seri) hata = 'SERI_NO_BOS';
+      else if (!tarih) hata = 'TARIH_OKUNAMADI';
+      else if (siyah === null) hata = 'SIYAH_OKUNAMADI';
+      else if (siyah < 0 || renkli < 0) hata = 'SAYAC_NEGATIF';
+      else if (tarih.getTime() > Date.now()) hata = 'TARIH_GELECEKTE';
       return { no: i + 2, seri, tarih, siyah, renkli, hata };
     });
 
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest) {
     for (const x of satirlar) {
       if (x.hata) continue;
       const devId = cihazHarita.get(x.seri);
-      if (!devId) { x.hata = 'Bu seri no ile cihaz bulunamadı'; continue; }
+      if (!devId) { x.hata = 'CIHAZ_BULUNAMADI'; continue; }
       const enEski = mevcutEnEski.get(devId);
       if (enEski && x.tarih!.getTime() >= enEski.getTime()) {
         x.hata = `Bu cihazda ${enEski.toLocaleDateString('tr-TR')} tarihli okuma zaten var — geçmiş yalnız ondan ÖNCESİ için aktarılabilir`;
@@ -170,7 +172,7 @@ export async function POST(req: NextRequest) {
       const gorulen = new Set<number>();
       for (const x of l) {
         const g = x.tarih!.getTime();
-        if (gorulen.has(g)) { x.hata = 'Aynı cihazda aynı tarih iki kez'; tekrar++; }
+        if (gorulen.has(g)) { x.hata = 'AYNI_TARIH_IKI_KEZ'; tekrar++; }
         gorulen.add(g);
       }
     }
@@ -181,7 +183,7 @@ export async function POST(req: NextRequest) {
       yazilacak: yazilacak.length,
       hatali: hatali.length + tekrar,
       cihazSayisi: cihazaGore.size,
-      eslesmeyenSeri: [...new Set(satirlar.filter((x) => x.hata === 'Bu seri no ile cihaz bulunamadı').map((x) => x.seri))].slice(0, 20),
+      eslesmeyenSeri: [...new Set(satirlar.filter((x) => x.hata === 'CIHAZ_BULUNAMADI').map((x) => x.seri))].slice(0, 20),
     };
 
     if (dryRun) {
@@ -193,7 +195,7 @@ export async function POST(req: NextRequest) {
           seri: x.seri, tarih: x.tarih!.toISOString().slice(0, 10), siyah: x.siyah, renkli: x.renkli,
         })),
         hatalar: hatali.slice(0, 30).map((x) => ({ satir: x.no, seri: x.seri, hata: x.hata })),
-        not: 'Aktarılan okumalar FATURALANMIŞ olarak yazılır ve tutar üretmez — bu sayfalar eski sisteminizde zaten faturalandı.',
+        notKod: 'FATURALANMIS',
       });
     }
 

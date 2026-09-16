@@ -106,7 +106,8 @@ try {
     t('önizleme 200 dönüyor', y.ok, d);
     t('önizleme yazılacak satırı sayıyor', d.yazilacak === 1, d);
     t('veritabanına HİÇBİR ŞEY yazılmadı', adet === 0, adet);
-    t('paranın uydurulmayacağı önizlemede yazıyor', /zaten faturaland/.test(d.not || ''), d.not);
+    // Cümle değil KOD; "faturalanmış olarak yazılır" uyarısını ekran kuruyor.
+    t('paranın uydurulmayacağı önizlemede yazıyor', d.notKod === 'FATURALANMIS', d.notKod);
   }
 
   console.log('\nCİHAZ ÜÇ YOLDAN DA EŞLEŞİYOR\n');
