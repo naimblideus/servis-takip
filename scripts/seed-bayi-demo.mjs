@@ -444,6 +444,62 @@ async function main() {
   }
   console.log(`  bu ayın okuması: ${bekleyen} makine bekliyor · ${sessizCihazlar.size} makinenin sayacı 2 aydır gelmiyor`);
 
+  // ── KAÇAN GELİR EKRANI: İKİ GERÇEK DURUM ──────────────────────────────
+  // Ekranın en güçlü iki özelliği demoda HİÇ görünmüyordu (ölçtüm: geçmiş
+  // dönem kaybı 0, şüpheli okuma 0). Demo bir özelliği göstermiyorsa, ürünü
+  // değerlendiren kişi o özelliğin var olduğunu hiç öğrenmiyor.
+  {
+    // 1) GEÇMİŞ DÖNEMDEN KALMIŞ FATURALANMAMIŞ OKUMA.
+    // Kapanmış bir ayda faturalanmadan kalan okuma, bir daha hiçbir turun
+    // kapsamına girmiyor — sessiz ve KALICI kayıp. Gerçek bir bayide
+    // 2026-02'den kalmış iki okuma bulunmuştu; ekran "bu dönem" gösterdiği
+    // için görünmüyordu bile.
+    const uc = cihazlar.filter((c) => !sessizCihazlar.has(c.id)).slice(6, 8);
+    let unutulan = 0;
+    for (const c of uc) {
+      const hedef = new Date(ayBasi(3).getFullYear(), ayBasi(3).getMonth(), 1);
+      const son = new Date(ayBasi(3).getFullYear(), ayBasi(3).getMonth() + 1, 1);
+      const r = await p.counterReading.updateMany({
+        where: {
+          tenantId: tenant.id, deviceId: c.id, billed: true,
+          readingDate: { gte: hedef, lt: son },
+          calculatedCost: { gt: 0 },
+        },
+        data: { billed: false },
+      });
+      unutulan += r.count;
+    }
+
+    // 2) İNANDIRICI OLMAYAN OKUMA.
+    // Sayaç artık cihazın kendi e-postasından insansız geliyor; yanlış bir
+    // sayıyı durduracak kimse yok. Ekran fatura kesilmeden önceki SON
+    // insanlı nokta. Şüphe ölçütü: kendi hızının 5 katı VE en az 5.000
+    // sayfa. Buradaki senaryo gerçek hayatta sık: müşteri yıl sonu
+    // katalog/rapor basımı yapmış ya da sayaç yanlış okunmuş.
+    const aday = cihazlar.find((c) => !sessizCihazlar.has(c.id) && c.aylikSb >= 1500);
+    let supheliYazildi = 0;
+    if (aday) {
+      const sicrama = Math.max(9000, aday.aylikSb * 8);
+      const yeniSb = aday.counterBlack + sicrama;
+      const t3 = gunOnce(2);
+      const asim = Math.max(0, sicrama - (aday.includedBlack || 0));
+      await p.counterReading.create({
+        data: {
+          tenantId: tenant.id, deviceId: aday.id, readingDate: t3,
+          counterBlack: yeniSb, counterColor: aday.counterColor,
+          deltaBlack: sicrama, deltaColor: 0,
+          calculatedCost: Math.round(asim * Number(aday.pricePerBlack) * 100) / 100,
+          monthlyRent: 0,
+          source: 'CIHAZ_EPOSTA',
+          billed: false, createdAt: t3,
+        },
+      });
+      await p.device.update({ where: { id: aday.id }, data: { counterBlack: yeniSb } });
+      supheliYazildi = 1;
+    }
+    console.log(`  kaçan gelir: ${unutulan} geçmiş dönem okuması faturalanmamış · ${supheliYazildi} şüpheli okuma`);
+  }
+
   // ── TONER DEĞİŞİMLERİ → VERİM SAHADA ÖLÇÜLÜYOR ────────────────────────
   // Her cihaza üç değişim yazılıyor: ilki referans, sonraki ikisi GÖZLEM.
   // Böylece hem cihaz hem model bazında verim ölçülmüş oluyor ve Sarf
