@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useT, useDil } from '@/lib/i18n/client';
 
 /**
  * Serbest-metin adres girişi + otomatik tamamlama (OpenStreetMap/Nominatim, ÜCRETSİZ, API key yok).
@@ -19,6 +20,10 @@ export default function AddressAutocomplete({
   style?: React.CSSProperties;
   placeholder?: string;
 }) {
+  const t = useT();
+  // Adres araması BAYİNİN ülkesinde yapılıyor; sabit 'tr' Avrupalı bayide
+  // hiçbir sonuç döndürmüyordu.
+  const { dil, ulke } = useDil();
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,8 +40,8 @@ export default function AddressAutocomplete({
       try {
         setLoading(true);
         const r = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&countrycodes=tr&limit=5&q=${encodeURIComponent(q)}`,
-          { headers: { 'Accept-Language': 'tr' } }
+          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&countrycodes=${encodeURIComponent((ulke || 'TR').toLowerCase())}&limit=5&q=${encodeURIComponent(q)}`,
+          { headers: { 'Accept-Language': dil } }
         );
         const d = await r.json();
         setSuggestions(Array.isArray(d) ? d.map((x: any) => x.display_name).filter(Boolean) : []);
@@ -47,7 +52,7 @@ export default function AddressAutocomplete({
       }
     }, 500);
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [value]);
+  }, [value, dil, ulke]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -72,9 +77,9 @@ export default function AddressAutocomplete({
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder={placeholder || 'Adres yazın — listeden seçin ya da elle tamamlayın'}
+        placeholder={placeholder || t.adres.yer}
       />
-      {loading && <span style={{ position: 'absolute', right: 8, top: 8, fontSize: 11, color: '#9ca3af' }}>aranıyor…</span>}
+      {loading && <span style={{ position: 'absolute', right: 8, top: 8, fontSize: 11, color: '#9ca3af' }}>{t.adres.araniyor}</span>}
       {open && suggestions.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 60, marginTop: 2,
@@ -93,7 +98,7 @@ export default function AddressAutocomplete({
             </div>
           ))}
           <div style={{ padding: '0.4rem 0.7rem', fontSize: '0.7rem', color: '#9ca3af', borderTop: '1px solid #f3f4f6' }}>
-            Bulamadın mı? Yazmaya devam et, elle de kaydedebilirsin · OpenStreetMap
+            {t.adres.dipnot}
           </div>
         </div>
       )}

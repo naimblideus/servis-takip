@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { bayiMagazasi, magazaKiraciId } from '@/lib/magaza-baglanti';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,33 +24,32 @@ export default async function MagazaSayfasi() {
   const user = await oturumKullanicisi(session);
   if (!user) return null;
 
+  const { sz } = await sunucuBicimi(user);
   const magaza = await bayiMagazasi(user.tenantId);
 
   // Mağaza kurulmamışsa tanıtım + kurulum yönergesi göster.
   if (!magaza) {
     return (
       <div style={{ padding: '1.5rem', maxWidth: 720, margin: '0 auto' }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>🛒 Nextus Mağaza</h1>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{sz.magaza.baslik}</h1>
         <p style={{ color: '#6b7280', margin: '0.5rem 0 1.5rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
-          Kendi stoğunuzdan beslenen bir e-ticaret vitrini. Ürünleriniz, stoğunuz ve uyumluluk
-          bilgileriniz buradaki servis verisinden gelir; ayrıca katalog yönetmeniz gerekmez.
+          {sz.magaza.tanitimAlt}
         </p>
 
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.25rem' }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Müşterinizin göreceği farklar</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>{sz.magaza.farklarBaslik}</div>
           <ul style={{ margin: 0, paddingLeft: '1.1rem', color: '#374151', fontSize: '0.88rem', lineHeight: 1.9 }}>
-            <li><b>Cihazlarım:</b> kendi yazıcılarını ve yalnız onlara uyan sarfı görür.</li>
-            <li><b>Toner tahmini:</b> sayaç hızından &ldquo;yaklaşık kaç gün kaldı&rdquo;.</li>
-            <li><b>Tekrar sipariş:</b> geçen sefer takılan parçayı tek tıkla ister.</li>
-            <li><b>Uyumluluk:</b> tahmin değil — servis kayıtlarınızdan doğrulanmış eşleşmeler.</li>
+            <li><b>{sz.magaza.farkCihazlarVurgu}</b> {sz.magaza.farkCihazlar}</li>
+            <li><b>{sz.magaza.farkTonerVurgu}</b> {sz.magaza.farkToner}</li>
+            <li><b>{sz.magaza.farkSiparisVurgu}</b> {sz.magaza.farkSiparis}</li>
+            <li><b>{sz.magaza.farkUyumVurgu}</b> {sz.magaza.farkUyum}</li>
           </ul>
         </div>
 
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '1rem', marginTop: 12 }}>
-          <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.9rem' }}>Mağaza henüz kurulmamış</div>
+          <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.9rem' }}>{sz.magaza.kurulmadiBaslik}</div>
           <p style={{ color: '#92400e', fontSize: '0.85rem', margin: '0.35rem 0 0', lineHeight: 1.6 }}>
-            Kurulum için Nextus ekibiyle iletişime geçin. Kurulduğunda stoğunuzdan katalog
-            otomatik üretilir; siz yalnız fiyatları girersiniz.
+            {sz.magaza.kurulmadiAlt}
           </p>
         </div>
       </div>
@@ -96,9 +97,9 @@ export default async function MagazaSayfasi() {
     <div style={{ padding: '1.5rem', maxWidth: 880, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>🛒 Nextus Mağaza</h1>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{sz.magaza.baslik}</h1>
           <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-            {magaza.aktif ? 'Yayında' : 'Yayında değil'} · {magaza.domain ?? magaza.url.replace(/^https?:\/\//, '')}
+            {magaza.aktif ? sz.magaza.yayinda : sz.magaza.yayindaDegil} · {magaza.domain ?? magaza.url.replace(/^https?:\/\//, '')}
           </p>
         </div>
         <a
@@ -110,34 +111,33 @@ export default async function MagazaSayfasi() {
             fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
           }}
         >
-          Mağazayı aç →
+          {sz.magaza.magazayiAc}
         </a>
       </div>
 
       {!magaza.aktif && (
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '0.9rem 1rem', marginTop: 14 }}>
-          <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.88rem' }}>Mağaza yayında değil</div>
+          <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.88rem' }}>{sz.magaza.yayindaDegilBaslik}</div>
           <p style={{ color: '#92400e', fontSize: '0.83rem', margin: '0.3rem 0 0' }}>
-            Mağaza panelindeki Ayarlar ekranından kurumsal unvanı girip yayına alabilirsiniz.
-            Unvan girilmeden mağaza açılmaz: mesafeli satış sözleşmesi o bilgiyle üretiliyor.
+            {sz.magaza.yayindaDegilAlt}
           </p>
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '1rem 0' }}>
-        {kutu('Yayındaki ürün', s(yayinda), `${s(urun)} kayıt`)}
-        {kutu('Fiyatı girilmemiş', s(fiyatsiz), 'yayınlanamaz', true)}
-        {kutu('Yeni sipariş', s(yeniSiparis), 'onay bekliyor', true)}
-        {kutu('Stok bekleyen', s(stokBekleyen), 'müşteriyle konuşun', true)}
+        {kutu(sz.magaza.kartYayindaki, s(yayinda), doldur(sz.magaza.kartKayit, { n: s(urun) }))}
+        {kutu(sz.magaza.kartFiyatsiz, s(fiyatsiz), sz.magaza.kartFiyatsizAlt, true)}
+        {kutu(sz.magaza.kartYeniSiparis, s(yeniSiparis), sz.magaza.kartYeniSiparisAlt, true)}
+        {kutu(sz.magaza.kartStokBekleyen, s(stokBekleyen), sz.magaza.kartStokBekleyenAlt, true)}
       </div>
 
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.1rem' }}>
-        <div style={{ fontWeight: 700, marginBottom: 6, fontSize: '0.95rem' }}>Mağaza nasıl besleniyor?</div>
+        <div style={{ fontWeight: 700, marginBottom: 6, fontSize: '0.95rem' }}>{sz.magaza.beslenmeBaslik}</div>
         <ul style={{ margin: 0, paddingLeft: '1.1rem', color: '#374151', fontSize: '0.86rem', lineHeight: 1.9 }}>
-          <li><b>Stok</b> buradan okunur — mağaza kendi kopyasını tutmaz, iki farklı sayı olmaz.</li>
-          <li><b>Uyumluluk</b> servis fişlerinizden doğar: parçayı hangi cihaza taktıysanız o eşleşme kaydedilir.</li>
-          <li><b>Sipariş onaylandığında</b> stok düşümü ve cari kaydı burada, sizin bildiğiniz gibi işlenir.</li>
-          <li><b>Toner tahmini</b> için cihazlarda toner verimi ve son değişim sayacı dolu olmalı — <Link href="/sarf" style={{ color: '#1d4ed8' }}>Sarf Takibi</Link> ekranından girilir.</li>
+          <li><b>{sz.magaza.beslenmeStokVurgu}</b> {sz.magaza.beslenmeStok}</li>
+          <li><b>{sz.magaza.beslenmeUyumVurgu}</b> {sz.magaza.beslenmeUyum}</li>
+          <li><b>{sz.magaza.beslenmeSiparisVurgu}</b> {sz.magaza.beslenmeSiparis}</li>
+          <li><b>{sz.magaza.beslenmeTonerVurgu}</b> {sz.magaza.beslenmeTonerOn} <Link href="/sarf" style={{ color: '#1d4ed8' }}>{sz.magaza.beslenmeTonerLink}</Link> {sz.magaza.beslenmeTonerSon}</li>
         </ul>
       </div>
     </div>

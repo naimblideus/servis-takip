@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Device {
   id: string;
@@ -13,7 +15,7 @@ interface Device {
   customer?: { name: string } | null;
 }
 
-function Barcode({ value, height }: { value: string; height: number }) {
+function Barcode({ value, height, uyumsuz }: { value: string; height: number; uyumsuz: string }) {
   const ref = useRef<SVGSVGElement>(null);
   const valid = /^[\x20-\x7E]+$/.test(value || '');
   useEffect(() => {
@@ -22,11 +24,12 @@ function Barcode({ value, height }: { value: string; height: number }) {
       try { JsBarcode(ref.current, value, { format: 'CODE128', height, width: 1.5, margin: 10, displayValue: false }); } catch { /* yoksay */ }
     }
   }, [value, height, valid]);
-  if (!valid) return <div style={{ fontSize: 10, color: '#b91c1c', padding: '4px 0' }}>⚠ Barkod uyumsuz</div>;
+  if (!valid) return <div style={{ fontSize: 10, color: '#b91c1c', padding: '4px 0' }}>{uyumsuz}</div>;
   return <svg ref={ref} style={{ maxWidth: '100%' }} />;
 }
 
 export default function DeviceLabelsPage() {
+  const t = useT();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -76,48 +79,48 @@ export default function DeviceLabelsPage() {
       <div className="no-print" style={{ marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
           <div>
-            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>🏷️ Cihaz Barkod Etiketi</h1>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.barkodEtiket.cihazBaslik}</h1>
             <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-              Her makineye Code 128 etiket bas, cihaza yapıştır. Okutunca cihaz kaydı (ve müşterisi) açılır.
+              {t.barkodEtiket.cihazAlt}
             </p>
           </div>
           <button onClick={() => window.print()} style={{ padding: '0.6rem 1.3rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 4px 14px rgba(37,99,235,0.35)' }}>
-            🖨️ Yazdır ({labels.length} etiket)
+            {doldur(t.barkodEtiket.yazdir, { n: labels.length })}
           </button>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem' }}>
           <div style={{ flex: '1', minWidth: 220 }}>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Cihaz ara (boş = tümü)</label>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="🔍 Marka / model / seri / müşteri…"
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>{t.barkodEtiket.cihazAra}</label>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.barkodEtiket.cihazAraYer}
               style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.875rem' }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Kopya/cihaz</label>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>{t.barkodEtiket.kopyaCihaz}</label>
             <input type="number" min={1} max={20} value={copies} onChange={(e) => setCopies(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
               style={{ width: 90, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.875rem' }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Sütun</label>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>{t.barkodEtiket.sutun}</label>
             <select value={cols} onChange={(e) => setCols(parseInt(e.target.value))} style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.875rem' }}>
               {[2, 3, 4].map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}>
-            <input type="checkbox" checked={showCustomer} onChange={(e) => setShowCustomer(e.target.checked)} /> Müşteri adı
+            <input type="checkbox" checked={showCustomer} onChange={(e) => setShowCustomer(e.target.checked)} /> {t.barkodEtiket.musteriAdi}
           </label>
         </div>
       </div>
 
       {labels.length > 300 && (
         <div className="no-print" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, padding: '0.6rem 0.9rem', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          ⚠ {labels.length} etiket çok fazla — performans için ilk 300 gösteriliyor. Aramayla daraltın veya kopya sayısını azaltın.
+          {doldur(t.barkodEtiket.cokFazla, { n: labels.length })}
         </div>
       )}
       {loading ? (
-        <p style={{ color: '#9ca3af' }}>Yükleniyor…</p>
+        <p style={{ color: '#9ca3af' }}>{t.genel.yukleniyor}</p>
       ) : labels.length === 0 ? (
-        <p style={{ color: '#9ca3af', textAlign: 'center', padding: '2rem' }}>Eşleşen cihaz yok.</p>
+        <p style={{ color: '#9ca3af', textAlign: 'center', padding: '2rem' }}>{t.barkodEtiket.cihazYok}</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: '8px' }}>
           {labels.slice(0, 300).map((l) => (
@@ -126,8 +129,8 @@ export default function DeviceLabelsPage() {
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 104, background: 'white',
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.15, marginBottom: 1 }}>{l.brand} {l.model}</div>
-              <div style={{ fontSize: 9.5, color: '#6b7280', marginBottom: 4 }}>SN: {l.serial}{showCustomer && l.customer ? ` · ${l.customer}` : ''}</div>
-              <Barcode value={l.code} height={36} />
+              <div style={{ fontSize: 9.5, color: '#6b7280', marginBottom: 4 }}>{doldur(t.barkodEtiket.seri, { n: l.serial })}{showCustomer && l.customer ? ` · ${l.customer}` : ''}</div>
+              <Barcode value={l.code} height={36} uyumsuz={t.barkodEtiket.barkodUyumsuz} />
               <div style={{ fontSize: 11, fontFamily: 'monospace', letterSpacing: 1, marginTop: 2 }}>{l.code}</div>
             </div>
           ))}
