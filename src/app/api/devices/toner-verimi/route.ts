@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { verimGruplari, verimUygula } from '@/lib/toner-verimi';
 import { verimleriOgren } from '@/lib/verim-ogrenme';
+import { modelSayfaMaliyetleri } from '@/lib/teklif';
+import { karneSatiri, karneSirasi, karneOzeti } from '@/lib/verim-karnesi';
 import { writeAudit, istekIp } from '@/lib/audit';
 
 /**
@@ -31,8 +33,30 @@ export async function GET() {
       (a, g) => a + (g.olculenSb || g.olculenRenkli ? g.cihaz : g.verimli), 0,
     );
 
+    // ── KARNE ────────────────────────────────────────────────────────
+    // Ölçülen verim tek başına bir sayı; anlamı SAYFA MALİYETİNDE ortaya
+    // çıkıyor. O hesap (kartuş fiyatı ÷ gerçek verim) teklif motorunda
+    // zaten vardı ama yalnız teklif ekranında görünüyordu — bayi kendi
+    // maliyetini göremiyordu. Aynı kaynaktan besleniyor ki iki ekran
+    // ayrı sayı söylemesin.
+    const maliyetler = await modelSayfaMaliyetleri(tenantId);
+    const satirlar = gruplar
+      .map((g) => {
+        const m = maliyetler.get(g.anahtar);
+        return karneSatiri({
+          anahtar: g.anahtar, marka: g.marka, model: g.model, cihaz: g.cihaz,
+          kutuSb: g.mevcutSb, kutuRenkli: g.mevcutRenkli,
+          olculenSb: g.olculenSb, olculenRenkli: g.olculenRenkli,
+          gozlemSb: g.gozlemSb, gozlemRenkli: g.gozlemRenkli,
+          maliyetSb: m?.sb ?? null, maliyetRenkli: m?.renkli ?? null,
+        });
+      })
+      .sort(karneSirasi);
+
     return NextResponse.json({
       gruplar,
+      satirlar,
+      karne: karneOzeti(satirlar),
       ozet: {
         model: gruplar.length, cihaz, verimli,
         kapsanan, eksik: cihaz - kapsanan,

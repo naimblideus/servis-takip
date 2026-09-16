@@ -38,8 +38,42 @@ interface Grup {
  * çünkü bayi müşteriye "toneriniz bitmek üzere" der ve değildir. Kutunun
  * üstünde yazan sayı giriliyor, sistem tahmin yürütmüyor.
  */
+interface KarneSatiri {
+  anahtar: string; marka: string; model: string; cihaz: number;
+  kutuSb: number | null; kutuRenkli: number | null;
+  olculenSb: number | null; olculenRenkli: number | null;
+  gozlemSb: number; gozlemRenkli: number;
+  maliyetSb: number | null; maliyetRenkli: number | null;
+  sapmaSb: number | null; sapmaRenkli: number | null;
+  maliyetEtkisiSb: number | null; maliyetEtkisiRenkli: number | null;
+  olculdu: boolean; uyarilar: string[]; ozet: string;
+}
+
+interface Karne {
+  model: number; olculenModel: number; cihaz: number; kapsananCihaz: number;
+  kutudanAz: number; enPahali: { marka: string; model: string; maliyet: number } | null;
+}
+
+/** Uyarı kodları ekranda cümleye dönüşür — kod göstermek bayiye bir şey anlatmaz. */
+const UYARI: Record<string, string> = {
+  GOZLEM_AZ: 'Ölçüm sayısı az',
+  FIYAT_YOK: 'Kartuş alış fiyatı yok',
+};
+
+/**
+ * Sayfa maliyeti KURUŞ gösteriliyor. "0,0779 ₺" ile "0,3148 ₺" arasındaki
+ * farkı gözle yakalamak zor ve bayi zaten kuruş konuşuyor ("sayfası 8 kuruşa
+ * geliyor"). Lira gösterimi ayrıca hizasız bir tabloya yol açıyordu: 0,08 ile
+ * 0,0779 yan yana geldiğinde hangisinin büyük olduğu okunmuyor.
+ */
+const kurus = (tl: number) =>
+  `${(tl * 100).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr`;
+
 export default function TonerVerimiSayfasi() {
   const [gruplar, setGruplar] = useState<Grup[]>([]);
+  const [satirlar, setSatirlar] = useState<KarneSatiri[]>([]);
+  const [karne, setKarne] = useState<Karne | null>(null);
+  const [gorunum, setGorunum] = useState<'KARNE' | 'EKSIK'>('KARNE');
   const [ozet, setOzet] = useState<{ model: number; cihaz: number; verimli: number; kapsanan?: number; eksik: number; olculenModel?: number } | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [ara, setAra] = useState('');
@@ -56,7 +90,12 @@ export default function TonerVerimiSayfasi() {
       const j = await r.json();
       if (r.ok) {
         setGruplar(j.gruplar);
+        setSatirlar(j.satirlar ?? []);
+        setKarne(j.karne ?? null);
         setOzet(j.ozet);
+        // Ölçülmüş model yoksa karne boş kalır; bayiyi boş bir ekrana
+        // düşürmek yerine doğrudan yapılacak işe (eksik girişi) götür.
+        if ((j.karne?.olculenModel ?? 0) === 0) setGorunum('EKSIK');
       } else setHata(j.error ?? 'Liste alınamadı');
     } catch {
       setHata('Bağlantı hatası');
@@ -68,6 +107,12 @@ export default function TonerVerimiSayfasi() {
   useEffect(() => {
     yukle();
   }, []);
+
+  const karneListe = useMemo(() => {
+    const q = ara.trim().toLocaleLowerCase('tr');
+    return satirlar.filter((s) =>
+      s.olculdu && (!q || (s.marka + ' ' + s.model).toLocaleLowerCase('tr').includes(q)));
+  }, [satirlar, ara]);
 
   const gosterilen = useMemo(() => {
     const q = ara.trim().toLocaleLowerCase('tr');
@@ -119,9 +164,8 @@ export default function TonerVerimiSayfasi() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Toner Verimi</h1>
           <p className="mt-1 max-w-2xl text-sm text-gray-600">
-            Bir tonerin kaç sayfa bastığını modele bir kez yazın; o modeldeki
-            bütün cihazlara uygulanır. <b>Toner tükenme tahmini bu bilgi olmadan
-            hiç çalışmıyor.</b>
+            Bir tonerin <b>sizin müşterinizde</b> kaç sayfa bastığı, fiş fiş ölçülüyor.
+            Kutuda yazan sayı değil, sahada çıkan sayı — sayfa maliyetiniz buradan çıkıyor.
           </p>
         </div>
         <Link href="/sarf" className="rounded border px-3 py-2 text-sm hover:bg-gray-50">
@@ -146,17 +190,107 @@ export default function TonerVerimiSayfasi() {
 
       {hata && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700">{hata}</p>}
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input type="checkbox" checked={sadeceEksik} onChange={(e) => setSadeceEksik(e.target.checked)} />
-          Yalnız eksik olanlar
-        </label>
+      {/* ── İKİ GÖRÜNÜM ────────────────────────────────────────────────
+          Ekran eskiden yalnız bir VERİ GİRİŞ formuydu. Ölçüm motoru
+          geldikten sonra o iş bitiyor (demo bayide eksik sıfır) ve geriye
+          boş bir form kalıyordu. Asıl soru artık "verim gir" değil,
+          "ölçülen verim bana ne söylüyor". */}
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {([
+          ['KARNE', `Ölçülenler${karne ? ` (${karne.olculenModel})` : ''}`],
+          ['EKSIK', `Eksik girişi${ozet ? ` (${ozet.model - (karne?.olculenModel ?? 0)})` : ''}`],
+        ] as const).map(([k, ad]) => (
+          <button key={k} type="button" onClick={() => setGorunum(k)}
+            className={`rounded border px-3 py-1.5 text-sm ${gorunum === k ? 'border-gray-900 bg-gray-900 text-white' : 'hover:bg-gray-50'}`}>
+            {ad}
+          </button>
+        ))}
         <input
           value={ara}
           onChange={(e) => setAra(e.target.value)}
           placeholder="Marka veya model ara"
           className="ml-auto w-56 rounded border px-3 py-1.5 text-sm"
         />
+      </div>
+
+      {/* ── KARNE ──────────────────────────────────────────────────── */}
+      {gorunum === 'KARNE' && !yukleniyor && (
+        <section className="mt-4">
+          {karne && karne.kutudanAz > 0 && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <b>{karne.kutudanAz} modelde</b> toner, kutusunda yazandan belirgin şekilde az basıyor.
+              Verim düşünce sayfa maliyeti <b>aynı oranda değil, daha fazla</b> artar —
+              sözleşme fiyatınız bu sayının üstüne kuruluysa olduğundan kârlı görünür.
+            </p>
+          )}
+          {karne && karne.kutudanAz === 0 && karneListe.length > 0 && karneListe.every(s => s.sapmaSb === null && s.sapmaRenkli === null) && (
+            <p className="rounded-lg border bg-white p-3 text-sm text-gray-600">
+              Kutu değerleri girilmemiş, bu yüzden ölçülen verimi kutunun vaadiyle
+              karşılaştıramıyoruz. Aşağıdaki sayılar yine de gerçek: sahada ölçüldüler.
+              Karşılaştırma için <b>Eksik girişi</b> sekmesinden kutu değerlerini girebilirsiniz.
+            </p>
+          )}
+          {karne?.enPahali && (
+            <p className="mt-2 text-sm text-gray-600">
+              En pahalı model: <b>{karne.enPahali.marka} {karne.enPahali.model}</b> —
+              sayfa başı {kurus(karne.enPahali.maliyet)} toner.
+            </p>
+          )}
+
+          {karneListe.length === 0 ? (
+            <p className="mt-4 rounded-lg border bg-white p-10 text-center text-sm text-gray-500">
+              Henüz ölçülmüş model yok. Fişe toner eklendikçe sistem verimi kendi öğrenir.
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y rounded-lg border bg-white">
+              {karneListe.map((s) => (
+                <li key={s.anahtar} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">
+                      {s.marka} <span className="font-mono">{s.model}</span>
+                      <span className="ml-2 text-xs font-normal text-gray-500 tabular-nums">{s.cihaz} cihaz</span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-gray-600">{s.ozet}</div>
+                    {s.uyarilar.some(u => UYARI[u]) && (
+                      <div className="mt-0.5 text-xs text-gray-400">
+                        {s.uyarilar.map(u => UYARI[u]).filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-right">
+                    {(s.maliyetSb !== null || s.maliyetRenkli !== null) && (
+                      <div>
+                        <div className="text-sm font-semibold tabular-nums">
+                          {kurus((s.maliyetSb ?? s.maliyetRenkli)!)}
+                        </div>
+                        <div className="text-[11px] text-gray-500">sayfa başı toner</div>
+                      </div>
+                    )}
+                    {(s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli) !== null && (
+                      <div>
+                        <div className={`text-sm font-semibold tabular-nums ${(s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli)! > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          {(s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli)! > 0 ? '+' : ''}
+                          %{(s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli)!.toFixed(0)}
+                        </div>
+                        <div className="text-[11px] text-gray-500">kutuya göre maliyet</div>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {gorunum === 'EKSIK' && (
+      <>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" checked={sadeceEksik} onChange={(e) => setSadeceEksik(e.target.checked)} />
+          Yalnız eksik olanlar
+        </label>
       </div>
 
       {yukleniyor ? (
@@ -266,6 +400,8 @@ export default function TonerVerimiSayfasi() {
         müşterinizde çıkan sayı. Yukarıdaki alanlar yalnız <i>bildiğiniz bir
         değeri sabitlemek</i> için: elle girilen sayı ölçümü ezer.
       </p>
+      </>
+      )}
     </div>
   );
 }
