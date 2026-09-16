@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import TicketTable from '@/components/TicketTable';
 import Link from 'next/link';
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Ticket {
     id: string;
@@ -30,6 +32,7 @@ export default function TicketsClient({ initialTickets, total, open, ready, filt
     filtreliMi?: boolean;
 }) {
     const router = useRouter();
+    const sz = useT();
     const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
     const [msg, setMsg] = useState('');
 
@@ -38,15 +41,15 @@ export default function TicketsClient({ initialTickets, total, open, ready, filt
     useEffect(() => { setTickets(initialTickets); }, [initialTickets]);
 
     const handleDelete = async (id: string, num: string) => {
-        if (!confirm(`"${num}" çöp kutusuna taşınsın mı?`)) return;
+        if (!confirm(doldur(sz.fisler.copeSor, { n: num }))) return;
         const res = await fetch(`/api/tickets/${id}`, { method: 'DELETE' });
         if (res.ok) {
             setTickets(prev => prev.filter(t => t.id !== id));
-            setMsg(`✅ ${num} çöp kutusuna taşındı`);
+            setMsg(doldur(sz.fisler.copeTasindi, { n: num }));
             setTimeout(() => setMsg(''), 3000);
         } else {
             const d = await res.json();
-            alert('Hata: ' + d.error);
+            alert(doldur(sz.fisler.hata, { n: d.error }));
         }
     };
 
@@ -59,7 +62,7 @@ export default function TicketsClient({ initialTickets, total, open, ready, filt
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
                     {msg}
-                    <Link href="/tickets/trash" style={{ color: '#059669', fontWeight: '600', textDecoration: 'none', fontSize: '0.8rem' }}>🗑️ Çöp Kutusuna Git</Link>
+                    <Link href="/tickets/trash" style={{ color: '#059669', fontWeight: '600', textDecoration: 'none', fontSize: '0.8rem' }}>{sz.fisler.copeGit}</Link>
                 </div>
             )}
             <TicketTable tickets={tickets as any} onDelete={handleDelete} filtreliMi={filtreliMi} />

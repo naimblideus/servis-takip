@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useCallback, useEffect } from 'react';
+import { useT } from '@/lib/i18n/client';
 
 interface Props {
     currentStatus?: string;
@@ -13,26 +14,20 @@ interface Props {
     users: { id: string; name: string }[];
 }
 
-const STATUSES = [
-    { value: '', label: 'Tüm Durumlar' },
-    { value: 'NEW', label: 'Yeni' },
-    { value: 'IN_SERVICE', label: 'Serviste' },
-    { value: 'WAITING_FOR_PART', label: 'Parça Bkl.' },
-    { value: 'READY', label: 'Hazır' },
-    { value: 'DELIVERED', label: 'Teslim' },
-    { value: 'CANCELLED', label: 'İptal' },
-];
-
-const PRIORITIES = [
-    { value: '', label: 'Tüm Öncelikler' },
-    { value: 'URGENT', label: '🔴 Acil' },
-    { value: 'HIGH', label: '🟠 Yüksek' },
-    { value: 'NORMAL', label: '🔵 Normal' },
-    { value: 'LOW', label: '⚪ Düşük' },
-];
+const DURUMLAR = ['NEW', 'IN_SERVICE', 'WAITING_FOR_PART', 'READY', 'DELIVERED', 'CANCELLED'] as const;
+const ONCELIKLER = [['URGENT', '🔴'], ['HIGH', '🟠'], ['NORMAL', '🔵'], ['LOW', '⚪']] as const;
 
 export default function TicketFilters({ currentStatus, currentPriority, currentAssigned, currentDateFrom, currentDateTo, currentCustomer, users }: Props) {
     const router = useRouter();
+    const t = useT();
+    const STATUSES = [
+        { value: '', label: t.fisler.filtre.tumDurumlar },
+        ...DURUMLAR.map(v => ({ value: v, label: t.durum.fisKisa[v] })),
+    ];
+    const PRIORITIES = [
+        { value: '', label: t.fisler.filtre.tumOncelikler },
+        ...ONCELIKLER.map(([v, ikon]) => ({ value: v, label: `${ikon} ${t.durum.oncelik[v]}` })),
+    ];
 
     // Local state for text inputs (debounced)
     const [customerInput, setCustomerInput] = useState(currentCustomer || '');
@@ -122,8 +117,8 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                 </select>
 
                 <select style={sel} value={currentAssigned || ''} onChange={e => updateParam('assignedUserId', e.target.value)}>
-                    <option value="">Tüm Teknisyenler</option>
-                    <option value="unassigned">— Atanmamış</option>
+                    <option value="">{t.fisler.filtre.tumTeknisyenler}</option>
+                    <option value="unassigned">{t.fisler.filtre.atanmamis}</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
             </div>
@@ -131,13 +126,13 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
             {/* Satır 2: Tarih Aralığı + Müşteri Arama */}
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500' }}>📅 Tarih:</span>
+                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500' }}>{t.fisler.filtre.tarih}</span>
                     <input
                         type="date"
                         style={dateInp}
                         value={dateFrom}
                         onChange={e => applyDate('dateFrom', e.target.value)}
-                        title="Başlangıç tarihi"
+                        title={t.fisler.filtre.baslangic}
                     />
                     <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>—</span>
                     <input
@@ -145,17 +140,17 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                         style={dateInp}
                         value={dateTo}
                         onChange={e => applyDate('dateTo', e.target.value)}
-                        title="Bitiş tarihi"
+                        title={t.fisler.filtre.bitis}
                     />
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500' }}>👤 Müşteri:</span>
+                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500' }}>{t.fisler.filtre.musteri}</span>
                     <div style={{ position: 'relative' }}>
                         <input
                             type="text"
                             style={{ ...searchInp, paddingRight: customerInput ? '2rem' : '0.75rem' }}
-                            placeholder="Müşteri adı ara..."
+                            placeholder={t.fisler.filtre.musteriYer}
                             value={customerInput}
                             onChange={e => setCustomerInput(e.target.value)}
                             onKeyDown={e => {
@@ -178,7 +173,7 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                             padding: '0.5rem 0.75rem', backgroundColor: '#3b82f6', color: 'white',
                             border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500',
                         }}
-                    >🔍 Ara</button>
+                    >{t.fisler.filtre.ara}</button>
                 </div>
 
                 {hasFilter && (
@@ -186,13 +181,13 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                         padding: '0.5rem 1rem', backgroundColor: '#fee2e2', color: '#b91c1c',
                         border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '500',
                     }}>
-                        ✕ Filtreleri Temizle
+                        {t.fisler.filtre.temizle}
                     </button>
                 )}
 
                 {hasFilter && (
                     <span style={{ fontSize: '0.8rem', color: '#6b7280', fontStyle: 'italic' }}>
-                        Filtre aktif
+                        {t.fisler.filtre.aktif}
                     </span>
                 )}
             </div>

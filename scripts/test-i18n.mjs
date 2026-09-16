@@ -87,7 +87,8 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   t('★ İngilizce sözlükte Türkçe harf kalmadı', turkceKalan.length === 0, turkceKalan.slice(0, 6));
 
   // Aynı anahtar iki dilde birebir aynıysa ya özel ad ya unutulmuş çeviri.
-  const AYNI_OLABILIR = new Set(['dil.tr', 'dil.en', 'menu./dashboard', 'menu./whatsapp', 'giris.epostaYer']);
+  const AYNI_OLABILIR = new Set(['dil.tr', 'dil.en', 'menu./dashboard', 'menu./whatsapp', 'giris.epostaYer',
+  'genel.excelIndir', 'durum.oncelik.NORMAL']);
   const ayni = trY.filter(([p, v]) => !AYNI_OLABILIR.has(p) && String(v).length > 3 && oku(en, p) === v).map(([p]) => p);
   t('★ tr ile en birebir aynı metin yok (özel adlar dışında)', ayni.length === 0, ayni.slice(0, 8));
 }

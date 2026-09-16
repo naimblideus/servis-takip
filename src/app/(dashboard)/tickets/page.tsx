@@ -5,6 +5,8 @@ import Link from 'next/link';
 import TicketFilters from '@/components/TicketFilters';
 import TicketsClient from '@/components/TicketsClient';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { sunucuDili } from '@/lib/i18n/sunucu';
+import { sozluk, doldur } from '@/lib/i18n/sozluk';
 
 export default async function TicketsPage({
   searchParams,
@@ -17,6 +19,8 @@ export default async function TicketsPage({
 
   const user = await oturumKullanicisi(session);
   if (!user) redirect('/login');
+  // `sz`: aşağıda fişler `t` adıyla dönüyor, gölgelenmesin.
+  const sz = sozluk(await sunucuDili(user.locale));
 
   // Filtre koşulları
   const where: any = { tenantId: user.tenantId, deletedAt: null };
@@ -106,30 +110,30 @@ export default async function TicketsPage({
     <div style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Servis Fişleri</h1>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{sz.fisler.baslik}</h1>
           <p style={{ color: '#6b7280' }}>
-            {hasFilter ? `Filtreli: ${tickets.length} fiş` : `Toplam ${total} fiş`}
+            {hasFilter ? doldur(sz.fisler.filtreli, { n: tickets.length }) : doldur(sz.fisler.toplam, { n: total })}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {/* Liste ekranda kalırsa iş görmez: muhasebeciye gidecek,
             sigortaya verilecek, elle sayılacak. İndirme ekrandakiyle
             AYNI kaynaktan üretiliyor (api/disa-aktar). */}
-        <a href="/api/disa-aktar?tur=fis" title="Fiş listesini Excel olarak indir" style={{
+        <a href="/api/disa-aktar?tur=fis" title={sz.fisler.excelIpucu} style={{
           backgroundColor: '#0f2253', color: 'white', padding: '0.625rem 1rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 500,
           fontSize: '0.875rem', whiteSpace: 'nowrap',
-        }}>⬇️ Excel (CSV)</a>
-        <Link href={printHref} title={hasFilter ? `${tickets.length} fişi toplu yazdır (mevcut filtreyle)` : 'Tüm fişleri toplu yazdır'} style={{
+        }}>{sz.genel.excelIndir}</a>
+        <Link href={printHref} title={hasFilter ? doldur(sz.fisler.icmalIpucuFiltreli, { n: tickets.length }) : sz.fisler.icmalIpucu} style={{
           backgroundColor: '#eef2ff', color: '#4338ca', padding: '0.625rem 1rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500', fontSize: '0.875rem',
           border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: '0.35rem',
-        }}>🖨️ İcmal Yazdır</Link>
+        }}>{sz.fisler.icmalYazdir}</Link>
         <Link href="/tickets/new" style={{
           backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500',
-        }}>+ Yeni Fiş</Link>
-        <Link href="/tickets/trash" style={{
+        }}>{sz.fisler.yeni}</Link>
+        <Link href="/tickets/trash" title={sz.fisler.copIpucu} style={{
           backgroundColor: '#fef2f2', color: '#b91c1c', padding: '0.625rem 1rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500', fontSize: '0.875rem',
           border: '1px solid #fecaca',
@@ -140,9 +144,9 @@ export default async function TicketsPage({
       {/* Stat Kartlar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.25rem' }}>
         {[
-          { label: 'Toplam', value: total, color: '#6b7280', href: '/tickets' },
-          { label: 'Açık / Serviste', value: open, color: '#f59e0b', href: '/tickets?status=IN_SERVICE' },
-          { label: 'Teslime Hazır', value: ready, color: '#10b981', href: '/tickets?status=READY' },
+          { label: sz.fisler.kart.toplam, value: total, color: '#6b7280', href: '/tickets' },
+          { label: sz.fisler.kart.acik, value: open, color: '#f59e0b', href: '/tickets?status=IN_SERVICE' },
+          { label: sz.fisler.kart.hazir, value: ready, color: '#10b981', href: '/tickets?status=READY' },
         ].map(c => (
           <Link key={c.label} href={c.href} style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.25rem', textAlign: 'center', textDecoration: 'none' }}>
             <div style={{ fontSize: '2rem', fontWeight: 'bold', color: c.color }}>{c.value}</div>

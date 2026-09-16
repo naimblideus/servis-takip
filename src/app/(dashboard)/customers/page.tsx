@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Customer {
   id: string;
@@ -16,6 +18,8 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const t = useT();
+  const b = useBicim();
 
   useEffect(() => {
     fetch('/api/customers')
@@ -47,24 +51,24 @@ export default function CustomersPage() {
       {/* Başlık + Buton */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Müşteriler</h1>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{t.musteriler.baslik}</h1>
           <p style={{ color: '#6b7280' }}>
-            {loading ? 'Yükleniyor...' : `${filtered.length} / ${customers.length} müşteri`}
+            {loading ? t.genel.yukleniyor : doldur(t.musteriler.sayim, { n: filtered.length, toplam: customers.length })}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {/* Liste ekranda kalırsa iş görmez: muhasebeciye gidecek,
             sigortaya verilecek, elle sayılacak. İndirme ekrandakiyle
             AYNI kaynaktan üretiliyor (api/disa-aktar). */}
-        <a href="/api/disa-aktar?tur=musteri" title="Müşteri listesini Excel olarak indir (borç ve fatura bilgileriyle)" style={{
+        <a href="/api/disa-aktar?tur=musteri" title={t.musteriler.excelIpucu} style={{
           backgroundColor: '#0f2253', color: 'white', padding: '0.625rem 1rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 500,
           fontSize: '0.875rem', whiteSpace: 'nowrap',
-        }}>⬇️ Excel (CSV)</a>
+        }}>{t.genel.excelIndir}</a>
         <Link href="/customers/new" style={{
           backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500',
-        }}>+ Yeni Müşteri</Link>
+        }}>{t.musteriler.yeni}</Link>
         </div>
       </div>
 
@@ -76,7 +80,7 @@ export default function CustomersPage() {
         }}>🔍</span>
         <input
           type="text"
-          placeholder="Ad, telefon veya adrese göre ara..."
+          placeholder={t.musteriler.araYer}
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{
@@ -102,17 +106,17 @@ export default function CustomersPage() {
         <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-              {['Ad Soyad', 'Telefon', 'Adres', 'Cihaz', 'Kayıt Tarihi', ''].map(h => (
+              {[t.musteriler.sutun.ad, t.musteriler.sutun.telefon, t.musteriler.sutun.adres, t.genel.cihaz, t.musteriler.sutun.kayit, ''].map(h => (
                 <th key={h} style={th}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>Yükleniyor...</td></tr>
+              <tr><td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>{t.genel.yukleniyor}</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-                {search ? `"${search}" için müşteri bulunamadı` : 'Henüz müşteri yok'}
+                {search ? doldur(t.musteriler.bulunamadi, { q: search }) : t.musteriler.yok}
               </td></tr>
             ) : filtered.map((c, i) => (
               <tr key={c.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: i % 2 === 0 ? 'white' : '#f9fafb' }}>
@@ -125,15 +129,15 @@ export default function CustomersPage() {
                     padding: '0.2rem 0.6rem', borderRadius: '9999px',
                     fontSize: '0.75rem', fontWeight: '600',
                   }}>
-                    {c.devices.length} cihaz
+                    {doldur(t.musteriler.cihazSayisi, { n: c.devices.length })}
                   </span>
                 </td>
                 <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-                  {new Date(c.createdAt).toLocaleDateString('tr-TR')}
+                  {b.tarih(c.createdAt)}
                 </td>
                 <td style={{ padding: '0.75rem 1rem' }}>
                   <Link href={`/customers/${c.id}`} style={{ color: '#3b82f6', fontSize: '0.875rem', textDecoration: 'none' }}>
-                    Detay →
+                    {t.genel.detayOk}
                   </Link>
                 </td>
               </tr>

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Cust { id: string; name: string; phone?: string }
 interface Row {
@@ -14,11 +16,13 @@ interface Row {
 // ay sonunda düzeltmek fatura tartışması demek.
 interface RowState { black: string; color: string; reset: boolean; resetTur?: "CIHAZ_DEGISTI" | "SAYAC_SIFIRLANDI"; done?: boolean; err?: string | null; code?: string; uyari?: string | null }
 
-const nf = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('tr-TR'));
-const money = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function SayacTuruPage() {
   const [customers, setCustomers] = useState<Cust[]>([]);
+  // Liste gelmeden "hiç müşteri yok" ekranı çıkıyordu: teknisyen bir saniye
+  // boş bayi görüp "ilk müşteriyi ekle"ye basabiliyordu. Cevap gelene kadar
+  // "yükleniyor" durur.
+  const [musterilerGeldi, setMusterilerGeldi] = useState(false);
   const [q, setQ] = useState('');
   const [cust, setCust] = useState<Cust | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -26,11 +30,14 @@ export default function SayacTuruPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [summary, setSummary] = useState<{ saved: number; failed: number; totalCost: number } | null>(null);
+  const t = useT();
+  const b = useBicim();
+  const nf = (n: number | null | undefined) => (n == null ? '—' : b.sayi(n));
 
   useEffect(() => {
     fetch('/api/customers').then((r) => r.json()).then((d: any) => {
       setCustomers(Array.isArray(d) ? d : d.customers || []);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setMusterilerGeldi(true));
   }, []);
 
 
@@ -81,8 +88,8 @@ export default function SayacTuruPage() {
         const init: Record<string, RowState> = {};
         for (const dev of d.devices || []) init[dev.id] = { black: '', color: '', reset: false };
         setSt(init);
-      } else alert(d.error || 'Cihazlar alınamadı');
-    } catch { alert('Sunucuya bağlanılamadı'); }
+      } else alert(d.error || t.sayacTuru.cihazlarAlinamadi);
+    } catch { alert(t.sayacTuru.sunucuYok); }
     setLoading(false);
   }, []);
 
@@ -148,7 +155,7 @@ export default function SayacTuruPage() {
         body: JSON.stringify({ rows: payload }),
       });
       const d = await res.json();
-      if (!res.ok) { alert(d.error || 'Kaydedilemedi'); setSaving(false); return; }
+      if (!res.ok) { alert(d.error || t.sayacTuru.kaydedilemedi); setSaving(false); return; }
 
       setSt((s) => {
         const next = { ...s };
@@ -160,7 +167,7 @@ export default function SayacTuruPage() {
         return next;
       });
       setSummary({ saved: d.saved, failed: d.failed, totalCost: d.totalCost });
-    } catch { alert('Sunucuya bağlanılamadı'); }
+    } catch { alert(t.sayacTuru.sunucuYok); }
     setSaving(false);
   };
 
@@ -168,10 +175,10 @@ export default function SayacTuruPage() {
   if (!cust) {
     return (
       <div style={{ padding: '1.5rem 1.25rem 2rem', maxWidth: 620, margin: '0 auto' }}>
-        <div style={{ fontSize: 10.5, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>Saha</div>
-        <h1 style={{ fontSize: '1.7rem', fontWeight: 800, letterSpacing: '-.022em', margin: '.3rem 0 .35rem', color: '#0B1533' }}>Sayaç Turu</h1>
+        <div style={{ fontSize: 10.5, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>{t.sayacTuru.ustBaslik}</div>
+        <h1 style={{ fontSize: '1.7rem', fontWeight: 800, letterSpacing: '-.022em', margin: '.3rem 0 .35rem', color: '#0B1533' }}>{t.sayacTuru.baslik}</h1>
         <p style={{ color: '#5B6479', fontSize: '.9rem', margin: '0 0 1.25rem', lineHeight: 1.55 }}>
-          Müşteri seç — tüm kiralık cihazları tek listede çıkar, sadece yeni rakamları yaz.
+          {t.sayacTuru.alt}
         </p>
 
         {/* KANAL DURDU: cihaz listesinin ÜSTÜNDE durur, çünkü onu AÇIKLAR.
@@ -181,14 +188,14 @@ export default function SayacTuruPage() {
         {eksik?.kanal?.durum === 'DURDU' && (
           <div style={{ marginBottom: '1rem', borderRadius: 14, border: '1px solid #fca5a5', background: '#450a0a', color: '#fff', padding: '.85rem 1rem' }}>
             <div style={{ fontWeight: 800, fontSize: '.95rem' }}>
-              🔌 Cihazdan sayaç kanalı durmuş görünüyor
+              {t.sayacTuru.kanalDurdu}
             </div>
             <p style={{ margin: '.3rem 0 .6rem', fontSize: '.8rem', lineHeight: 1.5, color: '#fecaca' }}>
               {eksik.kanal.aciklama}
             </p>
             <Link href="/sayac-eposta"
               style={{ display: 'inline-block', minHeight: 40, lineHeight: '40px', padding: '0 .9rem', background: '#fff', color: '#7f1d1d', borderRadius: 10, textDecoration: 'none', fontWeight: 800, fontSize: '.82rem' }}>
-              Kanalı kontrol et →
+              {t.sayacTuru.kanaliKontrol}
             </Link>
           </div>
         )}
@@ -199,12 +206,12 @@ export default function SayacTuruPage() {
           <div style={{ marginBottom: '1.25rem', borderRadius: 14, border: '1px solid #fecaca', background: '#fff7f7', padding: '.85rem 1rem' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
               <div style={{ fontWeight: 800, color: '#991b1b', fontSize: '.95rem' }}>
-                📟 {eksik.toplam} cihazın {eksik.esikGun}+ gündür sayacı yok
+                {doldur(t.sayacTuru.eksikBaslik, { n: eksik.toplam, gun: eksik.esikGun })}
               </div>
-              <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>{eksik.musteriler.length} müşteri</div>
+              <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>{doldur(t.sayacTuru.eksikMusteri, { n: eksik.musteriler.length })}</div>
             </div>
             <p style={{ margin: '.25rem 0 .6rem', fontSize: '.78rem', color: '#7f1d1d', lineHeight: 1.5 }}>
-              Sayacı gelmeyen makineden o ay para kazanılmaz. Müşteriye tıkla, sayacı yaz.
+              {t.sayacTuru.eksikAlt}
             </p>
             <div style={{ display: 'grid', gap: 6 }}>
               {eksik.musteriler.slice(0, 12).map((m) => (
@@ -213,17 +220,17 @@ export default function SayacTuruPage() {
                   style={{ textAlign: 'left', background: '#fff', border: '1px solid #fde2e2', borderRadius: 10, padding: '.55rem .7rem', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '.86rem' }}>
                     <span style={{ fontWeight: 700, color: '#0B1533' }}>{m.name}</span>
-                    <span style={{ color: '#991b1b', fontWeight: 700, whiteSpace: 'nowrap' }}>{m.cihazlar.length} cihaz</span>
+                    <span style={{ color: '#991b1b', fontWeight: 700, whiteSpace: 'nowrap' }}>{doldur(t.sayacTuru.cihazSayisi, { n: m.cihazlar.length })}</span>
                   </div>
                   <div style={{ fontSize: '.72rem', color: '#5B6479', marginTop: 2 }}>
-                    {m.cihazlar.slice(0, 3).map((c) => `${c.ad} · ${c.gunOnce == null ? 'hiç okunmadı' : `${c.gunOnce} gün`}`).join('  ·  ')}
+                    {m.cihazlar.slice(0, 3).map((c) => `${c.ad} · ${c.gunOnce == null ? t.sayacTuru.hicOkunmadi : doldur(t.sayacTuru.gun, { n: c.gunOnce })}`).join('  ·  ')}
                     {m.cihazlar.length > 3 ? `  · +${m.cihazlar.length - 3}` : ''}
                     {m.phone ? `  ·  ☎ ${m.phone}` : ''}
                   </div>
                 </button>
               ))}
               {eksik.musteriler.length > 12 && (
-                <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>+{eksik.musteriler.length - 12} müşteri daha — arama kutusundan bul</div>
+                <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>{doldur(t.sayacTuru.dahaAra, { n: eksik.musteriler.length - 12 })}</div>
               )}
             </div>
           </div>
@@ -233,17 +240,16 @@ export default function SayacTuruPage() {
           <div style={{ marginBottom: '1.25rem', borderRadius: 14, border: '1px solid #fde68a', background: '#fffbeb', padding: '.85rem 1rem' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ fontWeight: 800, color: '#92400e', fontSize: '.95rem' }}>
-                📉 {durgun.toplam} makinenin sayacı geliyor ama ARTMIYOR
+                {doldur(t.sayacTuru.durgunBaslik, { n: durgun.toplam })}
               </div>
               {durgun.aylikRiskTutari > 0 && (
                 <div style={{ fontSize: '.78rem', color: '#92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  aylık ₺{durgun.aylikRiskTutari.toLocaleString('tr-TR')} kira risk altında
+                  {doldur(t.sayacTuru.durgunRisk, { tutar: b.para(durgun.aylikRiskTutari, 0) })}
                 </div>
               )}
             </div>
             <p style={{ margin: '.25rem 0 .6rem', fontSize: '.78rem', color: '#78350f', lineHeight: 1.5 }}>
-              Kira kesiliyor ama makine basmıyor. Ya müşteri kullanmıyor (yenilemede iptal gelir),
-              ya makine bozuk/fişte değil, ya da başka ofise taşınmış. Müşteriyi arayın.
+              {t.sayacTuru.durgunAlt}
             </p>
             <div style={{ display: 'grid', gap: 6 }}>
               {durgun.musteriler.slice(0, 8).map((m) => (
@@ -253,23 +259,23 @@ export default function SayacTuruPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '.86rem', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700, color: '#0B1533' }}>{m.ad}</span>
                     <span style={{ color: '#92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                      {m.cihazlar.length} cihaz{m.aylikKira > 0 ? ` · ₺${m.aylikKira.toLocaleString('tr-TR')}/ay` : ''}
+                      {doldur(t.sayacTuru.cihazSayisi, { n: m.cihazlar.length })}{m.aylikKira > 0 ? ` · ${b.para(m.aylikKira, 0)}${t.cihazlar.aylik}` : ''}
                     </span>
                   </div>
                   <div style={{ fontSize: '.72rem', color: '#5B6479', marginTop: 2 }}>
                     {m.cihazlar[0]?.brand} {m.cihazlar[0]?.model} — {m.cihazlar[0]?.aciklama}
-                    {m.cihazlar.length > 1 ? `  · +${m.cihazlar.length - 1} cihaz daha` : ''}
+                    {m.cihazlar.length > 1 ? `  · ${doldur(t.sayacTuru.cihazDaha, { n: m.cihazlar.length - 1 })}` : ''}
                   </div>
                 </button>
               ))}
               {durgun.musteriler.length > 8 && (
-                <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>+{durgun.musteriler.length - 8} müşteri daha</div>
+                <div style={{ fontSize: '.72rem', color: '#8A93AB' }}>{doldur(t.sayacTuru.musteriDaha, { n: durgun.musteriler.length - 8 })}</div>
               )}
             </div>
           </div>
         )}
 
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Müşteri ara…"
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.sayacTuru.musteriAraYer}
           style={{ width: '100%', padding: '.7rem .9rem', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: '1rem', boxSizing: 'border-box', outline: 'none' }} />
 
         <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
@@ -281,24 +287,26 @@ export default function SayacTuruPage() {
             </button>
           ))}
           {filtered.length === 0 && (
-            customers.length === 0 ? (
+            !musterilerGeldi ? (
+              <p style={{ color: '#9AA3B8', fontSize: '.9rem', textAlign: 'center', padding: '1.5rem' }}>{t.genel.yukleniyor}</p>
+            ) : customers.length === 0 ? (
               /* HİÇ müşteri yok: yeni bayi. "Bulunamadı" demek hata gibi
                  okunur ve çıkmaz sokaktır — yapılacak tek şeyi söyle. */
               <div style={{ textAlign: 'center', padding: '1.75rem 1rem', color: '#6B7280' }}>
                 <div style={{ fontSize: '1.6rem', marginBottom: '.4rem' }}>👥</div>
-                <p style={{ margin: '0 0 .2rem', fontWeight: 600, color: '#0B1533' }}>Henüz müşteri eklenmemiş</p>
+                <p style={{ margin: '0 0 .2rem', fontWeight: 600, color: '#0B1533' }}>{t.sayacTuru.musteriYok}</p>
                 <p style={{ margin: '0 0 .9rem', fontSize: '.86rem' }}>
-                  Sayaç turu için önce müşteri ve kiralık cihaz gerekir.
+                  {t.sayacTuru.musteriYokAlt}
                 </p>
                 <a href="/customers/new" style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   minHeight: '2.5rem', padding: '0 1rem', background: '#0B1533', color: 'white',
                   borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: '.88rem',
-                }}>+ İlk müşteriyi ekle</a>
+                }}>{t.sayacTuru.ilkMusteri}</a>
               </div>
             ) : (
               <p style={{ color: '#9AA3B8', fontSize: '.9rem', textAlign: 'center', padding: '1.5rem' }}>
-                Aramanla eşleşen müşteri yok.
+                {t.sayacTuru.eslesmeYok}
               </p>
             )
           )}
@@ -316,27 +324,27 @@ export default function SayacTuruPage() {
           geri getirilebiliyordu. */}
       <button onClick={() => {
         if (yazilmisSayisi > 0 &&
-          !confirm(`${yazilmisSayisi} cihazın sayacı yazıldı ama KAYDEDİLMEDİ.\n\nMüşteri değiştirirsen bu girişler kaybolur.\n\nYine de çıkılsın mı?`)) return;
+          !confirm(doldur(t.sayacTuru.cikisSor, { n: yazilmisSayisi }))) return;
         setCust(null); setRows([]); setSt({}); setSummary(null);
       }}
-        style={{ background: 'none', border: 'none', color: '#8A93AB', fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}>← Müşteri değiştir</button>
+        style={{ background: 'none', border: 'none', color: '#8A93AB', fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}>{t.sayacTuru.musteriDegistir}</button>
       <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-.02em', margin: '.4rem 0 .2rem', color: '#0B1533' }}>{cust.name}</h1>
       <p style={{ color: '#5B6479', fontSize: '.85rem', margin: '0 0 1rem' }}>
-        {rows.length} kiralık cihaz{doneCount > 0 && <> · <b style={{ color: '#0B6B4A' }}>{doneCount} okundu</b></>}
+        {doldur(t.sayacTuru.kiralikCihaz, { n: rows.length })}{doneCount > 0 && <> · <b style={{ color: '#0B6B4A' }}>{doneCount} {t.sayacTuru.okundu}</b></>}
       </p>
 
       {summary && (
         <div style={{ background: summary.failed ? '#FEF6E7' : '#E7F6EF', border: `1px solid ${summary.failed ? '#FDE68A' : '#A7E3C8'}`, borderRadius: 12, padding: '.8rem 1rem', marginBottom: '1rem', fontSize: '.9rem', color: summary.failed ? '#8A5A08' : '#0B6B4A' }}>
-          <b>{summary.saved} cihaz kaydedildi</b>
-          {summary.failed > 0 && <> · <b>{summary.failed} satırda sorun var</b> (aşağıda kırmızı)</>}
-          {summary.totalCost > 0 && <> · Bu turun sayaç bedeli: <b>{money(summary.totalCost)}</b></>}
+          <b>{doldur(t.sayacTuru.kaydedildi, { n: summary.saved })}</b>
+          {summary.failed > 0 && <> · <b>{doldur(t.sayacTuru.sorunlu, { n: summary.failed })}</b> {t.sayacTuru.sorunluAlt}</>}
+          {summary.totalCost > 0 && <> · {t.sayacTuru.turBedeli} <b>{b.para(summary.totalCost, 2)}</b></>}
         </div>
       )}
 
-      {loading ? <p style={{ color: '#9AA3B8' }}>Yükleniyor…</p> : rows.length === 0 ? (
+      {loading ? <p style={{ color: '#9AA3B8' }}>{t.genel.yukleniyor}</p> : rows.length === 0 ? (
         <div style={{ background: 'white', border: '1px dashed #cbd5e1', borderRadius: 14, padding: '2.5rem 1.5rem', textAlign: 'center', color: '#5B6479' }}>
-          Bu müşteride kiralık cihaz yok.<br />
-          <Link href="/devices" style={{ color: '#2563eb', fontSize: '.9rem' }}>Cihazlara git →</Link>
+          {t.sayacTuru.kiralikYok}<br />
+          <Link href="/devices" style={{ color: '#2563eb', fontSize: '.9rem' }}>{t.sayacTuru.cihazlaraGit}</Link>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
@@ -372,20 +380,20 @@ export default function SayacTuruPage() {
                         {s.done && <span style={{ color: '#0B6B4A' }}>✓ </span>}{r.brand} {r.model}
                       </div>
                       <div style={{ fontSize: '.75rem', color: '#8A93AB', marginTop: 2 }}>
-                        Önceki: ⚫ {nf(r.lastBlack)}{r.hasColor && <> · 🟣 {nf(r.lastColor)}</>}
-                        {r.readAt && <span style={{ color: '#0B6B4A' }}> · bu ay okundu</span>}
+                        {t.sayacTuru.onceki} ⚫ {nf(r.lastBlack)}{r.hasColor && <> · 🟣 {nf(r.lastColor)}</>}
+                        {r.readAt && <span style={{ color: '#0B6B4A' }}> · {t.sayacTuru.buAyOkundu}</span>}
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: 6 }}>
                       <input inputMode="numeric" value={s.black} disabled={s.done}
                         onChange={(e) => setVal(r.id, 'black', e.target.value)}
-                        placeholder="⚫ yeni"
+                        placeholder={t.sayacTuru.yeniSiyah}
                         style={{ width: r.hasColor ? 96 : 130, padding: '.55rem .6rem', border: '1px solid #d1d5db', borderRadius: 10, fontSize: '1rem', textAlign: 'right', fontFamily: 'monospace', background: s.done ? '#F3FBF7' : 'white' }} />
                       {r.hasColor && (
                         <input inputMode="numeric" value={s.color} disabled={s.done}
                           onChange={(e) => setVal(r.id, 'color', e.target.value)}
-                          placeholder="🟣 yeni"
+                          placeholder={t.sayacTuru.yeniRenkli}
                           style={{ width: 96, padding: '.55rem .6rem', border: '1px solid #d1d5db', borderRadius: 10, fontSize: '1rem', textAlign: 'right', fontFamily: 'monospace', background: s.done ? '#F3FBF7' : 'white' }} />
                       )}
                     </div>
@@ -395,12 +403,12 @@ export default function SayacTuruPage() {
                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '.78rem', marginTop: 6, fontWeight: 600 }}>
                       {diff != null && (
                         <span style={{ color: diff < 0 ? '#B91C1C' : '#0B6B4A' }}>
-                          {diff < 0 ? `⚠ ⚫ ${nf(diff)} — sayaç düşük` : `⚫ +${nf(diff)} sayfa`}
+                          {diff < 0 ? `⚠ ⚫ ${nf(diff)} — ${t.sayacTuru.sayacDusuk}` : `⚫ +${nf(diff)} ${t.sayacTuru.sayfa}`}
                         </span>
                       )}
                       {diffC != null && (
                         <span style={{ color: diffC < 0 ? '#B91C1C' : '#6D28D9' }}>
-                          {diffC < 0 ? `⚠ 🟣 ${nf(diffC)} — sayaç düşük` : `🟣 +${nf(diffC)} sayfa`}
+                          {diffC < 0 ? `⚠ 🟣 ${nf(diffC)} — ${t.sayacTuru.sayacDusuk}` : `🟣 +${nf(diffC)} ${t.sayacTuru.sayfa}`}
                         </span>
                       )}
                     </div>
@@ -410,8 +418,7 @@ export default function SayacTuruPage() {
                       Eskiden sessizce kaydedilip o ayın renkli geliri sıfırlanıyordu. */}
                   {renkliBos && (
                     <div style={{ marginTop: 8, background: '#FEF6E7', border: '1px solid #FDE68A', borderRadius: 10, padding: '.55rem .7rem', color: '#8A5A08', fontSize: '.8rem', lineHeight: 1.45 }}>
-                      🟣 <b>Renkli sayacı da yazın.</b> Boş bırakılırsa bu cihaz kaydedilmez —
-                      çünkü boş geçilirse o ayın renkli sayfaları faturaya girmez.
+                      🟣 <b>{t.sayacTuru.renkliYaz}</b> {t.sayacTuru.renkliYazAlt}
                     </div>
                   )}
 
@@ -423,7 +430,7 @@ export default function SayacTuruPage() {
                   {s.done && s.uyari && (
                     <div style={{ marginTop: 8, background: '#FFF7ED', border: '1px solid #FDBA74', borderRadius: 10, padding: '.55rem .7rem' }}>
                       <div style={{ color: '#9A3412', fontSize: '.8rem', lineHeight: 1.45 }}>
-                        ⚠️ <b>Kaydedildi ama kontrol edin.</b> {s.uyari}
+                        ⚠️ <b>{t.sayacTuru.kontrolEt}</b> {s.uyari}
                       </div>
                     </div>
                   )}
@@ -438,10 +445,10 @@ export default function SayacTuruPage() {
                           fatura). Artık sebep soruluyor. */}
                       {s.code === 'COUNTER_DECREASE' && (
                         <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
-                          <div style={{ fontSize: '.78rem', color: '#7C2D12', fontWeight: 700 }}>Sebebi ne?</div>
+                          <div style={{ fontSize: '.78rem', color: '#7C2D12', fontWeight: 700 }}>{t.sayacTuru.sebep}</div>
                           {([
-                            ['CIHAZ_DEGISTI', 'Cihaz değişti — başka makine takıldı', 'Yeni makinenin sayacı bu ayın kullanımı sayılmaz; buradan sonrası sayılır.'],
-                            ['SAYAC_SIFIRLANDI', 'Aynı makine, sayacı sıfırlandı', 'Okunan değer bu ayın kullanımıdır ve faturalanır.'],
+                            ['CIHAZ_DEGISTI', t.sayacTuru.cihazDegisti, t.sayacTuru.cihazDegistiAlt],
+                            ['SAYAC_SIFIRLANDI', t.sayacTuru.sayacSifirlandi, t.sayacTuru.sayacSifirlandiAlt],
                           ] as const).map(([tur, baslik, aciklama]) => (
                             <label key={tur} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: '.8rem', color: '#7C2D12', cursor: 'pointer' }}>
                               <input type="radio" name={`reset-${r.id}`} checked={s.reset === true && s.resetTur === tur} style={{ marginTop: 3 }}
@@ -474,13 +481,13 @@ export default function SayacTuruPage() {
         }}
           className="md:pb-3">
           <div style={{ flex: 1, fontSize: '.85rem', color: '#5B6479' }}>
-            <b style={{ color: '#0B1533' }}>{doneCount}/{rows.length}</b> okundu
-            {pending.length > 0 && <> · {pending.length} kaydedilecek</>}
+            <b style={{ color: '#0B1533' }}>{doneCount}/{rows.length}</b> {t.sayacTuru.okundu}
+            {pending.length > 0 && <> · {doldur(t.sayacTuru.kaydedilecek, { n: pending.length })}</>}
             {/* Sessizce atlanan satır kalmasın: alt çubuk her zaman görünür,
                 teknisyen "Kaydet"e basmadan önce eksiği burada görür. */}
             {renkliEksik.length > 0 && (
               <div style={{ color: '#8A5A08', fontWeight: 700, marginTop: 2 }}>
-                🟣 {renkliEksik.length} cihazda renkli sayaç boş — kaydedilmeyecek
+                {doldur(t.sayacTuru.renkliBos, { n: renkliEksik.length })}
               </div>
             )}
           </div>
@@ -490,7 +497,7 @@ export default function SayacTuruPage() {
               background: pending.length ? '#0E9F6E' : '#D1D5DB', color: 'white',
               fontWeight: 800, fontSize: '.95rem', cursor: pending.length ? 'pointer' : 'not-allowed',
             }}>
-            {saving ? 'Kaydediliyor…' : `Kaydet${pending.length ? ` (${pending.length})` : ''}`}
+            {saving ? t.genel.kaydediliyor : `${t.genel.kaydet}${pending.length ? ` (${pending.length})` : ''}`}
           </button>
         </div>
       )}

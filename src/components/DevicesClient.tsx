@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Device {
     id: string;
@@ -24,6 +26,9 @@ interface Props {
 export default function DevicesClient({ devices, activeTab }: Props) {
     const [search, setSearch] = useState('');
     const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    // `sz`: sekme döngüsü `t` adını kullanıyor, gölgelenmesin.
+    const sz = useT();
+    const b = useBicim();
 
     useEffect(() => {
         if (!scanMsg) return;
@@ -33,19 +38,19 @@ export default function DevicesClient({ devices, activeTab }: Props) {
 
     // 📷 Barkod okuyucu: cihaz etiketini (publicCode/seri) okut → kaydını aç
     useBarcodeWedge(async (code) => {
-        setScanMsg({ text: `Aranıyor: ${code}…`, ok: true });
+        setScanMsg({ text: doldur(sz.cihazlar.araniyor, { n: code }), ok: true });
         try {
             const r = await fetch(`/api/devices/lookup?code=${encodeURIComponent(code)}`);
             if (r.ok) {
                 const d = await r.json();
-                setScanMsg({ text: `Bulundu: ${d.brand} ${d.model} — açılıyor`, ok: true });
+                setScanMsg({ text: doldur(sz.cihazlar.bulundu, { n: `${d.brand} ${d.model}` }), ok: true });
                 window.location.href = `/devices/${d.id}`;
             } else {
                 const e = await r.json().catch(() => ({}));
-                setScanMsg({ text: e.error || `Cihaz bulunamadı: ${code}`, ok: false });
+                setScanMsg({ text: e.error || doldur(sz.cihazlar.bulunamadi, { n: code }), ok: false });
             }
         } catch {
-            setScanMsg({ text: `Bağlantı hatası (${code})`, ok: false });
+            setScanMsg({ text: doldur(sz.cihazlar.baglantiHatasi, { n: code }), ok: false });
         }
     });
 
@@ -68,44 +73,44 @@ export default function DevicesClient({ devices, activeTab }: Props) {
     const normalCount = devices.filter(d => !d.isRental).length;
 
     const tabs = [
-        { key: 'all', label: 'Tümü', count: devices.length },
-        { key: 'rental', label: '🏷️ Kiralık', count: rentalCount },
-        { key: 'normal', label: 'Normal', count: normalCount },
+        { key: 'all', label: sz.genel.tumu, count: devices.length },
+        { key: 'rental', label: sz.cihazlar.sekme.kiralik, count: rentalCount },
+        { key: 'normal', label: sz.cihazlar.sekme.normal, count: normalCount },
     ];
 
     return (
         <div style={{ padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Cihazlar</h1>
-                    <p style={{ color: '#6b7280' }}>Toplam {devices.length} cihaz ({rentalCount} kiralık)</p>
+                    <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{sz.cihazlar.baslik}</h1>
+                    <p style={{ color: '#6b7280' }}>{doldur(sz.cihazlar.ozet, { n: devices.length, kiralik: rentalCount })}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span title="Cihaz barkod etiketini okutarak kaydını açabilirsiniz" style={{
+                    <span title={sz.cihazlar.okuyucuIpucu} style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#ecfeff', color: '#0e7490',
                         border: '1px solid #a5f3fc', padding: '0.35rem 0.7rem', borderRadius: 9999, fontSize: '0.72rem', fontWeight: 600,
-                    }}>▮▮▯▮ Okuyucu hazır</span>
+                    }}>{sz.cihazlar.okuyucuHazir}</span>
                     <Link href="/devices/labels" style={{
                         backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.625rem 1rem',
                         borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem',
-                    }}>🏷️ Etiket Yazdır</Link>
+                    }}>{sz.cihazlar.etiketYazdir}</Link>
                     {/* İsteğe bağlı: cihaz yaşı toplu giriş. Zorlamaz, akışa girmez. */}
                     <Link href="/devices/kurulum-tarihi" style={{
                         backgroundColor: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '0.625rem 1rem',
                         borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem',
-                    }}>📅 Cihaz Yaşı</Link>
+                    }}>{sz.cihazlar.cihazYasi}</Link>
                     {/* Liste ekranda kalırsa iş görmez: muhasebeciye gidecek, sigortaya
                         verilecek, sayıma çıkacak. İndirme ekrandakiyle AYNI kaynaktan
                         üretiliyor (api/disa-aktar). */}
-                    <a href="/api/disa-aktar?tur=cihaz" title="Cihaz listesini Excel olarak indir (sayaç, kira ve fiyatlarla)" style={{
+                    <a href="/api/disa-aktar?tur=cihaz" title={sz.cihazlar.excelIpucu} style={{
                       backgroundColor: '#0f2253', color: 'white', padding: '0.625rem 1rem',
                       borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 500,
                       fontSize: '0.875rem', whiteSpace: 'nowrap',
-                    }}>⬇️ Excel (CSV)</a>
+                    }}>{sz.genel.excelIndir}</a>
                     <Link href="/devices/new" style={{
                         backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
                         borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500'
-                    }}>+ Yeni Cihaz</Link>
+                    }}>{sz.cihazlar.yeni}</Link>
                 </div>
             </div>
 
@@ -140,7 +145,7 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                 <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '1rem' }}>🔍</span>
                 <input
                     type="text"
-                    placeholder="Cihaz, seri no, müşteri veya konum ara..."
+                    placeholder={sz.cihazlar.araYer}
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     style={{
@@ -160,7 +165,7 @@ export default function DevicesClient({ devices, activeTab }: Props) {
 
             {search && (
                 <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-                    {filtered.length} sonuç bulundu
+                    {doldur(sz.cihazlar.sonuc, { n: filtered.length })}
                 </p>
             )}
 
@@ -168,7 +173,7 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                 <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                            {['Marka / Model', 'Seri No', 'Müşteri', 'Konum', activeTab !== 'normal' ? 'Kira' : '', 'Son Fiş', ''].filter(Boolean).map(h => (
+                            {[sz.cihazlar.sutun.markaModel, sz.cihazlar.sutun.seriNo, sz.genel.musteri, sz.cihazlar.sutun.konum, activeTab !== 'normal' ? sz.cihazlar.sutun.kira : null, sz.cihazlar.sutun.sonFis, ''].filter((h): h is string => h !== null).map(h => (
                                 <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>{h}</th>
                             ))}
                         </tr>
@@ -189,7 +194,7 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                                             <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{d.model}</div>
                                         </div>
                                         {d.isRental && (
-                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.15rem 0.5rem', borderRadius: '9999px', whiteSpace: 'nowrap' }}>KİRALIK</span>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.15rem 0.5rem', borderRadius: '9999px', whiteSpace: 'nowrap' }}>{sz.cihazlar.kiralik}</span>
                                         )}
                                     </div>
                                 </td>
@@ -199,21 +204,21 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                                 {activeTab !== 'normal' && (
                                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>
                                         {d.isRental ? (
-                                            <span style={{ fontWeight: '600', color: '#059669' }}>₺{Number(d.monthlyRent).toFixed(0)}/ay</span>
+                                            <span style={{ fontWeight: '600', color: '#059669' }}>{b.para(d.monthlyRent, 0)}{sz.cihazlar.aylik}</span>
                                         ) : '-'}
                                     </td>
                                 )}
                                 <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-                                    {d.serviceTickets[0] ? new Date(d.serviceTickets[0].createdAt).toLocaleDateString('tr-TR') : '-'}
+                                    {d.serviceTickets[0] ? b.tarih(d.serviceTickets[0].createdAt) : '-'}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem' }} onClick={e => e.stopPropagation()}>
-                                    <Link href={`/devices/${d.id}`} style={{ color: '#3b82f6', fontSize: '0.875rem', textDecoration: 'none' }}>Detay →</Link>
+                                    <Link href={`/devices/${d.id}`} style={{ color: '#3b82f6', fontSize: '0.875rem', textDecoration: 'none' }}>{sz.genel.detayOk}</Link>
                                 </td>
                             </tr>
                         ))}
                         {filtered.length === 0 && (
                             <tr><td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-                                {search ? `"${search}" ile eşleşen cihaz bulunamadı` : activeTab === 'rental' ? 'Kiralık cihaz yok' : activeTab === 'normal' ? 'Normal cihaz yok' : 'Henüz cihaz yok'}
+                                {search ? doldur(sz.cihazlar.eslesmeYok, { q: search }) : activeTab === 'rental' ? sz.cihazlar.kiralikYok : activeTab === 'normal' ? sz.cihazlar.normalYok : sz.cihazlar.yok}
                             </td></tr>
                         )}
                     </tbody>
