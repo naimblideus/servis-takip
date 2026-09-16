@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { bugununTarihi } from '@/lib/utils';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
+import type { Bicimleyici } from '@/lib/bicim';
 
 /**
  * SÖZLEŞMELER
@@ -20,26 +23,41 @@ import { bugununTarihi } from '@/lib/utils';
  * kopyalıyor, birini yanlış yazıyor.
  */
 
-const tl = (n: number | null | undefined) =>
-  n === null || n === undefined ? '—'
-    : `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const gg = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString('tr-TR') : '—');
+const durumAdi = (t: Sozluk, durum: string): string =>
+  durum === 'AKTIF' ? t.sozlesmeler.durumAktif
+  : durum === 'BITTI' ? t.sozlesmeler.durumBitti
+  : durum === 'FESIH' ? t.sozlesmeler.durumFesih
+  : durum;
 
-const DURUM_ADI: Record<string, string> = { AKTIF: 'Aktif', BITTI: 'Bitti', FESIH: 'Feshedildi' };
+// Fark satırlarının adı sunucudan Türkçe geliyordu; alan anahtarı zaten
+// gönderiliyor, etiketi ekran kendi sözlüğünden yazıyor.
+const alanAdi = (t: Sozluk, alan: string): string => ({
+  monthlyRent: t.sozlesmeler.alanKira,
+  includedBlack: t.sozlesmeler.alanDahilSb,
+  includedColor: t.sozlesmeler.alanDahilRenkli,
+  pricePerBlack: t.sozlesmeler.alanFiyatSb,
+  pricePerColor: t.sozlesmeler.alanFiyatRenkli,
+  overagePriceBlack: t.sozlesmeler.alanAsimSb,
+  overagePriceColor: t.sozlesmeler.alanAsimRenkli,
+}[alan] ?? alan);
 
-// Sayfa adedi ile lira aynı biçimde yazılırsa bayi "3537" ve "2500"e
+// Sayfa adedi ile para aynı biçimde yazılırsa bayi "3537" ve "2500"e
 // bakıp hangisinin ne olduğunu ayırt edemiyor. Kalem türüne göre biçim.
 const SAYFA_ALANLARI = new Set(['includedBlack', 'includedColor']);
 const KURUS_ALANLARI = new Set(['pricePerBlack', 'pricePerColor', 'overagePriceBlack', 'overagePriceColor']);
-function deger(alan: string, v: number) {
-  if (SAYFA_ALANLARI.has(alan)) return `${v.toLocaleString('tr-TR')} sayfa`;
+function deger(t: Sozluk, b: Bicimleyici, alan: string, v: number) {
+  if (SAYFA_ALANLARI.has(alan)) return doldur(t.sozlesmeler.sayfaBirim, { n: b.sayi(v) });
   // Sayfa fiyatı kuruşun altında oynuyor: 2 basamağa yuvarlarsak
   // 0,4250 ile 0,4200 aynı görünür ve fark anlamsızlaşır.
-  if (KURUS_ALANLARI.has(alan)) return `₺${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
-  return tl(v);
+  if (KURUS_ALANLARI.has(alan)) return b.para(v, 4);
+  return b.para(v);
 }
 
 export default function SozlesmelerPage() {
+  const t = useT();
+  const b = useBicim();
+  const tl = (n: number | null | undefined) => b.para(n);
+  const ayda = (n: number | null | undefined) => doldur(t.sozlesmeler.ayBasi, { m: tl(n) });
   const [veri, setVeri] = useState<any>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hata, setHata] = useState<string | null>(null);
@@ -52,11 +70,11 @@ export default function SozlesmelerPage() {
     try {
       const r = await fetch('/api/sozlesmeler');
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Yüklenemedi');
+      if (!r.ok) throw new Error(d.error || t.genel.hata);
       setVeri(d); setHata(null);
     } catch (e: any) { setHata(e.message); }
     setYukleniyor(false);
-  }, []);
+  }, [t.genel.hata]);
   useEffect(() => { yukle(); }, [yukle]);
 
   const patch = async (id: string, govde: any) => {
@@ -64,12 +82,12 @@ export default function SozlesmelerPage() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(govde),
     });
-    if (!r.ok) { alert((await r.json()).error || 'İşlem başarısız'); return false; }
+    if (!r.ok) { alert((await r.json()).error || t.sozlesmeler.islemBasarisiz); return false; }
     await yukle();
     return true;
   };
 
-  if (yukleniyor && !veri) return <div style={{ padding: '2rem', color: '#6b7280' }}>Yükleniyor…</div>;
+  if (yukleniyor && !veri) return <div style={{ padding: '2rem', color: '#6b7280' }}>{t.genel.yukleniyor}</div>;
   if (hata) return <div style={{ padding: '2rem', color: '#b91c1c' }}>{hata}</div>;
   if (!veri) return null;
 
@@ -85,21 +103,19 @@ export default function SozlesmelerPage() {
     <div style={{ padding: '2rem', maxWidth: 1150 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>Sözleşmeler</h1>
-          <p style={{ color: '#6b7280', margin: '0.25rem 0 0' }}>
-            Sözleşmede yazan ile sistemde olan aynı mı — fark varsa kaç lira.
-          </p>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{t.sozlesmeler.baslik}</h1>
+          <p style={{ color: '#6b7280', margin: '0.25rem 0 0' }}>{t.sozlesmeler.alt}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
           {/* KÂRLILIK — yenileme görüşmesine bu rakamla oturulur. Ayrı menü
               satırı açmıyoruz; bayi zaten sözleşmeye bakarken burada. */}
           <a href="/sozlesmeler/karlilik"
             style={{ background: 'white', color: '#0f2253', border: '1px solid #0f2253', padding: '0.625rem 1.1rem', borderRadius: '0.5rem', fontWeight: 600, textDecoration: 'none' }}>
-            Kârlılık ve fiyat kararı →
+            {t.sozlesmeler.karlilikLink}
           </a>
           <button onClick={() => setFormAcik(true)}
             style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.625rem 1.25rem', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
-            + Yeni Sözleşme
+            {t.sozlesmeler.yeniSozlesme}
           </button>
         </div>
       </div>
@@ -109,36 +125,39 @@ export default function SozlesmelerPage() {
           diye açıyor. Kartların hepsi tıklanınca ilgili listeyi süzüyor. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(13rem, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <Kart
-          baslik="Sözleşmeye uymayan fiyat"
-          buyuk={o.aylikEksik > 0 ? `${tl(o.aylikEksik)}/ay` : o.farkliSozlesme ? 'fark var' : 'yok'}
+          baslik={t.sozlesmeler.kartFiyat}
+          buyuk={o.aylikEksik > 0 ? ayda(o.aylikEksik) : o.farkliSozlesme ? t.sozlesmeler.kartFiyatFarkVar : t.sozlesmeler.yok}
           alt={
-            o.farkliSozlesme === 0 ? 'Bütün sözleşmeler sistemle uyumlu'
-              : `${o.farkliSozlesme} sözleşmede fark${o.aylikFazla > 0 ? ` · ${tl(o.aylikFazla)}/ay FAZLA faturalama` : ''}`
+            o.farkliSozlesme === 0 ? t.sozlesmeler.kartFiyatUyumlu
+              : doldur(t.sozlesmeler.kartFiyatFark, { n: o.farkliSozlesme })
+                + (o.aylikFazla > 0 ? doldur(t.sozlesmeler.kartFiyatFazla, { m: tl(o.aylikFazla) }) : '')
           }
           renk={o.aylikEksik > 0 ? '#b45309' : o.farkliSozlesme ? '#b45309' : '#15803d'}
           secili={suzgec === 'farkli'}
           tikla={() => setSuzgec(suzgec === 'farkli' ? 'hepsi' : 'farkli')}
         />
         <Kart
-          baslik="Zam zamanı gelen"
-          buyuk={o.zamZamani ? `${o.zamZamani} sözleşme` : 'yok'}
-          alt={o.zamKaybi > 0 ? `${tl(o.zamKaybi)}/ay kaybediyorsun` : o.zamZamani ? 'Oran sözleşmede yazmıyor' : 'Zamanı gelen yok'}
+          baslik={t.sozlesmeler.kartZam}
+          buyuk={o.zamZamani ? doldur(t.sozlesmeler.kartZamAdet, { n: o.zamZamani }) : t.sozlesmeler.yok}
+          alt={o.zamKaybi > 0 ? doldur(t.sozlesmeler.kartZamKayip, { m: tl(o.zamKaybi) })
+            : o.zamZamani ? t.sozlesmeler.kartZamOranYok : t.sozlesmeler.kartZamYok}
           renk={o.zamZamani ? '#b45309' : '#15803d'}
           secili={suzgec === 'zam'}
           tikla={() => setSuzgec(suzgec === 'zam' ? 'hepsi' : 'zam')}
         />
         <Kart
-          baslik="Bitiş / ihbar"
-          buyuk={o.ihbarKacan ? `${o.ihbarKacan} pencere kaçtı` : o.bitiyor ? `${o.bitiyor} yaklaşıyor` : 'sorun yok'}
-          alt={o.bitmis ? `${o.bitmis} sözleşme süresi geçmiş` : 'Bitişe 60 günden az kalanlar'}
+          baslik={t.sozlesmeler.kartBitis}
+          buyuk={o.ihbarKacan ? doldur(t.sozlesmeler.kartIhbarKacan, { n: o.ihbarKacan })
+            : o.bitiyor ? doldur(t.sozlesmeler.kartYaklasan, { n: o.bitiyor }) : t.sozlesmeler.sorunYok}
+          alt={o.bitmis ? doldur(t.sozlesmeler.kartBitmis, { n: o.bitmis }) : t.sozlesmeler.kartBitisAlt}
           renk={o.ihbarKacan || o.bitmis ? '#b91c1c' : o.bitiyor ? '#b45309' : '#15803d'}
           secili={suzgec === 'ihbar'}
           tikla={() => setSuzgec(suzgec === 'ihbar' ? 'hepsi' : 'ihbar')}
         />
         <Kart
-          baslik="Sözleşmesiz makine"
-          buyuk={o.kapsamDisi ? `${o.kapsamDisi} cihaz` : 'yok'}
-          alt={o.kapsamDisi ? 'Sözleşmeli müşteride sözleşmeye girmemiş kiralık' : 'Hepsi bir sözleşmede'}
+          baslik={t.sozlesmeler.kartKapsamDisi}
+          buyuk={o.kapsamDisi ? doldur(t.sozlesmeler.cihazAdet, { n: o.kapsamDisi }) : t.sozlesmeler.yok}
+          alt={o.kapsamDisi ? t.sozlesmeler.kartKapsamDisiAlt : t.sozlesmeler.kartKapsamDisiYok}
           renk={o.kapsamDisi ? '#b45309' : '#15803d'}
         />
       </div>
@@ -146,10 +165,10 @@ export default function SozlesmelerPage() {
       {veri.kapsamDisi.length > 0 && (
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem' }}>
           <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#92400e', margin: '0 0 0.5rem' }}>
-            Sözleşmeye girmemiş kiralık cihazlar
+            {t.sozlesmeler.kapsamDisiBaslik}
           </h2>
           <p style={{ fontSize: '0.78rem', color: '#92400e', margin: '0 0 0.6rem' }}>
-            Bu müşterilerin sözleşmesi var ama bu makineler sözleşmede geçmiyor — ya unutulmuş ya anlaşmasız.
+            {t.sozlesmeler.kapsamDisiAlt}
           </p>
           <div style={{ display: 'grid', gap: '0.3rem', fontSize: '0.82rem' }}>
             {veri.kapsamDisi.map((d: any) => (
@@ -157,7 +176,7 @@ export default function SozlesmelerPage() {
                 <span style={{ fontWeight: 600, minWidth: '9rem' }}>{d.musteri}</span>
                 <span>{d.cihaz}</span>
                 <span style={{ fontFamily: 'monospace', color: '#a16207' }}>{d.serialNo}</span>
-                <span>{d.aylikKira ? `${tl(d.aylikKira)}/ay` : 'kira girilmemiş'}</span>
+                <span>{d.aylikKira ? ayda(d.aylikKira) : t.sozlesmeler.kiraGirilmemis}</span>
               </div>
             ))}
           </div>
@@ -166,12 +185,12 @@ export default function SozlesmelerPage() {
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-          {liste.length} / {veri.toplam} sözleşme
+          {doldur(t.sozlesmeler.sayac, { n: liste.length, t: veri.toplam })}
         </span>
         {suzgec !== 'hepsi' && (
           <button onClick={() => setSuzgec('hepsi')}
             style={{ fontSize: '0.78rem', padding: '0.25rem 0.7rem', borderRadius: '999px', border: '1px solid #d1d5db', background: 'white', cursor: 'pointer' }}>
-            süzgeci kaldır
+            {t.sozlesmeler.suzgeciKaldir}
           </button>
         )}
       </div>
@@ -179,9 +198,7 @@ export default function SozlesmelerPage() {
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', overflow: 'hidden' }}>
         {liste.length === 0 && (
           <div style={{ padding: '2.5rem', textAlign: 'center', color: '#6b7280', fontSize: '0.9rem' }}>
-            {veri.toplam === 0
-              ? 'Henüz sözleşme yok. "Yeni Sözleşme" ile başla — şartlar cihazın mevcut ayarından dolar, sen yalnız kâğıttan farklı olanı düzeltirsin.'
-              : 'Bu süzgeçte sözleşme yok.'}
+            {veri.toplam === 0 ? t.sozlesmeler.hicYok : t.sozlesmeler.suzgecBos}
           </div>
         )}
         {liste.map((k: any) => (
@@ -226,13 +243,19 @@ function Rozet({ metin, renk, arka }: { metin: string; renk: string; arka: strin
 }
 
 function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
+  const t = useT();
+  const b = useBicim();
+  const tl = (n: number | null | undefined) => b.para(n);
+  const gg = (s: string | null | undefined) => (s ? b.tarih(s) : '—');
+  const ayda = (n: number | null | undefined) => doldur(t.sozlesmeler.ayBasi, { m: tl(n) });
   const [mesgul, setMesgul] = useState(false);
 
   const uygula = async (c: any) => {
-    const satirlar = c.farklar.map((f: any) => `· ${f.ad}: ${deger(f.alan, f.sistemde)} → ${deger(f.alan, f.sozlesmede)}`).join('\n');
+    const satirlar = c.farklar.map((f: any) =>
+      `· ${alanAdi(t, f.alan)}: ${deger(t, b, f.alan, f.sistemde)} → ${deger(t, b, f.alan, f.sozlesmede)}`).join('\n');
     if (!confirm(
-      `${c.cihaz} (${c.serialNo}) cihazının ayarları sözleşmedeki hâline getirilecek:\n\n${satirlar}\n\n`
-      + 'Bu değişiklik BUNDAN SONRAKİ faturaları etkiler; kesilmiş faturalar değişmez. Devam edilsin mi?',
+      doldur(t.sozlesmeler.uygulaOnayBas, { cihaz: c.cihaz, sn: c.serialNo })
+      + `\n\n${satirlar}\n\n` + t.sozlesmeler.uygulaOnaySon,
     )) return;
     setMesgul(true);
     await patch(k.id, { sistemeUygula: c.contractDeviceId });
@@ -240,7 +263,7 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
   };
 
   const zamYapildi = async () => {
-    if (!confirm('Zam yapıldı olarak işaretlensin mi? Sonraki hatırlatma bugünden itibaren sayılacak.\n\n(Fiyatları değiştirmez — onu Toplu Zam ekranından yaparsın.)')) return;
+    if (!confirm(t.sozlesmeler.zamOnay)) return;
     setMesgul(true);
     // Yerel takvim — UTC'den türetilirse zam bir gün erken görünür.
     await patch(k.id, { lastEscalationAt: bugununTarihi() });
@@ -258,18 +281,18 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
         <span style={{ fontSize: '0.76rem', color: '#6b7280', whiteSpace: 'nowrap' }}>
           {gg(k.startDate)} – {gg(k.endDate)}
         </span>
-        <span style={{ fontSize: '0.76rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{k.cihazSayisi} cihaz</span>
+        <span style={{ fontSize: '0.76rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{doldur(t.sozlesmeler.cihazAdet, { n: k.cihazSayisi })}</span>
 
-        {k.status !== 'AKTIF' && <Rozet metin={DURUM_ADI[k.status] || k.status} renk="#374151" arka="#f3f4f6" />}
-        {k.etki.eksik > 0 && <Rozet metin={`${tl(k.etki.eksik)}/ay eksik`} renk="#92400e" arka="#fef3c7" />}
-        {k.etki.fazla > 0 && <Rozet metin={`${tl(k.etki.fazla)}/ay fazla`} renk="#9a3412" arka="#ffedd5" />}
-        {k.zam.zamani && <Rozet metin="zam zamanı" renk="#92400e" arka="#fef3c7" />}
-        {k.takvim.ihbarKacti && <Rozet metin="ihbar kaçtı" renk="#991b1b" arka="#fee2e2" />}
-        {k.takvim.bitmis && <Rozet metin="süresi geçmiş" renk="#991b1b" arka="#fee2e2" />}
+        {k.status !== 'AKTIF' && <Rozet metin={durumAdi(t, k.status)} renk="#374151" arka="#f3f4f6" />}
+        {k.etki.eksik > 0 && <Rozet metin={doldur(t.sozlesmeler.rozetEksik, { m: tl(k.etki.eksik) })} renk="#92400e" arka="#fef3c7" />}
+        {k.etki.fazla > 0 && <Rozet metin={doldur(t.sozlesmeler.rozetFazla, { m: tl(k.etki.fazla) })} renk="#9a3412" arka="#ffedd5" />}
+        {k.zam.zamani && <Rozet metin={t.sozlesmeler.rozetZam} renk="#92400e" arka="#fef3c7" />}
+        {k.takvim.ihbarKacti && <Rozet metin={t.sozlesmeler.rozetIhbar} renk="#991b1b" arka="#fee2e2" />}
+        {k.takvim.bitmis && <Rozet metin={t.sozlesmeler.rozetSuresiGecmis} renk="#991b1b" arka="#fee2e2" />}
         {!k.takvim.bitmis && !k.takvim.ihbarKacti && k.takvim.bitimeGun <= 60 && (
-          <Rozet metin={`${k.takvim.bitimeGun} gün kaldı`} renk="#92400e" arka="#fef3c7" />
+          <Rozet metin={doldur(t.sozlesmeler.rozetGunKaldi, { n: k.takvim.bitimeGun })} renk="#92400e" arka="#fef3c7" />
         )}
-        {k.farkSayisi === 0 && k.status === 'AKTIF' && <Rozet metin="uyumlu" renk="#166534" arka="#dcfce7" />}
+        {k.farkSayisi === 0 && k.status === 'AKTIF' && <Rozet metin={t.sozlesmeler.rozetUyumlu} renk="#166534" arka="#dcfce7" />}
         <span style={{ color: '#9ca3af' }}>{acik ? '▲' : '▼'}</span>
       </button>
 
@@ -279,19 +302,23 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
               İhbar günü bitiş tarihinden AYRI gösteriliyor: "daha 2 ay var"
               diye rahat olan bayi ihbar penceresini kaçırıyor. */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(13rem, 1fr))', gap: '0.7rem', marginBottom: '0.9rem' }}>
-            <Kutu baslik="Bitiş"
-              icerik={k.takvim.bitmis ? `${gg(k.endDate)} — ${-k.takvim.bitimeGun} gün geçti` : `${gg(k.endDate)} — ${k.takvim.bitimeGun} gün kaldı`}
+            <Kutu baslik={t.sozlesmeler.kutuBitis}
+              icerik={doldur(k.takvim.bitmis ? t.sozlesmeler.bitisGecti : t.sozlesmeler.bitisKaldi,
+                { t: gg(k.endDate), n: Math.abs(k.takvim.bitimeGun) })}
               renk={k.takvim.bitmis ? '#b91c1c' : k.takvim.bitimeGun <= 60 ? '#b45309' : '#374151'} />
-            <Kutu baslik="Fesih ihbarı için son gün"
+            <Kutu baslik={t.sozlesmeler.kutuIhbar}
               icerik={k.takvim.ihbarSonGun
-                ? `${gg(k.takvim.ihbarSonGun)} — ${k.takvim.ihbarKacti ? `${-k.takvim.ihbaraGun} gün GEÇTİ` : `${k.takvim.ihbaraGun} gün kaldı`}`
-                : 'Sözleşmede ihbar süresi yok'}
+                ? doldur(k.takvim.ihbarKacti ? t.sozlesmeler.ihbarGecti : t.sozlesmeler.ihbarKaldi,
+                  { t: gg(k.takvim.ihbarSonGun), n: Math.abs(k.takvim.ihbaraGun) })
+                : t.sozlesmeler.ihbarYok}
               renk={k.takvim.ihbarKacti ? '#b91c1c' : '#374151'} />
-            <Kutu baslik="Zam"
-              icerik={!k.zam.maddeVar ? 'Sözleşmede zam maddesi yok'
+            <Kutu baslik={t.sozlesmeler.kutuZam}
+              icerik={!k.zam.maddeVar ? t.sozlesmeler.zamMaddeYok
                 : k.zam.zamani
-                  ? `Zamanı geldi${k.zam.gecikenAy ? ` (${k.zam.gecikenAy} ay gecikti)` : ''}${k.zam.aylikKayip ? ` — ${tl(k.zam.aylikKayip)}/ay` : ''}`
-                  : `Sonraki: ${gg(k.zam.sonrakiTarih)} (${k.zam.kalanGun} gün)`}
+                  ? t.sozlesmeler.zamGeldi
+                    + (k.zam.gecikenAy ? doldur(t.sozlesmeler.zamGecikme, { n: k.zam.gecikenAy }) : '')
+                    + (k.zam.aylikKayip ? doldur(t.sozlesmeler.zamKayip, { m: tl(k.zam.aylikKayip) }) : '')
+                  : doldur(t.sozlesmeler.zamSonraki, { t: gg(k.zam.sonrakiTarih), n: k.zam.kalanGun })}
               renk={k.zam.zamani ? '#b45309' : '#374151'} />
           </div>
 
@@ -299,11 +326,11 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.9rem' }}>
               <a href={`/toplu-zam?musteri=${k.musteri?.id}`}
                 style={{ padding: '0.4rem 0.85rem', background: '#0f2253', color: 'white', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none' }}>
-                Zammı uygula →
+                {t.sozlesmeler.zammiUygula}
               </a>
               <button onClick={zamYapildi} disabled={mesgul}
                 style={{ padding: '0.4rem 0.85rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
-                Zam yapıldı, işaretle
+                {t.sozlesmeler.zamIsaretle}
               </button>
             </div>
           )}
@@ -316,12 +343,12 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
                 <span style={{ fontFamily: 'monospace', fontSize: '0.76rem', color: '#6b7280' }}>{c.serialNo}</span>
                 {c.konum && <span style={{ fontSize: '0.76rem', color: '#9ca3af' }}>{c.konum}</span>}
                 <span style={{ fontSize: '0.74rem', color: '#9ca3af' }}>
-                  {c.aylikSayfaSB !== null ? `ayda ~${c.aylikSayfaSB.toLocaleString('tr-TR')} S/B` : 'sayfa geçmişi yetersiz'}
-                  {c.aylikSayfaRenkli ? ` · ~${c.aylikSayfaRenkli.toLocaleString('tr-TR')} renkli` : ''}
+                  {c.aylikSayfaSB !== null ? doldur(t.sozlesmeler.aylikSb, { n: b.sayi(c.aylikSayfaSB) }) : t.sozlesmeler.sayfaGecmisiYok}
+                  {c.aylikSayfaRenkli ? doldur(t.sozlesmeler.aylikRenkli, { n: b.sayi(c.aylikSayfaRenkli) }) : ''}
                 </span>
                 {c.farklar.length === 0
-                  ? <Rozet metin="uyumlu" renk="#166534" arka="#dcfce7" />
-                  : <Rozet metin={`${c.farklar.length} fark`} renk="#92400e" arka="#fef3c7" />}
+                  ? <Rozet metin={t.sozlesmeler.rozetUyumlu} renk="#166534" arka="#dcfce7" />
+                  : <Rozet metin={doldur(t.sozlesmeler.rozetFark, { n: c.farklar.length })} renk="#92400e" arka="#fef3c7" />}
               </div>
 
               {c.farklar.length > 0 && (
@@ -329,21 +356,21 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse', minWidth: '30rem' }}>
                       <thead style={{ background: '#f9fafb' }}>
-                        <tr>{['Kalem', 'Sözleşmede', 'Sistemde', 'Aylık etki', ''].map((h) => (
+                        <tr>{[t.sozlesmeler.sutunKalem, t.sozlesmeler.sutunSozlesmede, t.sozlesmeler.sutunSistemde, t.sozlesmeler.sutunAylikEtki, ''].map((h) => (
                           <th key={h} style={{ padding: '0.35rem 0.5rem', textAlign: 'left', fontWeight: 600, color: '#6b7280' }}>{h}</th>
                         ))}</tr>
                       </thead>
                       <tbody>
                         {c.farklar.map((f: any) => (
                           <tr key={f.alan} style={{ borderTop: '1px solid #f3f4f6' }}>
-                            <td style={{ padding: '0.35rem 0.5rem' }}>{f.ad}</td>
-                            <td style={{ padding: '0.35rem 0.5rem', fontWeight: 600 }}>{deger(f.alan, f.sozlesmede)}</td>
-                            <td style={{ padding: '0.35rem 0.5rem' }}>{deger(f.alan, f.sistemde)}</td>
+                            <td style={{ padding: '0.35rem 0.5rem' }}>{alanAdi(t, f.alan)}</td>
+                            <td style={{ padding: '0.35rem 0.5rem', fontWeight: 600 }}>{deger(t, b, f.alan, f.sozlesmede)}</td>
+                            <td style={{ padding: '0.35rem 0.5rem' }}>{deger(t, b, f.alan, f.sistemde)}</td>
                             <td style={{ padding: '0.35rem 0.5rem', fontWeight: 600, color: f.yon === 'EKSIK_FATURALAMA' ? '#b45309' : '#9a3412' }}>
                               {f.aylikEtki === null ? '—' : tl(f.aylikEtki)}
                             </td>
                             <td style={{ padding: '0.35rem 0.5rem', color: f.yon === 'EKSIK_FATURALAMA' ? '#b45309' : '#9a3412', fontSize: '0.72rem' }}>
-                              {f.yon === 'EKSIK_FATURALAMA' ? 'eksik faturalama' : 'FAZLA faturalama'}
+                              {f.yon === 'EKSIK_FATURALAMA' ? t.sozlesmeler.eksikFaturalama : t.sozlesmeler.fazlaFaturalama}
                             </td>
                           </tr>
                         ))}
@@ -353,11 +380,11 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.6rem', alignItems: 'center' }}>
                     <button onClick={() => uygula(c)} disabled={mesgul}
                       style={{ padding: '0.4rem 0.85rem', background: '#0f2253', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
-                      {mesgul ? 'Uygulanıyor…' : 'Sisteme uygula'}
+                      {mesgul ? t.sozlesmeler.uygulaniyor : t.sozlesmeler.sistemeUygula}
                     </button>
-                    <a href={`/devices/${c.deviceId}`} style={{ fontSize: '0.78rem', color: '#2563eb' }}>Cihaz kartı →</a>
+                    <a href={`/devices/${c.deviceId}`} style={{ fontSize: '0.78rem', color: '#2563eb' }}>{t.sozlesmeler.cihazKarti}</a>
                     <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
-                      Sözleşme yanlış girildiyse cihaz değil SÖZLEŞME düzeltilmeli.
+                      {t.sozlesmeler.sozlesmeDuzelt}
                     </span>
                   </div>
                 </>
@@ -366,16 +393,16 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
           ))}
 
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.6rem' }}>
-            {k.fileUrl && <a href={k.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: '#2563eb' }}>Taranmış nüsha →</a>}
+            {k.fileUrl && <a href={k.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: '#2563eb' }}>{t.sozlesmeler.taranmisNusha}</a>}
             {k.notes && <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>{k.notes}</span>}
             <button
               onClick={async () => {
-                if (!confirm('Sözleşme silinsin mi? Cihazlar ve fiyatları silinmez, yalnız sözleşme kaydı gider.')) return;
+                if (!confirm(t.sozlesmeler.silOnay)) return;
                 const r = await fetch(`/api/sozlesmeler/${k.id}`, { method: 'DELETE' });
-                if (r.ok) yenile(); else alert('Silinemedi');
+                if (r.ok) yenile(); else alert(t.sozlesmeler.silinemedi);
               }}
               style={{ marginLeft: 'auto', fontSize: '0.76rem', color: '#b91c1c', background: 'none', border: 'none', cursor: 'pointer' }}>
-              Sözleşmeyi sil
+              {t.sozlesmeler.sil}
             </button>
           </div>
         </div>
@@ -394,6 +421,7 @@ function Kutu({ baslik, icerik, renk }: any) {
 }
 
 function YeniSozlesme({ kapat, bitti }: { kapat: () => void; bitti: () => void }) {
+  const t = useT();
   const [musteriler, setMusteriler] = useState<any[]>([]);
   const [cihazlar, setCihazlar] = useState<any[]>([]);
   const [seciliCihaz, setSeciliCihaz] = useState<string[]>([]);
@@ -431,7 +459,7 @@ function YeniSozlesme({ kapat, bitti }: { kapat: () => void; bitti: () => void }
     });
     const d = await r.json();
     setMesgul(false);
-    if (!r.ok) { setHata(d.error || 'Kaydedilemedi'); return; }
+    if (!r.ok) { setHata(d.error || t.sozlesmeler.kaydedilemedi); return; }
     bitti();
   };
 
@@ -448,49 +476,48 @@ function YeniSozlesme({ kapat, bitti }: { kapat: () => void; bitti: () => void }
         margin: 'auto', background: 'white', borderRadius: '1rem', padding: '1.5rem',
         width: '100%', maxWidth: 560, boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
       }}>
-        <h2 style={{ fontWeight: 700, fontSize: '1.15rem', marginBottom: '1rem' }}>Yeni Sözleşme</h2>
+        <h2 style={{ fontWeight: 700, fontSize: '1.15rem', marginBottom: '1rem' }}>{t.sozlesmeler.formBaslik}</h2>
 
         <div style={{ marginBottom: '0.8rem' }}>
-          <label style={lbl}>Müşteri *</label>
+          <label style={lbl}>{t.sozlesmeler.formMusteri}</label>
           <select style={inp} value={f.customerId} onChange={(e) => setF({ ...f, customerId: e.target.value })}>
-            <option value="">Seçin…</option>
+            <option value="">{t.genel.secin}</option>
             {musteriler.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))', gap: '0.6rem', marginBottom: '0.8rem' }}>
-          <div><label style={lbl}>Sözleşme no</label><input style={inp} value={f.contractNo} onChange={(e) => setF({ ...f, contractNo: e.target.value })} /></div>
-          <div><label style={lbl}>Başlangıç *</label><input type="date" style={inp} value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} /></div>
-          <div><label style={lbl}>Bitiş *</label><input type="date" style={inp} value={f.endDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} /></div>
+          <div><label style={lbl}>{t.sozlesmeler.formNo}</label><input style={inp} value={f.contractNo} onChange={(e) => setF({ ...f, contractNo: e.target.value })} /></div>
+          <div><label style={lbl}>{t.sozlesmeler.formBaslangic}</label><input type="date" style={inp} value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} /></div>
+          <div><label style={lbl}>{t.sozlesmeler.formBitis}</label><input type="date" style={inp} value={f.endDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} /></div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))', gap: '0.6rem', marginBottom: '0.35rem' }}>
           <div>
-            <label style={lbl}>Fesih ihbar süresi (gün)</label>
+            <label style={lbl}>{t.sozlesmeler.formIhbarGun}</label>
             <input type="number" style={inp} value={f.noticeDays} onChange={(e) => setF({ ...f, noticeDays: e.target.value })} />
           </div>
           <div>
-            <label style={lbl}>Zam aralığı (ay)</label>
+            <label style={lbl}>{t.sozlesmeler.formZamAy}</label>
             <input type="number" style={inp} value={f.escalationMonths} onChange={(e) => setF({ ...f, escalationMonths: e.target.value })} />
           </div>
           <div>
-            <label style={lbl}>Zam oranı (%)</label>
-            <input type="number" style={inp} placeholder="pazarlıkla" value={f.escalationRate} onChange={(e) => setF({ ...f, escalationRate: e.target.value })} />
+            <label style={lbl}>{t.sozlesmeler.formZamOran}</label>
+            <input type="number" style={inp} placeholder={t.sozlesmeler.formZamOranYer} value={f.escalationRate} onChange={(e) => setF({ ...f, escalationRate: e.target.value })} />
           </div>
         </div>
         <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0 0 0.8rem' }}>
-          İhbar süresi: sözleşme bitmeden bu kadar gün önce haber verilmezse kendiliğinden uzar.
-          Zam oranı boş bırakılırsa yalnız &quot;zamanı geldi&quot; denir, tutar hesaplanmaz.
+          {t.sozlesmeler.formIpucu}
         </p>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem', fontSize: '0.85rem' }}>
           <input type="checkbox" checked={f.autoRenew} onChange={(e) => setF({ ...f, autoRenew: e.target.checked })} />
-          Sözleşme kendiliğinden uzuyor
+          {t.sozlesmeler.formOtoUzama}
         </label>
 
         {cihazlar.length > 0 && (
           <div style={{ marginBottom: '0.8rem' }}>
-            <label style={lbl}>Kapsanan cihazlar</label>
+            <label style={lbl}>{t.sozlesmeler.formCihazlar}</label>
             <div style={{ border: '1px solid #e5e7eb', borderRadius: '0.5rem', maxHeight: '11rem', overflowY: 'auto' }}>
               {cihazlar.map((d) => (
                 <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.6rem', fontSize: '0.82rem', borderBottom: '1px solid #f3f4f6' }}>
@@ -502,17 +529,17 @@ function YeniSozlesme({ kapat, bitti }: { kapat: () => void; bitti: () => void }
               ))}
             </div>
             <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0.3rem 0 0' }}>
-              Şartlar cihazın <b>mevcut ayarından</b> dolar. Kaydettikten sonra kâğıttan farklı olanları düzeltirsin.
+              {t.sozlesmeler.formCihazIpucuOn} <b>{t.sozlesmeler.formCihazIpucuVurgu}</b>{t.sozlesmeler.formCihazIpucuSon}
             </p>
           </div>
         )}
 
         <div style={{ marginBottom: '0.8rem' }}>
-          <label style={lbl}>Taranmış nüshanın bağlantısı</label>
-          <input style={inp} placeholder="Drive/Dropbox bağlantısı" value={f.fileUrl} onChange={(e) => setF({ ...f, fileUrl: e.target.value })} />
+          <label style={lbl}>{t.sozlesmeler.formDosya}</label>
+          <input style={inp} placeholder={t.sozlesmeler.formDosyaYer} value={f.fileUrl} onChange={(e) => setF({ ...f, fileUrl: e.target.value })} />
         </div>
         <div style={{ marginBottom: '1rem' }}>
-          <label style={lbl}>Not</label>
+          <label style={lbl}>{t.sozlesmeler.formNot}</label>
           <input style={inp} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
         </div>
 
@@ -521,9 +548,9 @@ function YeniSozlesme({ kapat, bitti }: { kapat: () => void; bitti: () => void }
         <div style={{ display: 'flex', gap: '0.6rem' }}>
           <button onClick={kaydet} disabled={mesgul || !f.customerId || !f.startDate || !f.endDate}
             style={{ flex: 1, padding: '0.7rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', opacity: mesgul ? 0.7 : 1 }}>
-            {mesgul ? 'Kaydediliyor…' : 'Kaydet'}
+            {mesgul ? t.genel.kaydediliyor : t.genel.kaydet}
           </button>
-          <button onClick={kapat} style={{ padding: '0.7rem 1.4rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer', color: '#374151' }}>İptal</button>
+          <button onClick={kapat} style={{ padding: '0.7rem 1.4rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer', color: '#374151' }}>{t.genel.iptal}</button>
         </div>
       </div>
     </div>

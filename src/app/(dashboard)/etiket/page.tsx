@@ -3,18 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
+import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface StockItem { id: string; source: 'PART' | 'PRINTER'; name: string; sku?: string | null; barcode?: string | null; sellPrice: number; }
 interface Device { id: string; brand: string; model: string; serialNo: string; publicCode: string; customer?: { name: string } | null; }
 interface Cand { key: string; code: string; name: string; sub: string; price: number; }
 interface Row { key: string; code: string; name: string; price: number; copies: number; }
 
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const MAX_LABELS = 1500; // tek baskıda makul üst sınır
 
 // Code 128 — JsBarcode viewBox koymaz; el ile ekliyoruz. SVG'yi SABİT mm boyuta veriyoruz
 // (flex/% yazdırmada çöküp barkodu küçültüyordu); preserveAspectRatio=none ile kutuyu birebir doldurur.
-function Barcode({ value, wmm, hmm }: { value: string; wmm: number; hmm: number }) {
+function Barcode({ value, wmm, hmm, uyumsuz }: { value: string; wmm: number; hmm: number; uyumsuz: string }) {
   const ref = useRef<SVGSVGElement>(null);
   const valid = /^[\x20-\x7E]+$/.test(value || '');
   useEffect(() => {
@@ -29,11 +30,11 @@ function Barcode({ value, wmm, hmm }: { value: string; wmm: number; hmm: number 
       } catch { /* yoksay */ }
     }
   }, [value, valid]);
-  if (!valid) return <div style={{ fontSize: '2.4mm', color: '#b91c1c' }}>⚠ Barkod uyumsuz</div>;
+  if (!valid) return <div style={{ fontSize: '2.4mm', color: '#b91c1c' }}>{uyumsuz}</div>;
   return <svg ref={ref} preserveAspectRatio="none" style={{ display: 'block', width: `${wmm}mm`, height: `${hmm}mm`, shapeRendering: 'crispEdges' }} />;
 }
 
-function LabelInner({ r, w, h, showName, showCode, showPrice }: { r: Row; w: number; h: number; showName: boolean; showCode: boolean; showPrice: boolean }) {
+function LabelInner({ r, w, h, showName, showCode, showPrice, fiyatYaz, uyumsuz }: { r: Row; w: number; h: number; showName: boolean; showCode: boolean; showPrice: boolean; fiyatYaz: (n: number) => string; uyumsuz: string }) {
   // Barkod boyutunu etikete göre mm cinsinden hesapla: metin alanlarını düş, kalanı barkoda ver (büyük çıksın)
   const reserved = 1.6 /*padding*/ + (showName ? 4.6 : 0) + (showCode ? 2.7 : 0) + (showPrice && r.price > 0 ? 4 : 0);
   const bcH = Math.max(8, h - reserved);
@@ -41,14 +42,18 @@ function LabelInner({ r, w, h, showName, showCode, showPrice }: { r: Row; w: num
   return (
     <>
       {showName && <div className="zl-name">{r.name}</div>}
-      <Barcode value={r.code} wmm={bcW} hmm={bcH} />
+      <Barcode value={r.code} wmm={bcW} hmm={bcH} uyumsuz={uyumsuz} />
       {showCode && <div className="zl-code">{r.code}</div>}
-      {showPrice && r.price > 0 && <div className="zl-price">{fmt(r.price)}</div>}
+      {showPrice && r.price > 0 && <div className="zl-price">{fiyatYaz(r.price)}</div>}
     </>
   );
 }
 
 export default function EtiketPage() {
+  const t = useT();
+  const b = useBicim();
+  // Etiketi rafta MÜŞTERİ okuyor — fiyat bayinin dilinde ve parasında.
+  const musteri = useMusteriDili();
   const [stock, setStock] = useState<StockItem[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [source, setSource] = useState<'STOCK' | 'DEVICE'>('STOCK');
@@ -69,12 +74,12 @@ export default function EtiketPage() {
   // Tüm kalemleri ortak "aday" biçimine indir (stok + cihaz)
   const stockCands = useMemo<Cand[]>(() => stock.map((i) => ({
     key: `${i.source}-${i.id}`, code: (i.barcode && i.barcode.trim()) || (i.sku && i.sku.trim()) || '',
-    name: i.name, sub: i.source === 'PART' ? 'Parça' : 'Yazıcı/Toner', price: Number(i.sellPrice) || 0,
-  })), [stock]);
+    name: i.name, sub: i.source === 'PART' ? t.etiket.turParca : t.etiket.turYazici, price: Number(i.sellPrice) || 0,
+  })), [stock, t]);
   const deviceCands = useMemo<Cand[]>(() => devices.map((d) => ({
     key: `DEV-${d.id}`, code: (d.publicCode || '').trim(),
-    name: `${d.brand} ${d.model}`, sub: `SN ${d.serialNo}${d.customer?.name ? ' · ' + d.customer.name : ''}`, price: 0,
-  })), [devices]);
+    name: `${d.brand} ${d.model}`, sub: `${doldur(t.etiket.seri, { n: d.serialNo })}${d.customer?.name ? ' · ' + d.customer.name : ''}`, price: 0,
+  })), [devices, t]);
 
   const candidates = source === 'STOCK' ? stockCands : deviceCands;
   const allCands = useMemo(() => [...stockCands, ...deviceCands], [stockCands, deviceCands]);
@@ -88,7 +93,7 @@ export default function EtiketPage() {
   const inList = useMemo(() => new Set(rows.map((r) => r.key)), [rows]);
 
   const addCand = (c: Cand) => {
-    if (!c.code) { setMsg(`"${c.name}" için kod yok — atlandı.`); return; }
+    if (!c.code) { setMsg(doldur(t.etiket.kodYokAtlandi, { ad: c.name })); return; }
     setRows((rs) => {
       if (rs.find((r) => r.key === c.key)) return rs.map((r) => r.key === c.key ? { ...r, copies: r.copies + 1 } : r);
       return [...rs, { key: c.key, code: c.code, name: c.name, price: c.price, copies: 1 }];
@@ -98,11 +103,16 @@ export default function EtiketPage() {
 
   const addAllFiltered = () => {
     const usable = filtered.filter((c) => c.code && !inList.has(c.key));
-    if (usable.length === 0) { setMsg('Eklenecek yeni kalem yok (zaten listede veya kodsuz).'); return; }
+    if (usable.length === 0) { setMsg(t.etiket.yeniKalemYok); return; }
     const slice = usable.slice(0, MAX_LABELS);
     setRows((rs) => [...rs, ...slice.map((c) => ({ key: c.key, code: c.code, name: c.name, price: c.price, copies: 1 }))]);
     const skipped = filtered.filter((c) => !c.code).length;
-    setMsg(`${slice.length} kalem eklendi${usable.length > slice.length ? ` (ilk ${MAX_LABELS})` : ''}${skipped ? ` · ${skipped} kalem kodsuz atlandı` : ''}.`);
+    setMsg(
+      doldur(t.etiket.eklendi, { n: slice.length })
+      + (usable.length > slice.length ? doldur(t.etiket.eklendiIlk, { n: MAX_LABELS }) : '')
+      + (skipped ? doldur(t.etiket.eklendiAtlanan, { n: skipped }) : '')
+      + '.',
+    );
   };
 
   const addByCode = (raw: string) => {
@@ -113,7 +123,7 @@ export default function EtiketPage() {
       // ham eşleşme: stok barkod/sku ya da cihaz seri no
       const dev = devices.find((d) => d.serialNo === code);
       if (dev) addCand({ key: `DEV-${dev.id}`, code: (dev.publicCode || code), name: `${dev.brand} ${dev.model}`, sub: '', price: 0 });
-      else setMsg(`Bulunamadı: ${code}`);
+      else setMsg(doldur(t.etiket.bulunamadi, { kod: code }));
     }
   };
   useBarcodeWedge((code) => addByCode(code), { enabled: true });
@@ -157,32 +167,33 @@ export default function EtiketPage() {
       <div className="no-print">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
           <div>
-            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>🏷️ Zebra Etiket (GC420T)</h1>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.etiket.baslik}</h1>
             <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-              Termal yazıcıya tek tek etiket bas. <b>Toplu basım:</b> kaynağı seç → (ara/filtrele) → “Görünenleri ekle” → tek seferde bas.
+              {t.etiket.altOn} <b>{t.etiket.altVurgu}</b> {t.etiket.altSon}
             </p>
           </div>
           <button onClick={() => window.print()} disabled={labels.length === 0}
             style={{ padding: '0.6rem 1.3rem', background: labels.length ? '#0f2253' : '#9ca3af', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: labels.length ? 'pointer' : 'not-allowed', fontSize: '0.9rem' }}>
-            🖨️ Zebra'ya Yazdır ({labels.length})
+            {doldur(t.etiket.yazdirDugme, { n: labels.length })}
           </button>
         </div>
 
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: 8, padding: '0.6rem 0.85rem', marginBottom: '0.75rem', fontSize: '0.82rem', lineHeight: 1.5 }}>
-          💡 <b>440 makine için:</b> elle kod girmene gerek yok — her makinenin/parçanın sistemdeki benzersiz kodu (cihaz kodu / SKU) barkoda basılır. Kaynağı <b>Cihazlar</b> yap, aramayı boş bırak, <b>“Görünenleri ekle”</b> ile hepsini tek baskıya al.
+          💡 <b>{doldur(t.etiket.topluVurgu, { n: deviceCands.length })}</b> {t.etiket.topluOrta}{' '}
+          <b>{t.etiket.topluVurgu2}</b> {t.etiket.topluOrta2} <b>{t.etiket.topluVurgu3}</b> {t.etiket.topluSon}
         </div>
 
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, padding: '0.6rem 0.85rem', marginBottom: '0.75rem', fontSize: '0.82rem', lineHeight: 1.5 }}>
-          ⚙️ <b>İlk kurulumda</b> yazdır penceresinde: Hedef = <b>GC420T</b>, Kâğıt = <b>{w}×{h} mm</b>, Kenar = <b>Yok</b>, Ölçek = <b>%100</b>.
+          ⚙️ <b>{t.etiket.kurulumVurgu}</b> {t.etiket.kurulumOrta} <b>GC420T</b>, {t.etiket.kagit} = <b>{w}×{h} mm</b>, {t.etiket.kenar} = <b>{t.etiket.kenarYok}</b>, {t.etiket.olcek} = <b>{b.yuzde(100)}</b>.
         </div>
 
         {msg && <div style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#334155', borderRadius: 8, padding: '0.5rem 0.8rem', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{msg}</div>}
 
         {/* Boyut + alanlar */}
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
-          <div><label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Genişlik (mm)</label>
+          <div><label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>{t.etiket.genislikMm}</label>
             <input type="number" min={20} max={120} value={w} onChange={(e) => setW(Math.max(20, Math.min(120, parseInt(e.target.value) || 50)))} style={{ width: 80, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.875rem' }} /></div>
-          <div><label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Yükseklik (mm)</label>
+          <div><label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>{t.etiket.yukseklikMm}</label>
             <input type="number" min={15} max={120} value={h} onChange={(e) => setH(Math.max(15, Math.min(120, parseInt(e.target.value) || 30)))} style={{ width: 80, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.875rem' }} /></div>
           <div style={{ display: 'flex', gap: 4 }}>
             {[[50, 30], [40, 25], [60, 40], [100, 50]].map(([pw, ph]) => (
@@ -192,14 +203,17 @@ export default function EtiketPage() {
               </button>
             ))}
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Ad</label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Fiyat</label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showCode} onChange={(e) => setShowCode(e.target.checked)} /> Kod yazısı</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> {t.etiket.alanAd}</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> {t.etiket.alanFiyat}</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer', paddingBottom: 6 }}><input type="checkbox" checked={showCode} onChange={(e) => setShowCode(e.target.checked)} /> {t.etiket.alanKod}</label>
         </div>
 
         {/* Kaynak seçimi */}
         <div style={{ display: 'flex', gap: 6, marginBottom: '0.6rem' }}>
-          {([['STOCK', `🔧 Parça / Toner (${stockCands.length})`], ['DEVICE', `🖨️ Cihazlar / Makineler (${deviceCands.length})`]] as const).map(([k, l]) => (
+          {([
+            ['STOCK', doldur(t.etiket.kaynakStok, { n: stockCands.length })],
+            ['DEVICE', doldur(t.etiket.kaynakCihaz, { n: deviceCands.length })],
+          ] as const).map(([k, l]) => (
             <button key={k} type="button" onClick={() => { setSource(k); setSearch(''); }}
               style={{ padding: '0.5rem 0.9rem', border: '1px solid', borderColor: source === k ? '#2563eb' : '#d1d5db', background: source === k ? '#2563eb' : 'white', color: source === k ? 'white' : '#374151', borderRadius: 8, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
               {l}
@@ -211,39 +225,39 @@ export default function EtiketPage() {
             flexWrap: arama kutusu ile "Görünenleri ekle" düğmesi 375 px'te aynı
             satıra sığmıyordu; düğme ekranın 43 px dışında kalıyordu. */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={source === 'DEVICE' ? '🔍 Marka / model / seri / müşteri…' : '🔍 Ad / SKU / barkod…'}
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={source === 'DEVICE' ? t.etiket.araCihaz : t.etiket.araStok}
             style={{ flex: 1, padding: '0.6rem 0.9rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', boxSizing: 'border-box' }} />
           <button onClick={addAllFiltered}
             style={{ padding: '0.6rem 1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            ＋ Görünenleri ekle ({filtered.length})
+            {doldur(t.etiket.gorunenleriEkle, { n: filtered.length })}
           </button>
         </div>
 
         {/* Aday listesi (tıkla = ekle) */}
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: '1rem', maxHeight: 260, overflowY: 'auto' }}>
           {filtered.length === 0 ? (
-            <p style={{ color: '#9ca3af', textAlign: 'center', padding: '1rem', fontSize: '0.85rem' }}>Kayıt yok.</p>
+            <p style={{ color: '#9ca3af', textAlign: 'center', padding: '1rem', fontSize: '0.85rem' }}>{t.genel.kayitYok}</p>
           ) : filtered.slice(0, 200).map((c) => (
             <div key={c.key} onClick={() => addCand(c)}
               style={{ padding: '0.45rem 0.8rem', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, opacity: inList.has(c.key) ? 0.5 : 1 }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name} {!c.code && <em style={{ color: '#b91c1c', fontSize: '0.7rem' }}>(kod yok)</em>}</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name} {!c.code && <em style={{ color: '#b91c1c', fontSize: '0.7rem' }}>{t.etiket.kodYok}</em>}</div>
                 <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{c.sub}{c.code ? ` · ${c.code}` : ''}</div>
               </div>
-              <span style={{ flexShrink: 0, fontSize: '0.78rem', fontWeight: 700, color: inList.has(c.key) ? '#16a34a' : '#2563eb' }}>{inList.has(c.key) ? '✓' : '+ ekle'}</span>
+              <span style={{ flexShrink: 0, fontSize: '0.78rem', fontWeight: 700, color: inList.has(c.key) ? '#16a34a' : '#2563eb' }}>{inList.has(c.key) ? '✓' : t.etiket.ekle}</span>
             </div>
           ))}
-          {filtered.length > 200 && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '0.5rem', fontSize: '0.78rem' }}>… {filtered.length - 200} kayıt daha (aramayla daralt; “Görünenleri ekle” hepsini ekler)</p>}
+          {filtered.length > 200 && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '0.5rem', fontSize: '0.78rem' }}>{doldur(t.etiket.dahaFazlaKayit, { n: filtered.length - 200 })}</p>}
         </div>
 
         {/* Yazdırılacaklar */}
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: '1rem' }}>
           <div style={{ padding: '0.6rem 1rem', borderBottom: '1px solid #f3f4f6', fontWeight: 700, fontSize: '0.85rem', color: '#374151', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Yazdırılacaklar ({labels.length} etiket)</span>
-            {rows.length > 0 && <button onClick={() => setRows([])} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Temizle</button>}
+            <span>{doldur(t.etiket.yazdirilacaklar, { n: labels.length })}</span>
+            {rows.length > 0 && <button onClick={() => setRows([])} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>{t.etiket.temizle}</button>}
           </div>
           {rows.length === 0 ? (
-            <p style={{ color: '#9ca3af', textAlign: 'center', padding: '1.25rem', fontSize: '0.875rem' }}>Yukarıdan kalem ekleyin (tek tek ya da “Görünenleri ekle”).</p>
+            <p style={{ color: '#9ca3af', textAlign: 'center', padding: '1.25rem', fontSize: '0.875rem' }}>{t.etiket.listeBos}</p>
           ) : (
             <div style={{ maxHeight: 220, overflowY: 'auto' }}>
               {rows.map((r) => (
@@ -252,7 +266,7 @@ export default function EtiketPage() {
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
                     <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontFamily: 'monospace' }}>{r.code}</div>
                   </div>
-                  <label style={{ fontSize: '0.75rem', color: '#6b7280' }}>kopya</label>
+                  <label style={{ fontSize: '0.75rem', color: '#6b7280' }}>{t.etiket.kopya}</label>
                   <input type="number" min={1} max={100} value={r.copies} onChange={(e) => { const c = Math.max(1, Math.min(100, parseInt(e.target.value) || 1)); setRows((rs) => rs.map((x) => x.key === r.key ? { ...x, copies: c } : x)); }}
                     style={{ width: 56, padding: '0.3rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.85rem', textAlign: 'center' }} />
                   <button onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>✕</button>
@@ -265,10 +279,11 @@ export default function EtiketPage() {
         {/* Önizleme */}
         {rows[0] && (
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Önizleme — gerçek boyut ({w}×{h} mm)</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>{doldur(t.etiket.onizleme, { w, h })}</div>
             <div style={{ border: '1px dashed #cbd5e1', borderRadius: 8, padding: 12, display: 'inline-block', background: '#f8fafc' }}>
               <div className="zlabel" style={{ border: '1px solid #e5e7eb' }}>
-                <LabelInner r={rows[0]} w={w} h={h} showName={showName} showCode={showCode} showPrice={showPrice} />
+                <LabelInner r={rows[0]} w={w} h={h} showName={showName} showCode={showCode} showPrice={showPrice}
+                  fiyatYaz={(n) => musteri.b.para(n)} uyumsuz={t.etiket.barkodUyumsuz} />
               </div>
             </div>
           </div>
@@ -279,7 +294,8 @@ export default function EtiketPage() {
       <div className="zsheet">
         {labels.map((l) => (
           <div key={l.key} className="zlabel">
-            <LabelInner r={l} w={w} h={h} showName={showName} showCode={showCode} showPrice={showPrice} />
+            <LabelInner r={l} w={w} h={h} showName={showName} showCode={showCode} showPrice={showPrice}
+              fiyatYaz={(n) => musteri.b.para(n)} uyumsuz={t.etiket.barkodUyumsuz} />
           </div>
         ))}
       </div>
