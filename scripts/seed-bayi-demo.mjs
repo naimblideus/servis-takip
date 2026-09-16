@@ -36,7 +36,95 @@ const p = new PrismaClient();
 // E-posta bayi bazında benzersiz (@@unique([tenantId, email])), yani aynı
 // adres başka bir bayide de olabilir; giriş kodu şifresi tutan adayı
 // arayarak çözüyor. Yine de çakışmasın diye kullanılmayan adresler seçildi.
-const SLUG = 'demo-bayi';
+/**
+ * BEŞ AYRI DEMO HESABI.
+ *
+ * Tek hesap vardı ve aynı anda iki adaya gösterilemiyordu: biri bir şeyi
+ * değiştirince öbürü onu görüyordu. Beş bağımsız bayi, beş ayrı veri —
+ * birinde fatura kesmek diğerini etkilemiyor.
+ *
+ * Hepsinde AYNI HİKÂYELER var (susan sayaç, kutudan az basan toner, hedefin
+ * altında sözleşme, yenileme adayı yaşlı makine, şüpheli okuma, geçmiş
+ * dönem kaybı). Amaç beşini farklı kılmak değil, beş kişinin aynı anda
+ * BÜTÜN özellikleri kendi hesabında görebilmesi.
+ *
+ * Farklı olan: firma adı, şehir, müşteri adları ve rakamlar. Tohum bayi
+ * başına değiştiği için sayılar birbirini tekrar etmiyor ama her hesap
+ * kendi içinde deterministik — aynı komut aynı demoyu kuruyor.
+ */
+const BAYILER = [
+  { n: 1, slug: 'demo-bayi',   ad: 'Demo Büro Sistemleri',     sehir: 'İstanbul', adres: 'Alemdağ Cad. No:112 Kat:2', tohum: 20260915, vknOn: '2110', telOn: '0532111', onEk: 'MBS', patronAd: 'Serkan Yalçın',  teknisyenAd: 'Murat Demir' },
+  { n: 2, slug: 'demo-bayi-2', ad: 'Anadolu Ofis Çözümleri',   sehir: 'Ankara',   adres: 'Ceyhun Atuf Kansu Cad. No:45', tohum: 20260916, vknOn: '3220', telOn: '0533222', onEk: 'AOC', patronAd: 'Elif Karaca',   teknisyenAd: 'Onur Şahin' },
+  { n: 3, slug: 'demo-bayi-3', ad: 'Ege Kopya Sistemleri',     sehir: 'İzmir',    adres: 'Gazi Bulvarı No:78 Kat:1',   tohum: 20260917, vknOn: '4330', telOn: '0534333', onEk: 'EKS', patronAd: 'Burak Aydın',   teknisyenAd: 'Kemal Yıldız' },
+  { n: 4, slug: 'demo-bayi-4', ad: 'Marmara Büro Teknoloji',   sehir: 'Bursa',    adres: 'Fevzi Çakmak Cad. No:23',    tohum: 20260918, vknOn: '5440', telOn: '0535444', onEk: 'MBT', patronAd: 'Seda Öztürk',   teknisyenAd: 'Hakan Çelik' },
+  { n: 5, slug: 'demo-bayi-5', ad: 'Akdeniz Ofis Servis',      sehir: 'Antalya',  adres: 'Yüzüncü Yıl Bulvarı No:9',   tohum: 20260919, vknOn: '6550', telOn: '0536555', onEk: 'AOS', patronAd: 'Tolga Acar',    teknisyenAd: 'Sinan Koç' },
+];
+
+/**
+ * Müşteri adları havuzdan üretiliyor: 30 isim × 14 iş kolu. Her bayi
+ * havuzda farklı bir yerden başlıyor, yani beş hesapta 70 ayrı firma adı
+ * çıkıyor — elle 70 ad yazmadan.
+ *
+ * İŞ KOLU SIRASI SABİT çünkü hikâyeyi o taşıyor: 12., 13. ve 14. kayıtların
+ * vergi bilgisi kasten EKSİK (e-Fatura ekranı "hazır değil" diyebilsin).
+ * İsim değişiyor, eksiklik yeri değişmiyor.
+ */
+const MUSTERI_ISIMLERI = [
+  'Yılmaz', 'Deniz', 'Anadolu', 'Kuzey', 'Arge', 'Bilge', 'Ege', 'Çınar', 'Efe', 'Marmara',
+  'Nova', 'Sağlam', 'Kent', 'Vizyon', 'Toros', 'Kervan', 'Poyraz', 'Meltem', 'Şafak', 'Aksu',
+  'Barış', 'Cihan', 'Demir', 'Ferda', 'Güneş', 'Hilal', 'Işık', 'Kaya', 'Lale', 'Mercan',
+];
+
+const MUSTERI_KOLLARI = [
+  { tur: 'Mali Müşavirlik',    unvanEk: 'Mali Müşavirlik ve Denetim Ltd. Şti.', eposta: 'muhasebe' },
+  { tur: 'Hukuk Bürosu',       unvanEk: 'Avukatlık Ortaklığı',                  eposta: 'info' },
+  { tur: 'Polikliniği',        unvanEk: 'Özel Sağlık Hizmetleri A.Ş.',          eposta: 'satinalma' },
+  { tur: 'Nakliyat',           unvanEk: 'Nakliyat ve Lojistik Ltd. Şti.',       eposta: 'muhasebe', mukellef: false },
+  { tur: 'Mimarlık',           unvanEk: 'Mimarlık ve Proje Ltd. Şti.',          eposta: 'ofis' },
+  { tur: 'Eğitim Kurumları',   unvanEk: 'Eğitim Kurumları A.Ş.',                eposta: 'muhasebe' },
+  { tur: 'Gıda Toptan',        unvanEk: 'Gıda Dağıtım Ltd. Şti.',               eposta: 'muhasebe', mukellef: false },
+  { tur: 'Sigorta Aracılık',   unvanEk: 'Sigorta Aracılık Hizmetleri Ltd. Şti.', eposta: 'info' },
+  { tur: 'İnşaat Taahhüt',     unvanEk: 'İnşaat Taahhüt ve Ticaret A.Ş.',       eposta: 'muhasebe' },
+  { tur: 'Turizm Acentesi',    unvanEk: 'Turizm Seyahat Acenteliği Ltd. Şti.',  eposta: 'muhasebe' },
+  { tur: 'Yazılım',            unvanEk: 'Yazılım Teknolojileri A.Ş.',           eposta: 'finans' },
+  // ── EKSİK: vergi bilgisi hiç alınmamış (e-Fatura ekranı bunu gösterir)
+  { tur: 'Muhasebe',           eksik: 'hepsi' },
+  // ── EKSİK: vergi no var ama "mükellef mi" SORULMAMIŞ — belgenin hangi
+  //    yoldan gideceği bilinmiyor, o yüzden hazır sayılmıyor.
+  { tur: 'Ecza Deposu',        unvanEk: 'Ecza Deposu Ltd. Şti.',                eposta: 'muhasebe', eksik: 'mukellef' },
+  // ── EKSİK: unvan yok (defterdeki ad ≠ tescilli unvan)
+  { tur: 'Reklam',             eposta: 'info',                                  eksik: 'unvan' },
+];
+
+/** Bir bayinin 14 müşterisi — yapı aynı, adlar bayiye özel. */
+function musterileriKur(bayi, ilceler) {
+  return MUSTERI_KOLLARI.map((k, i) => {
+    const isim = MUSTERI_ISIMLERI[((bayi.n - 1) * 14 + i) % MUSTERI_ISIMLERI.length];
+    const ad = `${isim} ${k.tur}`;
+    const ilce = ilceler[i % ilceler.length];
+    const tel = `${bayi.telOn}${String(i + 1).padStart(4, '0')}`;
+    const vkn = `${bayi.vknOn}${String(340500 + i + 1)}`;
+    const slug = isim.toLocaleLowerCase('tr')
+      .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
+      .replace(/[^a-z0-9]/g, '');
+
+    if (k.eksik === 'hepsi') return { ad, tel, ilce };
+    const temel = { ad, tel, ilce, vkn, vd: ilce, eposta: `${k.eposta}@${slug}.example` };
+    if (k.eksik === 'mukellef') return { ...temel, unvan: `${isim} ${k.unvanEk}` };
+    if (k.eksik === 'unvan') return { ...temel, mukellef: true };
+    return { ...temel, unvan: `${isim} ${k.unvanEk}`, mukellef: k.mukellef !== false };
+  });
+}
+
+/** Şehre göre ilçeler — adres "Kadıköy, Ankara" gibi tuhaf çıkmasın. */
+const ILCELER = {
+  'İstanbul': ['Ümraniye', 'Kadıköy', 'Ataşehir', 'Sarıyer', 'Kartal', 'Şişli', 'Beşiktaş', 'Pendik'],
+  'Ankara': ['Çankaya', 'Yenimahalle', 'Keçiören', 'Etimesgut', 'Mamak', 'Sincan', 'Gölbaşı', 'Altındağ'],
+  'İzmir': ['Konak', 'Karşıyaka', 'Bornova', 'Buca', 'Gaziemir', 'Bayraklı', 'Çiğli', 'Balçova'],
+  'Bursa': ['Nilüfer', 'Osmangazi', 'Yıldırım', 'Gürsu', 'Mudanya', 'Kestel', 'Gemlik', 'İnegöl'],
+  'Antalya': ['Muratpaşa', 'Konyaaltı', 'Kepez', 'Döşemealtı', 'Aksu', 'Serik', 'Manavgat', 'Alanya'],
+};
 
 /**
  * KOMŞU BAYİLER — Bayi Pazarı'nın öbür yarısı.
@@ -75,8 +163,11 @@ const KOMSULAR = [
     ],
   },
 ];
-const PATRON = 'demo@demo.com';
-const TEKNISYEN = 'tekniker@demo.com';
+// Hesap başına adres: demo1@demo.com … demo5@demo.com.
+// 1 numaralı bayide demo@demo.com da açılıyor — o adres zaten dağıtıldı,
+// çalışmaya devam etsin.
+const patronEpostasi = (bayi) => `demo${bayi.n}@demo.com`;
+const teknisyenEpostasi = (bayi) => `tekniker${bayi.n}@demo.com`;
 const SIFRE = process.env.BAYI_DEMO_SIFRE || 'demo1234';
 
 const BUGUN = new Date();
@@ -183,8 +274,50 @@ const ARIZALAR = [
   { k: 'DRUM', m: 'Baskıda tekrar eden leke', i: 'Drum ünitesi değişti.' },
 ];
 
-async function main() {
-  console.log('\n═══ ICP DEMO KURULUYOR ═══\n');
+/**
+ * Komşu bayiler — pazarın öbür yarısı. BİR KEZ kuruluyor: beş demo hesabı da
+ * aynı pazarı görüyor, her hesap için ayrı komşu kurmak pazarı beş kopyaya
+ * bölerdi. Bayiler kalıcı (upsert), ilanları her tohumlamada yenileniyor.
+ */
+async function komsulariKur() {
+  let ilan = 0;
+  for (const k of KOMSULAR) {
+    const kb = await p.tenant.upsert({
+      where: { slug: k.slug },
+      update: { name: k.ad, city: k.sehir },
+      create: {
+        name: k.ad, slug: k.slug, city: k.sehir,
+        plan: 'basic', isActive: true, marketEnabled: true,
+      },
+    });
+    await p.marketListing.deleteMany({ where: { sellerTenantId: kb.id } });
+    for (const x of k.ilanlar) {
+      await p.marketListing.create({
+        data: {
+          sellerTenantId: kb.id, ...x,
+          description: `${k.ad} stoğundan. Fatura kesilir, kargo alıcıya aittir.`,
+          city: k.sehir, status: 'ACTIVE',
+          createdAt: gunOnce(rnd(2, 45)),
+        },
+      });
+      ilan++;
+    }
+  }
+  console.log(`
+  komşu bayiler: ${KOMSULAR.length} bayi · ${ilan} ilan (pazarın alınabilir tarafı)`);
+}
+
+async function kur(bayi) {
+  console.log(`\n═══ ${bayi.n}/${BAYILER.length} — ${bayi.ad} ═══\n`);
+
+  // Her bayi KENDİ tohumuyla başlıyor: hesaplar birbirinin kopyası olmasın
+  // ama her hesap kendi içinde deterministik kalsın.
+  tohum = bayi.tohum;
+  const PATRON = patronEpostasi(bayi);
+  const TEKNISYEN = teknisyenEpostasi(bayi);
+  const SLUG = bayi.slug;
+  const ilceler = ILCELER[bayi.sehir] || ILCELER['İstanbul'];
+  const MUSTERILER = musterileriKur(bayi, ilceler);
 
   const eski = await p.tenant.findFirst({ where: { slug: SLUG } });
   if (eski) {
@@ -195,7 +328,7 @@ async function main() {
   // ── BAYİ ──────────────────────────────────────────────────────────────
   const tenant = await p.tenant.create({
     data: {
-      name: 'Demo Büro Sistemleri', slug: SLUG,
+      name: bayi.ad, slug: SLUG,
       // ── BÜTÜN ÖZELLİKLER AÇIK ──────────────────────────────────────
       // Demo bir paket satmak için değil ÜRÜNÜ GÖSTERMEK için. Kapalı
       // bir modül, karşıdaki bayinin göremediği bir özellik demek;
@@ -207,10 +340,11 @@ async function main() {
       marketEnabled: true,
       // WhatsApp menüde ancak Meta numarası bağlıysa görünüyor.
       // Demoda kanal kurulmuş sayılıyor; gelen mesaj kuyruğu aşağıda.
-      whatsappPhoneId: 'DEMO-WA-1015550100',
+      // Benzersiz alan: her demo bayisinin kendi numarası olmalı.
+      whatsappPhoneId: `DEMO-WA-10155501${String(bayi.n).padStart(2, '0')}`,
       pricePerBlack: 0.42, pricePerColor: 1.75,
       taxNumber: '2110340100', taxOffice: 'Ümraniye',
-      address: 'Alemdağ Cad. No:112 Kat:2', city: 'İstanbul', district: 'Ümraniye',
+      address: bayi.adres, city: bayi.sehir, district: ilceler[0],
       phone: '02165550100', email: 'info@demoburo.example',
       ownerName: 'Serkan Yalçın',
       paymentTermDays: 15,
@@ -232,7 +366,7 @@ async function main() {
       // Entegratör sözleşmesi olmayan bir bayi bile UBL XML'i indirip kendi
       // portalına yükleyerek faturayı kesebiliyor. Demo tam olarak bunu
       // gösteriyor; kullanıcı adı/parola istemiyor.
-      eFaturaOnEk: 'MBS', eFaturaSaglayici: 'ELDEN', eFaturaTestModu: true,
+      eFaturaOnEk: bayi.onEk, eFaturaSaglayici: 'ELDEN', eFaturaTestModu: true,
       // Uydurma veri gerçek popülasyon ölçümünü kirletmesin.
       oemDataSharing: false,
     },
@@ -240,16 +374,36 @@ async function main() {
 
   const patron = await p.user.create({
     data: {
-      tenantId: tenant.id, email: PATRON, name: 'Serkan Yalçın',
+      tenantId: tenant.id, email: PATRON, name: bayi.patronAd,
       passwordHash: await bcrypt.hash(SIFRE, 12), role: 'ADMIN', isActive: true,
     },
   });
   const teknisyen = await p.user.create({
     data: {
-      tenantId: tenant.id, email: TEKNISYEN, name: 'Murat Demir',
+      tenantId: tenant.id, email: TEKNISYEN, name: bayi.teknisyenAd,
       passwordHash: await bcrypt.hash(SIFRE, 12), role: 'TECHNICIAN', isActive: true,
     },
   });
+
+  // ── ESKİ ADRESLER (yalnız 1 numaralı bayi) ────────────────────────────
+  // demo@demo.com ve tekniker@demo.com zaten dağıtıldı. Numaralı seriye
+  // geçerken o adresleri kırmak, elindeki bilgiyle girmeye çalışan kişiyi
+  // duvara toslatır ve hatanın sebebi hiçbir yerde yazmaz. Aynı bayide
+  // ikinci birer kullanıcı olarak duruyorlar.
+  if (bayi.n === 1) {
+    await p.user.create({
+      data: {
+        tenantId: tenant.id, email: 'demo@demo.com', name: bayi.patronAd,
+        passwordHash: await bcrypt.hash(SIFRE, 12), role: 'ADMIN', isActive: true,
+      },
+    });
+    await p.user.create({
+      data: {
+        tenantId: tenant.id, email: 'tekniker@demo.com', name: bayi.teknisyenAd,
+        passwordHash: await bcrypt.hash(SIFRE, 12), role: 'TECHNICIAN', isActive: true,
+      },
+    });
+  }
 
   // ── STOK + ALIŞLAR ────────────────────────────────────────────────────
   // Her alış ayrı kayıt; ortalama maliyet hareketli ağırlıklı ortalamayla
@@ -260,7 +414,7 @@ async function main() {
   for (const x of PARCALAR) {
     const parca = await p.part.create({
       data: {
-        tenantId: tenant.id, sku: `MBS-${String(++sku).padStart(4, '0')}`,
+        tenantId: tenant.id, sku: `${bayi.onEk}-${String(++sku).padStart(4, '0')}`,
         name: x.ad, group: x.grup, sellPrice: x.satis,
         buyPrice: 0, stockQty: 0, minStock: 3,
       },
@@ -301,9 +455,9 @@ async function main() {
     const musteri = await p.customer.create({
       data: {
         tenantId: tenant.id, name: m.ad, phone: m.tel,
-        address: `${m.ilce}, İstanbul`,
+        address: `${m.ilce}, ${bayi.sehir}`,
         legalName: m.unvan ?? null, taxNo: m.vkn ?? null, taxOffice: m.vd ?? null,
-        city: m.vkn ? 'İstanbul' : null, district: m.vkn ? m.ilce : null,
+        city: m.vkn ? bayi.sehir : null, district: m.vkn ? m.ilce : null,
         email: m.eposta ?? null,
         eInvoiceUser: m.mukellef === undefined ? null : m.mukellef,
         portalEnabled: mi < 6,
@@ -363,8 +517,8 @@ async function main() {
         data: {
           tenantId: tenant.id, customerId: musteri.id,
           brand: mdl.marka, model: mdl.model,
-          serialNo: `MBS${String(++seri).padStart(5, '0')}`,
-          publicCode: `MBS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+          serialNo: `${bayi.onEk}${String(++seri).padStart(5, '0')}`,
+          publicCode: `${bayi.onEk}-${bayi.n}${String(seri).padStart(4, '0')}${String(rnd(100, 999))}`,
           qrTokenHash: `seed-${seri}`,
           location: secim(['Muhasebe', 'Yönetim katı', 'Ön büro', '2. kat koridor', 'Arşiv odası', 'Toplantı katı']),
           installedAt: kurulum, installedAtPrecision: 'DAY',
@@ -596,7 +750,7 @@ async function main() {
         const fis = await p.serviceTicket.create({
           data: {
             tenantId: tenant.id, deviceId: c.id, customerId: c.customerId,
-            ticketNumber: `MBS-T${String(++tonerFisNo).padStart(4, '0')}`,
+            ticketNumber: `${bayi.onEk}-T${String(++tonerFisNo).padStart(4, '0')}`,
             status: 'DELIVERED', priority: 'NORMAL',
             createdByUserId: patron.id, assignedUserId: teknisyen.id,
             // SARF DEĞİŞİMİ, arıza değil. 'TONER' yazılsaydı bu 230 fiş
@@ -723,7 +877,7 @@ async function main() {
       const fis = await p.serviceTicket.create({
         data: {
           tenantId: tenant.id, deviceId: c.id, customerId: c.customerId,
-          ticketNumber: `MBS-${String(++fisNo).padStart(4, '0')}`,
+          ticketNumber: `${bayi.onEk}-${String(++fisNo).padStart(4, '0')}`,
           status: kapali ? secim(['DELIVERED', 'READY']) : secim(['NEW', 'IN_SERVICE', 'WAITING_FOR_PART']),
           priority: secim(['LOW', 'NORMAL', 'NORMAL', 'HIGH']),
           createdByUserId: patron.id, assignedUserId: teknisyen.id,
@@ -849,7 +1003,7 @@ async function main() {
     const soz = await p.contract.create({
       data: {
         tenantId: tenant.id, customerId: m.id,
-        contractNo: `MBS-SZL-${String(++sozNo).padStart(3, '0')}`,
+        contractNo: `${bayi.onEk}-SZL-${String(++sozNo).padStart(3, '0')}`,
         startDate: baslangic, endDate: bitis,
         noticeDays: 30, autoRenew: true, renewMonths: 12,
         escalationMonths: 12, escalationRate: 25,
@@ -917,7 +1071,7 @@ async function main() {
       const fatura = await p.customerInvoice.create({
         data: {
           tenantId: tenant.id, customerId: m.id,
-          invoiceNumber: `MBS-FAT-${d.getFullYear()}-${String(++faturaNo).padStart(5, '0')}`,
+          invoiceNumber: `${bayi.onEk}-FAT-${d.getFullYear()}-${String(++faturaNo).padStart(5, '0')}`,
           period: per, invoiceDate: tarih,
           dueDate: new Date(tarih.getTime() + 15 * 86400000),
           status: odendi ? 'PAID' : 'OPEN',
@@ -1096,35 +1250,8 @@ async function main() {
   }
 
   // ── BAYİ PAZARI İLANLARI ──────────────────────────────────────────────
-  // Bayiler arası parça/makine alışverişi. İKİ TARAF da var: bu bayinin
-  // sattıkları ve komşu bayilerden alınabilecekler. Tek taraflı demo
-  // pazarın yarısını gizliyordu.
-  {
-    // Komşu bayiler ve ilanları. Bayiler kalıcı (upsert), ilanları her
-    // tohumlamada yenileniyor — tekrar çalıştırınca ilan çoğalmasın.
-    for (const k of KOMSULAR) {
-      const kb = await p.tenant.upsert({
-        where: { slug: k.slug },
-        update: { name: k.ad, city: k.sehir },
-        create: {
-          name: k.ad, slug: k.slug, city: k.sehir,
-          plan: 'basic', isActive: true, marketEnabled: true,
-        },
-      });
-      await p.marketListing.deleteMany({ where: { sellerTenantId: kb.id } });
-      for (const x of k.ilanlar) {
-        await p.marketListing.create({
-          data: {
-            sellerTenantId: kb.id, ...x,
-            description: `${k.ad} stoğundan. Fatura kesilir, kargo alıcıya aittir.`,
-            city: k.sehir, status: 'ACTIVE',
-            createdAt: gunOnce(rnd(2, 45)),
-          },
-        });
-      }
-    }
-  }
-
+  // Bu bayinin SATTIKLARI. Komşu bayilerin ilanları ayrıca kuruluyor
+  // (komsulariKur) ve beş demo hesabı da aynı pazarı görüyor.
   {
     const ilanlar = [
       { kind: 'PART', title: 'Kyocera TK-1170 Toner (orijinal)', brand: 'Kyocera', model: 'TK-1170', condition: 'SIFIR', category: 'Toner', price: 1150, quantity: 6, unit: 'adet' },
@@ -1136,14 +1263,13 @@ async function main() {
       await p.marketListing.create({
         data: {
           sellerTenantId: tenant.id, ...x,
-          description: 'Demo Büro Sistemleri stoğundan. Fatura kesilir, kargo alıcıya aittir.',
-          city: 'İstanbul', status: 'ACTIVE',
+          description: `${bayi.ad} stoğundan. Fatura kesilir, kargo alıcıya aittir.`,
+          city: bayi.sehir, status: 'ACTIVE',
           createdAt: gunOnce(rnd(3, 60)),
         },
       });
     }
-    const komsuIlan = KOMSULAR.reduce((a, k) => a + k.ilanlar.length, 0);
-    console.log(`  bayi pazarı: ${ilanlar.length} kendi ilanı + ${KOMSULAR.length} komşu bayide ${komsuIlan} ilan`);
+    console.log(`  bayi pazarı: ${ilanlar.length} kendi ilanı`);
   }
 
   // ── TEKLİF ────────────────────────────────────────────────────────────
@@ -1168,20 +1294,135 @@ async function main() {
 
   // ── ÖZET ──────────────────────────────────────────────────────────────
   const say = async (f) => f;
-  console.log('\n═══ HAZIR ═══\n');
-  console.log(`  Bayi      : Demo Büro Sistemleri`);
-  console.log(`  Adres     : /  (giriş sayfasından)`);
   console.log('');
   console.log(`  YÖNETİCİ  : ${PATRON}`);
   console.log(`  TEKNİSYEN : ${TEKNISYEN}`);
-  console.log(`  ŞİFRE     : ${SIFRE}   (ikisi de aynı)`);
-  console.log('');
+  console.log(`  ŞİFRE     : ${SIFRE}`);
   console.log(`  ${musteriler.length} müşteri · ${cihazlar.length} makine · ${okuma} sayaç okuması`);
   console.log(`  ${fisSayisi + tonerFisi} servis fişi · ${faturaSayisi} fatura · ${sozNo} sözleşme`);
   console.log(`  ${gozlem} toner verimi SAHADA ÖLÇÜLDÜ (elle girilen: 0)`);
   console.log('');
-  console.log('  Bütün modüller AÇIK: Faturalar · Rota · Takip · Kaçan Gelir ·');
-  console.log('  Raporlar · Bayi Pazarı · Müşteri Paneli · Mağaza · WhatsApp');
+  return { bayi, tenantId: tenant.id, patron: PATRON, teknisyen: TEKNISYEN, musteri: musteriler.length, cihaz: cihazlar.length };
+}
+
+/**
+ * KURULAN DEMOYU DOĞRULA.
+ *
+ * Aşağıdaki özet "her hesapta şu hikâyeler var" diyor. Bunu KONTROL ETMEDEN
+ * yazmak, demoyu açan kişiye olmayan bir şeyi vaat etmek olur — ve o kişi
+ * boş ekranı gördüğünde ürüne değil, ilk cümleye güvenmeyi bırakır.
+ *
+ * Her madde, o özelliği gösteren ekranın gerçekten veri bulacağı anlamına
+ * gelir; eksik olan varsa özet onu SÖYLÜYOR.
+ */
+const ARIZA_DEGIL = ['CONSUMABLE', 'PERIODIC_MAINTENANCE', 'INSTALLATION'];
+
+async function dogrula(tenantId) {
+  const yilOnce = new Date(BUGUN.getTime() - 365 * 86400000);
+  const ayBasiSimdi = new Date(BUGUN.getFullYear(), BUGUN.getMonth(), 1);
+
+  const cihazlar = await p.device.findMany({
+    where: { tenantId, isRental: true },
+    select: { id: true, installedAt: true },
+  });
+  const otomatik = await p.counterReading.findMany({
+    where: { tenantId, source: 'CIHAZ_EPOSTA' },
+    select: { deviceId: true, readingDate: true },
+  });
+  const sonOtomatik = new Map();
+  for (const o of otomatik) {
+    const v = sonOtomatik.get(o.deviceId);
+    if (!v || o.readingDate > v) sonOtomatik.set(o.deviceId, o.readingDate);
+  }
+  let calisan = 0, duran = 0, kurulmamis = 0;
+  for (const c of cihazlar) {
+    const son = sonOtomatik.get(c.id);
+    if (!son) kurulmamis++;
+    else if ((BUGUN - son) / 86400000 > 45) duran++;
+    else calisan++;
+  }
+
+  const fisler = await p.serviceTicket.findMany({
+    where: { tenantId, deletedAt: null, createdAt: { gte: yilOnce } },
+    select: { deviceId: true, faultCategory: true },
+  });
+  const arizaSayisi = new Map();
+  for (const f of fisler) {
+    if (!f.faultCategory || ARIZA_DEGIL.includes(f.faultCategory)) continue;
+    arizaSayisi.set(f.deviceId, (arizaSayisi.get(f.deviceId) || 0) + 1);
+  }
+  const yenileme = cihazlar.filter((c) =>
+    c.installedAt
+    && (BUGUN - c.installedAt) / (86400000 * 30.44) >= 60
+    && (arizaSayisi.get(c.id) || 0) >= 3).length;
+
+  const [toner, gecmisKayip, sozlesme, teklif, ilan, epostaKuyruk, eksikVergi, kritikStok] = await Promise.all([
+    p.tonerChange.count({ where: { tenantId } }),
+    p.counterReading.count({ where: { tenantId, billed: false, readingDate: { lt: ayBasiSimdi } } }),
+    p.contract.count({ where: { tenantId } }),
+    p.teklif.count({ where: { tenantId } }),
+    p.marketListing.count({ where: { sellerTenantId: tenantId } }),
+    p.counterEmail.count({ where: { tenantId } }),
+    p.customer.count({ where: { tenantId, OR: [{ taxNo: null }, { legalName: null }, { eInvoiceUser: null }] } }),
+    p.part.count({ where: { tenantId, stockQty: { lte: 2 } } }),
+  ]);
+
+  return [
+    ['otomatik sayaç gönderen', calisan],
+    ['gönderiyordu-durdu', duran],
+    ['hiç göndermedi', kurulmamis],
+    ['ölçülmüş toner değişimi', toner],
+    ['yenileme adayı', yenileme],
+    ['geçmiş dönem faturalanmamış', gecmisKayip],
+    ['sözleşme', sozlesme],
+    ['teklif', teklif],
+    ['pazar ilanı', ilan],
+    ['sayaç e-postası', epostaKuyruk],
+    ['vergi bilgisi eksik müşteri', eksikVergi],
+    ['kritik stok', kritikStok],
+  ];
+}
+
+async function main() {
+  console.log('\n═══ DEMO HESAPLARI KURULUYOR ═══');
+
+  const sonuclar = [];
+  for (const bayi of BAYILER) sonuclar.push(await kur(bayi));
+
+  // Komşu bayiler ORTAK: beş demo hesabı da aynı pazarı görüyor. Her hesap
+  // için ayrı komşu kurmak pazarı beş kopyaya bölerdi.
+  await komsulariKur();
+
+  // Her hesap için iddiayı ÖLÇ. Eksik varsa özet onu söylesin.
+  console.log('\n\n═══ DOĞRULAMA ═══\n');
+  let eksikToplam = 0;
+  for (const s of sonuclar) {
+    const satirlar = await dogrula(s.tenantId);
+    const eksikler = satirlar.filter(([, n]) => n === 0).map(([ad]) => ad);
+    eksikToplam += eksikler.length;
+    console.log(`  ${s.bayi.n}. ${s.bayi.ad}`);
+    console.log(`     ${satirlar.map(([ad, n]) => `${ad}: ${n}`).join(' · ')}`);
+    if (eksikler.length) console.log(`     ⚠ EKSİK: ${eksikler.join(', ')}`);
+    console.log('');
+  }
+
+  console.log('\n═══ HAZIR — GİRİŞ BİLGİLERİ ═══\n');
+  console.log('  Adres: giriş sayfasından /login\n');
+  console.log('  #  BAYİ                        YÖNETİCİ            TEKNİSYEN');
+  console.log('  ─  ──────────────────────────  ──────────────────  ──────────────────');
+  for (const s of sonuclar) {
+    console.log(`  ${s.bayi.n}  ${s.bayi.ad.padEnd(26)}  ${s.patron.padEnd(18)}  ${s.teknisyen}`);
+  }
+  console.log(`\n  ŞİFRE (hepsi): ${SIFRE}`);
+  console.log('  1 numaralı hesaba demo@demo.com / tekniker@demo.com da girer.');
+  console.log('');
+  if (eksikToplam === 0) {
+    console.log('  Beş hesabın HEPSİNDE ölçülerek doğrulandı: susan sayaç, ölçülmüş toner');
+    console.log('  verimi, yenileme adayı yaşlı makine, geçmiş dönem kaybı, sözleşme,');
+    console.log('  teklif, pazar ilanı, eksik vergi bilgisi, kritik stok. Modüller açık.');
+  } else {
+    console.log(`  ⚠ ${eksikToplam} maddede veri üretilemedi — yukarıdaki DOĞRULAMA listesine bakın.`);
+  }
   console.log('');
 }
 
