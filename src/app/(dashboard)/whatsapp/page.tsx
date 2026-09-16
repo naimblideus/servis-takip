@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { FAULT_CATEGORIES } from '@/lib/fault-categories';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Msg {
   id: string;
@@ -40,6 +42,8 @@ interface FixDev {
 }
 
 export default function WhatsAppInboxPage() {
+  const t = useT();
+  const b = useBicim();
   const [items, setItems] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
@@ -87,7 +91,7 @@ export default function WhatsAppInboxPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       const d = await r.json();
-      if (!r.ok) { alert(d.error || 'İşlem yapılamadı'); return null; }
+      if (!r.ok) { alert(d.error || t.wa.islemYapilamadi); return null; }
       setNaming(null); setNewName(''); load();
       return d;
     } finally { setBusy(null); }
@@ -127,24 +131,22 @@ export default function WhatsAppInboxPage() {
   const saveReading = async (m: Msg) => {
     setReadErr(null);
     const dev = devices.find(d => d.id === selDev);
-    if (!dev) { setReadErr('Cihaz seçin'); return; }
-    if (cb === '') { setReadErr('Siyah sayacı yazın'); return; }
+    if (!dev) { setReadErr(t.wa.cihazSecinHata); return; }
+    if (cb === '') { setReadErr(t.wa.siyahYazinHata); return; }
     const d = await act({
       action: 'saveReading', messageId: m.id, deviceId: selDev,
       counterBlack: cb, counterColor: dev.hasColor ? (cc || 0) : 0,
       ...(resetTur ? { reset: true, resetTur } : {}),
     });
     if (d?.ok) { setReading(null); if (d.warning) alert('⚠️ ' + d.warning); }
-    else setReadErr('Kaydedilemedi — sayaç önceki değerden küçükse aşağıdan sebebini seçin');
+    else setReadErr(t.wa.kaydedilemediHata);
   };
 
   const fmtTime = (iso: string) => {
     const d = new Date(iso);
     const today = new Date().toDateString() === d.toDateString();
-    return today
-      ? d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-      : d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) + ' ' +
-        d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    // Bugünse yalnız saat; değilse tarih + saat. Biçim kullanıcının dilinden.
+    return today ? b.tarihSaat(d).split(' ').slice(-1)[0] : b.tarihSaat(d);
   };
 
   const card: React.CSSProperties = {
@@ -163,25 +165,23 @@ export default function WhatsAppInboxPage() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: '900px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.35rem' }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>💬 WhatsApp'tan Gelenler</h1>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.wa.baslik}</h1>
         <button onClick={() => setShowAll(!showAll)}
           style={{ padding: '0.45rem 0.9rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
-          {showAll ? 'Sadece bekleyenler' : 'Tümünü göster'}
+          {showAll ? t.wa.sadeceBekleyen : t.wa.tumunuGoster}
         </button>
       </div>
       <p style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: 0, marginBottom: '1.25rem', lineHeight: 1.6 }}>
-        Müşteri yazdığında kim olduğunu, kaç cihazı olduğunu ve açık fişi olup olmadığını burada görürsünüz.
-        Sayaç fotoğrafı geldiyse tek ekrandan cihaza işleyebilirsiniz.
-        WhatsApp uygulamanız normal çalışmaya devam eder.
+        {t.wa.alt}
       </p>
 
-      {loading && <div style={{ color: '#9ca3af' }}>Yükleniyor…</div>}
+      {loading && <div style={{ color: '#9ca3af' }}>{t.genel.yukleniyor}</div>}
 
       {!loading && items.length === 0 && (
         <div style={{ ...card, textAlign: 'center', color: '#6b7280', padding: '2.5rem 1rem' }}>
           <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📭</div>
-          <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>{showAll ? 'Hiç mesaj yok' : 'Bekleyen mesaj yok'}</div>
-          <div style={{ fontSize: '0.85rem' }}>WhatsApp numaranız bağlıysa gelen mesajlar burada listelenir.</div>
+          <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>{showAll ? t.wa.hicMesaj : t.wa.bekleyenYok}</div>
+          <div style={{ fontSize: '0.85rem' }}>{t.wa.bosAlt}</div>
         </div>
       )}
 
@@ -189,10 +189,10 @@ export default function WhatsAppInboxPage() {
         <div key={m.id} style={{ ...card, opacity: m.handled ? 0.6 : 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'baseline' }}>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {m.customer ? m.customer.name : (m.contactName || 'Bilinmeyen numara')}
-              {!m.customer && <span style={chip('#fffbeb', '#b45309', '#fde68a')}>sistemde yok</span>}
-              {m.isFaultReport && <span style={chip('#fef2f2', '#b91c1c', '#fecaca')}>arıza bildirimi</span>}
-              {m.readingId && <span style={chip('#ecfdf5', '#047857', '#a7f3d0')}>sayaç işlendi</span>}
+              {m.customer ? m.customer.name : (m.contactName || t.wa.bilinmeyenNumara)}
+              {!m.customer && <span style={chip('#fffbeb', '#b45309', '#fde68a')}>{t.wa.sistemdeYok}</span>}
+              {m.isFaultReport && <span style={chip('#fef2f2', '#b91c1c', '#fecaca')}>{t.wa.arizaBildirimi}</span>}
+              {m.readingId && <span style={chip('#ecfdf5', '#047857', '#a7f3d0')}>{t.wa.sayacIslendi}</span>}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{fmtTime(m.receivedAt)}</div>
           </div>
@@ -200,27 +200,27 @@ export default function WhatsAppInboxPage() {
           <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: '0.15rem' }}>
             📞 0{m.fromPhone.slice(-10)}
             {m.customer && (
-              <> · {m.customer.deviceCount} cihaz
-                {m.customer.openTickets > 0 && <span style={{ color: '#b91c1c', fontWeight: 700 }}> · {m.customer.openTickets} açık fiş</span>}
+              <> · {doldur(t.wa.cihazAdet, { n: m.customer.deviceCount })}
+                {m.customer.openTickets > 0 && <span style={{ color: '#b91c1c', fontWeight: 700 }}>{doldur(t.wa.acikFis, { n: m.customer.openTickets })}</span>}
               </>
             )}
-            {m.autoReplied && <span style={{ color: '#059669' }}> · otomatik cevap gönderildi</span>}
+            {m.autoReplied && <span style={{ color: '#059669' }}>{t.wa.otomatikCevap}</span>}
           </div>
 
           {(m.text || m.hasMedia) && (
             <div style={{ marginTop: '0.6rem', padding: '0.6rem 0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.88rem', color: '#334155', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-              {m.text || <i style={{ color: '#94a3b8' }}>(metin yok)</i>}
+              {m.text || <i style={{ color: '#94a3b8' }}>{t.wa.metinYok}</i>}
             </div>
           )}
 
           {/* Fotoğraf — sunucuda saklanmaz, bakıldığı anda Meta'dan çekilir */}
           {m.hasMedia && m.mediaType === 'image' && (
-            <img src={`/api/whatsapp/media/${m.id}`} alt="Müşterinin gönderdiği fotoğraf"
+            <img src={`/api/whatsapp/media/${m.id}`} alt={t.wa.fotografAlt}
               style={{ marginTop: '0.6rem', maxWidth: '100%', maxHeight: 380, borderRadius: '0.5rem', border: '1px solid #e2e8f0', display: 'block' }} />
           )}
           {m.hasMedia && m.mediaType !== 'image' && (
             <div style={{ marginTop: '0.6rem', fontSize: '0.8rem', color: '#64748b' }}>
-              📎 Dosya gönderdi — WhatsApp uygulamanızdan açın
+              {t.wa.dosyaGonderdi}
             </div>
           )}
 
@@ -232,10 +232,10 @@ export default function WhatsAppInboxPage() {
             <div style={{ marginTop: '0.7rem', padding: '0.75rem 0.9rem', background: '#f0fdf4',
               border: '1px solid #86efac', borderRadius: '0.6rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#15803d' }}>Fiş önerisi</span>
+                <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#15803d' }}>{t.wa.fisOnerisi}</span>
                 <span style={{ fontSize: '0.72rem', color: '#16a34a' }}>
-                  %{Math.round(m.suggestion.confidence * 100)} güven
-                  {m.suggestion.source === 'rule' ? ' · kural' : ''}
+                  {doldur(t.wa.guven, { y: b.yuzde(m.suggestion.confidence * 100) })}
+                  {m.suggestion.source === 'rule' ? t.wa.kural : ''}
                 </span>
               </div>
 
@@ -243,11 +243,11 @@ export default function WhatsAppInboxPage() {
                 {m.suggestion.device
                   ? <><b>{m.suggestion.device.brand} {m.suggestion.device.model}</b>
                       {m.suggestion.device.location ? ` — ${m.suggestion.device.location}` : ''}</>
-                  : <i style={{ color: '#65a30d' }}>Cihaz belirlenemedi, siz seçin</i>}
+                  : <i style={{ color: '#65a30d' }}>{t.wa.cihazBelirlenemedi}</i>}
                 {' · '}
-                {m.suggestion.categoryLabel
-                  ? <b>{m.suggestion.categoryLabel}</b>
-                  : <i style={{ color: '#65a30d' }}>Kategori belirlenemedi</i>}
+                {m.suggestion.category
+                  ? <b>{(t.ariza as Record<string, string>)[m.suggestion.category] ?? m.suggestion.categoryLabel}</b>
+                  : <i style={{ color: '#65a30d' }}>{t.wa.kategoriBelirlenemedi}</i>}
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -257,18 +257,17 @@ export default function WhatsAppInboxPage() {
                     deviceId: m.suggestion!.deviceId, faultCategory: m.suggestion!.category,
                   })}
                   disabled={busy === m.id || !m.suggestion.deviceId || !m.suggestion.category}
-                  title={!m.suggestion.deviceId || !m.suggestion.category
-                    ? 'Eksik alan var — "Düzelt" ile tamamlayın' : 'Bu öneriyle fiş aç'}
+                  title={!m.suggestion.deviceId || !m.suggestion.category ? t.wa.eksikAlan : t.wa.fisAcBaslik}
                   style={{ padding: '0.45rem 0.9rem', background: '#16a34a', color: 'white', border: 'none',
                     borderRadius: '0.45rem', fontWeight: 700, fontSize: '0.82rem',
                     cursor: 'pointer', opacity: (m.suggestion.deviceId && m.suggestion.category) ? 1 : 0.45 }}>
-                  ✓ Fiş aç
+                  {t.wa.fisAcOneri}
                 </button>
                 <button onClick={() => openFix(m)}
                   style={{ padding: '0.45rem 0.9rem', background: 'white', color: '#15803d',
                     border: '1px solid #86efac', borderRadius: '0.45rem', fontWeight: 600,
                     fontSize: '0.82rem', cursor: 'pointer' }}>
-                  Düzelt
+                  {t.wa.duzelt}
                 </button>
               </div>
 
@@ -278,7 +277,7 @@ export default function WhatsAppInboxPage() {
                 <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.6rem',
                   paddingTop: '0.6rem', borderTop: '1px dashed #86efac' }}>
                   <select value={fixDev} onChange={e => setFixDev(e.target.value)} style={inp}>
-                    <option value="">{fixLoading ? 'Cihazlar yükleniyor…' : 'Cihaz seçin'}</option>
+                    <option value="">{fixLoading ? t.wa.cihazlarYukleniyor : t.wa.cihazSecin}</option>
                     {fixDevs.map(d => (
                       <option key={d.id} value={d.id}>
                         {d.brand} {d.model}{d.location ? ` — ${d.location}` : ''} · {d.serialNo}
@@ -286,9 +285,9 @@ export default function WhatsAppInboxPage() {
                     ))}
                   </select>
                   <select value={fixCat} onChange={e => setFixCat(e.target.value)} style={inp}>
-                    <option value="">Arıza kategorisi seçin</option>
+                    <option value="">{t.wa.kategoriSecin}</option>
                     {FAULT_CATEGORIES.map(c => (
-                      <option key={c.code} value={c.code}>{c.label}</option>
+                      <option key={c.code} value={c.code}>{(t.ariza as Record<string, string>)[c.code] ?? c.label}</option>
                     ))}
                   </select>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -304,13 +303,13 @@ export default function WhatsAppInboxPage() {
                       style={{ padding: '0.45rem 0.9rem', background: '#16a34a', color: 'white', border: 'none',
                         borderRadius: '0.45rem', fontWeight: 700, fontSize: '0.82rem',
                         cursor: 'pointer', opacity: (fixDev && fixCat) ? 1 : 0.45 }}>
-                      ✓ Düzeltilmiş haliyle fiş aç
+                      {t.wa.duzeltilmisFisAc}
                     </button>
                     <button onClick={() => setFixing(null)}
                       style={{ padding: '0.45rem 0.9rem', background: 'white', color: '#475569',
                         border: '1px solid #cbd5e1', borderRadius: '0.45rem', fontWeight: 600,
                         fontSize: '0.82rem', cursor: 'pointer' }}>
-                      Vazgeç
+                      {t.genel.iptal}
                     </button>
                   </div>
                 </div>
@@ -320,7 +319,7 @@ export default function WhatsAppInboxPage() {
 
           {m.ticketId && (
             <div style={{ marginTop: '0.7rem', fontSize: '0.82rem', color: '#15803d', fontWeight: 600 }}>
-              ✓ Bu mesajdan fiş açıldı — <Link href={`/tickets/${m.ticketId}`} style={{ color: '#15803d' }}>fişi aç</Link>
+              {t.wa.fisAcildiOn} <Link href={`/tickets/${m.ticketId}`} style={{ color: '#15803d' }}>{t.wa.fisiAc}</Link>
             </div>
           )}
 
@@ -328,45 +327,45 @@ export default function WhatsAppInboxPage() {
           {reading === m.id && (
             <div style={{ marginTop: '0.75rem', padding: '0.9rem', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.6rem' }}>
               <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#075985', marginBottom: '0.6rem' }}>
-                Sayacı cihaza işle
+                {t.wa.sayacBaslik}
               </div>
-              {devLoading && <div style={{ fontSize: '0.85rem', color: '#0369a1' }}>Cihazlar yükleniyor…</div>}
+              {devLoading && <div style={{ fontSize: '0.85rem', color: '#0369a1' }}>{t.wa.cihazlarYukleniyor}</div>}
               {!devLoading && devices.length === 0 && (
-                <div style={{ fontSize: '0.85rem', color: '#b45309' }}>Bu müşteride kiralık cihaz yok.</div>
+                <div style={{ fontSize: '0.85rem', color: '#b45309' }}>{t.wa.kiralikYok}</div>
               )}
               {!devLoading && devices.length > 0 && (
                 <>
                   <select value={selDev} onChange={e => setSelDev(e.target.value)} style={{ ...inp, marginBottom: '0.6rem' }}>
-                    <option value="">Cihaz seçin…</option>
+                    <option value="">{t.wa.cihazSecinNokta}</option>
                     {devices.map(d => (
                       <option key={d.id} value={d.id}>
                         {d.brand} {d.model}{d.location ? ` — ${d.location}` : ''}
-                        {d.counterBlack != null ? ` (son: ${d.counterBlack.toLocaleString('tr-TR')})` : ''}
+                        {d.counterBlack != null ? doldur(t.wa.sonSayac, { n: b.sayi(d.counterBlack) }) : ''}
                       </option>
                     ))}
                   </select>
                   <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
                     <div style={{ flex: 1, minWidth: 130 }}>
-                      <label style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>⚫ Siyah sayaç</label>
+                      <label style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>{t.wa.siyahSayac}</label>
                       <input value={cb} onChange={e => setCb(e.target.value.replace(/\D/g, ''))}
-                        inputMode="numeric" placeholder="örn. 108491" style={inp} />
+                        inputMode="numeric" placeholder={t.wa.siyahYer} style={inp} />
                     </div>
                     {devices.find(d => d.id === selDev)?.hasColor && (
                       <div style={{ flex: 1, minWidth: 130 }}>
-                        <label style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>🟣 Renkli sayaç</label>
+                        <label style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>{t.wa.renkliSayac}</label>
                         <input value={cc} onChange={e => setCc(e.target.value.replace(/\D/g, ''))}
-                          inputMode="numeric" placeholder="örn. 24310" style={inp} />
+                          inputMode="numeric" placeholder={t.wa.renkliYer} style={inp} />
                       </div>
                     )}
                   </div>
                   <div style={{ marginTop: '0.6rem' }}>
                     <div style={{ fontSize: '0.74rem', color: '#0369a1', fontWeight: 700, marginBottom: 4 }}>
-                      Yeni değer eskisinden küçükse sebebini seçin
+                      {t.wa.sebepBaslik}
                     </div>
                     <div style={{ display: 'grid', gap: 4 }}>
                       {([
-                        ['CIHAZ_DEGISTI', 'Cihaz değişti — başka makine takıldı', 'Yeni makinenin sayacı bu ayın kullanımı sayılmaz; buradan sonrası sayılır.'],
-                        ['SAYAC_SIFIRLANDI', 'Aynı makine, sayacı sıfırlandı', 'Okunan değer bu ayın kullanımıdır ve faturalanır.'],
+                        ['CIHAZ_DEGISTI', t.wa.sebepCihazBaslik, t.wa.sebepCihazAlt],
+                        ['SAYAC_SIFIRLANDI', t.wa.sebepSifirBaslik, t.wa.sebepSifirAlt],
                       ] as const).map(([tur, baslik, aciklama]) => (
                         <label key={tur} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: '0.78rem', color: '#0369a1', cursor: 'pointer' }}>
                           <input type="radio" name={`resetTur-${m.id}`} checked={resetTur === tur}
@@ -380,7 +379,7 @@ export default function WhatsAppInboxPage() {
                       {resetTur && (
                         <button type="button" onClick={() => setResetTur(null)}
                           style={{ justifySelf: 'start', minHeight: 32, padding: '0 .5rem', background: 'transparent', border: 'none', color: '#0369a1', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
-                          seçimi kaldır
+                          {t.wa.secimiKaldir}
                         </button>
                       )}
                     </div>
@@ -389,11 +388,11 @@ export default function WhatsAppInboxPage() {
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem' }}>
                     <button onClick={() => saveReading(m)} disabled={busy === m.id}
                       style={{ padding: '0.55rem 1.1rem', background: '#0284c7', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
-                      {busy === m.id ? 'Kaydediliyor…' : 'Sayacı kaydet'}
+                      {busy === m.id ? t.genel.kaydediliyor : t.wa.sayaciKaydet}
                     </button>
                     <button onClick={() => setReading(null)}
                       style={{ padding: '0.55rem 0.9rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#6b7280', cursor: 'pointer' }}>
-                      Vazgeç
+                      {t.genel.iptal}
                     </button>
                   </div>
                 </>
@@ -404,15 +403,15 @@ export default function WhatsAppInboxPage() {
           {naming === m.id ? (
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem', flexWrap: 'wrap' }}>
               <input value={newName} onChange={e => setNewName(e.target.value)} autoFocus
-                placeholder="Müşteri / firma adı" style={{ ...inp, flex: 1, minWidth: 180 }} />
+                placeholder={t.wa.musteriAdiYer} style={{ ...inp, flex: 1, minWidth: 180 }} />
               <button onClick={() => act({ action: 'addCustomer', messageId: m.id, name: newName })}
                 disabled={busy === m.id || !newName.trim()}
                 style={{ padding: '0.5rem 1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', opacity: newName.trim() ? 1 : 0.5 }}>
-                Kaydet
+                {t.genel.kaydet}
               </button>
               <button onClick={() => { setNaming(null); setNewName(''); }}
                 style={{ padding: '0.5rem 0.8rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#6b7280', cursor: 'pointer' }}>
-                Vazgeç
+                {t.genel.iptal}
               </button>
             </div>
           ) : (
@@ -422,34 +421,34 @@ export default function WhatsAppInboxPage() {
                   {m.hasMedia && m.mediaType === 'image' && !m.readingId && (
                     <button onClick={() => openReading(m)}
                       style={{ padding: '0.45rem 0.9rem', background: '#0284c7', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}>
-                      📷 Sayaç olarak işle
+                      {t.wa.sayacOlarakIsle}
                     </button>
                   )}
                   {m.isFaultReport && (
                     <Link href={`/tickets/new?customerId=${m.customer.id}`}
                       style={{ padding: '0.45rem 0.9rem', background: '#dc2626', color: 'white', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none' }}>
-                      + Fiş aç
+                      {t.wa.fisAc}
                     </Link>
                   )}
                   <Link href={`/customers/${m.customer.id}`}
                     style={{ padding: '0.45rem 0.9rem', background: '#0f2253', color: 'white', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}>
-                    Müşteriye git →
+                    {t.wa.musteriyeGit}
                   </Link>
                 </>
               ) : (
                 <button onClick={() => { setNaming(m.id); setNewName(m.contactName || ''); }}
                   style={{ padding: '0.45rem 0.9rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}>
-                  + Müşteri olarak ekle
+                  {t.wa.musteriEkle}
                 </button>
               )}
               <a href={`https://wa.me/${m.fromPhone}`} target="_blank" rel="noreferrer"
                 style={{ padding: '0.45rem 0.9rem', background: 'white', color: '#15803d', border: '1px solid #86efac', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}>
-                WhatsApp'ta aç
+                {t.wa.waAc}
               </a>
               <button onClick={() => act({ action: 'handled', messageId: m.id, handled: !m.handled })}
                 disabled={busy === m.id}
                 style={{ padding: '0.45rem 0.9rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.82rem', color: '#6b7280', cursor: 'pointer' }}>
-                {m.handled ? 'Geri al' : '✓ İlgilenildi'}
+                {m.handled ? t.wa.geriAl : t.wa.ilgilenildi}
               </button>
             </div>
           )}
