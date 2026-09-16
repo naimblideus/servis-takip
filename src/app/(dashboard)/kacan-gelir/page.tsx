@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Item {
   id: string; brand: string; model: string; serialNo: string; location: string | null;
@@ -27,9 +29,12 @@ interface Supheli {
   sayfa: number; tutar: number; kat: number | null; gun: number; beklenen: number | null; aciklama: string;
 }
 
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
 export default function KacanGelirPage() {
+  const t = useT();
+  const b = useBicim();
+  const fmt = (n: number) => b.para(n);
   const [items, setItems] = useState<Item[]>([]);
   const [summary, setSummary] = useState<Summary>({ counterTotal: 0, rentTotal: 0, grandTotal: 0, deviceCount: 0, customerCount: 0 });
   const [period, setPeriod] = useState('');
@@ -75,14 +80,12 @@ export default function KacanGelirPage() {
     // duruyordu" yetmez: yanlış fatura müşteride teknik hata değil güven
     // kaybı yaratır, ve o noktadan sonra düzeltmenin bedeli bir müşteridir.
     const uyari = supheli.toplam > 0
-      ? `⚠️ DİKKAT: ${supheli.toplam} okuma cihazın normal kullanımına uymuyor (${fmt(supheli.tutar)}). Faturaya bu hâliyle girecekler.
-
-`
+      ? doldur(t.kacanGelir.uyariOnek, { adet: supheli.toplam, tutar: fmt(supheli.tutar) })
       : '';
     const donemMetni = hedefDonem
-      ? `${hedefDonem} DÖNEMİ için (geçmiş ay) tüm müşterilere fatura kesilecek.`
-      : 'Bu dönem için tüm müşterilere otomatik fatura kesilecek (sayaç aşımı + kira + ödenmemiş servis).';
-    if (!confirm(uyari + donemMetni + ' Devam edilsin mi?')) return;
+      ? doldur(t.kacanGelir.donemMetniGecmis, { n: hedefDonem })
+      : t.kacanGelir.donemMetniBu;
+    if (!confirm(uyari + donemMetni + t.kacanGelir.devamSor)) return;
     setRunning(true); setMsg(null);
     try {
       const res = await fetch('/api/invoices', {
@@ -90,9 +93,16 @@ export default function KacanGelirPage() {
         body: JSON.stringify(hedefDonem ? { period: hedefDonem } : {}),
       });
       const d = await res.json();
-      if (res.ok) { setMsg(`✓ ${hedefDonem ? `${hedefDonem} dönemi: ` : ''}${d.created} fatura kesildi (toplam ${fmt(d.total)})${d.errors ? ` · ${d.errors} hata` : ''}`); load(); }
+      if (res.ok) {
+        setMsg(doldur(t.kacanGelir.kesildi, {
+          donem: hedefDonem ? doldur(t.kacanGelir.donemEki, { n: hedefDonem }) : '',
+          n: d.created, tutar: fmt(d.total),
+          ek: d.errors ? doldur(t.faturalar.hataEki, { n: d.errors }) : '',
+        }));
+        load();
+      }
       else setMsg('❌ ' + (d.error || 'Hata'));
-    } catch { setMsg('❌ Sunucuya bağlanılamadı'); }
+    } catch { setMsg('❌ ' + t.sayacTuru.sunucuYok); }
     setRunning(false);
   };
 
@@ -100,15 +110,15 @@ export default function KacanGelirPage() {
     <div style={{ padding: '1.5rem', maxWidth: 880, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>💸 Kaçan Gelir — Bu Dönem</h1>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.kacanGelir.baslik}</h1>
           <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-            {period && <b>{period}</b>} döneminde <b>kazanılmış ama henüz faturalanmamış</b> tutar: okunmuş sayaç aşımı + kesilmemiş kira. Ay kapanmadan faturala, kaçırma.
+            {period && <b>{period}</b>} {t.kacanGelir.altOn} <b>{t.kacanGelir.altVurgu}</b> {t.kacanGelir.altSon}
           </p>
         </div>
         {summary.grandTotal > 0 && (
           <button onClick={() => runBilling()} disabled={running}
             style={{ padding: '0.6rem 1.1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: 10, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', opacity: running ? 0.6 : 1, whiteSpace: 'nowrap' }}>
-            {running ? 'Kesiliyor…' : '⚡ Bu Dönemi Faturala'}
+            {running ? t.faturalar.kesiliyor : t.faturalar.faturala}
           </button>
         )}
       </div>
@@ -117,16 +127,16 @@ export default function KacanGelirPage() {
 
       <div style={{ display: 'flex', gap: 10, margin: '1rem 0', flexWrap: 'wrap' }}>
         <div style={{ flex: 2, minWidth: 200, background: 'linear-gradient(135deg,#7f1d1d,#dc2626)', color: 'white', borderRadius: 12, padding: '0.9rem 1.1rem' }}>
-          <div style={{ fontSize: '0.72rem', opacity: 0.85, fontWeight: 700 }}>TOPLAM RİSKTEKİ GELİR (KDV hariç, tahmini)</div>
+          <div style={{ fontSize: '0.72rem', opacity: 0.85, fontWeight: 700 }}>{t.kacanGelir.toplamRiskteki}</div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800 }}>{fmt(summary.grandTotal)}</div>
-          <div style={{ fontSize: '0.74rem', opacity: 0.9, marginTop: 2 }}>{summary.deviceCount} cihaz · {summary.customerCount} müşteri</div>
+          <div style={{ fontSize: '0.74rem', opacity: 0.9, marginTop: 2 }}>{doldur(t.kacanGelir.cihazMusteri, { cihaz: summary.deviceCount, musteri: summary.customerCount })}</div>
         </div>
         <div style={{ flex: 1, minWidth: 130, background: 'white', border: '1px solid #fde68a', borderRadius: 12, padding: '0.9rem 1.1rem' }}>
-          <div style={{ fontSize: '0.72rem', color: '#92400e', fontWeight: 700 }}>SAYAÇ AŞIMI</div>
+          <div style={{ fontSize: '0.72rem', color: '#92400e', fontWeight: 700 }}>{t.kacanGelir.sayacAsimi}</div>
           <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#b45309' }}>{fmt(summary.counterTotal)}</div>
         </div>
         <div style={{ flex: 1, minWidth: 130, background: 'white', border: '1px solid #bfdbfe', borderRadius: 12, padding: '0.9rem 1.1rem' }}>
-          <div style={{ fontSize: '0.72rem', color: '#1e40af', fontWeight: 700 }}>KESİLMEMİŞ KİRA</div>
+          <div style={{ fontSize: '0.72rem', color: '#1e40af', fontWeight: 700 }}>{t.kacanGelir.kesilmemisKira}</div>
           <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#1d4ed8' }}>{fmt(summary.rentTotal)}</div>
         </div>
       </div>
@@ -135,27 +145,26 @@ export default function KacanGelirPage() {
         <div style={{ margin: '0 0 1rem', borderRadius: 12, border: '1px solid #c7d2fe', background: '#eef2ff', padding: '0.85rem 1rem' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div style={{ fontWeight: 800, color: '#3730a3', fontSize: '0.95rem' }}>
-              🗓️ Geçmiş aylarda faturalanmamış sayaç var
+              {t.kacanGelir.gecmisBaslik}
             </div>
             <div style={{ fontSize: '0.78rem', color: '#3730a3', fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(gecmis.toplam)}</div>
           </div>
           <p style={{ margin: '0.25rem 0 0.6rem', fontSize: '0.78rem', color: '#312e81', lineHeight: 1.5 }}>
-            Bu okumalar kapanmış bir aya ait ve o ay faturalanmamış. Aylık faturalama yalnız <b>içinde
-            bulunulan</b> döneme bakar; bu yüzden kendiliğinden bir daha kesilmezler. Her ayı <b>kendi
-            dönemiyle</b> kesin — geçmiş ayın sayfalarını bu aya taşımak dahil paketi ve tutarı bozar.
+            {t.kacanGelir.gecmisAltOn} <b>{t.kacanGelir.gecmisAltVurgu}</b> {t.kacanGelir.gecmisAltOrta}{' '}
+            <b>{t.kacanGelir.gecmisAltVurgu2}</b> {t.kacanGelir.gecmisAltSon}
           </p>
           <div style={{ display: 'grid', gap: 6 }}>
             {gecmis.donemler.map((g) => (
               <div key={g.donem} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', background: 'white', border: '1px solid #ddd6fe', borderRadius: 10, padding: '0.55rem 0.7rem' }}>
                 <div style={{ fontSize: '0.86rem' }}>
                   <b>{g.donem}</b>
-                  <span style={{ color: '#6b7280' }}> · {g.okuma} okuma · {g.cihaz} cihaz</span>
+                  <span style={{ color: '#6b7280' }}>{doldur(t.kacanGelir.donemOzet, { okuma: g.okuma, cihaz: g.cihaz })}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontWeight: 800, color: '#3730a3' }}>{fmt(g.tutar)}</span>
                   <button onClick={() => runBilling(g.donem)} disabled={running}
                     style={{ padding: '0.6rem 0.9rem', minHeight: 40, background: '#4338ca', color: 'white', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', opacity: running ? 0.6 : 1, whiteSpace: 'nowrap' }}>
-                    {g.donem} dönemini kes
+                    {doldur(t.kacanGelir.donemiKes, { n: g.donem })}
                   </button>
                 </div>
               </div>
@@ -168,14 +177,12 @@ export default function KacanGelirPage() {
         <div style={{ margin: '0 0 1rem', borderRadius: 12, border: '1px solid #fdba74', background: '#fff7ed', padding: '0.85rem 1rem' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div style={{ fontWeight: 800, color: '#9a3412', fontSize: '0.95rem' }}>
-              ⚠️ {supheli.toplam} okuma cihazın normal kullanımına uymuyor
+              {doldur(t.kacanGelir.supheliBaslik, { n: supheli.toplam })}
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#9a3412', fontWeight: 700, whiteSpace: 'nowrap' }}>faturaya girecek: {fmt(supheli.tutar)}</div>
+            <div style={{ fontSize: '0.78rem', color: '#9a3412', fontWeight: 700, whiteSpace: 'nowrap' }}>{doldur(t.kacanGelir.supheliTutar, { n: fmt(supheli.tutar) })}</div>
           </div>
           <p style={{ margin: '0.25rem 0 0.6rem', fontSize: '0.78rem', color: '#7c2d12', lineHeight: 1.5 }}>
-            Bunlar &quot;yanlış&quot; demek değil, <b>kontrol edilmedi</b> demek. Faturalamadan önce bakın:
-            yanlış cihazın raporu, hatalı okuma ya da değişen makine olabilir. Faturadan sonra düzeltmek
-            müşteride güven kaybı yaratır.
+            {t.kacanGelir.supheliAltOn} <b>{t.kacanGelir.supheliAltVurgu}</b>{t.kacanGelir.supheliAltSon}
           </p>
           <div style={{ display: 'grid', gap: 6 }}>
             {supheli.okumalar.slice(0, 8).map((o) => (
@@ -196,9 +203,9 @@ export default function KacanGelirPage() {
       )}
 
       {loading ? (
-        <p style={{ color: '#9ca3af' }}>Yükleniyor…</p>
+        <p style={{ color: '#9ca3af' }}>{t.genel.yukleniyor}</p>
       ) : items.length === 0 ? (
-        <p style={{ color: '#16a34a', textAlign: 'center', padding: '2rem', fontWeight: 600 }}>✅ Bu dönem için riskte (faturalanmamış kazanılmış) gelir yok. Her şey faturalanmış!</p>
+        <p style={{ color: '#16a34a', textAlign: 'center', padding: '2rem', fontWeight: 600 }}>{t.kacanGelir.riskYok}</p>
       ) : (
         <div style={{ display: 'grid', gap: '0.6rem' }}>
           {items.map((i) => (
@@ -211,16 +218,15 @@ export default function KacanGelirPage() {
                     {i.location ? ` · ${i.location}` : ''}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    {i.counterAmount > 0 && <span>📄 Sayaç aşımı: <b style={{ color: '#b45309' }}>{fmt(i.counterAmount)}</b> ({(i.billBlack).toLocaleString('tr-TR')} S/B{i.billColor > 0 ? ` · ${i.billColor.toLocaleString('tr-TR')} renkli` : ''})</span>}
-                    {i.rentAmount > 0 && <span>🏷️ Kira: <b style={{ color: '#1d4ed8' }}>{fmt(i.rentAmount)}</b></span>}
+                    {i.counterAmount > 0 && <span>{t.kacanGelir.sayacAsimiSatir} <b style={{ color: '#b45309' }}>{fmt(i.counterAmount)}</b> ({b.sayi(i.billBlack)} {t.kacanGelir.sbKisa}{i.billColor > 0 ? ` · ${b.sayi(i.billColor)} ${t.kacanGelir.renkliKisa}` : ''})</span>}
+                    {i.rentAmount > 0 && <span>{t.kacanGelir.kiraSatir} <b style={{ color: '#1d4ed8' }}>{fmt(i.rentAmount)}</b></span>}
                   </div>
                   {i.sok && !supheliCihazlar.has(i.id) && (
                     <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '.3rem .55rem', fontSize: '.74rem', color: '#9a3412', lineHeight: 1.4 }}>
                       <span>📈</span>
                       <span>
-                        Bu ay <b>{i.sok.kat} kat</b> basılmış ({i.sok.buAySayfa.toLocaleString('tr-TR')} sayfa,
-                        normalde ~{i.sok.normalSayfa.toLocaleString('tr-TR')}). Fatura müşteriyi şaşırtabilir —
-                        göndermeden önce arayın.
+                        {t.kacanGelir.sokOn} <b>{doldur(t.kacanGelir.sokVurgu, { n: i.sok.kat })}</b>{' '}
+                        {doldur(t.kacanGelir.sokSon, { buAy: b.sayi(i.sok.buAySayfa), normal: b.sayi(i.sok.normalSayfa) })}
                       </span>
                     </div>
                   )}
@@ -228,7 +234,7 @@ export default function KacanGelirPage() {
                 <div style={{ flexShrink: 0, textAlign: 'right' }}>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#b91c1c' }}>{fmt(i.total)}</div>
                   <Link href={`/devices/${i.id}`}
-                    style={{ display: 'inline-block', padding: '0.6rem 0.4rem 0.35rem', fontSize: '0.78rem', color: '#0ea5e9', textDecoration: 'none', fontWeight: 600 }}>Cihaz →</Link>
+                    style={{ display: 'inline-block', padding: '0.6rem 0.4rem 0.35rem', fontSize: '0.78rem', color: '#0ea5e9', textDecoration: 'none', fontWeight: 600 }}>{t.kacanGelir.cihazOk}</Link>
                 </div>
               </div>
             </div>

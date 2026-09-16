@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ContactActions from '@/components/ContactActions';
+import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
+import type { Bicimleyici } from '@/lib/bicim';
 
 interface Forecast {
   channel: string; yield: number; remaining: number | null; remainingPct: number | null;
@@ -29,12 +32,12 @@ function sev(days: number | null): { border: string; bar: string; text: string }
   return { border: '#bbf7d0', bar: '#059669', text: '#15803d' };
 }
 
-function ChannelLine({ f, name }: { f: Forecast | null; name: string }) {
+function ChannelLine({ f, name, t, b }: { f: Forecast | null; name: string; t: Sozluk; b: Bicimleyici }) {
   if (!f) return null;
   let txt: string;
-  if (f.needsSetup) txt = 'toner değişimi bekliyor';
-  else if (f.daysLeft == null) txt = `≈%${f.remainingPct} kaldı · gün tahmini için en az 2 okuma gerek`;
-  else txt = `~${f.daysLeft} gün sonra bitiyor · ≈%${f.remainingPct} kaldı (${(f.remaining ?? 0).toLocaleString('tr-TR')} sf)`;
+  if (f.needsSetup) txt = t.sarf.bekliyor;
+  else if (f.daysLeft == null) txt = doldur(t.sarf.gunTahminiYok, { yuzde: f.remainingPct ?? 0 });
+  else txt = doldur(t.sarf.gunSonra, { gun: f.daysLeft, yuzde: f.remainingPct ?? 0, kalan: b.sayi(f.remaining ?? 0) });
   const s = sev(f.needsSetup ? null : f.daysLeft);
   return (
     <div style={{ fontSize: '0.83rem', color: s.text, fontWeight: 600, marginTop: 3 }}>
@@ -50,15 +53,13 @@ function ChannelLine({ f, name }: { f: Forecast | null; name: string }) {
  * hesap olmalı; olmadığında yalnız hatırlatma yapılır. Uydurulmuş bir gün
  * sayısı, gereksiz toner satmaktır.
  */
-function siparisMesaji(i: Item): string {
+function siparisMesaji(i: Item, mt: Sozluk): string {
   const cihaz = i.brand + ' ' + i.model + (i.location ? ' (' + i.location + ')' : '');
   const gun =
     i.soonestDaysLeft != null && !i.needsSetup
-      ? cihaz + ' cihazınızın toneri yaklaşık ' + i.soonestDaysLeft + ' gün sonra bitiyor.'
-      : cihaz + ' cihazınızın toneri yakında yenilenmeli.';
-  const link = i.magazaLink
-    ? '\n\nCihazınıza uyan tonerleri görüp sipariş verebilirsiniz:\n' + i.magazaLink
-    : '';
+      ? doldur(mt.sarf.mesajGun, { cihaz, gun: i.soonestDaysLeft })
+      : doldur(mt.sarf.mesajYakinda, { cihaz });
+  const link = i.magazaLink ? doldur(mt.sarf.mesajLink, { link: i.magazaLink }) : '';
   return gun + link;
 }
 
@@ -67,16 +68,29 @@ function siparisMesaji(i: Item): string {
  * elle girilmiş bir tahmin mi yoksa altı kartuşta ölçülmüş bir gözlem mi
  * olduğu, bayinin o tahmine ne kadar güveneceğini belirliyor.
  */
-function VerimKaynagi({ v, ad }: { v?: Item['verimSb']; ad: string }) {
+/** Sunucudan gelen `kaynak` + `gozlem` alanlarından kullanıcının dilinde tek cümle. */
+function kaynakMetni(v: NonNullable<Item['verimSb']>, t: Sozluk): string {
+  const n = v.gozlem;
+  if (v.kaynak === 'CIHAZ') return doldur(n === 1 ? t.sarf.verimCihazTek : t.sarf.verimCihaz, { n });
+  if (v.kaynak === 'MODEL') return doldur(t.sarf.verimModel, { n });
+  if (v.kaynak === 'POPULASYON') return doldur(t.sarf.verimPopulasyon, { n });
+  return v.aciklama;
+}
+
+function VerimKaynagi({ v, ad, t, b }: { v?: Item['verimSb']; ad: string; t: Sozluk; b: Bicimleyici }) {
   if (!v || !v.deger || v.kaynak === 'ELLE') return null;
   return (
     <div style={{ fontSize: '0.74rem', color: '#047857', marginTop: 2 }}>
-      {ad} verimi {v.deger.toLocaleString('tr-TR')} sayfa · {v.aciklama.toLocaleLowerCase('tr')}
+      {doldur(t.sarf.verimKaynagi, { ad, n: b.sayi(v.deger), aciklama: kaynakMetni(v, t) })}
     </div>
   );
 }
 
 export default function SarfPage() {
+  const t = useT();
+  const b = useBicim();
+  // Sipariş mesajını müşteri okuyor: bayinin dili geçerli.
+  const musteri = useMusteriDili();
   const [items, setItems] = useState<Item[]>([]);
   const [tracked, setTracked] = useState(0);
   const [urgent, setUrgent] = useState(0);
@@ -98,9 +112,9 @@ export default function SarfPage() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: 880, margin: '0 auto' }}>
       <div>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>🧴 Sarf Takibi — Toner Tükenme Tahmini</h1>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.sarf.baslik}</h1>
         <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-          Sayaç hızından her cihaza ne zaman toner gerekeceğini tahmin eder. Acil olanları rota planına alıp tek çıkışta götür.
+          {t.sarf.alt}
         </p>
       </div>
 
@@ -109,28 +123,28 @@ export default function SarfPage() {
           verimi. Bayi hiçbir şey yazmadan, toner değiştirdikçe doluyor. */}
       {olculen > 0 && (
         <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857', borderRadius: 10, padding: '0.6rem 0.9rem', marginTop: '0.9rem', fontSize: '0.84rem' }}>
-          <b>{olculen} cihazın verimi sahada ölçüldü</b> — kimse elle girmedi. Toner değiştikçe ölçüm kendiliğinden düzeliyor.
+          <b>{doldur(t.sarf.olculenVurgu, { n: olculen })}</b> {t.sarf.olculenSon}
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 10, margin: '1rem 0' }}>
         <div style={{ flex: 1, background: 'white', border: '1px solid #fecaca', borderRadius: 10, padding: '0.7rem 1rem' }}>
-          <div style={{ fontSize: '0.72rem', color: '#b91c1c', fontWeight: 700 }}>YAKINDA BİTECEK (≤14 gün)</div>
+          <div style={{ fontSize: '0.72rem', color: '#b91c1c', fontWeight: 700 }}>{t.sarf.yakinda}</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#b91c1c' }}>{urgent}</div>
         </div>
         <div style={{ flex: 1, background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0.7rem 1rem' }}>
-          <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700 }}>TAKİPTEKİ CİHAZ</div>
+          <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700 }}>{t.sarf.takipteki}</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{tracked}</div>
         </div>
         <div style={{ flex: 1, background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0.7rem 1rem' }}>
-          <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700 }}>VERİMİ HENÜZ BİLİNMEYEN</div>
+          <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700 }}>{t.sarf.verimsiz}</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: bilinmeyen ? '#b45309' : '#9ca3af' }}>{bilinmeyen}</div>
-          <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>ikinci toner değişiminde açılır</div>
+          <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{t.sarf.verimsizAlt}</div>
         </div>
       </div>
 
       {loading ? (
-        <p style={{ color: '#9ca3af' }}>Yükleniyor…</p>
+        <p style={{ color: '#9ca3af' }}>{t.genel.yukleniyor}</p>
       ) : items.length === 0 ? (
         <div style={{ background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 12, padding: '2rem', textAlign: 'center' }}>
           {/* ── LİSTE NEDEN BOŞ, TEK CÜMLEYLE ────────────────────────────
@@ -141,20 +155,18 @@ export default function SarfPage() {
 
               Verim CİHAZIN değil MODELİN özelliği. Toplu ekranda 396 satır
               var ve ilk 20'si 250 cihazı açıyor. Yönlendirme oraya. */}
-          <p style={{ color: '#374151', fontWeight: 600, margin: '0 0 0.5rem' }}>Henüz toner takibi yapılan cihaz yok.</p>
+          <p style={{ color: '#374151', fontWeight: 600, margin: '0 0 0.5rem' }}>{t.sarf.bosBaslik}</p>
           <p style={{ color: '#6b7280', fontSize: '0.88rem', margin: '0 0 1rem' }}>
-            Tükenme tahmini <b>toner verimi</b> girilmeden çalışmıyor. Verim cihazın
-            değil modelin özelliğidir: bir kez modele yazarsınız, o modeldeki
-            bütün cihazlara uygulanır.
+            {t.sarf.bosAltOn} <b>{t.sarf.bosAltVurgu}</b> {t.sarf.bosAltSon}
           </p>
           <Link
             href="/toner-verimi"
             style={{ display: 'inline-block', background: '#2563eb', color: '#fff', padding: '0.55rem 1rem', borderRadius: 8, fontSize: '0.88rem', fontWeight: 600, textDecoration: 'none' }}
           >
-            Toner verimlerini gir →
+            {t.sarf.verimleriGir}
           </Link>
           <p style={{ color: '#9ca3af', fontSize: '0.8rem', margin: '0.75rem 0 0' }}>
-            Tek cihaz için: cihaz detayında <b>🧴 Toner Takibi</b> kartı.
+            {t.sarf.tekCihazOn} <b>{t.sarf.tekCihazVurgu}</b> {t.sarf.tekCihazSon}
           </p>
         </div>
       ) : (
@@ -170,12 +182,12 @@ export default function SarfPage() {
                       👤 {i.customer ? <Link href={`/customers/${i.customer.id}`} style={{ color: '#1d4ed8', textDecoration: 'none' }}>{i.customer.name}</Link> : '—'}
                       {i.location ? ` · ${i.location}` : ''}
                     </div>
-                    <ChannelLine f={i.black} name="⚫ Siyah" />
-                    <ChannelLine f={i.color} name="🟣 Renkli" />
-                    <VerimKaynagi v={i.verimSb} ad="S/B" />
-                    <VerimKaynagi v={i.verimRenkli} ad="Renkli" />
+                    <ChannelLine f={i.black} name={t.sarf.siyah} t={t} b={b} />
+                    <ChannelLine f={i.color} name={t.sarf.renkli} t={t} b={b} />
+                    <VerimKaynagi v={i.verimSb} ad={t.sarf.verimSbAd} t={t} b={b} />
+                    <VerimKaynagi v={i.verimRenkli} ad={t.sarf.verimRenkliAd} t={t} b={b} />
                   </div>
-                  <Link href={`/devices/${i.id}`} style={{ flexShrink: 0, padding: '0.5rem 0.9rem', background: '#0ea5e9', color: 'white', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>Cihaz →</Link>
+                  <Link href={`/devices/${i.id}`} style={{ flexShrink: 0, padding: '0.5rem 0.9rem', background: '#0ea5e9', color: 'white', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>{t.sarf.cihazaGit}</Link>
                 </div>
                 {i.customer && (
                   <ContactActions
@@ -185,7 +197,7 @@ export default function SarfPage() {
                        teknisyen "toner bitiyor" derken müşteri tek tıkla sipariş
                        verebilsin. Bağlantı yoksa mesaj sade kalır — kırık bir
                        bağlantı göndermek hiç göndermemekten kötüdür. */
-                    whatsappText={siparisMesaji(i)}
+                    whatsappText={siparisMesaji(i, musteri.sz)}
                   />
                 )}
               </div>
