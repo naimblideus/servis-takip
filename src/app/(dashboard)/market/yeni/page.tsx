@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface StockItem { id: string; source: 'PART' | 'PRINTER'; name: string; brand?: string | null; model?: string | null; sellPrice: number; }
 
@@ -30,6 +32,8 @@ async function downscale(file: File, max = 1000, quality = 0.6): Promise<string>
 }
 
 export default function YeniIlanPage() {
+  const t = useT();
+  const b = useBicim();
   const router = useRouter();
   const [stock, setStock] = useState<StockItem[]>([]);
   const [stockSearch, setStockSearch] = useState('');
@@ -66,33 +70,33 @@ export default function YeniIlanPage() {
   };
 
   const submit = async () => {
-    if (!form.title.trim()) { setErr('Başlık zorunlu'); return; }
+    if (!form.title.trim()) { setErr(t.pazar.baslikZorunlu); return; }
     setSaving(true); setErr(null);
     try {
       const r = await fetch('/api/market/listings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, photos }) });
       const d = await r.json();
       if (r.ok) router.push(`/market/${d.id}`);
-      else { setErr(d.error || 'Hata'); setSaving(false); }
-    } catch { setErr('Sunucuya bağlanılamadı'); setSaving(false); }
+      else { setErr(d.error || t.pazar.hata); setSaving(false); }
+    } catch { setErr(t.excelAktar.sunucuYok); setSaving(false); }
   };
 
   return (
     <div style={{ padding: '1.5rem 1.25rem 2.5rem', maxWidth: 680, margin: '0 auto' }}>
-      <Link href="/market" className="mk-back">← Pazar</Link>
-      <div className="mk-eyebrow" style={{ marginTop: 10 }}>Satıcı</div>
-      <h1 className="mk-h1" style={{ marginBottom: '1.3rem' }}>Yeni İlan</h1>
+      <Link href="/market" className="mk-back">{t.pazar.geriPazar}</Link>
+      <div className="mk-eyebrow" style={{ marginTop: 10 }}>{t.pazar.satici}</div>
+      <h1 className="mk-h1" style={{ marginBottom: '1.3rem' }}>{t.pazar.yeniIlan}</h1>
 
       <div className="mk-shell">
         <div className="mk-core" style={{ display: 'grid', gap: '.9rem', padding: '1.35rem 1.4rem' }}>
           {/* Stoktan doldur */}
           <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-            <label className="mk-lbl">Stoktan doldur (opsiyonel)</label>
-            <input value={stockSearch} onChange={(e) => { setStockSearch(e.target.value); setShowStock(true); }} placeholder="Stoktan ürün ara — bilgiler otomatik gelsin" className="mk-in" />
+            <label className="mk-lbl">{t.pazar.stoktanDoldur}</label>
+            <input value={stockSearch} onChange={(e) => { setStockSearch(e.target.value); setShowStock(true); }} placeholder={t.pazar.stoktanYer} className="mk-in" />
             {showStock && filteredStock.length > 0 && (
               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid var(--line)', borderRadius: 14, marginTop: 6, maxHeight: 230, overflowY: 'auto', boxShadow: '0 22px 44px -24px rgba(15,34,83,.6)' }}>
                 {filteredStock.map((i) => (
                   <div key={`${i.source}-${i.id}`} onClick={() => pickStock(i)} style={{ padding: '.6rem .85rem', cursor: 'pointer', borderBottom: '1px solid var(--line)', fontSize: '.87rem', color: 'var(--ink)' }}>
-                    {i.source === 'PART' ? '🔧' : '🖨️'} {i.name} {i.sellPrice > 0 && <span className="mk-price" style={{ fontSize: '.82rem' }}>· ₺{i.sellPrice}</span>}
+                    {i.source === 'PART' ? '🔧' : '🖨️'} {i.name} {i.sellPrice > 0 && <span className="mk-price" style={{ fontSize: '.82rem' }}>· {b.para(i.sellPrice)}</span>}
                   </div>
                 ))}
               </div>
@@ -101,43 +105,43 @@ export default function YeniIlanPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
             <div>
-              <label className="mk-lbl">Tür</label>
+              <label className="mk-lbl">{t.pazar.tur}</label>
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className="mk-in">
-                <option value="PART">🔧 Parça</option><option value="PRINTER">🖨️ Yazıcı/Toner</option><option value="MACHINE">🏭 Makine</option><option value="OTHER">📦 Diğer</option>
+                <option value="PART">{t.pazar.turParca}</option><option value="PRINTER">{t.pazar.turYazici}</option><option value="MACHINE">{t.pazar.turMakine}</option><option value="OTHER">{t.pazar.turDiger}</option>
               </select>
             </div>
             <div>
-              <label className="mk-lbl">Durum</label>
+              <label className="mk-lbl">{t.pazar.durumEtiket}</label>
               <select value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })} className="mk-in">
-                <option value="">—</option><option value="SIFIR">Sıfır</option><option value="IKINCI_EL">İkinci el</option>
+                <option value="">—</option><option value="SIFIR">{t.pazar.durumSifir}</option><option value="IKINCI_EL">{t.pazar.durumIkinciEl}</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="mk-lbl">Başlık *</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="örn. HP 26A Toner (orijinal)" className="mk-in" />
+            <label className="mk-lbl">{t.pazar.baslikAlan}</label>
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={t.pazar.baslikYer} className="mk-in" />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
-            <div><label className="mk-lbl">Marka</label><input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className="mk-in" /></div>
-            <div><label className="mk-lbl">Model</label><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mk-in" /></div>
+            <div><label className="mk-lbl">{t.pazar.marka}</label><input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className="mk-in" /></div>
+            <div><label className="mk-lbl">{t.pazar.model}</label><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mk-in" /></div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.75rem' }}>
-            <div><label className="mk-lbl">Fiyat (₺)</label><input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="mk-in" /></div>
-            <div><label className="mk-lbl">Adet</label><input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mk-in" /></div>
-            <div><label className="mk-lbl">Şehir</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="(boşsa profil)" className="mk-in" /></div>
+            <div><label className="mk-lbl">{doldur(t.pazar.fiyat, { s: b.simge })}</label><input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="mk-in" /></div>
+            <div><label className="mk-lbl">{t.pazar.adet}</label><input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mk-in" /></div>
+            <div><label className="mk-lbl">{t.pazar.sehir}</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder={t.pazar.sehirYerProfil} className="mk-in" /></div>
           </div>
 
           <div>
-            <label className="mk-lbl">Açıklama</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Durum, uyumluluk, teslim şekli…" className="mk-in" style={{ minHeight: 84, resize: 'vertical' }} />
+            <label className="mk-lbl">{t.pazar.aciklama}</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={t.pazar.aciklamaYer} className="mk-in" style={{ minHeight: 84, resize: 'vertical' }} />
           </div>
 
           {/* Fotoğraflar */}
           <div>
-            <label className="mk-lbl">Fotoğraflar ({photos.length}/{MAX_PHOTOS})</label>
+            <label className="mk-lbl">{doldur(t.pazar.fotograflar, { n: photos.length, max: MAX_PHOTOS })}</label>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               {photos.map((p, i) => (
                 <div key={i} style={{ position: 'relative' }}>
@@ -159,7 +163,7 @@ export default function YeniIlanPage() {
 
           <button onClick={submit} disabled={saving || !form.title.trim()} className="mk-btn mk-btn-g"
             style={{ justifyContent: 'center', padding: '.8rem 1rem', fontSize: '.95rem', fontWeight: 800, opacity: (saving || !form.title.trim()) ? .55 : 1 }}>
-            <span>{saving ? 'Yayınlanıyor…' : 'İlanı Yayınla'}</span>
+            <span>{saving ? t.pazar.yayinlaniyor : t.pazar.ilaniYayinla}</span>
             {!saving && <span className="mk-ico">→</span>}
           </button>
         </div>
