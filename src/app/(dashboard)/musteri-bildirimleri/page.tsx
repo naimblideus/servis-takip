@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 /**
  * Müşteri panelinden gelen bildirimler.
@@ -19,9 +21,10 @@ interface Talep {
   cihaz: { id: string; ad: string; seri: string; yer: string | null; sonBlack: number | null; sonColor: number | null; sonTarih: string | null } | null;
 }
 
-const sayi = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('tr-TR'));
-
 export default function MusteriBildirimleriPage() {
+  const t = useT();
+  const b = useBicim();
+  const sayi = (n: number | null | undefined) => (n == null ? '—' : b.sayi(n));
   const [items, setItems] = useState<Talep[]>([]);
   const [bekleyen, setBekleyen] = useState(0);
   // Sayı tek başına "acil mi" sorusunu cevaplamıyordu: "3 bekliyor"
@@ -52,7 +55,7 @@ export default function MusteriBildirimleriPage() {
   async function isle(id: string, islem: 'onayla' | 'reddet') {
     let notu: string | undefined;
     if (islem === 'reddet') {
-      const c = window.prompt('Müşteriye görünecek kısa not (isteğe bağlı):', '');
+      const c = window.prompt(t.bildirim.redNotu, '');
       if (c === null) return; // vazgeçti
       notu = c;
     }
@@ -63,10 +66,10 @@ export default function MusteriBildirimleriPage() {
         body: JSON.stringify({ islem, notu }),
       });
       const d = await r.json();
-      if (!r.ok) { setHata(d.error ?? 'İşlem başarısız'); return; }
+      if (!r.ok) { setHata(d.error ?? t.bildirim.islemBasarisiz); return; }
       yukle();
     } catch {
-      setHata('Bağlantı kurulamadı.');
+      setHata(t.bildirim.baglantiYok);
     } finally {
       setIslemde(null);
     }
@@ -78,24 +81,24 @@ export default function MusteriBildirimleriPage() {
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-5">
-        <h1 className="text-2xl font-bold">Müşteri Bildirimleri</h1>
+        <h1 className="text-2xl font-bold">{t.bildirim.baslik}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Müşterilerinizin kendi panellerinden gönderdiği arıza ve sayaç bildirimleri.
-          {bekleyen > 0 && <> <b className="text-amber-700">{bekleyen} bekleyen</b>.</>}
+          {t.bildirim.alt}
+          {bekleyen > 0 && <> <b className="text-amber-700">{doldur(t.bildirim.bekleyenEk, { n: bekleyen })}</b>.</>}
         </p>
         {/* Müşteri portaldan yazıp dönülmeyince telefonla arıyor ve bayi
             "bize ulaşmadı" diyor — oysa kayıt ekranda duruyor. Gecikeni
             ayrıca söylemek o telefonu önlüyor. */}
         {geciken > 0 && (
           <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            <b>{geciken} bildirime {enEskiGun} gündür dönülmedi.</b>{' '}
-            Müşteri cevap bekliyor; dönülmezse telefonla arayacak.
+            <b>{doldur(t.bildirim.gecikenVurgu, { n: geciken, gun: enEskiGun ?? 0 })}</b>{' '}
+            {t.bildirim.gecikenSon}
           </div>
         )}
       </div>
 
       <div className="mb-4 flex gap-2">
-        {[['BEKLIYOR', 'Bekleyen'], ['ISLENDI', 'İşlenen'], ['REDDEDILDI', 'Kapatılan'], ['HEPSI', 'Hepsi']].map(([k, l]) => (
+        {[['BEKLIYOR', t.bildirim.sekmeBekleyen], ['ISLENDI', t.bildirim.sekmeIslenen], ['REDDEDILDI', t.bildirim.sekmeKapatilan], ['HEPSI', t.bildirim.sekmeHepsi]].map(([k, l]) => (
           <button key={k} onClick={() => setDurum(k)}
             className={`rounded-lg px-3 py-1.5 text-sm ${durum === k ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
             {l}
@@ -104,105 +107,104 @@ export default function MusteriBildirimleriPage() {
       </div>
 
       {hata && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700">{hata}</div>}
-      {yukleniyor && <div className="text-sm text-gray-500">Yükleniyor…</div>}
+      {yukleniyor && <div className="text-sm text-gray-500">{t.genel.yukleniyor}</div>}
 
       {!yukleniyor && items.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-300 p-10 text-center">
-          <div className="font-semibold">Bildirim yok</div>
+          <div className="font-semibold">{t.bildirim.bosBaslik}</div>
           <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-            Müşteri paneli açık olan müşterileriniz buradan arıza ve sayaç bildirebilir.
-            Panel, müşteri kartındaki <b>Müşteri paneli</b> bölümünden açılır.
+            {t.bildirim.bosAltOn} <b>{t.bildirim.bosAltVurgu}</b> {t.bildirim.bosAltSon}
           </p>
         </div>
       )}
 
       <div className="space-y-3">
-        {items.map((t) => (
-          <div key={t.id} className={kart}>
+        {items.map((x) => (
+          <div key={x.id} className={kart}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                    t.tur === 'ARIZA' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-                    {t.tur === 'ARIZA' ? 'Arıza' : 'Sayaç'}
+                    x.tur === 'ARIZA' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+                    {x.tur === 'ARIZA' ? t.bildirim.turAriza : t.bildirim.turSayac}
                   </span>
                   <span className="text-sm font-semibold">
-                    {t.musteri
-                      ? <Link href={`/customers/${t.musteri.id}`} className="hover:underline">{t.musteri.ad}</Link>
-                      : 'Müşteri'}
+                    {x.musteri
+                      ? <Link href={`/customers/${x.musteri.id}`} className="hover:underline">{x.musteri.ad}</Link>
+                      : t.bildirim.musteriVarsayilan}
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-gray-500">
-                  {t.cihaz ? `${t.cihaz.ad}${t.cihaz.yer ? ` · ${t.cihaz.yer}` : ''} · ${t.cihaz.seri}` : 'Cihaz belirtilmemiş'}
-                  {' · '}{new Date(t.tarih).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  {x.cihaz ? `${x.cihaz.ad}${x.cihaz.yer ? ` · ${x.cihaz.yer}` : ''} · ${x.cihaz.seri}` : t.bildirim.cihazBelirtilmemis}
+                  {' · '}{b.tarihSaat(x.tarih)}
                 </div>
               </div>
-              {t.musteri?.telefon && (
-                <a href={`tel:${t.musteri.telefon.replace(/[^\d+]/g, '')}`}
-                  className="shrink-0 text-xs text-blue-600 hover:underline">{t.musteri.telefon}</a>
+              {x.musteri?.telefon && (
+                <a href={`tel:${x.musteri.telefon.replace(/[^\d+]/g, '')}`}
+                  className="shrink-0 text-xs text-blue-600 hover:underline">{x.musteri.telefon}</a>
               )}
             </div>
 
-            {t.tur === 'ARIZA' && t.aciklama && (
-              <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-700">{t.aciklama}</p>
+            {x.tur === 'ARIZA' && x.aciklama && (
+              <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-700">{x.aciklama}</p>
             )}
 
-            {t.tur === 'SAYAC' && (
+            {x.tur === 'SAYAC' && (
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-lg bg-gray-50 px-3 py-2.5">
-                  <div className="text-[11px] text-gray-500">Müşterinin bildirdiği</div>
+                  <div className="text-[11px] text-gray-500">{t.bildirim.bildirilen}</div>
                   <div className="mt-0.5 text-sm font-semibold tabular-nums">
-                    S/B {sayi(t.sayacBlack)}
-                    {t.sayacColor != null && <> · Renkli {sayi(t.sayacColor)}</>}
+                    {doldur(t.bildirim.sb, { n: sayi(x.sayacBlack) })}
+                    {x.sayacColor != null && <> · {doldur(t.bildirim.renkli, { n: sayi(x.sayacColor) })}</>}
                   </div>
                 </div>
                 <div className="rounded-lg bg-gray-50 px-3 py-2.5">
                   <div className="text-[11px] text-gray-500">
-                    Son okuma{t.cihaz?.sonTarih ? ` · ${new Date(t.cihaz.sonTarih).toLocaleDateString('tr-TR')}` : ''}
+                    {t.bildirim.sonOkuma}{x.cihaz?.sonTarih ? ` · ${b.tarih(x.cihaz.sonTarih)}` : ''}
                   </div>
                   <div className="mt-0.5 text-sm font-semibold tabular-nums text-gray-600">
-                    {t.cihaz?.sonBlack == null ? 'Hiç okunmamış' : <>
-                      S/B {sayi(t.cihaz.sonBlack)}
-                      {t.cihaz.sonColor != null && <> · Renkli {sayi(t.cihaz.sonColor)}</>}
+                    {x.cihaz?.sonBlack == null ? t.bildirim.hicOkunmamis : <>
+                      {doldur(t.bildirim.sb, { n: sayi(x.cihaz.sonBlack) })}
+                      {x.cihaz.sonColor != null && <> · {doldur(t.bildirim.renkli, { n: sayi(x.cihaz.sonColor) })}</>}
                     </>}
                   </div>
                   {/* Fark faturayı belirler — bayi onaylamadan önce görsün. */}
-                  {t.cihaz?.sonBlack != null && t.sayacBlack != null && (
-                    <div className={`mt-1 text-[11px] font-semibold ${t.sayacBlack < t.cihaz.sonBlack ? 'text-red-600' : 'text-gray-500'}`}>
-                      {t.sayacBlack < t.cihaz.sonBlack
-                        ? `Bildirilen değer son okumadan DÜŞÜK (${sayi(t.cihaz.sonBlack - t.sayacBlack)} eksik)`
-                        : `Fark: ${sayi(t.sayacBlack - t.cihaz.sonBlack)} sayfa`}
+                  {x.cihaz?.sonBlack != null && x.sayacBlack != null && (
+                    <div className={`mt-1 text-[11px] font-semibold ${x.sayacBlack < x.cihaz.sonBlack ? 'text-red-600' : 'text-gray-500'}`}>
+                      {x.sayacBlack < x.cihaz.sonBlack
+                        ? doldur(t.bildirim.dusukUyari, { n: sayi(x.cihaz.sonBlack - x.sayacBlack) })
+                        : doldur(t.bildirim.farkSayfa, { n: sayi(x.sayacBlack - x.cihaz.sonBlack) })}
                     </div>
                   )}
                 </div>
-                {t.sayacColor == null && (
+                {x.sayacColor == null && (
                   <p className="col-span-2 text-[11px] text-gray-500">
-                    Renkli sayaç bildirilmedi — onaylarsanız renkli fark 0 olarak işlenir.
+                    {t.bildirim.renkliYok}
                   </p>
                 )}
               </div>
             )}
 
-            {t.notu && <p className="mt-2.5 text-xs text-gray-500">Not: {t.notu}</p>}
+            {x.notu && <p className="mt-2.5 text-xs text-gray-500">{doldur(t.bildirim.not, { n: x.notu })}</p>}
 
-            {t.durum === 'BEKLIYOR' ? (
+            {x.durum === 'BEKLIYOR' ? (
               <div className="mt-3 flex gap-2 border-t border-gray-100 pt-3">
-                <button onClick={() => isle(t.id, 'onayla')} disabled={islemde === t.id}
+                <button onClick={() => isle(x.id, 'onayla')} disabled={islemde === x.id}
                   className={`${dugme} bg-gray-900 text-white hover:bg-gray-700`}>
-                  {islemde === t.id ? 'İşleniyor…' : t.tur === 'ARIZA' ? 'Onayla — fiş aç' : 'Onayla — sayacı kaydet'}
+                  {islemde === x.id ? t.bildirim.isleniyor : x.tur === 'ARIZA' ? t.bildirim.onaylaFis : t.bildirim.onaylaSayac}
                 </button>
-                <button onClick={() => isle(t.id, 'reddet')} disabled={islemde === t.id}
+                <button onClick={() => isle(x.id, 'reddet')} disabled={islemde === x.id}
                   className={`${dugme} border border-gray-200 text-gray-700 hover:bg-gray-50`}>
-                  Kapat
+                  {t.bildirim.kapat}
                 </button>
               </div>
             ) : (
               <div className="mt-3 flex items-center gap-3 border-t border-gray-100 pt-3">
-                <span className={`text-xs font-semibold ${t.durum === 'ISLENDI' ? 'text-emerald-700' : 'text-gray-500'}`}>
-                  {t.durum === 'ISLENDI' ? 'İşlendi' : 'Kapatıldı'}
+                <span className={`text-xs font-semibold ${x.durum === 'ISLENDI' ? 'text-emerald-700' : 'text-gray-500'}`}>
+                  {x.durum === 'ISLENDI' ? t.bildirim.durumIslendi : t.bildirim.durumKapatildi}
                 </span>
-                {t.ticketId && (
-                  <Link href={`/tickets/${t.ticketId}`} className="text-xs text-blue-600 hover:underline">Fişi aç →</Link>
+                {x.ticketId && (
+                  <Link href={`/tickets/${x.ticketId}`} className="text-xs text-blue-600 hover:underline">{t.bildirim.fisiAc}</Link>
                 )}
               </div>
             )}

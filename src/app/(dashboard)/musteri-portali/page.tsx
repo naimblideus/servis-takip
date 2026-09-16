@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { waPhone, waGecerliMi } from '@/lib/share';
+import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Musteri {
   id: string;
@@ -28,6 +30,10 @@ interface Musteri {
  * bağlantıyı GÖNDERMEK. Açıp göndermemek hiçbir şey değiştirmiyor.
  */
 export default function MusteriPortaliSayfasi() {
+  const t = useT();
+  const b = useBicim();
+  // Bağlantıyı MÜŞTERİ okuyor: mesaj bayinin dilinde yazılıyor.
+  const musteri = useMusteriDili();
   const [musteriler, setMusteriler] = useState<Musteri[]>([]);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [calisiyor, setCalisiyor] = useState(false);
@@ -42,9 +48,9 @@ export default function MusteriPortaliSayfasi() {
       const r = await fetch('/api/customers/portal-liste');
       const j = await r.json();
       if (r.ok) setMusteriler(j.musteriler);
-      else setHata(j.error ?? 'Liste alınamadı');
+      else setHata(j.error ?? t.portalYonetim.listeAlinamadi);
     } catch {
-      setHata('Bağlantı hatası');
+      setHata(t.genel.baglantiHatasi);
     } finally {
       setYukleniyor(false);
     }
@@ -93,13 +99,13 @@ export default function MusteriPortaliSayfasi() {
       });
       const j = await r.json();
       if (r.ok) {
-        setMesaj(`${j.acilan} müşteriye panel erişimi açıldı. Sırada bağlantıları göndermek var.`);
+        setMesaj(doldur(t.portalYonetim.acildi, { n: j.acilan }));
         await yukle();
       } else {
-        setHata(j.error ?? 'Açılamadı');
+        setHata(j.error ?? t.portalYonetim.acilamadi);
       }
     } catch {
-      setHata('Bağlantı hatası');
+      setHata(t.genel.baglantiHatasi);
     } finally {
       setCalisiyor(false);
     }
@@ -121,9 +127,7 @@ export default function MusteriPortaliSayfasi() {
     // yazmak, yer tutucu numaraları wa.me/9000070 gibi kırık bağlantılara
     // çeviren tam olarak o ikinci kopyaydı.
     const ulus = waPhone(m.telefon);
-    const metin =
-      `Merhaba, cihazlarınızı ve sarf takibinizi görebileceğiniz kişisel panelinizi açtık.\n` +
-      `Şifre gerekmez, bu bağlantı size özeldir:\n${bagAdresi(m.jeton!)}`;
+    const metin = doldur(musteri.sz.portalYonetim.waMesaj, { link: bagAdresi(m.jeton!) });
     return `https://wa.me/${ulus}?text=${encodeURIComponent(metin)}`;
   };
 
@@ -131,15 +135,13 @@ export default function MusteriPortaliSayfasi() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Müşteri Paneli</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t.portalYonetim.baslik}</h1>
           <p className="mt-1 max-w-2xl text-sm text-gray-600">
-            Müşteriniz şifresiz bir bağlantıyla kendi cihazlarını, sayaçlarını ve
-            onlara uyan sarf malzemesini görür. Mağazanız varsa aynı bağlantıdan
-            sipariş de verebilir.
+            {t.portalYonetim.alt}
           </p>
         </div>
         <Link href="/customers" className="rounded border px-3 py-2 text-sm hover:bg-gray-50">
-          Müşteriler
+          {t.portalYonetim.musteriler}
         </Link>
       </div>
 
@@ -147,9 +149,9 @@ export default function MusteriPortaliSayfasi() {
           "toplu aç" düğmesi anlamsız bir düğme. */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {[
-          { ad: 'Erişimi olan', n: sayim.acik },
-          { ad: 'Erişimi olmayan', n: sayim.kapali },
-          { ad: 'WhatsApp\u2019a hazır', n: sayim.waHazir, alt: 'cep numarası kayıtlı olanlar' },
+          { ad: t.portalYonetim.kartAcik, n: sayim.acik },
+          { ad: t.portalYonetim.kartKapali, n: sayim.kapali },
+          { ad: t.portalYonetim.kartWa, n: sayim.waHazir, alt: t.portalYonetim.kartWaAlt },
         ].map((k) => (
           <div key={k.ad} className="rounded-lg border bg-white p-4">
             <div className="text-2xl font-bold tabular-nums">{k.n}</div>
@@ -162,8 +164,7 @@ export default function MusteriPortaliSayfasi() {
       {sayim.acilabilir > 0 && (
         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
           <p className="text-sm text-blue-900">
-            <b>{sayim.acilabilir} müşterinin</b> panel erişimi kapalı. Toplu açmak
-            mevcut bağlantıları bozmaz — yalnız kapalı olanları açar.
+            <b>{doldur(t.portalYonetim.acilabilirVurgu, { n: sayim.acilabilir })}</b> {t.portalYonetim.acilabilirSon}
           </p>
           <button
             type="button"
@@ -171,7 +172,7 @@ export default function MusteriPortaliSayfasi() {
             disabled={calisiyor}
             className="mt-3 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {calisiyor ? 'Açılıyor…' : `${sayim.acilabilir} müşteriye erişim aç`}
+            {calisiyor ? t.portalYonetim.aciliyor : doldur(t.portalYonetim.erisimAc, { n: sayim.acilabilir })}
           </button>
         </div>
       )}
@@ -182,9 +183,9 @@ export default function MusteriPortaliSayfasi() {
       <div className="mt-6 flex flex-wrap items-center gap-2">
         {(
           [
-            ['kapali', 'Erişimi olmayan'],
-            ['acik', 'Erişimi olan'],
-            ['hepsi', 'Hepsi'],
+            ['kapali', t.portalYonetim.kartKapali],
+            ['acik', t.portalYonetim.kartAcik],
+            ['hepsi', t.bildirim.sekmeHepsi],
           ] as const
         ).map(([d, a]) => (
           <button
@@ -201,16 +202,16 @@ export default function MusteriPortaliSayfasi() {
         <input
           value={ara}
           onChange={(e) => setAra(e.target.value)}
-          placeholder="Ad veya telefon ara"
+          placeholder={t.portalYonetim.araYer}
           className="ml-auto w-56 rounded border px-3 py-1.5 text-sm"
         />
       </div>
 
       {yukleniyor ? (
-        <p className="mt-6 text-sm text-gray-500">Yükleniyor…</p>
+        <p className="mt-6 text-sm text-gray-500">{t.genel.yukleniyor}</p>
       ) : gosterilen.length === 0 ? (
         <p className="mt-6 rounded-lg border bg-white p-10 text-center text-sm text-gray-500">
-          Bu filtrede müşteri yok.
+          {t.portalYonetim.filtreYok}
         </p>
       ) : (
         <ul className="mt-4 divide-y rounded-lg border bg-white">
@@ -219,15 +220,15 @@ export default function MusteriPortaliSayfasi() {
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">{m.ad}</div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-gray-500">
-                  <span className="tabular-nums">{m.telefon.trim() || 'telefon yok'}</span>
+                  <span className="tabular-nums">{m.telefon.trim() || t.portalYonetim.telefonYok}</span>
                   {/* Cihazı olmayan müşteride panel BOŞ görünür. Bağlantıyı
                       göndermeden önce bilinmesi gereken tek şey bu. */}
                   <span className={m.cihaz === 0 ? 'text-amber-700' : ''}>
-                    {m.cihaz === 0 ? 'cihaz kaydı yok' : `${m.cihaz} cihaz`}
+                    {m.cihaz === 0 ? t.portalYonetim.cihazYok : doldur(t.portalYonetim.cihazAdet, { n: m.cihaz })}
                   </span>
                   {m.sonGirdi && (
                     <span className="text-green-700">
-                      girdi · {new Date(m.sonGirdi).toLocaleDateString('tr-TR')}
+                      {doldur(t.portalYonetim.girdi, { t: b.tarih(m.sonGirdi) })}
                     </span>
                   )}
                 </div>
@@ -240,11 +241,11 @@ export default function MusteriPortaliSayfasi() {
                     onClick={() => navigator.clipboard?.writeText(bagAdresi(m.jeton!))}
                     className="rounded border px-2.5 py-1.5 text-xs hover:bg-gray-50"
                   >
-                    Bağlantıyı kopyala
+                    {t.portalYonetim.kopyala}
                   </button>
                   {!waGecerliMi(m.telefon) && (
                     <span className="text-xs text-amber-700">
-                      cep numarası yok — kopyalayıp gönderin
+                      {t.portalYonetim.cepYok}
                     </span>
                   )}
                   {/* Düğme YALNIZ gerçek cep numarasında. Yer tutucu ya da
@@ -258,13 +259,13 @@ export default function MusteriPortaliSayfasi() {
                       rel="noopener noreferrer"
                       className="rounded bg-gray-900 px-2.5 py-1.5 text-xs text-white hover:bg-gray-700"
                     >
-                      WhatsApp&apos;tan gönder
+                      {t.portalYonetim.waGonder}
                     </a>
                   )}
                 </div>
               ) : (
                 <span className="text-xs text-gray-400">
-                  {m.telefon.trim() ? 'erişim kapalı' : 'telefon yok — açılamaz'}
+                  {m.telefon.trim() ? t.portalYonetim.erisimKapali : t.portalYonetim.telefonYokAcilamaz}
                 </span>
               )}
             </li>
