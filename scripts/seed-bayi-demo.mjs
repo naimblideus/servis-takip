@@ -37,6 +37,44 @@ const p = new PrismaClient();
 // adres başka bir bayide de olabilir; giriş kodu şifresi tutan adayı
 // arayarak çözüyor. Yine de çakışmasın diye kullanılmayan adresler seçildi.
 const SLUG = 'demo-bayi';
+
+/**
+ * KOMŞU BAYİLER — Bayi Pazarı'nın öbür yarısı.
+ *
+ * Demoda pazarın bütün ilanları bu bayinin KENDİ ilanlarıydı, yani ekranda
+ * "İlanınız" rozetinden başka bir şey yoktu. Pazarın anlattığı iş iki
+ * yönlüdür: atıl stoğunu SAT ve ağdaki bayilerden AL. Tek yönlü demo,
+ * ikincisini hiç göstermiyordu — ürünü değerlendiren kişi "burada alacak
+ * bir şey yok" diye kapatır.
+ *
+ * Bu bayiler kasten İNCE: yalnız ad, şehir ve birkaç ilan. Müşterisi,
+ * cihazı, faturası yok — pazarda görünmek için gerekmiyor ve olmayan veri
+ * demoyu şişirirdi.
+ */
+const KOMSULAR = [
+  {
+    slug: 'demo-komsu-ankara', ad: 'Ankara Ofis Sistemleri', sehir: 'Ankara',
+    ilanlar: [
+      { kind: 'PART', title: 'HP CF280A Toner (muadil, kutulu)', brand: 'HP', model: 'CF280A', condition: 'SIFIR', category: 'Toner', price: 410, quantity: 24, unit: 'adet' },
+      { kind: 'PART', title: 'Kyocera DK-1150 Drum', brand: 'Kyocera', model: 'DK-1150', condition: 'SIFIR', category: 'Yedek Parça', price: 1980, quantity: 3, unit: 'adet' },
+      { kind: 'MACHINE', title: 'Ricoh IM 350F — 2 yaşında, bakımlı', brand: 'Ricoh', model: 'IM 350F', condition: 'IKINCI_EL', category: 'Yazıcı', price: 21500, quantity: 1, unit: 'adet' },
+    ],
+  },
+  {
+    slug: 'demo-komsu-izmir', ad: 'Ege Büro Teknolojileri', sehir: 'İzmir',
+    ilanlar: [
+      { kind: 'PART', title: 'Canon C-EXV33 Toner (orijinal)', brand: 'Canon', model: 'C-EXV33', condition: 'SIFIR', category: 'Toner', price: 2240, quantity: 8, unit: 'adet' },
+      { kind: 'MACHINE', title: 'Konica Minolta bizhub 250i — filo çıkışı', brand: 'Konica Minolta', model: 'bizhub 250i', condition: 'IKINCI_EL', category: 'Fotokopi', price: 34900, quantity: 2, unit: 'adet' },
+    ],
+  },
+  {
+    slug: 'demo-komsu-bursa', ad: 'Bursa Kopya Merkezi', sehir: 'Bursa',
+    ilanlar: [
+      { kind: 'PART', title: 'Brother TN-3480 Toner (orijinal)', brand: 'Brother', model: 'TN-3480', condition: 'SIFIR', category: 'Toner', price: 890, quantity: 15, unit: 'adet' },
+      { kind: 'OTHER', title: 'A3 tabla / kağıt kaseti (çeşitli modeller)', brand: 'Muhtelif', model: 'A3', condition: 'IKINCI_EL', category: 'Aksesuar', price: 1750, quantity: 4, unit: 'adet' },
+    ],
+  },
+];
 const PATRON = 'demo@demo.com';
 const TEKNISYEN = 'tekniker@demo.com';
 const SIFRE = process.env.BAYI_DEMO_SIFRE || 'demo1234';
@@ -1037,8 +1075,35 @@ async function main() {
   }
 
   // ── BAYİ PAZARI İLANLARI ──────────────────────────────────────────────
-  // Bayiler arası parça/makine alışverişi. Demoda bu bayinin KENDİ
-  // ilanları var; pazar ekranı boş açılmasın.
+  // Bayiler arası parça/makine alışverişi. İKİ TARAF da var: bu bayinin
+  // sattıkları ve komşu bayilerden alınabilecekler. Tek taraflı demo
+  // pazarın yarısını gizliyordu.
+  {
+    // Komşu bayiler ve ilanları. Bayiler kalıcı (upsert), ilanları her
+    // tohumlamada yenileniyor — tekrar çalıştırınca ilan çoğalmasın.
+    for (const k of KOMSULAR) {
+      const kb = await p.tenant.upsert({
+        where: { slug: k.slug },
+        update: { name: k.ad, city: k.sehir },
+        create: {
+          name: k.ad, slug: k.slug, city: k.sehir,
+          plan: 'basic', isActive: true, marketEnabled: true,
+        },
+      });
+      await p.marketListing.deleteMany({ where: { sellerTenantId: kb.id } });
+      for (const x of k.ilanlar) {
+        await p.marketListing.create({
+          data: {
+            sellerTenantId: kb.id, ...x,
+            description: `${k.ad} stoğundan. Fatura kesilir, kargo alıcıya aittir.`,
+            city: k.sehir, status: 'ACTIVE',
+            createdAt: gunOnce(rnd(2, 45)),
+          },
+        });
+      }
+    }
+  }
+
   {
     const ilanlar = [
       { kind: 'PART', title: 'Kyocera TK-1170 Toner (orijinal)', brand: 'Kyocera', model: 'TK-1170', condition: 'SIFIR', category: 'Toner', price: 1150, quantity: 6, unit: 'adet' },
@@ -1056,6 +1121,8 @@ async function main() {
         },
       });
     }
+    const komsuIlan = KOMSULAR.reduce((a, k) => a + k.ilanlar.length, 0);
+    console.log(`  bayi pazarı: ${ilanlar.length} kendi ilanı + ${KOMSULAR.length} komşu bayide ${komsuIlan} ilan`);
   }
 
   // ── TEKLİF ────────────────────────────────────────────────────────────
