@@ -72,6 +72,21 @@ export interface KarneGirdi {
   maliyetRenkli: number | null;
 }
 
+/**
+ * Özetin YAPISAL hâli. Cümlenin kendisi (`ozet`) Türkçe kuruluyor; ekran
+ * kullanıcının dilinde yazabilsin diye hüküm ayrıca kod olarak dönüyor.
+ * Metin üretmek sunucunun işi değil — sunucu neyi ölçtüğünü söylüyor.
+ */
+export type KarneOzetTuru = 'OLCUM_YOK' | 'DUZ' | 'KUTUDAN_AZ' | 'KUTUDAN_FAZLA' | 'UYUMLU';
+
+export interface KarneOzet {
+  tur: KarneOzetTuru;
+  /** Sahada ölçülen verim (sayfa). OLCUM_YOK dışında dolu. */
+  verim: number | null;
+  /** Kutudan sapmanın büyüklüğü, yüzde. Yalnız AZ/FAZLA'da dolu. */
+  sapma: number | null;
+}
+
 export interface KarneSatiri extends KarneGirdi {
   /** Ölçülen verim kutudan yüzde kaç sapıyor (S/B). */
   sapmaSb: number | null;
@@ -84,6 +99,8 @@ export interface KarneSatiri extends KarneGirdi {
   uyarilar: KarneUyari[];
   /** Tek cümlelik hüküm — ekranda bunu okuyup geçebilsin. */
   ozet: string;
+  /** Aynı hükmün dil bağımsız hâli. */
+  ozetKod: KarneOzet;
 }
 
 export const UYARI_METNI: Record<KarneUyari, string> = {
@@ -112,7 +129,17 @@ export function karneSatiri(g: KarneGirdi): KarneSatiri {
     olculdu,
     uyarilar,
     ozet: ozetCumlesi(g, sapmaSb ?? sapmaRenkli, olculdu),
+    ozetKod: ozetKodu(g, sapmaSb ?? sapmaRenkli, olculdu),
   };
+}
+
+function ozetKodu(g: KarneGirdi, sapma: number | null, olculdu: boolean): KarneOzet {
+  if (!olculdu) return { tur: 'OLCUM_YOK', verim: null, sapma: null };
+  const verim = g.olculenSb ?? g.olculenRenkli!;
+  if (sapma === null) return { tur: 'DUZ', verim, sapma: null };
+  if (sapma <= -10) return { tur: 'KUTUDAN_AZ', verim, sapma: Math.abs(sapma) };
+  if (sapma >= 10) return { tur: 'KUTUDAN_FAZLA', verim, sapma };
+  return { tur: 'UYUMLU', verim, sapma: null };
 }
 
 function ozetCumlesi(g: KarneGirdi, sapma: number | null, olculdu: boolean): string {

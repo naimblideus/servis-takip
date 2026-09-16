@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 
 interface Grup {
   anahtar: string;
@@ -47,6 +49,7 @@ interface KarneSatiri {
   sapmaSb: number | null; sapmaRenkli: number | null;
   maliyetEtkisiSb: number | null; maliyetEtkisiRenkli: number | null;
   olculdu: boolean; uyarilar: string[]; ozet: string;
+  ozetKod?: { tur: string; verim: number | null; sapma: number | null };
 }
 
 interface Karne {
@@ -55,21 +58,32 @@ interface Karne {
 }
 
 /** Uyarı kodları ekranda cümleye dönüşür — kod göstermek bayiye bir şey anlatmaz. */
-const UYARI: Record<string, string> = {
-  GOZLEM_AZ: 'Ölçüm sayısı az',
-  FIYAT_YOK: 'Kartuş alış fiyatı yok',
-};
+const uyariMetni = (t: Sozluk, kod: string): string | null =>
+  kod === 'GOZLEM_AZ' ? t.tonerVerimi.uyariGozlemAz
+  : kod === 'FIYAT_YOK' ? t.tonerVerimi.uyariFiyatYok
+  : null;
 
 /**
- * Sayfa maliyeti KURUŞ gösteriliyor. "0,0779 ₺" ile "0,3148 ₺" arasındaki
- * farkı gözle yakalamak zor ve bayi zaten kuruş konuşuyor ("sayfası 8 kuruşa
- * geliyor"). Lira gösterimi ayrıca hizasız bir tabloya yol açıyordu: 0,08 ile
- * 0,0779 yan yana geldiğinde hangisinin büyük olduğu okunmuyor.
+ * Sunucudan gelen özet kodunu kullanıcının dilinde cümleye çevirir.
+ * Sunucu neyi ölçtüğünü söylüyor, cümleyi ekran kuruyor.
  */
-const kurus = (tl: number) =>
-  `${(tl * 100).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr`;
+function ozetMetni(t: Sozluk, s: KarneSatiri, b: { sayi(n: number): string }): string {
+  const k = s.ozetKod;
+  if (!k) return s.ozet;
+  const n = k.verim === null ? '' : b.sayi(k.verim);
+  const sapma = k.sapma === null ? '' : k.sapma.toFixed(0);
+  switch (k.tur) {
+    case 'OLCUM_YOK': return t.tonerVerimi.ozetOlcumYok;
+    case 'KUTUDAN_AZ': return doldur(t.tonerVerimi.ozetAz, { n, sapma });
+    case 'KUTUDAN_FAZLA': return doldur(t.tonerVerimi.ozetFazla, { n, sapma });
+    case 'UYUMLU': return doldur(t.tonerVerimi.ozetUyumlu, { n });
+    default: return doldur(t.tonerVerimi.ozetDuz, { n });
+  }
+}
 
 export default function TonerVerimiSayfasi() {
+  const t = useT();
+  const b = useBicim();
   const [gruplar, setGruplar] = useState<Grup[]>([]);
   const [satirlar, setSatirlar] = useState<KarneSatiri[]>([]);
   const [karne, setKarne] = useState<Karne | null>(null);
@@ -96,9 +110,9 @@ export default function TonerVerimiSayfasi() {
         // Ölçülmüş model yoksa karne boş kalır; bayiyi boş bir ekrana
         // düşürmek yerine doğrudan yapılacak işe (eksik girişi) götür.
         if ((j.karne?.olculenModel ?? 0) === 0) setGorunum('EKSIK');
-      } else setHata(j.error ?? 'Liste alınamadı');
+      } else setHata(j.error ?? t.tonerVerimi.listeAlinamadi);
     } catch {
-      setHata('Bağlantı hatası');
+      setHata(t.genel.baglantiHatasi);
     } finally {
       setYukleniyor(false);
     }
@@ -109,20 +123,20 @@ export default function TonerVerimiSayfasi() {
   }, []);
 
   const karneListe = useMemo(() => {
-    const q = ara.trim().toLocaleLowerCase('tr');
+    const q = ara.trim().toLocaleLowerCase(b.dil);
     return satirlar.filter((s) =>
-      s.olculdu && (!q || (s.marka + ' ' + s.model).toLocaleLowerCase('tr').includes(q)));
-  }, [satirlar, ara]);
+      s.olculdu && (!q || (s.marka + ' ' + s.model).toLocaleLowerCase(b.dil).includes(q)));
+  }, [satirlar, ara, b.dil]);
 
   const gosterilen = useMemo(() => {
-    const q = ara.trim().toLocaleLowerCase('tr');
+    const q = ara.trim().toLocaleLowerCase(b.dil);
     return gruplar.filter((g) => {
       // Ölçülmüş model EKSİK DEĞİL: elle bir şey yazılmasına gerek yok.
       if (sadeceEksik && (g.olculenSb || g.olculenRenkli || g.verimli >= g.cihaz)) return false;
       if (!q) return true;
-      return (g.marka + ' ' + g.model).toLocaleLowerCase('tr').includes(q);
+      return (g.marka + ' ' + g.model).toLocaleLowerCase(b.dil).includes(q);
     });
-  }, [gruplar, ara, sadeceEksik]);
+  }, [gruplar, ara, sadeceEksik, b.dil]);
 
   /**
    * KÜMÜLATİF KAPSAM: "bu satıra kadar doldurursan kaç cihaz açılır".
@@ -148,11 +162,11 @@ export default function TonerVerimiSayfasi() {
       });
       const j = await r.json();
       if (r.ok) {
-        setMesaj((m) => ({ ...m, [g.anahtar]: `${j.guncellenen} cihaza yazıldı` }));
+        setMesaj((m) => ({ ...m, [g.anahtar]: doldur(t.tonerVerimi.yazildi, { n: j.guncellenen }) }));
         await yukle();
-      } else setHata(j.error ?? 'Yazılamadı');
+      } else setHata(j.error ?? t.tonerVerimi.yazilamadi);
     } catch {
-      setHata('Bağlantı hatası');
+      setHata(t.genel.baglantiHatasi);
     } finally {
       setCalisan(null);
     }
@@ -162,23 +176,22 @@ export default function TonerVerimiSayfasi() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Toner Verimi</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t.tonerVerimi.baslik}</h1>
           <p className="mt-1 max-w-2xl text-sm text-gray-600">
-            Bir tonerin <b>sizin müşterinizde</b> kaç sayfa bastığı, fiş fiş ölçülüyor.
-            Kutuda yazan sayı değil, sahada çıkan sayı — sayfa maliyetiniz buradan çıkıyor.
+            {t.tonerVerimi.altOn} <b>{t.tonerVerimi.altVurgu}</b>{t.tonerVerimi.altSon}
           </p>
         </div>
         <Link href="/sarf" className="rounded border px-3 py-2 text-sm hover:bg-gray-50">
-          Sarf takibi
+          {t.tonerVerimi.sarfTakibi}
         </Link>
       </div>
 
       {ozet && (
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           {[
-            { ad: 'Verimi bilinen cihaz', n: ozet.kapsanan ?? ozet.verimli },
-            { ad: 'Verimi hiç bilinmeyen', n: ozet.eksik, vurgu: ozet.eksik > 0 },
-            { ad: 'Farklı model', n: ozet.model },
+            { ad: t.tonerVerimi.kartBilinen, n: ozet.kapsanan ?? ozet.verimli },
+            { ad: t.tonerVerimi.kartBilinmeyen, n: ozet.eksik, vurgu: ozet.eksik > 0 },
+            { ad: t.tonerVerimi.kartModel, n: ozet.model },
           ].map((k) => (
             <div key={k.ad} className="rounded-lg border bg-white p-4">
               <div className={`text-2xl font-bold tabular-nums ${k.vurgu ? 'text-amber-700' : ''}`}>{k.n}</div>
@@ -197,8 +210,8 @@ export default function TonerVerimiSayfasi() {
           "ölçülen verim bana ne söylüyor". */}
       <div className="mt-6 flex flex-wrap items-center gap-2">
         {([
-          ['KARNE', `Ölçülenler${karne ? ` (${karne.olculenModel})` : ''}`],
-          ['EKSIK', `Eksik girişi${ozet ? ` (${ozet.model - (karne?.olculenModel ?? 0)})` : ''}`],
+          ['KARNE', `${t.tonerVerimi.sekmeOlculen}${karne ? ` (${karne.olculenModel})` : ''}`],
+          ['EKSIK', `${t.tonerVerimi.sekmeEksik}${ozet ? ` (${ozet.model - (karne?.olculenModel ?? 0)})` : ''}`],
         ] as const).map(([k, ad]) => (
           <button key={k} type="button" onClick={() => setGorunum(k)}
             className={`rounded border px-3 py-1.5 text-sm ${gorunum === k ? 'border-gray-900 bg-gray-900 text-white' : 'hover:bg-gray-50'}`}>
@@ -208,7 +221,7 @@ export default function TonerVerimiSayfasi() {
         <input
           value={ara}
           onChange={(e) => setAra(e.target.value)}
-          placeholder="Marka veya model ara"
+          placeholder={t.tonerVerimi.araYer}
           className="ml-auto w-56 rounded border px-3 py-1.5 text-sm"
         />
       </div>
@@ -218,28 +231,25 @@ export default function TonerVerimiSayfasi() {
         <section className="mt-4">
           {karne && karne.kutudanAz > 0 && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <b>{karne.kutudanAz} modelde</b> toner, kutusunda yazandan belirgin şekilde az basıyor.
-              Verim düşünce sayfa maliyeti <b>aynı oranda değil, daha fazla</b> artar —
-              sözleşme fiyatınız bu sayının üstüne kuruluysa olduğundan kârlı görünür.
+              <b>{doldur(t.tonerVerimi.kutudanAzVurgu, { n: karne.kutudanAz })}</b> {t.tonerVerimi.kutudanAzOrta}{' '}
+              <b>{t.tonerVerimi.kutudanAzVurgu2}</b> {t.tonerVerimi.kutudanAzSon}
             </p>
           )}
           {karne && karne.kutudanAz === 0 && karneListe.length > 0 && karneListe.every(s => s.sapmaSb === null && s.sapmaRenkli === null) && (
             <p className="rounded-lg border bg-white p-3 text-sm text-gray-600">
-              Kutu değerleri girilmemiş, bu yüzden ölçülen verimi kutunun vaadiyle
-              karşılaştıramıyoruz. Aşağıdaki sayılar yine de gerçek: sahada ölçüldüler.
-              Karşılaştırma için <b>Eksik girişi</b> sekmesinden kutu değerlerini girebilirsiniz.
+              {t.tonerVerimi.kutuYokOn} <b>{t.tonerVerimi.kutuYokVurgu}</b> {t.tonerVerimi.kutuYokSon}
             </p>
           )}
           {karne?.enPahali && (
             <p className="mt-2 text-sm text-gray-600">
-              En pahalı model: <b>{karne.enPahali.marka} {karne.enPahali.model}</b> —
-              sayfa başı {kurus(karne.enPahali.maliyet)} toner.
+              {t.tonerVerimi.enPahaliOn} <b>{karne.enPahali.marka} {karne.enPahali.model}</b>{' '}
+              {doldur(t.tonerVerimi.enPahaliSon, { m: b.altBirim(karne.enPahali.maliyet) })}
             </p>
           )}
 
           {karneListe.length === 0 ? (
             <p className="mt-4 rounded-lg border bg-white p-10 text-center text-sm text-gray-500">
-              Henüz ölçülmüş model yok. Fişe toner eklendikçe sistem verimi kendi öğrenir.
+              {t.tonerVerimi.karneBos}
             </p>
           ) : (
             <ul className="mt-4 divide-y rounded-lg border bg-white">
@@ -248,12 +258,12 @@ export default function TonerVerimiSayfasi() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">
                       {s.marka} <span className="font-mono">{s.model}</span>
-                      <span className="ml-2 text-xs font-normal text-gray-500 tabular-nums">{s.cihaz} cihaz</span>
+                      <span className="ml-2 text-xs font-normal text-gray-500 tabular-nums">{doldur(t.tonerVerimi.cihazAdet, { n: s.cihaz })}</span>
                     </div>
-                    <div className="mt-0.5 text-xs text-gray-600">{s.ozet}</div>
-                    {s.uyarilar.some(u => UYARI[u]) && (
+                    <div className="mt-0.5 text-xs text-gray-600">{ozetMetni(t, s, b)}</div>
+                    {s.uyarilar.some((u) => uyariMetni(t, u)) && (
                       <div className="mt-0.5 text-xs text-gray-400">
-                        {s.uyarilar.map(u => UYARI[u]).filter(Boolean).join(' · ')}
+                        {s.uyarilar.map((u) => uyariMetni(t, u)).filter(Boolean).join(' · ')}
                       </div>
                     )}
                   </div>
@@ -262,18 +272,18 @@ export default function TonerVerimiSayfasi() {
                     {(s.maliyetSb !== null || s.maliyetRenkli !== null) && (
                       <div>
                         <div className="text-sm font-semibold tabular-nums">
-                          {kurus((s.maliyetSb ?? s.maliyetRenkli)!)}
+                          {b.altBirim((s.maliyetSb ?? s.maliyetRenkli)!)}
                         </div>
-                        <div className="text-[11px] text-gray-500">sayfa başı toner</div>
+                        <div className="text-[11px] text-gray-500">{t.tonerVerimi.sayfaBasiToner}</div>
                       </div>
                     )}
                     {(s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli) !== null && (
                       <div>
                         <div className={`text-sm font-semibold tabular-nums ${(s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli)! > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
                           {(s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli)! > 0 ? '+' : ''}
-                          %{(s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli)!.toFixed(0)}
+                          {b.yuzde((s.maliyetEtkisiSb ?? s.maliyetEtkisiRenkli)!)}
                         </div>
-                        <div className="text-[11px] text-gray-500">kutuya göre maliyet</div>
+                        <div className="text-[11px] text-gray-500">{t.tonerVerimi.kutuyaGore}</div>
                       </div>
                     )}
                   </div>
@@ -289,15 +299,15 @@ export default function TonerVerimiSayfasi() {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input type="checkbox" checked={sadeceEksik} onChange={(e) => setSadeceEksik(e.target.checked)} />
-          Yalnız eksik olanlar
+          {t.tonerVerimi.yalnizEksik}
         </label>
       </div>
 
       {yukleniyor ? (
-        <p className="mt-6 text-sm text-gray-500">Yükleniyor…</p>
+        <p className="mt-6 text-sm text-gray-500">{t.genel.yukleniyor}</p>
       ) : gosterilen.length === 0 ? (
         <p className="mt-6 rounded-lg border bg-white p-10 text-center text-sm text-gray-500">
-          {sadeceEksik ? 'Eksik model kalmadı — hepsinin verimi ya ölçüldü ya elle girildi.' : 'Model bulunamadı.'}
+          {sadeceEksik ? t.tonerVerimi.eksikKalmadi : t.tonerVerimi.modelYok}
         </p>
       ) : (
         <ul className="mt-4 divide-y rounded-lg border bg-white">
@@ -311,13 +321,13 @@ export default function TonerVerimiSayfasi() {
                     {g.marka} <span className="font-mono">{g.model}</span>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-gray-500">
-                    <span className="tabular-nums">{g.cihaz} cihaz</span>
-                    {eksik > 0 && <span className="tabular-nums text-amber-700">{eksik} eksik</span>}
+                    <span className="tabular-nums">{doldur(t.tonerVerimi.cihazAdet, { n: g.cihaz })}</span>
+                    {eksik > 0 && <span className="tabular-nums text-amber-700">{doldur(t.tonerVerimi.eksikAdet, { n: eksik })}</span>}
                     {/* Sayaç değeri olmayan cihazda verim girilse de tahmin
                         anlam kazanmıyor — bayi bunu önceden bilsin. */}
-                    <span className="tabular-nums">{g.sayacli} cihazda sayaç var</span>
+                    <span className="tabular-nums">{doldur(t.tonerVerimi.sayacliAdet, { n: g.sayacli })}</span>
                     <span className="tabular-nums text-gray-400">
-                      buraya kadar {kumulatif[i]} cihaz açılır
+                      {doldur(t.tonerVerimi.burayaKadar, { n: kumulatif[i] })}
                     </span>
                   </div>
                   {/* SAHADA ÖLÇÜLEN — bu bir öneri değil gözlem. Tahmin
@@ -325,15 +335,15 @@ export default function TonerVerimiSayfasi() {
                       cihaz kartına da yazıyor (sabitliyor). */}
                   {(g.olculenSb || g.olculenRenkli) && (
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-emerald-700">
-                      <span className="font-medium">Sahada ölçüldü:</span>
+                      <span className="font-medium">{t.tonerVerimi.sahadaOlculdu}</span>
                       {g.olculenSb && (
                         <span className="tabular-nums">
-                          S/B {g.olculenSb.toLocaleString('tr-TR')} ({g.gozlemSb} toner)
+                          {doldur(t.tonerVerimi.olculenSb, { n: b.sayi(g.olculenSb), g: g.gozlemSb })}
                         </span>
                       )}
                       {g.olculenRenkli && (
                         <span className="tabular-nums">
-                          Renkli {g.olculenRenkli.toLocaleString('tr-TR')} ({g.gozlemRenkli} toner)
+                          {doldur(t.tonerVerimi.olculenRenkli, { n: b.sayi(g.olculenRenkli), g: g.gozlemRenkli })}
                         </span>
                       )}
                       <button
@@ -347,7 +357,7 @@ export default function TonerVerimiSayfasi() {
                         }))}
                         className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 font-medium hover:bg-emerald-100"
                       >
-                        forma yaz
+                        {t.tonerVerimi.formaYaz}
                       </button>
                     </div>
                   )}
@@ -361,16 +371,16 @@ export default function TonerVerimiSayfasi() {
                     inputMode="numeric"
                     value={v.sb}
                     onChange={(e) => setGirdi((s) => ({ ...s, [g.anahtar]: { ...v, sb: e.target.value } }))}
-                    placeholder={g.mevcutSb ? String(g.mevcutSb) : 'S/B sayfa'}
-                    aria-label={`${g.marka} ${g.model} siyah beyaz toner verimi`}
+                    placeholder={g.mevcutSb ? String(g.mevcutSb) : t.tonerVerimi.sbYer}
+                    aria-label={doldur(t.tonerVerimi.sbEtiket, { marka: g.marka, model: g.model })}
                     className="w-28 rounded border px-2 py-1.5 text-sm tabular-nums"
                   />
                   <input
                     inputMode="numeric"
                     value={v.renkli}
                     onChange={(e) => setGirdi((s) => ({ ...s, [g.anahtar]: { ...v, renkli: e.target.value } }))}
-                    placeholder={g.mevcutRenkli ? String(g.mevcutRenkli) : 'Renkli'}
-                    aria-label={`${g.marka} ${g.model} renkli toner verimi`}
+                    placeholder={g.mevcutRenkli ? String(g.mevcutRenkli) : t.tonerVerimi.renkliYer}
+                    aria-label={doldur(t.tonerVerimi.renkliEtiket, { marka: g.marka, model: g.model })}
                     className="w-24 rounded border px-2 py-1.5 text-sm tabular-nums"
                   />
                   <button
@@ -379,7 +389,7 @@ export default function TonerVerimiSayfasi() {
                     onClick={() => uygula(g)}
                     className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
                   >
-                    {calisan === g.anahtar ? '…' : 'Uygula'}
+                    {calisan === g.anahtar ? '…' : t.tonerVerimi.uygula}
                   </button>
                 </div>
               </li>
@@ -389,16 +399,11 @@ export default function TonerVerimiSayfasi() {
       )}
 
       <p className="mt-4 text-xs text-gray-500">
-        Verim, toner kutusunun üstünde yazan sayfa sayısıdır (&ldquo;%5 doluluk&rdquo;).
-        Sistem tahmin yürütmez — girdiğiniz sayı kullanılır. Zaten dolu olan
-        cihazlara dokunulmaz.
+        {t.tonerVerimi.dipnotKutu}
       </p>
       <p className="mt-2 text-xs text-gray-500">
-        <b>Bu tabloyu doldurmak artık şart değil.</b> Fişe toner eklendikçe sistem
-        iki değişim arasında kaç sayfa basıldığını ölçüyor ve o modelin gerçek
-        verimini kendisi öğreniyor — kutunun üstündeki sayı değil, sizin
-        müşterinizde çıkan sayı. Yukarıdaki alanlar yalnız <i>bildiğiniz bir
-        değeri sabitlemek</i> için: elle girilen sayı ölçümü ezer.
+        <b>{t.tonerVerimi.dipnotOlcumVurgu}</b> {t.tonerVerimi.dipnotOlcumOrta}{' '}
+        <i>{t.tonerVerimi.dipnotOlcumVurgu2}</i>{t.tonerVerimi.dipnotOlcumSon}
       </p>
       </>
       )}

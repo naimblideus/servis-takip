@@ -38,7 +38,7 @@ for (const d of ['i18n/sozluk.js']) {
 const { tr } = await import(pathToFileURL(join(g, 'i18n/tr.js')).href);
 const { en } = await import(pathToFileURL(join(g, 'i18n/en.js')).href);
 const { sozluk, dilMi, DILLER } = await import(pathToFileURL(join(g, 'i18n/sozluk.js')).href);
-const { para, sayi, yuzde, tarih, tarihSaat, kisaTarih, paraBirimiMi, birimSimgesi, bicimYap } = await import(pathToFileURL(join(g, 'bicim.js')).href);
+const { para, sayi, yuzde, tarih, tarihSaat, kisaTarih, paraBirimiMi, birimSimgesi, bicimYap, altBirim } = await import(pathToFileURL(join(g, 'bicim.js')).href);
 
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
@@ -141,6 +141,26 @@ console.log('\n★ PARA BİÇİMİ\n');
   t('★ birimSimgesi tr/TRY ₺', birimSimgesi('tr', 'TRY') === '₺', birimSimgesi('tr', 'TRY'));
   t('★ birimSimgesi en/EUR €', birimSimgesi('en', 'EUR') === '€', birimSimgesi('en', 'EUR'));
   t('birimSimgesi bilinmeyen birim ₺', birimSimgesi('en', 'XYZ') === '₺', birimSimgesi('en', 'XYZ'));
+}
+
+// Sayfa maliyeti liranın binde biri mertebesinde; "₺0,0779" ile "₺0,3148"
+// arasındaki farkı gözle yakalamak zor. Bayi alt birimle konuşuyor ve o
+// gösterim İngilizceye geçerken kaybolmamalı — yalnız birimi değişmeli.
+console.log('\n★ ALT BİRİM (kuruş / cent)\n');
+{
+  t('★ tr/TRY: 7,79 kr', altBirim(0.0779, { dil: 'tr', birim: 'TRY' }) === '7,79 kr',
+    altBirim(0.0779, { dil: 'tr', birim: 'TRY' }));
+  t('★ en/EUR: 7.79 c', altBirim(0.0779, { dil: 'en', birim: 'EUR' }) === '7.79 c',
+    altBirim(0.0779, { dil: 'en', birim: 'EUR' }));
+  t('en/GBP peni', altBirim(0.0779, { dil: 'en', birim: 'GBP' }) === '7.79 p',
+    altBirim(0.0779, { dil: 'en', birim: 'GBP' }));
+  t('tr/EUR: Türkçe ayraç, cent birimi', altBirim(0.0779, { dil: 'tr', birim: 'EUR' }) === '7,79 c',
+    altBirim(0.0779, { dil: 'tr', birim: 'EUR' }));
+  t('bilinmeyen birim kuruşa düşer', altBirim(0.1, { dil: 'tr', birim: 'XYZ' }) === '10,00 kr',
+    altBirim(0.1, { dil: 'tr', birim: 'XYZ' }));
+  t('★ null "—" (NaN kr değil)', altBirim(null, { dil: 'tr', birim: 'TRY' }) === '—');
+  t('b.altBirim birime bağlı', bicimYap('en', 'GBP').altBirim(0.3148) === '31.48 p',
+    bicimYap('en', 'GBP').altBirim(0.3148));
 }
 
 console.log('\n★ BAĞLI BİÇİMLENDİRİCİ (useBicim / sunucuBicimi ortak)\n');

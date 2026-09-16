@@ -54,6 +54,24 @@ export function para(n: number | string | null | undefined, s: ParaSecenek): str
   }).format(v);
 }
 
+/**
+ * Para biriminin ALT birimi: kuruş / cent / penny.
+ *
+ * Sayfa maliyeti liranın binde biri mertebesinde bir sayı ve "₺0,0779" ile
+ * "₺0,3148" arasındaki farkı gözle yakalamak zor. Bayi de zaten alt birimle
+ * konuşuyor ("sayfası 8 kuruşa geliyor"). Tutar 100'le çarpılıp o birimin
+ * kısaltmasıyla yazılıyor; Türkçedeki "kr" böylece kaybolmuyor.
+ */
+export const ALT_BIRIM: Record<ParaBirimi, string> = { TRY: 'kr', EUR: 'c', USD: '¢', GBP: 'p' };
+
+/** 0,0779 ₺ → "7,79 kr" · 0.0779 € → "7.79 c" */
+export function altBirim(n: number | string | null | undefined, s: { dil: Dil; birim?: ParaBirimi | string | null }): string {
+  const v = typeof n === 'string' ? Number(n) : n;
+  if (!sayiMi(v)) return '—';
+  const birim = paraBirimiMi(s.birim) ? s.birim : VARSAYILAN_BIRIM;
+  return `${sayi(v * 100, s.dil, 2)} ${ALT_BIRIM[birim]}`;
+}
+
 /** Sayı: 1.234 / 1,234. Kesir verilirse sabit basamak. */
 export function sayi(n: number | string | null | undefined, dil: Dil, kesir?: number): string {
   const v = typeof n === 'string' ? Number(n) : n;
@@ -137,6 +155,8 @@ export function birimSimgesi(dil: Dil, birim?: ParaBirimi | string | null): stri
  */
 export interface Bicimleyici {
   para(n: number | string | null | undefined, kesir?: number): string;
+  /** Kuruş/cent — sayfa maliyeti gibi çok küçük tutarlar. */
+  altBirim(n: number | string | null | undefined): string;
   sayi(n: number | string | null | undefined, kesir?: number): string;
   yuzde(n: number | null | undefined, kesir?: number): string;
   tarih(d: Date | string | number | null | undefined): string;
@@ -153,6 +173,7 @@ export function bicimYap(dil: Dil, birim?: ParaBirimi | string | null): Bicimley
   const b = paraBirimiMi(birim) ? birim : VARSAYILAN_BIRIM;
   return {
     para: (n, kesir) => para(n, { dil, birim: b, kesir }),
+    altBirim: (n) => altBirim(n, { dil, birim: b }),
     sayi: (n, kesir) => sayi(n, dil, kesir),
     yuzde: (n, kesir) => yuzde(n, dil, kesir),
     tarih: (d) => tarih(d, dil),

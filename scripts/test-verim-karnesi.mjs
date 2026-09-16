@@ -102,6 +102,40 @@ console.log('\n★ SATIR HÜKMÜ\n');
   t('ölçümsüz satır ne yapılacağını söylüyor', /kendiliğinden öğrenilir/.test(olcumsuz.ozet), olcumsuz.ozet);
 }
 
+// Cümlenin kendisi Türkçe kuruluyor; İngilizce arayüzde ekran aynı hükmü
+// kendi dilinde yazabilsin diye hüküm ayrıca KOD olarak dönüyor. Kod
+// bozulursa ekran sessizce Türkçe cümleye düşer — o yüzden test var.
+console.log('\n★ ÖZETİN DİL BAĞIMSIZ HÂLİ\n');
+{
+  const az = karneSatiri({ ...temel, kutuSb: 6000, olculenSb: 4200, gozlemSb: 5, maliyetSb: 0.28 });
+  t('★ kutudan az → KUTUDAN_AZ', az.ozetKod.tur === 'KUTUDAN_AZ', az.ozetKod);
+  t('ölçülen verim kodda', az.ozetKod.verim === 4200, az.ozetKod);
+  t('★ sapma POZİTİF büyüklük (cümlede işaret yok)', az.ozetKod.sapma === 30, az.ozetKod);
+
+  const fazla = karneSatiri({ ...temel, kutuSb: 4000, olculenSb: 6000, gozlemSb: 5 });
+  t('★ kutudan fazla → KUTUDAN_FAZLA', fazla.ozetKod.tur === 'KUTUDAN_FAZLA', fazla.ozetKod);
+  t('fazlada sapma dolu', fazla.ozetKod.sapma === 50, fazla.ozetKod);
+
+  const uyumlu = karneSatiri({ ...temel, kutuSb: 6000, olculenSb: 5800, gozlemSb: 4 });
+  t('★ eşik içinde → UYUMLU', uyumlu.ozetKod.tur === 'UYUMLU', uyumlu.ozetKod);
+  t('uyumluda sapma yazılmıyor', uyumlu.ozetKod.sapma === null, uyumlu.ozetKod);
+
+  const kutusuz = karneSatiri({ ...temel, olculenSb: 4200, gozlemSb: 3 });
+  t('★ kutu değeri yoksa → DUZ (uydurma karşılaştırma yok)', kutusuz.ozetKod.tur === 'DUZ', kutusuz.ozetKod);
+
+  const olcumsuz = karneSatiri({ ...temel });
+  t('★ ölçüm yoksa → OLCUM_YOK', olcumsuz.ozetKod.tur === 'OLCUM_YOK', olcumsuz.ozetKod);
+  t('ölçüm yokken verim null', olcumsuz.ozetKod.verim === null, olcumsuz.ozetKod);
+
+  // Aynı satır iki yoldan da aynı hükmü vermeli: Türkçe cümle ile kod
+  // ayrışırsa ekranda "AZ" yazarken kod "UYUMLU" der ve kimse görmez.
+  for (const s of [az, fazla, uyumlu, kutusuz, olcumsuz]) {
+    const cumleAz = /AZ\./.test(s.ozet);
+    t(`cümle ve kod aynı hükümde (${s.ozetKod.tur})`,
+      cumleAz === (s.ozetKod.tur === 'KUTUDAN_AZ'), [s.ozet, s.ozetKod]);
+  }
+}
+
 console.log('\n★ SIRALAMA ETKİYE GÖRE\n');
 {
   const cok = karneSatiri({ ...temel, anahtar: 'A', cihaz: 25, olculenSb: 5000, gozlemSb: 3 });
