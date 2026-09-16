@@ -10,6 +10,8 @@
  */
 import { prisma } from '@/lib/prisma';
 import { hedefOzeti, parolayiGizle } from '@/lib/db-hedef';
+import { diskDurumu } from '@/lib/disk-durumu';
+import { statfs } from 'node:fs/promises';
 
 export type Seviye = 'iyi' | 'uyari' | 'kritik';
 
@@ -70,6 +72,30 @@ async function kVeritabani(): Promise<Kontrol> {
       mesaj: `Bağlanılamıyor${nerede}: ${parolayiGizle(String(e?.message ?? 'bilinmeyen'))}`,
       nedeni: 'Postgres kapalı ya da DATABASE_URL yanlış.',
     };
+  }
+}
+
+/**
+ * Disk doldu mu?
+ *
+ * 4 Eylül'de sunucunun diski derleme sırasında doldu; derleme öldü, yardımcı
+ * konteyner kapanmadı, Coolify "deploy sürüyor" sandı ve uygulama 12 GÜN eski
+ * imajda dondu. Site çalıştığı için kimse fark etmedi — nöbetçinin tanımına
+ * birebir uyan bir arıza, ama nöbetçi diske bakmıyordu.
+ *
+ * Konteynerin kök dosya sistemi host'un diskiyle aynı aygıtta olduğu için
+ * buradan okunan değer sunucunun gerçek doluluğudur.
+ */
+async function kDisk(): Promise<Kontrol> {
+  try {
+    const s = await statfs('/');
+    const d = diskDurumu(Number(s.blocks) * Number(s.bsize), Number(s.bavail) * Number(s.bsize));
+    if (!d) return { ad: 'Disk', seviye: 'iyi', mesaj: 'Ölçülemedi' };
+    return { ad: 'Disk', seviye: d.seviye, mesaj: d.mesaj, nedeni: d.nedeni };
+  } catch (e: any) {
+    // statfs her ortamda yok (eski Node, bazı kumlar). Ölçemiyor olmak
+    // arıza değildir; nöbetçinin kendisi bu yüzden kırmızıya dönmemeli.
+    return { ad: 'Disk', seviye: 'iyi', mesaj: 'Ölçülemedi (bu ortamda desteklenmiyor)' };
   }
 }
 
@@ -188,6 +214,7 @@ export interface NobetciSonuc {
 export async function nobetciCalistir(): Promise<NobetciSonuc> {
   const isler: [string, () => Promise<Kontrol>][] = [
     ['Veritabanı', kVeritabani],
+    ['Disk', kDisk],
     ['Aylık faturalama', kFaturaCron],
     ['WhatsApp', kWhatsapp],
     ['Sayaç e-postası', kSayacEposta],
