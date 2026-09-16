@@ -17,7 +17,10 @@ import { prisma } from '@/lib/prisma';
  */
 
 export interface RaporAyi {
+  /** Türkçe etiket — eski çağıranlar için duruyor. */
   label: string;
+  /** Ayın ilk günü (ISO). Ekran ve kâğıt bunu kendi diliyle biçimliyor. */
+  ayBasi: string;
   /** O ay AÇILAN fiş sayısı */
   adet: number;
   /** O ay ÖDENMİŞ fişlerin toplamı (kasaya giren) */
@@ -52,9 +55,11 @@ export async function raporOzeti(tenantId: string, ayAdedi = 6): Promise<RaporOz
 
   const aylar = Array.from({ length: ayAdedi }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ilkGun = new Date(d.getFullYear(), d.getMonth(), 1);
     return {
       label: d.toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }),
-      start: new Date(d.getFullYear(), d.getMonth(), 1),
+      ayBasi: ilkGun.toISOString(),
+      start: ilkGun,
       end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59),
     };
   }).reverse();
@@ -77,7 +82,7 @@ export async function raporOzeti(tenantId: string, ayAdedi = 6): Promise<RaporOz
           _sum: { totalCost: true },
         }),
       ]);
-      return { label: m.label, adet, ciro: Number(ciro._sum.totalCost || 0) };
+      return { label: m.label, ayBasi: m.ayBasi, adet, ciro: Number(ciro._sum.totalCost || 0) };
     }),
   );
 

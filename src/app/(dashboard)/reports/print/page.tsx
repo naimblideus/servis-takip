@@ -3,10 +3,9 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PrintNowButton from '@/components/PrintNowButton';
 import { oturumKullanicisi } from '@/lib/api-auth';
-import { raporOzeti, DURUM_ADI, ONCELIK_ADI } from '@/lib/rapor-ozeti';
-
-const fmt = (n: number) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const sayi = (n: number) => n.toLocaleString('tr-TR');
+import { raporOzeti } from '@/lib/rapor-ozeti';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
 
 /**
  * RAPOR ÖZETİ — KÂĞIT.
@@ -24,6 +23,12 @@ export default async function RaporYazdirPage() {
   const user = await oturumKullanicisi(session);
   if (!user) redirect('/login');
 
+  // Kâğıdı bayinin KENDİSİ okuyor (patron, muhasebeci) — müşteri değil.
+  // O yüzden kullanıcının dili geçerli, bayininki değil.
+  const { dil, sz, b } = await sunucuBicimi(user);
+  const fmt = (n: number) => b.para(n);
+  const sayi = (n: number) => b.sayi(n);
+
   const [o, tenant] = await Promise.all([
     raporOzeti(user.tenantId),
     prisma.tenant.findUnique({
@@ -32,8 +37,10 @@ export default async function RaporYazdirPage() {
     }),
   ]);
 
-  const bugun = new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' });
-  const donem = o.aylik.length ? `${o.aylik[0].label} – ${o.aylik[o.aylik.length - 1].label}` : '';
+  const bugun = b.tarih(new Date());
+  const donem = o.aylik.length
+    ? `${b.ayYil(o.aylik[0].ayBasi)} – ${b.ayYil(o.aylik[o.aylik.length - 1].ayBasi)}`
+    : '';
   const aylikCiro = o.aylik.reduce((s, m) => s + m.ciro, 0);
   const aylikAdet = o.aylik.reduce((s, m) => s + m.adet, 0);
 
@@ -88,21 +95,21 @@ export default async function RaporYazdirPage() {
 
       <PrintNowButton />
 
-      <div className="print-wrapper">
+      <div className="print-wrapper" lang={dil}>
         <div className="receipt">
           <div className="header">
             <div className="header-left">
               {tenant?.logo && <img src={tenant.logo} alt="Logo" className="header-logo" />}
               <div>
-                <div className="company-name">{tenant?.name ?? 'Servis'}</div>
+                <div className="company-name">{tenant?.name ?? sz.rapor.kagitFirma}</div>
                 <div className="company-sub">
                   {[tenant?.phone, tenant?.address].filter(Boolean).join(' · ')}
                 </div>
               </div>
             </div>
             <div className="header-right">
-              <div className="doc-label">Rapor</div>
-              <div className="doc-title">Genel Durum</div>
+              <div className="doc-label">{sz.rapor.kagitEtiket}</div>
+              <div className="doc-title">{sz.rapor.kagitBaslik}</div>
               <div className="doc-date">{bugun}{donem ? ` · ${donem}` : ''}</div>
             </div>
           </div>
@@ -110,46 +117,46 @@ export default async function RaporYazdirPage() {
           <div className="body">
             <div className="ozet">
               <div className="ozet-kutu">
-                <div className="ozet-etiket">Toplam Fiş</div>
+                <div className="ozet-etiket">{sz.rapor.kartFis}</div>
                 <div className="ozet-deger">{sayi(o.toplamlar.fis)}</div>
               </div>
               <div className="ozet-kutu">
-                <div className="ozet-etiket">Müşteri</div>
+                <div className="ozet-etiket">{sz.rapor.csvMusteri}</div>
                 <div className="ozet-deger">{sayi(o.toplamlar.musteri)}</div>
               </div>
               <div className="ozet-kutu">
-                <div className="ozet-etiket">Cihaz</div>
+                <div className="ozet-etiket">{sz.rapor.csvCihaz}</div>
                 <div className="ozet-deger">{sayi(o.toplamlar.cihaz)}</div>
               </div>
               <div className="ozet-kutu">
-                <div className="ozet-etiket">İş Hacmi</div>
+                <div className="ozet-etiket">{sz.rapor.kagitIsHacmi}</div>
                 <div className="ozet-deger">{fmt(o.toplamlar.ciro)}</div>
                 {/* Bu rakam TAHSİLAT DEĞİL. Aşağıdaki aylık tablo yalnız
                     ödenmiş fişleri sayıyor; ikisini ayırmazsak bayi
                     kazanmadığı parayı kazanmış sanır. */}
-                <div className="ozet-not">tahsil edilmemiş dahil</div>
+                <div className="ozet-not">{sz.rapor.kagitTahsilsiz}</div>
               </div>
             </div>
 
-            <div className="section-title">Son {o.ayAdedi} ay</div>
+            <div className="section-title">{doldur(sz.rapor.kagitSonAy, { n: o.ayAdedi })}</div>
             <table className="ext-table">
               <thead>
                 <tr>
-                  <th>Ay</th>
-                  <th className="num">Açılan fiş</th>
-                  <th className="num">Tahsil edilen</th>
+                  <th>{sz.rapor.kagitAy}</th>
+                  <th className="num">{sz.rapor.kagitAcilanFis}</th>
+                  <th className="num">{sz.rapor.kagitTahsilEdilen}</th>
                 </tr>
               </thead>
               <tbody>
                 {o.aylik.map((m) => (
-                  <tr key={m.label}>
-                    <td>{m.label}</td>
+                  <tr key={m.ayBasi}>
+                    <td>{b.ayYil(m.ayBasi)}</td>
                     <td className="num">{sayi(m.adet)}</td>
                     <td className="num">{fmt(m.ciro)}</td>
                   </tr>
                 ))}
                 <tr className="ext-total">
-                  <td>Toplam</td>
+                  <td>{sz.rapor.kagitToplam}</td>
                   <td className="num">{sayi(aylikAdet)}</td>
                   <td className="num">{fmt(aylikCiro)}</td>
                 </tr>
@@ -158,14 +165,14 @@ export default async function RaporYazdirPage() {
 
             <div className="ikili">
               <div>
-                <div className="section-title">Fiş durumu</div>
+                <div className="section-title">{sz.rapor.kagitFisDurumu}</div>
                 <table className="ext-table">
-                  <thead><tr><th>Durum</th><th className="num">Adet</th></tr></thead>
+                  <thead><tr><th>{sz.rapor.csvDurum}</th><th className="num">{sz.rapor.kagitAdet}</th></tr></thead>
                   <tbody>
-                    {o.durumlar.length === 0 && <tr><td colSpan={2} className="empty">Fiş yok</td></tr>}
+                    {o.durumlar.length === 0 && <tr><td colSpan={2} className="empty">{sz.rapor.kagitFisYok}</td></tr>}
                     {o.durumlar.map((d) => (
                       <tr key={d.durum}>
-                        <td>{DURUM_ADI[d.durum] ?? d.durum}</td>
+                        <td>{(sz.durum.fisKisa as Record<string, string>)[d.durum] ?? d.durum}</td>
                         <td className="num">{sayi(d.adet)}</td>
                       </tr>
                     ))}
@@ -173,14 +180,14 @@ export default async function RaporYazdirPage() {
                 </table>
               </div>
               <div>
-                <div className="section-title">Öncelik</div>
+                <div className="section-title">{sz.rapor.kagitOncelik}</div>
                 <table className="ext-table">
-                  <thead><tr><th>Öncelik</th><th className="num">Adet</th></tr></thead>
+                  <thead><tr><th>{sz.rapor.csvOncelik}</th><th className="num">{sz.rapor.kagitAdet}</th></tr></thead>
                   <tbody>
-                    {o.oncelikler.length === 0 && <tr><td colSpan={2} className="empty">Fiş yok</td></tr>}
+                    {o.oncelikler.length === 0 && <tr><td colSpan={2} className="empty">{sz.rapor.kagitFisYok}</td></tr>}
                     {o.oncelikler.map((p) => (
                       <tr key={p.oncelik}>
-                        <td>{ONCELIK_ADI[p.oncelik] ?? p.oncelik}</td>
+                        <td>{(sz.durum.oncelik as Record<string, string>)[p.oncelik] ?? p.oncelik}</td>
                         <td className="num">{sayi(p.adet)}</td>
                       </tr>
                     ))}
@@ -191,7 +198,7 @@ export default async function RaporYazdirPage() {
           </div>
 
           <div className="footer">
-            {tenant?.name ?? 'Servis'} · {bugun} tarihinde alınmıştır · Nextus Servis
+            {doldur(sz.rapor.kagitAltbilgi, { firma: tenant?.name ?? sz.rapor.kagitFirma, tarih: bugun })}
           </div>
         </div>
       </div>

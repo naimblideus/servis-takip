@@ -9,17 +9,21 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { faultLabel } from '@/lib/fault-categories';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
+import { modelNotu, type ModelNotu } from '@/lib/rapor-metin';
 
 interface ModelStat {
   brand: string; model: string; deviceCount: number; withAge: number;
   avgAgeMonths: number | null; failuresPerDeviceYear: number | null;
   totalFailures: number; totalPlanned: number; uncategorizedRatio: number;
   topFaults: { code: string; count: number }[];
-  avgPartsCost: number | null; reliable: boolean; note: string | null;
+  avgPartsCost: number | null; reliable: boolean; note: string | null; notKod: ModelNotu | null;
 }
 
 export default function ModelGuvenilirlikPage() {
+  const t = useT();
+  const b = useBicim();
   const [models, setModels] = useState<ModelStat[]>([]);
   const [ozet, setOzet] = useState({ toplamModel: 0, guvenilirModel: 0, months: 12 });
   const [yukleniyor, setYukleniyor] = useState(true);
@@ -44,11 +48,11 @@ export default function ModelGuvenilirlikPage() {
 
   return (
     <div style={{ maxWidth: '62rem' }}>
-      <Link href="/reports" style={{ fontSize: '0.85rem', color: '#6b7280', textDecoration: 'none' }}>← Raporlar</Link>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.4rem 0 0.25rem' }}>Marka / Model Güvenilirliği</h1>
+      <Link href="/reports" style={{ fontSize: '0.85rem', color: '#6b7280', textDecoration: 'none' }}>{t.yenileme.geri}</Link>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.4rem 0 0.25rem' }}>{t.modelGuvenilirlik.baslik}</h1>
       <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: 0, marginBottom: '1rem' }}>
-        Son {ozet.months} ayda hangi model ne sıklıkta bozuldu. <b>Periyodik bakım arıza sayılmaz.</b>
-        Yeterli veri olmayan modellerde sayı üretilmez — sebebi yazılır.
+        {doldur(t.modelGuvenilirlik.altOn, { n: ozet.months })} <b>{t.modelGuvenilirlik.altVurgu}</b>{' '}
+        {t.modelGuvenilirlik.altSon}
       </p>
 
       {/* Rapor ekranda kalırsa iş görmez. Bu tablo müşteriye giderken
@@ -58,43 +62,43 @@ export default function ModelGuvenilirlikPage() {
         style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '0 0.9rem', marginBottom: '1rem',
           background: '#0f2253', color: 'white', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.85rem',
           textDecoration: 'none', whiteSpace: 'nowrap' }}>
-        ⬇️ Excel (CSV)
+        {t.genel.excelIndir}
       </a>
       {yukleniyor ? (
-        <div style={{ ...kutu, textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>Yükleniyor…</div>
+        <div style={{ ...kutu, textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>{t.genel.yukleniyor}</div>
       ) : (
         <>
           <div style={{ ...kutu, display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{ozet.guvenilirModel}</div>
-              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>yorumlanabilir model</div>
+              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{t.modelGuvenilirlik.yorumlanabilir}</div>
             </div>
             <div>
               <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#9ca3af' }}>{ozet.toplamModel}</div>
-              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>toplam model</div>
+              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{t.modelGuvenilirlik.toplamModel}</div>
             </div>
             <button type="button" onClick={() => setHepsi(h => !h)}
               style={{ marginLeft: 'auto', background: 'none', border: '1px solid #e5e7eb',
                 borderRadius: '0.45rem', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.82rem', color: '#374151' }}>
-              {hepsi ? 'Sadece yorumlanabilirler' : 'Veri yetersizleri de göster'}
+              {hepsi ? t.modelGuvenilirlik.sadeceYorumlanabilir : t.modelGuvenilirlik.veriYetersizGoster}
             </button>
           </div>
 
           {gosterilen.length === 0 ? (
             <div style={{ ...kutu, textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-              Henüz yorumlanabilir model yok. Arıza kategorisi ve cihaz yaşı doldukça bu rapor canlanır.
+              {t.modelGuvenilirlik.bos}
             </div>
           ) : (
             <div style={{ ...kutu, padding: 0, overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '46rem' }}>
                 <thead>
                   <tr className="table-header">
-                    <th style={{ padding: '0.65rem', textAlign: 'left' }}>Marka / Model</th>
-                    <th style={{ padding: '0.65rem', textAlign: 'right' }}>Cihaz</th>
-                    <th style={{ padding: '0.65rem', textAlign: 'right' }}>Ort. yaş</th>
-                    <th style={{ padding: '0.65rem', textAlign: 'right' }}>Cihaz-yılı başına arıza</th>
-                    <th style={{ padding: '0.65rem', textAlign: 'left' }}>En sık arıza</th>
-                    <th style={{ padding: '0.65rem', textAlign: 'right' }}>Ort. parça ₺</th>
+                    <th style={{ padding: '0.65rem', textAlign: 'left' }}>{t.modelGuvenilirlik.sutunMarkaModel}</th>
+                    <th style={{ padding: '0.65rem', textAlign: 'right' }}>{t.modelGuvenilirlik.sutunCihaz}</th>
+                    <th style={{ padding: '0.65rem', textAlign: 'right' }}>{t.modelGuvenilirlik.sutunOrtYas}</th>
+                    <th style={{ padding: '0.65rem', textAlign: 'right' }}>{t.modelGuvenilirlik.sutunArizaOrani}</th>
+                    <th style={{ padding: '0.65rem', textAlign: 'left' }}>{t.modelGuvenilirlik.sutunEnSikAriza}</th>
+                    <th style={{ padding: '0.65rem', textAlign: 'right' }}>{doldur(t.modelGuvenilirlik.sutunOrtParca, { s: b.simge })}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -103,16 +107,16 @@ export default function ModelGuvenilirlikPage() {
                       backgroundColor: m.reliable ? undefined : '#fafafa' }}>
                       <td style={{ padding: '0.6rem 0.65rem' }}>
                         <div style={{ fontWeight: 600 }}>{m.brand} {m.model}</div>
-                        {m.note && <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{m.note}</div>}
+                        {m.notKod && <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{modelNotu(t, b, m.notKod)}</div>}
                       </td>
                       <td style={{ padding: '0.6rem 0.65rem', textAlign: 'right' }}>
                         {m.deviceCount}
                         {m.withAge < m.deviceCount && (
-                          <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{m.withAge} yaşı bilinen</div>
+                          <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{doldur(t.modelGuvenilirlik.yasiBilinen, { n: m.withAge })}</div>
                         )}
                       </td>
                       <td style={{ padding: '0.6rem 0.65rem', textAlign: 'right', color: m.avgAgeMonths === null ? '#d1d5db' : undefined }}>
-                        {m.avgAgeMonths === null ? '—' : `${(m.avgAgeMonths / 12).toFixed(1)} yıl`}
+                        {m.avgAgeMonths === null ? '—' : doldur(t.modelGuvenilirlik.yilBirimi, { n: b.sayi(m.avgAgeMonths / 12, 1) })}
                       </td>
                       <td style={{ padding: '0.6rem 0.65rem', textAlign: 'right', fontWeight: 700,
                         color: m.failuresPerDeviceYear === null ? '#d1d5db'
@@ -120,10 +124,12 @@ export default function ModelGuvenilirlikPage() {
                         {m.failuresPerDeviceYear === null ? '—' : m.failuresPerDeviceYear}
                       </td>
                       <td style={{ padding: '0.6rem 0.65rem', color: '#374151' }}>
-                        {m.topFaults.length === 0 ? '—' : m.topFaults.map(f => `${faultLabel(f.code)} (${f.count})`).join(', ')}
+                        {m.topFaults.length === 0
+                          ? '—'
+                          : m.topFaults.map((f) => `${(t.ariza as Record<string, string>)[f.code] ?? f.code} (${f.count})`).join(', ')}
                       </td>
                       <td style={{ padding: '0.6rem 0.65rem', textAlign: 'right', color: m.avgPartsCost === null ? '#d1d5db' : undefined }}>
-                        {m.avgPartsCost === null ? '—' : m.avgPartsCost.toLocaleString('tr-TR')}
+                        {m.avgPartsCost === null ? '—' : b.sayi(m.avgPartsCost)}
                       </td>
                     </tr>
                   ))}

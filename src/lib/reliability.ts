@@ -162,6 +162,8 @@ export interface ModelStat {
   /** İstatistik güvenilir mi (yeterli cihaz + yeterli kategori kapsamı) */
   reliable: boolean;
   note: string | null;
+  /** Aynı notun dil bağımsız hâli — ekran cümleyi kendi dilinde kuruyor. */
+  notKod: { kod: 'AZ_CIHAZ'; n: number; min: number } | { kod: 'KATEGORI_YOK'; yuzde: number } | null;
 }
 
 /**
@@ -243,8 +245,14 @@ export async function modelStats(
     const reliable = yeterliCihaz && yeterliKapsam;
 
     let note: string | null = null;
-    if (!yeterliCihaz) note = `Sadece ${n} cihaz — istatistik için en az ${MIN_DEVICES_FOR_MODEL} gerekir`;
-    else if (!yeterliKapsam) note = `Fişlerin %${Math.round(uncRatio * 100)}'inde arıza kategorisi yok`;
+    let notKod: ModelStat['notKod'] = null;
+    if (!yeterliCihaz) {
+      note = `Sadece ${n} cihaz — istatistik için en az ${MIN_DEVICES_FOR_MODEL} gerekir`;
+      notKod = { kod: 'AZ_CIHAZ', n, min: MIN_DEVICES_FOR_MODEL };
+    } else if (!yeterliKapsam) {
+      note = `Fişlerin %${Math.round(uncRatio * 100)}'inde arıza kategorisi yok`;
+      notKod = { kod: 'KATEGORI_YOK', yuzde: Math.round(uncRatio * 100) };
+    }
 
     models.push({
       brand: g.brand,
@@ -261,6 +269,7 @@ export async function modelStats(
       avgPartsCost: reliable ? Math.round(cost / n) : null,
       reliable,
       note,
+      notKod,
     });
   }
 

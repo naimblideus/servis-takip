@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { modelStats } from '@/lib/reliability';
 import { csvMetni, csvSayi, csvBasliklari, csvDosyaAdi } from '@/lib/csv';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { doldur } from '@/lib/i18n/sozluk';
+import { modelNotu } from '@/lib/rapor-metin';
 
 /**
  * MARKA / MODEL GÜVENİLİRLİĞİ.
@@ -14,7 +17,7 @@ import { csvMetni, csvSayi, csvBasliklari, csvDosyaAdi } from '@/lib/csv';
  */
 export async function GET(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { user, tenantId } = await requireTenantUser();
     const months = Math.min(36, Math.max(3, Number(new URL(req.url).searchParams.get('months')) || 12));
     const { models } = await modelStats([tenantId], { months });
 
@@ -24,16 +27,23 @@ export async function GET(req: NextRequest) {
     // çıkarılmış oran tabloya girince kaynağından koparılıyor ve kesin bilgi
     // gibi okunuyor — sütun, o satırın ne kadar taşıdığını söylüyor.
     if (new URL(req.url).searchParams.get('format') === 'csv') {
+      // CSV'yi indiren KULLANICI: başlıklar ve not onun dilinde.
+      const { sz, b } = await sunucuBicimi(user);
       const metin = csvMetni(
-        ['Marka', 'Model', 'Cihaz', 'Yaşı bilinen', 'Ort. yaş (ay)', 'Cihaz başı yıllık arıza', 'Toplam arıza', 'Planlı bakım', 'Ort. parça maliyeti (₺)', 'İstatistik güvenilir mi', 'Not'],
+        [
+          sz.csvModel.marka, sz.csvModel.model, sz.modelGuvenilirlik.sutunCihaz, sz.csvModel.yasiBilinen,
+          sz.csvModel.ortYasAy, sz.csvModel.yillikAriza, sz.csvModel.toplamAriza, sz.csvModel.planliBakim,
+          doldur(sz.csvModel.ortParcaMaliyeti, { s: b.simge }),
+          sz.csvModel.guvenilirMi, sz.csvModel.not,
+        ],
         models.map((m) => [
           m.brand, m.model, m.deviceCount, m.withAge,
           m.avgAgeMonths === null ? '' : csvSayi(m.avgAgeMonths, 1),
           m.failuresPerDeviceYear === null ? '' : csvSayi(m.failuresPerDeviceYear, 2),
           m.totalFailures, m.totalPlanned,
           m.avgPartsCost === null ? '' : csvSayi(m.avgPartsCost),
-          m.reliable ? 'evet' : 'hayır',
-          m.note ?? '',
+          m.reliable ? sz.genel.evet : sz.genel.hayir,
+          modelNotu(sz, b, m.notKod) ?? '',
         ]),
       );
       return new NextResponse(metin, { headers: csvBasliklari(csvDosyaAdi('model-guvenilirlik', String(months) + 'ay')) });

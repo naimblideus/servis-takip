@@ -8,12 +8,15 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
+import { yenilemeSebebi, type YenilemeSebebi } from '@/lib/rapor-metin';
 
 interface Aday {
   id: string; baslik: string; serialNo: string; musteri: string | null;
   yasAy: number | null; yasBelirsiz: boolean;
   ariza: number; planli: number; parcaMaliyet: number; gelir: number;
-  sebepler: string[]; skor: number;
+  sebepler: YenilemeSebebi[]; skor: number;
 }
 interface Veri {
   months: number; toplamCihaz: number; yasiBilinen: number;
@@ -21,6 +24,8 @@ interface Veri {
 }
 
 export default function YenilemePage() {
+  const t = useT();
+  const b = useBicim();
   const [d, setD] = useState<Veri | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
 
@@ -38,11 +43,10 @@ export default function YenilemePage() {
 
   return (
     <div style={{ maxWidth: '58rem' }}>
-      <Link href="/reports" style={{ fontSize: '0.85rem', color: '#6b7280', textDecoration: 'none' }}>← Raporlar</Link>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.4rem 0 0.25rem' }}>Yenileme Fırsatları</h1>
+      <Link href="/reports" style={{ fontSize: '0.85rem', color: '#6b7280', textDecoration: 'none' }}>{t.yenileme.geri}</Link>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.4rem 0 0.25rem' }}>{t.yenileme.baslik}</h1>
       <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: 0, marginBottom: '1rem' }}>
-        Size kazandırdığından fazla masraf çıkaran veya yaşlanıp sürekli bozulan cihazlar.
-        Her satırın <b>gerekçesi</b> yazılıdır — müşteriye giderken kullanabilirsiniz.
+        {t.yenileme.altOn} <b>{t.yenileme.altVurgu}</b> {t.yenileme.altSon}
       </p>
 
       {/* Rapor ekranda kalırsa iş görmez. Bu tablo müşteriye giderken
@@ -52,34 +56,34 @@ export default function YenilemePage() {
         style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '0 0.9rem', marginBottom: '1rem',
           background: '#0f2253', color: 'white', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.85rem',
           textDecoration: 'none', whiteSpace: 'nowrap' }}>
-        ⬇️ Excel (CSV)
+        {t.genel.excelIndir}
       </a>
       {yukleniyor ? (
-        <div style={{ ...kutu, textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>Yükleniyor…</div>
+        <div style={{ ...kutu, textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>{t.genel.yukleniyor}</div>
       ) : !d ? (
-        <div style={{ ...kutu, color: '#b91c1c' }}>Rapor alınamadı.</div>
+        <div style={{ ...kutu, color: '#b91c1c' }}>{t.yenileme.alinamadi}</div>
       ) : (
         <>
           {/* Kapsam — veri girmenin karşılığını açıkça göster */}
           <div style={{ ...kutu, display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{d.adaylar.length}</div>
-              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>fırsat bulundu</div>
+              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{t.yenileme.firsatBulundu}</div>
             </div>
             <div>
               <div style={{ fontSize: '1.4rem', fontWeight: 700, color: d.yasKapsamPct >= 80 ? '#15803d' : '#b45309' }}>
-                %{d.yasKapsamPct}
+                {b.yuzde(d.yasKapsamPct)}
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>cihaz yaşı kapsamı</div>
+              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{t.yenileme.yasKapsami}</div>
             </div>
             {d.yasEksikFirsat > 0 && (
               <div style={{ marginLeft: 'auto', fontSize: '0.85rem', backgroundColor: '#fffbeb',
                 border: '1px solid #fcd34d', borderRadius: '0.5rem', padding: '0.5rem 0.8rem', color: '#92400e' }}>
-                <b>{d.yasEksikFirsat} cihaz</b> sık arızalı ama yaşı bilinmiyor —{' '}
+                <b>{doldur(t.yenileme.yasEksikVurgu, { n: d.yasEksikFirsat })}</b> {t.yenileme.yasEksikOrta}{' '}
                 <Link href="/devices/kurulum-tarihi" style={{ color: '#92400e', fontWeight: 700 }}>
-                  yaşlarını girerseniz
+                  {t.yenileme.yasEksikLink}
                 </Link>{' '}
-                bu listeye eklenebilirler.
+                {t.yenileme.yasEksikSon}
               </div>
             )}
           </div>
@@ -87,11 +91,9 @@ export default function YenilemePage() {
           {d.adaylar.length === 0 ? (
             <div style={{ ...kutu, textAlign: 'center', padding: '2.2rem' }}>
               <div style={{ fontSize: '1.6rem', marginBottom: '0.3rem' }}>✓</div>
-              <div style={{ fontWeight: 600, color: '#15803d' }}>Şu an yenileme adayı cihaz yok</div>
+              <div style={{ fontWeight: 600, color: '#15803d' }}>{t.yenileme.adayYok}</div>
               <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.35rem' }}>
-                {d.yasKapsamPct < 80
-                  ? 'Cihaz yaşları girildikçe bu liste zenginleşir.'
-                  : 'Filo sağlıklı görünüyor.'}
+                {d.yasKapsamPct < 80 ? t.yenileme.adayYokAz : t.yenileme.adayYokSaglikli}
               </div>
             </div>
           ) : (
@@ -107,13 +109,13 @@ export default function YenilemePage() {
                     </div>
                     <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#6b7280' }}>
                       {a.yasAy !== null && (
-                        <div>{Math.floor(a.yasAy / 12)} yaşında{a.yasBelirsiz ? ' (±1 yıl)' : ''}</div>
+                        <div>{doldur(t.yenileme.yasinda, { n: Math.floor(a.yasAy / 12) })}{a.yasBelirsiz ? t.yenileme.yasBelirsiz : ''}</div>
                       )}
-                      <div>{a.ariza} arıza{a.planli ? ` · ${a.planli} planlı` : ''}</div>
+                      <div>{doldur(t.yenileme.arizaAdet, { n: a.ariza })}{a.planli ? doldur(t.yenileme.planliAdet, { n: a.planli }) : ''}</div>
                     </div>
                   </div>
                   <ul style={{ margin: '0.55rem 0 0', paddingLeft: '1.1rem', fontSize: '0.85rem', color: '#374151' }}>
-                    {a.sebepler.map((s, j) => <li key={j}>{s}</li>)}
+                    {a.sebepler.map((s, j) => <li key={j}>{yenilemeSebebi(t, b, s)}</li>)}
                   </ul>
                 </div>
               ))}
