@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { faturaEksikleri } from '@/lib/fatura-kimlik';
+import { useT, useDil } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Props {
     customer: {
@@ -24,6 +26,11 @@ interface Props {
 
 export default function CustomerEditPanel({ customer }: Props) {
     const router = useRouter();
+    const t = useT();
+    // e-Fatura/e-Arşiv ve vergi dairesi TÜRKİYE'ye özgü; başka ülkede
+    // sorulmaz (bkz. Sidebar'daki TR_OZEL kapısı).
+    const { ulke } = useDil();
+    const trMi = ulke === 'TR';
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
@@ -64,19 +71,19 @@ export default function CustomerEditPanel({ customer }: Props) {
             setOpen(false);
         } else {
             const d = await res.json();
-            alert('Hata: ' + d.error);
+            alert(doldur(t.fisler.hata, { n: d.error }));
         }
         setSaving(false);
     };
 
     const deleteCustomer = async () => {
-        if (!confirm(`"${customer.name}" müşterisini ve tüm cihazlarını/fişlerini silmek isteriyor musunuz?`)) return;
+        if (!confirm(doldur(t.musteriDuzenle.silSor, { n: customer.name }))) return;
         const res = await fetch(`/api/customers/${customer.id}`, { method: 'DELETE' });
         if (res.ok) {
             router.push('/customers');
         } else {
             const d = await res.json();
-            alert('Silinemedi: ' + d.error);
+            alert(doldur(t.musteriDuzenle.silinemedi, { n: d.error }));
         }
     };
 
@@ -93,7 +100,7 @@ export default function CustomerEditPanel({ customer }: Props) {
                 border: '1px solid #d1d5db', borderRadius: '0.5rem',
                 fontSize: '0.875rem', cursor: 'pointer', fontWeight: '500',
             }}>
-                {open ? '✕ Kapat' : '✏️ Düzenle'}
+                {open ? t.fisPanel.paneliKapat : t.fisPanel.duzenle}
             </button>
             <button onClick={deleteCustomer} style={{
                 padding: '0.5rem 0.875rem', backgroundColor: '#fee2e2', border: 'none',
@@ -116,22 +123,22 @@ export default function CustomerEditPanel({ customer }: Props) {
                         backgroundColor: 'white', borderRadius: '1rem', padding: '2rem',
                         width: '100%', maxWidth: '480px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
                     }} onClick={e => e.stopPropagation()}>
-                        <h2 style={{ fontWeight: '700', fontSize: '1.25rem', marginBottom: '1.5rem' }}>Müşteri Düzenle</h2>
+                        <h2 style={{ fontWeight: '700', fontSize: '1.25rem', marginBottom: '1.5rem' }}>{t.musteriDuzenle.baslik}</h2>
 
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>Ad Soyad *</label>
+                            <label style={lbl}>{t.musteri.adSoyad}</label>
                             <input style={inp} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>Telefon *</label>
+                            <label style={lbl}>{t.musteri.telefonZorunlu}</label>
                             <input style={inp} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>Adres</label>
+                            <label style={lbl}>{t.fisYeni.adres}</label>
                             <AddressAutocomplete value={form.address} onChange={v => setForm({ ...form, address: v })} style={inp} />
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={lbl}>Vergi No / TC Kimlik No</label>
+                            <label style={lbl}>{t.musteriDuzenle.vergiNo}</label>
                             <input style={inp} value={form.taxNo} onChange={e => setForm({ ...form, taxNo: e.target.value })} />
                         </div>
 
@@ -146,17 +153,21 @@ export default function CustomerEditPanel({ customer }: Props) {
                                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                     gap: '0.5rem', padding: '0.7rem 0.85rem', background: '#f9fafb', border: 'none',
                                     cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#374151', textAlign: 'left' }}>
-                                <span>Fatura bilgileri</span>
+                                <span>{t.musteriDuzenle.faturaBilgileri}</span>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {eksikler.length > 0 ? (
+                                    {/* Rozet TÜRKİYE'de anlamlı: eksik listesi GİB alanlarına
+                                        göre üretiliyor. Başka ülkede hiç rozet gösterilmiyor —
+                                        yeşil "tamam" yazmak, kontrol edilmemiş bir şeyi
+                                        kontrol edilmiş göstermek olurdu. */}
+                                    {!trMi ? null : eksikler.length > 0 ? (
                                         <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e',
                                             background: '#fef3c7', padding: '0.15rem 0.45rem', borderRadius: '999px' }}>
-                                            {eksikler.length} eksik
+                                            {doldur(t.musteriDuzenle.eksikSayi, { n: eksikler.length })}
                                         </span>
                                     ) : (
                                         <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#166534',
                                             background: '#dcfce7', padding: '0.15rem 0.45rem', borderRadius: '999px' }}>
-                                            tamam
+                                            {t.musteriDuzenle.tamam}
                                         </span>
                                     )}
                                     <span style={{ color: '#9ca3af' }}>{faturaAcik ? '▲' : '▼'}</span>
@@ -166,61 +177,72 @@ export default function CustomerEditPanel({ customer }: Props) {
                             {faturaAcik && (
                                 <div style={{ padding: '0.85rem' }}>
                                     <div style={{ marginBottom: '0.8rem' }}>
-                                        <label style={lbl}>Ticari unvan (faturada yazacak ad)</label>
+                                        <label style={lbl}>{t.musteriDuzenle.ticariUnvan}</label>
                                         <input style={inp} value={form.legalName} placeholder={form.name}
                                             onChange={e => setForm({ ...form, legalName: e.target.value })} />
                                         <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.25rem' }}>
-                                            Boş bırakırsan faturaya yukarıdaki ad yazılır.
+                                            {t.musteriDuzenle.unvanBos}
                                         </div>
                                     </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))', gap: '0.6rem', marginBottom: '0.8rem' }}>
+                                        {/* Vergi dairesi Türkiye'ye özgü bir alan. */}
+                                        {trMi && (
+                                            <div>
+                                                <label style={lbl}>{t.musteriDuzenle.vergiDairesi}</label>
+                                                <input style={inp} value={form.taxOffice} onChange={e => setForm({ ...form, taxOffice: e.target.value })} />
+                                            </div>
+                                        )}
                                         <div>
-                                            <label style={lbl}>Vergi dairesi</label>
-                                            <input style={inp} value={form.taxOffice} onChange={e => setForm({ ...form, taxOffice: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label style={lbl}>İl</label>
+                                            <label style={lbl}>{t.musteriDuzenle.il}</label>
                                             <input style={inp} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
                                         </div>
                                         <div>
-                                            <label style={lbl}>İlçe</label>
+                                            <label style={lbl}>{t.musteriDuzenle.ilce}</label>
                                             <input style={inp} value={form.district} onChange={e => setForm({ ...form, district: e.target.value })} />
                                         </div>
                                     </div>
                                     <div style={{ marginBottom: '0.8rem' }}>
-                                        <label style={lbl}>E-posta</label>
+                                        <label style={lbl}>{t.musteri.eposta}</label>
                                         <input style={inp} type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
                                     </div>
-                                    <div style={{ marginBottom: '0.8rem' }}>
-                                        <label style={lbl}>e-Fatura mükellefi mi?</label>
-                                        <select style={inp} value={form.eInvoiceUser}
-                                            onChange={e => setForm({ ...form, eInvoiceUser: e.target.value })}>
-                                            <option value="">Bilinmiyor — sorgulanmadı</option>
-                                            <option value="evet">Evet — e-Fatura</option>
-                                            <option value="hayir">Hayır — e-Arşiv</option>
-                                        </select>
-                                        <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.25rem' }}>
-                                            Faturanın hangi yoldan gideceğini bu belirler.
-                                        </div>
-                                    </div>
-                                    {eksikler.length > 0 && (
-                                        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.5rem',
-                                            padding: '0.6rem 0.7rem', fontSize: '0.74rem', color: '#92400e' }}>
-                                            <b>Fatura kesilebilmesi için eksik:</b>
-                                            <ul style={{ margin: '0.3rem 0 0', paddingLeft: '1.1rem' }}>
-                                                {eksikler.map((x) => <li key={x}>{x}</li>)}
-                                            </ul>
-                                        </div>
+                                    {/* e-Fatura / e-Arşiv ayrımı ve "fatura kesilebilir mi"
+                                        eksik listesi TÜRKİYE'ye özgü (GİB düzeni). Başka
+                                        ülkedeki bayiye sorulmuyor; yukarıdaki unvan, vergi
+                                        numarası, il/ilçe ve e-posta her ülkede duruyor. */}
+                                    {trMi && (
+                                        <>
+                                            <div style={{ marginBottom: '0.8rem' }}>
+                                                <label style={lbl}>{t.musteriDuzenle.eFaturaSoru}</label>
+                                                <select style={inp} value={form.eInvoiceUser}
+                                                    onChange={e => setForm({ ...form, eInvoiceUser: e.target.value })}>
+                                                    <option value="">{t.musteriDuzenle.eFaturaBilinmiyor}</option>
+                                                    <option value="evet">{t.musteriDuzenle.eFaturaEvet}</option>
+                                                    <option value="hayir">{t.musteriDuzenle.eFaturaHayir}</option>
+                                                </select>
+                                                <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.25rem' }}>
+                                                    {t.musteriDuzenle.eFaturaNot}
+                                                </div>
+                                            </div>
+                                            {eksikler.length > 0 && (
+                                                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.5rem',
+                                                    padding: '0.6rem 0.7rem', fontSize: '0.74rem', color: '#92400e' }}>
+                                                    <b>{t.musteriDuzenle.eksikBaslik}</b>
+                                                    <ul style={{ margin: '0.3rem 0 0', paddingLeft: '1.1rem' }}>
+                                                        {eksikler.map((x) => <li key={x}>{x}</li>)}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             )}
                         </div>
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={lbl}>Sözleşme Bitiş Tarihi</label>
+                            <label style={lbl}>{t.musteriDuzenle.sozlesmeBitis}</label>
                             <input type="date" style={inp} value={form.contractEndDate}
                                 onChange={e => setForm({ ...form, contractEndDate: e.target.value })} />
                             <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.3rem' }}>
-                                Girersen bitmeden önce ana ekranda uyarı çıkar (sözleşme unutulup bedava çalışmasın).
+                                {t.musteriDuzenle.sozlesmeNot}
                             </div>
                         </div>
 
@@ -230,12 +252,12 @@ export default function CustomerEditPanel({ customer }: Props) {
                                 border: 'none', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer',
                                 opacity: saving ? 0.7 : 1,
                             }}>
-                                {saving ? 'Kaydediliyor...' : 'Kaydet'}
+                                {saving ? t.genel.kaydediliyor : t.genel.kaydet}
                             </button>
                             <button onClick={() => setOpen(false)} style={{
                                 padding: '0.75rem 1.5rem', border: '1px solid #d1d5db', backgroundColor: 'white',
                                 borderRadius: '0.5rem', cursor: 'pointer', color: '#374151',
-                            }}>İptal</button>
+                            }}>{t.genel.iptal}</button>
                         </div>
                     </div>
                 </div>

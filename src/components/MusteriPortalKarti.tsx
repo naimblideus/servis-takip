@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { waUrl } from '@/lib/share';
+import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 /**
  * Müşteri kartındaki "Müşteri paneli" bölümü.
@@ -11,6 +13,10 @@ import { waUrl } from '@/lib/share';
  * tek tık uzakta ve ne yaptığı açıkça yazıyor.
  */
 export default function MusteriPortalKarti({ customerId }: { customerId: string }) {
+  const t = useT();
+  const b = useBicim();
+  // WhatsApp mesajını MÜŞTERİ okuyacak: bayinin dilinde yazılır.
+  const musteri = useMusteriDili();
   const [durum, setDurum] = useState<{
     acik: boolean; yol: string | null; sonGoruntuleme: string | null;
     telefon: string; musteriAdi: string; maliGorunur: boolean; modulAcik: boolean;
@@ -26,8 +32,8 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
   }, [customerId]);
 
   async function islem(op: 'ac' | 'kapat' | 'yenile') {
-    if (op === 'yenile' && !confirm('Eski bağlantı ANINDA geçersiz olacak. Müşteriye yeni bağlantıyı yollamanız gerekir. Devam edilsin mi?')) return;
-    if (op === 'kapat' && !confirm('Müşteri paneli kapatılacak ve bağlantı geçersiz olacak. Devam edilsin mi?')) return;
+    if (op === 'yenile' && !confirm(t.portalKart.yenileSor)) return;
+    if (op === 'kapat' && !confirm(t.portalKart.kapatSor)) return;
     setCalisiyor(true); setHata('');
     try {
       const r = await fetch(`/api/customers/${customerId}/portal`, {
@@ -35,11 +41,11 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
         body: JSON.stringify({ islem: op }),
       });
       const d = await r.json();
-      if (!r.ok) { setHata(d.error ?? 'İşlem başarısız'); return; }
+      if (!r.ok) { setHata(d.error ?? t.portalKart.islemBasarisiz); return; }
       setDurum((o) => (o ? { ...o, acik: d.acik, yol: d.yol } : o));
       setKopyalandi(false);
     } catch {
-      setHata('Bağlantı kurulamadı.');
+      setHata(t.portalKart.baglantiYok);
     } finally { setCalisiyor(false); }
   }
 
@@ -47,8 +53,12 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
   if (!durum || !durum.modulAcik) return null;
 
   const tamLink = durum.yol && typeof window !== 'undefined' ? `${window.location.origin}${durum.yol}` : '';
+  // Mesajı MÜŞTERİ okuyacak: bayinin dilinde yazılır.
   const mesaj = tamLink
-    ? `Merhaba${durum.musteriAdi ? ` ${durum.musteriAdi}` : ''},\n\nCihazlarınızı, servis durumunu ve bakiyenizi görebileceğiniz kişisel sayfanız:\n${tamLink}\n\nBu bağlantı size özeldir, paylaşmayınız.`
+    ? doldur(musteri.sz.portalKart.mesaj, {
+      ad: durum.musteriAdi ? ` ${durum.musteriAdi}` : '',
+      link: tamLink,
+    })
     : '';
 
   const kutu: React.CSSProperties = { backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' };
@@ -60,16 +70,15 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
   return (
     <div style={kutu}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h2 style={{ fontWeight: 600 }}>Müşteri paneli</h2>
+        <h2 style={{ fontWeight: 600 }}>{t.portalKart.baslik}</h2>
         <span style={{
           fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 9999,
           backgroundColor: durum.acik ? '#dcfce7' : '#f3f4f6', color: durum.acik ? '#166534' : '#6b7280',
-        }}>{durum.acik ? 'Açık' : 'Kapalı'}</span>
+        }}>{durum.acik ? t.portalKart.acik : t.portalKart.kapali}</span>
       </div>
 
       <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280', lineHeight: 1.6 }}>
-        Müşteri kendi cihazlarını{durum.maliGorunur ? ', servis durumunu ve bakiyesini' : ' ve servis durumunu'} görür;
-        arıza ve sayaç bildirebilir. Şifre yok — bağlantıya sahip olan görür.
+        {durum.maliGorunur ? t.portalKart.aciklamaMali : t.portalKart.aciklamaSade}
       </p>
 
       {hata && <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: '#b91c1c' }}>{hata}</div>}
@@ -82,18 +91,18 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
           backgroundColor: '#fffbeb', border: '1px solid #fde68a',
         }}>
           <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#92400e' }}>
-            Göndermeden önce
+            {t.portalKart.gondermedenOnce}
           </div>
           <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem', fontSize: '0.78rem', color: '#78350f', lineHeight: 1.6 }}>
             {durum.hazirlik.map((h) => (
               <li key={h.anahtar}>
                 {h.mesaj}
-                {h.ornek && <span style={{ display: 'block', color: '#a16207', fontFamily: 'monospace', fontSize: '0.72rem' }}>ör: {h.ornek}</span>}
+                {h.ornek && <span style={{ display: 'block', color: '#a16207', fontFamily: 'monospace', fontSize: '0.72rem' }}>{doldur(t.portalKart.ornek, { n: h.ornek })}</span>}
               </li>
             ))}
           </ul>
           <div style={{ marginTop: '0.5rem', fontSize: '0.72rem', color: '#a16207' }}>
-            Panel bu bilgileri olduğu gibi gösterir. Düzeltmeden gönderebilirsiniz, karar sizin.
+            {t.portalKart.hazirlikNot}
           </div>
         </div>
       )}
@@ -101,14 +110,14 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
       {/* Mali bilgi durumu — bayi ne paylaştığını bilerek göndersin */}
       <div style={{ marginTop: '0.7rem', fontSize: '0.75rem', color: '#6b7280' }}>
         {durum.maliGorunur
-          ? <>Müşteri <b>bakiyesini ve faturalarını</b> görecek. Gizlemek için Ayarlar → Müşteri Paneli.</>
-          : <>Mali bilgiler <b>gizli</b>: müşteri hiçbir tutar görmüyor.</>}
+          ? <>{t.portalKart.maliGorunurOn} <b>{t.portalKart.maliGorunurVurgu}</b>{t.portalKart.maliGorunurSon}</>
+          : <>{t.portalKart.maliGizliOn} <b>{t.portalKart.maliGizliVurgu}</b>{t.portalKart.maliGizliSon}</>}
       </div>
 
       {!durum.acik ? (
         <button onClick={() => islem('ac')} disabled={calisiyor}
           style={{ ...dugme, marginTop: '0.875rem', backgroundColor: '#111827', color: 'white', border: 'none' }}>
-          {calisiyor ? 'Açılıyor…' : 'Paneli aç ve bağlantı oluştur'}
+          {calisiyor ? t.portalKart.aciliyor : t.portalKart.paneliAc}
         </button>
       ) : (
         <>
@@ -121,26 +130,26 @@ export default function MusteriPortalKarti({ customerId }: { customerId: string 
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
             <a href={waUrl(durum.telefon, mesaj)} target="_blank" rel="noreferrer"
               style={{ ...dugme, backgroundColor: '#25D366', color: 'white', border: 'none', textDecoration: 'none' }}>
-              WhatsApp'tan gönder
+              {t.portalKart.whatsappGonder}
             </a>
             <button onClick={() => { navigator.clipboard?.writeText(tamLink); setKopyalandi(true); }} style={dugme}>
-              {kopyalandi ? 'Kopyalandı' : 'Bağlantıyı kopyala'}
+              {kopyalandi ? t.portalKart.kopyalandi : t.portalKart.kopyala}
             </button>
             <a href={durum.yol ?? '#'} target="_blank" rel="noreferrer" style={{ ...dugme, textDecoration: 'none' }}>
-              Önizle
+              {t.portalKart.onizle}
             </a>
             <button onClick={() => islem('yenile')} disabled={calisiyor} style={dugme}>
-              Bağlantıyı yenile
+              {t.portalKart.yenile}
             </button>
             <button onClick={() => islem('kapat')} disabled={calisiyor} style={{ ...dugme, color: '#b91c1c' }}>
-              Kapat
+              {t.genel.kapat}
             </button>
           </div>
 
           <p style={{ marginTop: '0.7rem', fontSize: '0.72rem', color: '#9ca3af' }}>
             {durum.sonGoruntuleme
-              ? `Müşteri en son ${new Date(durum.sonGoruntuleme).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })} tarihinde baktı.`
-              : 'Müşteri henüz paneli açmadı.'}
+              ? doldur(t.portalKart.sonGoruntuleme, { tarih: b.tarihSaat(durum.sonGoruntuleme) })
+              : t.portalKart.hicBakmadi}
           </p>
         </>
       )}
