@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useT } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface SearchResult {
     tickets: any[];
@@ -9,11 +11,16 @@ interface SearchResult {
     devices: any[];
 }
 
-const STATUS_LABELS: Record<string, string> = {
-    NEW: 'Yeni', IN_SERVICE: 'Serviste', WAITING_FOR_PART: 'Parça Bkl.', READY: 'Hazır', DELIVERED: 'Teslim', CANCELLED: 'İptal',
+// Bölüm başlıkları büyük harf: CSS text-transform, <html lang> sayesinde
+// Türkçe i→İ dönüşümünü doğru yapar; JS toUpperCase() "FİŞ"i "FIŞ" yapardı.
+const bolumBasligi: React.CSSProperties = {
+    padding: '0.4rem 1rem', backgroundColor: '#f9fafb', fontSize: '0.7rem', fontWeight: '700',
+    color: '#6b7280', letterSpacing: '0.05em', textTransform: 'uppercase',
 };
 
 export default function GlobalSearch() {
+    // `sz` (sözlük): liste döngüleri `t` adını fiş için kullanıyor, gölgelenmesin.
+    const sz = useT();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SearchResult | null>(null);
     const [loading, setLoading] = useState(false);
@@ -90,7 +97,7 @@ export default function GlobalSearch() {
                 <span style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', color: '#9ca3af' }}>🔍</span>
                 <input
                     type="text"
-                    placeholder="Ara..."
+                    placeholder={sz.genel.ara}
                     value={query}
                     onChange={e => search(e.target.value)}
                     onFocus={() => { calcPos(); results && setOpen(true); }}
@@ -114,7 +121,7 @@ export default function GlobalSearch() {
                 <div style={dropdownStyle}>
                     {results.tickets.length > 0 && (
                         <section>
-                            <div style={{ padding: '0.4rem 1rem', backgroundColor: '#f9fafb', fontSize: '0.7rem', fontWeight: '700', color: '#6b7280', letterSpacing: '0.05em' }}>SERVİS FİŞLERİ</div>
+                            <div style={bolumBasligi}>{sz.menu['/tickets']}</div>
                             {results.tickets.map(t => (
                                 <Link key={t.id} href={`/tickets/${t.id}`} onClick={() => setOpen(false)}
                                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.625rem 1rem', textDecoration: 'none', color: 'inherit', borderBottom: '1px solid #f3f4f6' }}
@@ -124,14 +131,14 @@ export default function GlobalSearch() {
                                         <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: '600', color: '#2563eb' }}>{t.ticketNumber}</div>
                                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{t.device?.customer?.name} — {t.device?.brand} {t.device?.model}</div>
                                     </div>
-                                    <span style={{ fontSize: '0.7rem', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '0.15rem 0.5rem', borderRadius: '4px', whiteSpace: 'nowrap' }}>{STATUS_LABELS[t.status] || t.status}</span>
+                                    <span style={{ fontSize: '0.7rem', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '0.15rem 0.5rem', borderRadius: '4px', whiteSpace: 'nowrap' }}>{(sz.durum.fis as Record<string, string>)[t.status] || t.status}</span>
                                 </Link>
                             ))}
                         </section>
                     )}
                     {results.customers.length > 0 && (
                         <section>
-                            <div style={{ padding: '0.4rem 1rem', backgroundColor: '#f9fafb', fontSize: '0.7rem', fontWeight: '700', color: '#6b7280', letterSpacing: '0.05em' }}>MÜŞTERİLER</div>
+                            <div style={bolumBasligi}>{sz.menu['/customers']}</div>
                             {results.customers.map(c => (
                                 <Link key={c.id} href={`/customers/${c.id}`} onClick={() => setOpen(false)}
                                     style={{ display: 'flex', justifyContent: 'space-between', padding: '0.625rem 1rem', textDecoration: 'none', color: 'inherit', borderBottom: '1px solid #f3f4f6' }}
@@ -145,7 +152,7 @@ export default function GlobalSearch() {
                     )}
                     {results.devices.length > 0 && (
                         <section>
-                            <div style={{ padding: '0.4rem 1rem', backgroundColor: '#f9fafb', fontSize: '0.7rem', fontWeight: '700', color: '#6b7280', letterSpacing: '0.05em' }}>CİHAZLAR</div>
+                            <div style={bolumBasligi}>{sz.menu['/devices']}</div>
                             {results.devices.map(d => (
                                 <Link key={d.id} href={`/devices/${d.id}`} onClick={() => setOpen(false)}
                                     style={{ display: 'flex', justifyContent: 'space-between', padding: '0.625rem 1rem', textDecoration: 'none', color: 'inherit', borderBottom: '1px solid #f3f4f6' }}
@@ -165,7 +172,7 @@ export default function GlobalSearch() {
 
             {open && results && total === 0 && (
                 <div style={{ ...dropdownStyle, padding: '1.25rem', textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
-                    &ldquo;{query}&rdquo; için sonuç bulunamadı
+                    {doldur(sz.arama.sonucYok, { q: query })}
                 </div>
             )}
         </div>

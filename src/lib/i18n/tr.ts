@@ -154,6 +154,198 @@ export const tr = {
     },
   },
 
+  arama: {
+    sonucYok: '“{q}” için sonuç bulunamadı',
+  },
+
+  // Mobil alt çubuk — etiketler KISA olmak zorunda (10 px, beş sekme).
+  mobil: {
+    ana: 'Ana',
+    fisler: 'Fişler',
+    pazar: 'Pazar',
+    musteri: 'Müşteri',
+    muhasebe: 'Muhasebe',
+    cihazlar: 'Cihazlar',
+    hizliIslem: 'Hızlı işlem',
+    altMenu: 'Alt menü',
+    yeniFis: 'Yeni Servis Fişi',
+    barkodSatis: 'Barkodla Satış',
+    stokGirisCikis: 'Stok Giriş / Çıkış',
+  },
+
+  // Ana panel. Parametreli metinler {n} taşır; sozluk.ts'teki doldur() doldurur.
+  pano: {
+    baslik: 'Genel Durum',
+    yeniFis: 'Yeni Fiş',
+    kart: {
+      sayaciGelmeyen: 'Sayacı Gelmeyen Cihaz',
+      sayaciGelmeyenIpucu: '35+ gündür okuma yok',
+      acikFisler: 'Açık Fişler',
+      bugunkuFisler: 'Bugünkü Fişler',
+      parcaBekliyor: 'Parça Bekliyor',
+      teslimeHazir: 'Teslime Hazır',
+      buAyTahsilat: 'Bu Ay Tahsilat',
+      kasayaGiren: 'kasaya giren',
+      kiralikCihaz: 'Kiralık Cihaz',
+      kritikStok: 'Kritik Stok',
+    },
+    sozlesme: {
+      baslik: 'Sözleşme Uyarısı',
+      aciklama: 'Süresi dolan sözleşme = cihaz bedava çalışıyor olabilir. Yenile ya da cihazı çek.',
+      gunGecti: '{n} gün geçti',
+      gunKaldi: '{n} gün kaldı',
+      cihaz: '{n} cihaz',
+      musteriDaha: '+{n} müşteri daha →',
+      musterilerOk: 'Müşteriler →',
+    },
+    duran: {
+      baslik: 'Duran İşler',
+      aciklama: '{n} gündür durumu değişmedi — müşteri bekliyor olabilir.',
+      gunBekliyor: '{n} gündür bekliyor',
+      gun: '{n} gün',
+      atanmamis: 'atanmamış',
+      isDaha: '+{n} iş daha →',
+      fislerOk: 'Fişler →',
+    },
+    borclu: {
+      baslik: 'Borçlu Müşteriler',
+      hatirlat: 'Hatırlat',
+      cariOk: 'Cari →',
+      muhasebeOk: 'Muhasebe →',
+      musteriDaha: '+{n} müşteri daha →',
+    },
+    sonFisler: {
+      baslik: 'Son Servis Fişleri',
+      tumunuGor: 'Tümünü Gör →',
+      yok: 'Henüz servis fişi yok',
+      fisNo: 'Fiş No',
+    },
+    ara: 'Ara: {n}',
+  },
+
+  // İlk-giriş sihirbazı + yüzen başlangıç rehberi. Adım anahtarları (hasCustomers…)
+  // /api/onboarding/status ile aynı; ikon ve href kodda kalır, metin burada.
+  rehber: {
+    fab: 'Başlangıç Rehberi',
+    adimBasligi: 'ADIM {n}/{toplam}',
+    simdilikGec: 'Şimdilik geç',
+    geri: '← Geri',
+    ileri: 'İleri →',
+    excelAktar: 'Excel’den aktar',
+    musteriEkle: 'Müşteri ekle →',
+    tebrik: 'Tebrikler, hepsini tamamladınız! 🎉',
+    ilerleme: '{n}/{toplam} adım tamamlandı — sırayla ilerleyin',
+    gizle: '▲ Gizle',
+    nasilYapilir: '❓ Nasıl yapılır?',
+    kilavuz: '📘 Ayrıntılı kullanım kılavuzu — “Nasıl Kullanılır?” →',
+    tekrarIzle: '↺ Tanıtımı tekrar izle',
+    rehberiGizle: 'Rehberi gizle',
+    ipucuBaslik: 'Ne yapacağını buradan takip et 👇',
+    ipucuAlt: '{n} adım — her adımda “nasıl yapılır?” yazılı.',
+    tamam: 'Tamam, anladım',
+    adimlar: {
+      hasCustomers: {
+        title: '1. Müşterilerini sisteme al',
+        desc: 'Elinde Excel listesi varsa tek seferde aktar; yoksa tek tek ekle.',
+        cta: 'Excel’den aktar',
+        how: [
+          'HIZLI YOL — Excel listen varsa: Gelişmiş → Veri Aktarma → "Excel / CSV listesi".',
+          'Excel’de: Dosya → Farklı Kaydet → "CSV UTF-8". Dosyayı seç; kolonları sistem kendi tanır.',
+          'Önizlemede ilk satırları kontrol et → "Aktar". Müşteri + cihaz birlikte gelir.',
+          'TEK TEK: Müşteriler → "＋ Yeni Müşteri" → ad ve telefon zorunlu → Kaydet.',
+        ],
+      },
+      hasDevices: {
+        title: '2. Cihazları tanımla',
+        desc: 'Müşterinin yazıcısını ekle. Kiralıksa sayaç ve aylık kira buradan işler.',
+        cta: 'Cihazlar',
+        how: [
+          'Müşteri detayı veya Cihazlar → "＋ Yeni Cihaz". Marka/model/seri no gir.',
+          'Kiralıksa "Kiralık" işaretle → aylık kira + sayfa fiyatı (pakete dahil sayfa varsa onu da yaz).',
+          'KONUM (kat/oda) yaz — sayaç turu ve cihaz dökümü bu sıraya göre dizilir, saha işini kolaylaştırır.',
+          'Kaydet → cihaza otomatik QR üretilir; etiketi basıp makineye yapıştırabilirsin.',
+        ],
+      },
+      hasInventory: {
+        title: '3. Stoğuna parça ekle',
+        desc: 'Toner, drum, yedek parça gir. Barkodu varsa okuyucuyla okutarak hızlıca bulabilirsin.',
+        cta: 'Stok',
+        how: [
+          'Stok → parça ekle (ad, adet, alış/satış fiyatı).',
+          'Barkodu varsa "Barkod" alanına okuyucuyla okut; yoksa "🏷️ Etiket Yazdır".',
+          '"📦 Hızlı Giriş/Çıkış" ile mal gelince (+), kullanınca (−) arka arkaya okut.',
+        ],
+      },
+      hasTickets: {
+        title: '4. İlk servis fişini aç',
+        desc: 'Arıza/bakım geldiğinde fiş oluştur, kullanılan parçaları ekle (barkodla okutabilirsin), işçilik gir.',
+        cta: 'Yeni Fiş',
+        how: [
+          'Yeni Fiş → müşteri + cihaz seç (ya da cihaz barkodunu okut, otomatik gelsin).',
+          'Arızayı yaz; parçayı okut → fişe eklenir ve stoktan düşer.',
+          'Durum: Yeni → Serviste → Hazır → Teslim; her değişimde WhatsApp bildirimi önerilir.',
+        ],
+      },
+      hasInvoices: {
+        title: '5. Sayaçları oku ve faturala',
+        desc: 'Ayda bir: sayaçları topluca oku, sonra tek tıkla faturala.',
+        cta: 'Sayaç Turu',
+        how: [
+          'ÖNCE SAYAÇ: Sol menü → Sayaç Turu → müşteriyi seç → tüm cihazlar tek listede çıkar, sadece yeni rakamı yaz → Kaydet.',
+          'SONRA FATURA: Gelişmiş → Faturalar → "⚡ Bu Dönemi Faturala".',
+          'Sistem "şu cihazların sayacı okunmadı" diye uyarır — eksik fatura gitmesin diye.',
+          'Sayaç + kira + servis tek faturada birleşir; arkasına sayaç dökümü otomatik eklenir.',
+          'Faturaya tıkla → "🖨 Yazdır" veya "📱 WhatsApp" ile müşteriye gönder.',
+        ],
+      },
+      hasCollections: {
+        title: '6. Tahsilatını al ve borcu takip et',
+        desc: 'Para geldiğinde gir; borç kendiliğinden düşer. Ödemeyenlere toplu hatırlatma gönder.',
+        cta: 'Muhasebe',
+        how: [
+          'Muhasebe → müşteri seç → tahsilatı gir. Borç kendiliğinden düşer, elle hesap yok.',
+          'Makbuz gerekiyorsa Gelişmiş → Tahsilat ekranından "🧾 Makbuz Yazdır".',
+          'BORÇ HATIRLATMA: Muhasebe → "📩 Toplu Hatırlatma" → borçluları seç → SMS ile topluca gönder.',
+          'Müşteri ekstresi: müşteri detayında "Yazdır" — tüm hareketler + bakiye tek sayfada.',
+        ],
+      },
+    },
+    sihirbaz: {
+      zincir: {
+        title: 'Sistem tek bir zincir',
+        ogeler: [
+          ['Müşteri', 'kime hizmet veriyorsun'],
+          ['Cihaz', 'onun yazıcısı (kiralıksa sayaç + kira)'],
+          ['Servis Fişi', 'yapılan iş + parça'],
+          ['Para', 'fatura ve tahsilat otomatik işler'],
+        ],
+        son: 'Hepsi bu. Müşteriyi ve cihazı bir kere kaydedersin; gerisi her fişte kendiliğinden bağlanır.',
+      },
+      gunluk: {
+        title: 'Günde yaptığın 3 şey',
+        ogeler: [
+          ['Arıza gelince', 'Yeni Fiş aç — parçayı barkoddan okut, işi yaz, teslim et.'],
+          ['Ayda bir', 'Sayaç Turu — müşteriyi seç, tüm cihazların sayacını tek listede gir.'],
+          ['Para gelince', 'Muhasebe — tahsilatı gir, borç kendiliğinden düşer.'],
+        ],
+        sonOn: 'Fatura, cari hesap ve borç takibini',
+        sonVurgu: 'sistem kendi yapar',
+        sonSon: '— sen girmezsin.',
+      },
+      hazir: {
+        title: 'Hazırsın',
+        ilkIsOn: 'İlk iş:',
+        ilkIsVurgu: 'müşterilerini sisteme al.',
+        ilkIsSon: 'Elinde Excel listesi varsa tek seferde aktarabilirsin.',
+        kutuOn: 'Takıldığın an sol menüde',
+        kutuVurgu: '“Nasıl Kullanılır?”',
+        kutuOrta: 'var — her ekranın ne işe yaradığı orada yazılı. Sağ alttaki',
+        kutuVurgu2: 'rehber',
+        kutuSon: 'de ilk kurulumda sana adım adım eşlik eder.',
+      },
+    },
+  },
+
   durum: {
     fis: {
       NEW: 'Yeni',

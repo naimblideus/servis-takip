@@ -29,3 +29,15 @@ const SOZLUKLER: Record<Dil, Sozluk> = { tr, en };
 export function sozluk(dil: Dil | string | null | undefined): Sozluk {
   return dilMi(dil) ? SOZLUKLER[dil] : tr;
 }
+
+/**
+ * Parametreli metin: '{n} gün kaldı' + {n: 3} → '3 gün kaldı'.
+ *
+ * Dize birleştirme (`${n} gün kaldı`) İngilizcede kelime sırasını bozar:
+ * "3 days left" ile "{n} gün kaldı" aynı kalıba sığmaz, her dil kendi
+ * sırasını sözlükte taşımalı. Bilinmeyen yer tutucu olduğu gibi kalır —
+ * boş metin, eksik parametreden kötüdür.
+ */
+export function doldur(metin: string, degerler: Record<string, string | number>): string {
+  return metin.replace(/\{(\w+)\}/g, (_, k) => (k in degerler ? String(degerler[k]) : `{${k}}`));
+}

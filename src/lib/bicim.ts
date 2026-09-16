@@ -45,8 +45,11 @@ export function para(n: number | string | null | undefined, s: ParaSecenek): str
   if (!sayiMi(v)) return '—';
   const birim = paraBirimiMi(s.birim) ? s.birim : VARSAYILAN_BIRIM;
   const kesir = s.kesir ?? 2;
+  // narrowSymbol: en-GB, TRY için sembol değil "TRY" kodu yazıyor ve dar
+  // kartta "TRY 119,676.5" diye kırpılıyordu (ölçüldü). Dar sembol her
+  // dilde ₺ / € / £ / $ verir — kısa ve tek bakışta okunur.
   return new Intl.NumberFormat(yerel(s.dil), {
-    style: 'currency', currency: birim,
+    style: 'currency', currency: birim, currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: kesir, maximumFractionDigits: kesir,
   }).format(v);
 }

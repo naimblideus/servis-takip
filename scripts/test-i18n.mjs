@@ -49,10 +49,19 @@ const t = (ad, kosul, detay) => {
 /** Sözlük ağacındaki her yaprağı "a.b.c" yoluyla gez. */
 function yapraklar(obj, yol = '') {
   const out = [];
+  // Dizi elemanı METİNSE yapraktır. Eskiden dizi elemanına da yapraklar()
+  // uygulanıyordu; metin Object.entries ile KARAKTERLERİNE bölünüyor ve
+  // "2058 metin var" gibi saçma bir sayı çıkıyordu — İngilizce çeviri
+  // Türkçesinden bir harf kısa olunca "eksik anahtar" sanılıyordu.
+  const yaprakMi = (v) => v === null || typeof v !== 'object';
   for (const [k, v] of Object.entries(obj)) {
     const p = yol ? `${yol}.${k}` : k;
-    if (Array.isArray(v)) v.forEach((e, i) => out.push(...yapraklar(e, `${p}[${i}]`)));
-    else if (v && typeof v === 'object') out.push(...yapraklar(v, p));
+    if (Array.isArray(v)) {
+      v.forEach((e, i) => {
+        if (yaprakMi(e)) out.push([`${p}[${i}]`, e]);
+        else out.push(...yapraklar(e, `${p}[${i}]`));
+      });
+    } else if (!yaprakMi(v)) out.push(...yapraklar(v, p));
     else out.push([p, v]);
   }
   return out;

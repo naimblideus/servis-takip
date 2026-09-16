@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useRozetler } from '@/lib/use-rozetler';
 import { useEffect, useState } from 'react';
+import { useT } from '@/lib/i18n/client';
 
 // Mobil alt sekme çubuğu (yalnız telefon; md+ gizli). Günlük hızlı erişim.
 // Ortadaki "+" = Hızlı İşlem sheet'i (tek aksiyona mahkum etmez; bayi en sık işini seçer).
@@ -29,10 +30,11 @@ function Ic({ name, size = 23 }: { name: string; size?: number }) {
   );
 }
 
+// `label` sözlük anahtarı (t.mobil.*); metin render'da dilden çözülüyor.
 const ACTIONS = [
-  { href: '/tickets/new', label: 'Yeni Servis Fişi', icon: 'file', bg: '#EAF7F0', fg: '#0B6B4A' },
-  { href: '/satis', label: 'Barkodla Satış', icon: 'scan', bg: '#E7F0FF', fg: '#1D5FA5' },
-  { href: '/inventory/scan', label: 'Stok Giriş / Çıkış', icon: 'box', bg: '#FEF3E7', fg: '#8A5A08' },
+  { href: '/tickets/new', label: 'yeniFis', icon: 'file', bg: '#EAF7F0', fg: '#0B6B4A' },
+  { href: '/satis', label: 'barkodSatis', icon: 'scan', bg: '#E7F0FF', fg: '#1D5FA5' },
+  { href: '/inventory/scan', label: 'stokGirisCikis', icon: 'box', bg: '#FEF3E7', fg: '#8A5A08' },
 ];
 
 export default function BottomNav({ modules = [] }: { modules?: string[] }) {
@@ -40,6 +42,7 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
   const [sheet, setSheet] = useState(false);
   const hasMarket = modules.includes('MARKETPLACE');
   const { data: session } = useSession();
+  const t = useT();
   const rol = (session?.user as any)?.role || '';
 
   // Kenar menüyle AYNI paylaşılan hook — ikisi de mount olduğu için ayrı ayrı
@@ -53,17 +56,17 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
   const active = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
   const left = [
-    { href: '/dashboard', label: 'Ana', icon: 'home' },
-    { href: '/tickets', label: 'Fişler', icon: 'file' },
+    { href: '/dashboard', label: t.mobil.ana, icon: 'home' },
+    { href: '/tickets', label: t.mobil.fisler, icon: 'file' },
   ];
   // ROL FİLTRESİ: /accounting kenar menüde ADMIN'e kilitli ama mobilde
   // herkese açıktı — kilit anlamsız kalıyordu. Teknisyene Cihazlar gösteriliyor.
   const yonetici = rol === 'ADMIN' || rol === 'SUPER_ADMIN';
   const right = [
-    hasMarket ? { href: '/market', label: 'Pazar', icon: 'store', badge: true } : { href: '/customers', label: 'Müşteri', icon: 'users', badge: false },
+    hasMarket ? { href: '/market', label: t.mobil.pazar, icon: 'store', badge: true } : { href: '/customers', label: t.mobil.musteri, icon: 'users', badge: false },
     yonetici
-      ? { href: '/accounting', label: 'Muhasebe', icon: 'calc', badge: false }
-      : { href: '/devices', label: 'Cihazlar', icon: 'box', badge: false },
+      ? { href: '/accounting', label: t.mobil.muhasebe, icon: 'calc', badge: false }
+      : { href: '/devices', label: t.mobil.cihazlar, icon: 'box', badge: false },
   ];
 
   const Item = ({ it }: { it: { href: string; label: string; icon: string; badge?: boolean } }) => (
@@ -84,16 +87,16 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
         style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(11,21,51,.42)', opacity: sheet ? 1 : 0, pointerEvents: sheet ? 'auto' : 'none', transition: 'opacity .25s cubic-bezier(.32,.72,0,1)' }} />
 
       {/* Hızlı işlem — sheet */}
-      <div role="dialog" aria-label="Hızlı işlem" className="md:hidden print:hidden"
+      <div role="dialog" aria-label={t.mobil.hizliIslem} className="md:hidden print:hidden"
         style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 51, background: '#fff', borderRadius: '22px 22px 0 0', padding: '10px 14px calc(16px + env(safe-area-inset-bottom))', boxShadow: '0 -18px 44px -20px rgba(11,21,51,.5)', transform: sheet ? 'translateY(0)' : 'translateY(115%)', transition: 'transform .32s cubic-bezier(.32,.72,0,1)' }}>
         <div style={{ width: 40, height: 5, borderRadius: 999, background: 'rgba(15,34,83,.15)', margin: '2px auto 12px' }} />
-        <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#98A1B5', margin: '0 4px 10px' }}>Hızlı işlem</div>
+        <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#98A1B5', margin: '0 4px 10px' }}>{t.mobil.hizliIslem}</div>
         <div style={{ display: 'grid', gap: 8 }}>
           {ACTIONS.map((a) => (
             <Link key={a.href} href={a.href} onClick={() => setSheet(false)}
               style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 14, background: '#F5F7FB', textDecoration: 'none', color: '#0B1533' }}>
               <span style={{ width: 40, height: 40, borderRadius: 12, background: a.bg, color: a.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ic name={a.icon} size={22} /></span>
-              <span style={{ fontWeight: 600, fontSize: 15, flex: 1 }}>{a.label}</span>
+              <span style={{ fontWeight: 600, fontSize: 15, flex: 1 }}>{(t.mobil as Record<string, string>)[a.label] ?? a.label}</span>
               <span style={{ color: '#B6BECF' }}><Ic name="chev" size={18} /></span>
             </Link>
           ))}
@@ -106,11 +109,11 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
           kuralını yener) ve çubuk masaüstünde de görünüyordu. Görünürlük
           tamamen sınıflara bırakıldı: `flex` mobilde açar, `md:hidden` 768px
           üstünde kapatır, `print:hidden` yazdırmada kapatır. */}
-      <nav id="app-bottomnav" className="flex md:hidden print:hidden" aria-label="Alt menü"
+      <nav id="app-bottomnav" className="flex md:hidden print:hidden" aria-label={t.mobil.altMenu}
         style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 45, background: '#fff', borderTop: '1px solid rgba(15,34,83,.08)', alignItems: 'flex-end', padding: '0 6px', paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: '0 -6px 20px -14px rgba(15,34,83,.3)' }}>
         {left.map((it) => <Item key={it.href} it={it} />)}
         {/* Hızlı İşlem FAB (+/×) */}
-        <button onClick={() => setSheet((s) => !s)} aria-label="Hızlı işlem" aria-expanded={sheet}
+        <button onClick={() => setSheet((s) => !s)} aria-label={t.mobil.hizliIslem} aria-expanded={sheet}
           style={{ flex: 1, display: 'flex', justifyContent: 'center', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
           <span style={{ width: 54, height: 54, borderRadius: 999, background: '#0F2253', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: -20, boxShadow: '0 12px 22px -8px rgba(15,34,83,.55)', border: '4px solid #fff', transform: sheet ? 'rotate(45deg)' : 'rotate(0)', transition: 'transform .3s cubic-bezier(.32,.72,0,1)' }}>
             <Ic name="plus" size={26} />

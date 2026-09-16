@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { formatCurrency, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
+import { getStatusLabel, getStatusColor } from '@/lib/utils';
 import { openWhatsApp, reminderMessage, telUrl } from '@/lib/share';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface StuckTicket {
   id: string;
@@ -44,14 +46,26 @@ interface OverdueDebtor {
   daysSinceLastSale: number;
 }
 
+/**
+ * ANA PANEL — dil ve para birimi BAĞLAMDAN geliyor.
+ *
+ * Bu ekran Avrupalı bir bayinin girişten sonra gördüğü ilk şey. Eskiden
+ * "₺" ve 'tr-TR' burada sabitti; artık useBicim() bayinin para birimini ve
+ * kullanıcının dilini uyguluyor. Fiş durumu adları da sözlükten; sözlükte
+ * olmayan bir durum gelirse eski Türkçe etiket düşer, boş kalmaz.
+ */
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const t = useT();
+  const b = useBicim();
   const tenantName = (session?.user as any)?.tenantName as string | undefined;
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [overdueDebtors, setOverdueDebtors] = useState<OverdueDebtor[]>([]);
   const [totalDebt, setTotalDebt] = useState(0);
+
+  const durumAdi = (s: string) => (t.durum.fis as Record<string, string>)[s] ?? getStatusLabel(s);
 
   useEffect(() => {
     fetch('/api/dashboard/stats')
@@ -97,22 +111,23 @@ export default function DashboardPage() {
     hazir:  { yz: '#F0EDFB', ik: '#5A48B8' },
     cihaz:  { yz: '#E6F4F5', ik: '#0B757D' },
   };
+  const k = t.pano.kart;
   const statCards = [
     {
-      label: 'Sayacı Gelmeyen Cihaz', value: sayaciEksik,
+      label: k.sayaciGelmeyen, value: sayaciEksik,
       ton: sayaciEksik > 0 ? ton.uyari : ton.sakin, icon: '📟',
-      href: '/sayac-turu', hint: '35+ gündür okuma yok', vurgu: sayaciEksik > 0,
+      href: '/sayac-turu', hint: k.sayaciGelmeyenIpucu, vurgu: sayaciEksik > 0,
     },
-    { label: 'Açık Fişler', value: stats?.openTickets || 0, ton: ton.marka, icon: '📋' },
-    { label: 'Bugünkü Fişler', value: stats?.todayTickets || 0, ton: ton.para, icon: '📅' },
-    { label: 'Parça Bekliyor', value: stats?.waitingParts || 0, ton: ton.bekle, icon: '⏳' },
-    { label: 'Teslime Hazır', value: stats?.readyForPickup || 0, ton: ton.hazir, icon: '✅' },
+    { label: k.acikFisler, value: stats?.openTickets || 0, ton: ton.marka, icon: '📋' },
+    { label: k.bugunkuFisler, value: stats?.todayTickets || 0, ton: ton.para, icon: '📅' },
+    { label: k.parcaBekliyor, value: stats?.waitingParts || 0, ton: ton.bekle, icon: '⏳' },
+    { label: k.teslimeHazir, value: stats?.readyForPickup || 0, ton: ton.hazir, icon: '✅' },
     // "Ciro" değil "Tahsilat": bu sayı nakit esaslı, kesilen faturayı değil
     // KASAYA GİRENİ ölçüyor. "Ciro" derken bayi "faturaladım ama ciro artmadı"
     // diye haklı olarak şaşırıyordu.
-    { label: 'Bu Ay Tahsilat', value: formatCurrency(stats?.monthRevenue || 0), ton: ton.para, icon: '💰', hint: 'kasaya giren' },
-    { label: 'Kiralık Cihaz', value: stats?.rentalDevices || 0, ton: ton.cihaz, icon: '🏷️' },
-    { label: 'Kritik Stok', value: stats?.lowStockItems || 0, ton: (stats?.lowStockItems || 0) > 0 ? ton.uyari : ton.sakin, icon: '⚠️' },
+    { label: k.buAyTahsilat, value: b.para(stats?.monthRevenue || 0), ton: ton.para, icon: '💰', hint: k.kasayaGiren },
+    { label: k.kiralikCihaz, value: stats?.rentalDevices || 0, ton: ton.cihaz, icon: '🏷️' },
+    { label: k.kritikStok, value: stats?.lowStockItems || 0, ton: (stats?.lowStockItems || 0) > 0 ? ton.uyari : ton.sakin, icon: '⚠️' },
   ];
 
   return (
@@ -120,14 +135,14 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-[10.5px] font-bold uppercase tracking-[.18em] text-gray-400">Bugün</div>
-          <h1 className="mt-0.5 text-[1.6rem] font-extrabold tracking-[-.022em] text-gray-900">Genel Durum</h1>
+          <div className="text-[10.5px] font-bold uppercase tracking-[.18em] text-gray-400">{t.genel.bugun}</div>
+          <h1 className="mt-0.5 text-[1.6rem] font-extrabold tracking-[-.022em] text-gray-900">{t.pano.baslik}</h1>
         </div>
         <Link href="/tickets/new" className="btn-primary flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Yeni Fiş
+          {t.pano.yeniFis}
         </Link>
       </div>
 
@@ -177,11 +192,11 @@ export default function DashboardPage() {
       {contracts.length > 0 && (
         <div className="card" style={{ background: '#FAF9FE', borderColor: '#DDD5F5' }}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold" style={{ color: '#6d28d9' }}>📄 Sözleşme Uyarısı ({contracts.length})</h2>
-            <Link href="/customers" className="text-blue-600 text-sm hover:underline">Müşteriler →</Link>
+            <h2 className="text-lg font-semibold" style={{ color: '#6d28d9' }}>📄 {t.pano.sozlesme.baslik} ({contracts.length})</h2>
+            <Link href="/customers" className="text-blue-600 text-sm hover:underline">{t.pano.sozlesme.musterilerOk}</Link>
           </div>
           <p className="text-xs text-gray-500 mb-3">
-            Süresi dolan sözleşme = cihaz bedava çalışıyor olabilir. Yenile ya da cihazı çek.
+            {t.pano.sozlesme.aciklama}
           </p>
           <div className="divide-y divide-gray-100">
             {contracts.slice(0, 6).map((c) => (
@@ -194,17 +209,17 @@ export default function DashboardPage() {
                     fontWeight: 700, fontSize: '0.72rem',
                     borderRadius: 9999, padding: '0.2rem 0.5rem',
                   }}
-                >{c.expired ? `${Math.abs(c.days)} gün geçti` : `${c.days} gün kaldı`}</span>
+                >{c.expired ? doldur(t.pano.sozlesme.gunGecti, { n: Math.abs(c.days) }) : doldur(t.pano.sozlesme.gunKaldi, { n: c.days })}</span>
 
                 <Link href={`/customers/${c.id}`} className="flex-1 min-w-0 no-underline">
                   <div className="text-sm font-semibold text-gray-900 truncate">{c.name}</div>
                   <div className="text-xs text-gray-500 truncate">
-                    {new Date(c.endDate).toLocaleDateString('tr-TR')} · {c.deviceCount} cihaz
+                    {b.tarih(c.endDate)} · {doldur(t.pano.sozlesme.cihaz, { n: c.deviceCount })}
                   </div>
                 </Link>
 
                 {c.phone && (
-                  <a href={telUrl(c.phone)} title={`Ara: ${c.phone}`}
+                  <a href={telUrl(c.phone)} title={doldur(t.pano.ara, { n: c.phone })}
                     className="flex-shrink-0 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2.5 py-1.5 no-underline hover:bg-blue-100"
                   >📞</a>
                 )}
@@ -213,7 +228,7 @@ export default function DashboardPage() {
           </div>
           {contracts.length > 6 && (
             <div className="text-center mt-3">
-              <Link href="/customers" className="text-blue-600 text-sm hover:underline">+{contracts.length - 6} müşteri daha →</Link>
+              <Link href="/customers" className="text-blue-600 text-sm hover:underline">{doldur(t.pano.sozlesme.musteriDaha, { n: contracts.length - 6 })}</Link>
             </div>
           )}
         </div>
@@ -223,19 +238,19 @@ export default function DashboardPage() {
       {stuck.length > 0 && (
         <div className="card" style={{ background: '#FEFAF3', borderColor: '#F3DFBE' }}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-orange-600">⏳ Duran İşler ({stuck.length})</h2>
-            <Link href="/tickets?status=IN_SERVICE" className="text-blue-600 text-sm hover:underline">Fişler →</Link>
+            <h2 className="text-lg font-semibold text-orange-600">⏳ {t.pano.duran.baslik} ({stuck.length})</h2>
+            <Link href="/tickets?status=IN_SERVICE" className="text-blue-600 text-sm hover:underline">{t.pano.duran.fislerOk}</Link>
           </div>
           <p className="text-xs text-gray-500 mb-3">
-            {stats?.stuckDays ?? 3} gündür durumu değişmedi — müşteri bekliyor olabilir.
+            {doldur(t.pano.duran.aciklama, { n: stats?.stuckDays ?? 3 })}
           </p>
           <div className="divide-y divide-gray-100">
-            {stuck.slice(0, 8).map((t) => {
-              const hot = t.days >= 7;
+            {stuck.slice(0, 8).map((s) => {
+              const hot = s.days >= 7;
               return (
-                <div key={t.id} className="flex items-center gap-3 py-2.5">
+                <div key={s.id} className="flex items-center gap-3 py-2.5">
                   <span
-                    title={`${t.days} gündür bekliyor`}
+                    title={doldur(t.pano.duran.gunBekliyor, { n: s.days })}
                     style={{
                       flexShrink: 0, minWidth: 44, textAlign: 'center',
                       backgroundColor: hot ? '#fee2e2' : '#ffedd5',
@@ -243,25 +258,25 @@ export default function DashboardPage() {
                       fontWeight: 700, fontSize: '0.75rem',
                       borderRadius: 9999, padding: '0.2rem 0.5rem',
                     }}
-                  >{t.days} gün</span>
+                  >{doldur(t.pano.duran.gun, { n: s.days })}</span>
 
-                  <Link href={`/tickets/${t.id}`} className="flex-1 min-w-0 no-underline">
+                  <Link href={`/tickets/${s.id}`} className="flex-1 min-w-0 no-underline">
                     <div className="text-sm font-semibold text-gray-900 truncate">
-                      {t.customerName}
-                      <span className="text-blue-600 font-mono font-normal text-xs ml-2">{t.ticketNumber}</span>
+                      {s.customerName}
+                      <span className="text-blue-600 font-mono font-normal text-xs ml-2">{s.ticketNumber}</span>
                     </div>
                     <div className="text-xs text-gray-500 truncate">
-                      {t.device}
-                      {' · '}{getStatusLabel(t.status)}
-                      {t.technician ? ` · ${t.technician}` : ' · atanmamış'}
+                      {s.device}
+                      {' · '}{durumAdi(s.status)}
+                      {s.technician ? ` · ${s.technician}` : ` · ${t.pano.duran.atanmamis}`}
                     </div>
                   </Link>
 
-                  {t.customerPhone && (
+                  {s.customerPhone && (
                     <a
-                      href={telUrl(t.customerPhone)}
+                      href={telUrl(s.customerPhone)}
                       onClick={(e) => e.stopPropagation()}
-                      title={`Ara: ${t.customerPhone}`}
+                      title={doldur(t.pano.ara, { n: s.customerPhone })}
                       className="flex-shrink-0 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2.5 py-1.5 no-underline hover:bg-blue-100"
                     >📞</a>
                   )}
@@ -272,7 +287,7 @@ export default function DashboardPage() {
           {stuck.length > 8 && (
             <div className="text-center mt-3">
               <Link href="/tickets?status=IN_SERVICE" className="text-blue-600 text-sm hover:underline">
-                +{stuck.length - 8} iş daha →
+                {doldur(t.pano.duran.isDaha, { n: stuck.length - 8 })}
               </Link>
             </div>
           )}
@@ -283,28 +298,28 @@ export default function DashboardPage() {
       {overdueDebtors.length > 0 && (
         <div className="card" style={{ background: '#FEF7F7', borderColor: '#F2C2C2' }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-red-600">⚠️ Borçlu Müşteriler ({overdueDebtors.length})</h2>
-            <Link href="/accounting" className="text-blue-600 text-sm hover:underline">Muhasebe →</Link>
+            <h2 className="text-lg font-semibold text-red-600">⚠️ {t.pano.borclu.baslik} ({overdueDebtors.length})</h2>
+            <Link href="/accounting" className="text-blue-600 text-sm hover:underline">{t.pano.borclu.muhasebeOk}</Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {overdueDebtors.slice(0, 6).map(d => (
               <div key={d.customer.id} className="p-3 bg-red-50 rounded-lg border border-red-200">
                 <div className="font-semibold text-gray-900 text-sm">{d.customer.name}</div>
                 <div className="text-xs text-gray-500">📞 {d.customer.phone}</div>
-                <div className="text-lg font-bold text-red-600 mt-1">₺{d.debt.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</div>
+                <div className="text-lg font-bold text-red-600 mt-1">{b.para(d.debt)}</div>
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => openWhatsApp(d.customer.phone, reminderMessage({ tenantName, customerName: d.customer.name, debt: d.debt }))}
                     className="flex-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md px-2 py-1.5"
-                  >📱 Hatırlat</button>
-                  <Link href="/accounting" className="text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-md px-2 py-1.5 hover:bg-blue-50">Cari →</Link>
+                  >📱 {t.pano.borclu.hatirlat}</button>
+                  <Link href="/accounting" className="text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-md px-2 py-1.5 hover:bg-blue-50">{t.pano.borclu.cariOk}</Link>
                 </div>
               </div>
             ))}
           </div>
           {overdueDebtors.length > 6 && (
             <div className="text-center mt-3">
-              <Link href="/accounting" className="text-blue-600 text-sm hover:underline">+{overdueDebtors.length - 6} müşteri daha →</Link>
+              <Link href="/accounting" className="text-blue-600 text-sm hover:underline">{doldur(t.pano.borclu.musteriDaha, { n: overdueDebtors.length - 6 })}</Link>
             </div>
           )}
         </div>
@@ -313,25 +328,25 @@ export default function DashboardPage() {
       {/* Recent Tickets */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Son Servis Fişleri</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t.pano.sonFisler.baslik}</h2>
           <Link href="/tickets" className="text-blue-600 text-sm hover:underline">
-            Tümünü Gör →
+            {t.pano.sonFisler.tumunuGor}
           </Link>
         </div>
         {/* Mobil: kart listesi (tablo yerine — yatay kaydırma yok) */}
         <div className="md:hidden divide-y divide-gray-100">
-          {stats?.recentTickets?.map((t: any) => (
-            <Link key={t.id} href={`/tickets/${t.id}`} className="block py-3 active:bg-blue-50">
+          {stats?.recentTickets?.map((r: any) => (
+            <Link key={r.id} href={`/tickets/${r.id}`} className="block py-3 active:bg-blue-50">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-blue-600 font-mono text-sm font-semibold">{t.ticketNumber}</span>
-                <span className={`badge ${getStatusColor(t.status)}`}>{getStatusLabel(t.status)}</span>
+                <span className="text-blue-600 font-mono text-sm font-semibold">{r.ticketNumber}</span>
+                <span className={`badge ${getStatusColor(r.status)}`}>{durumAdi(r.status)}</span>
               </div>
-              <div className="text-sm text-gray-800 font-medium mt-1">{t.device?.customer?.name}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{t.device?.brand} {t.device?.model} · {formatDate(t.createdAt)}</div>
+              <div className="text-sm text-gray-800 font-medium mt-1">{r.device?.customer?.name}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{r.device?.brand} {r.device?.model} · {b.tarihSaat(r.createdAt)}</div>
             </Link>
           ))}
           {(!stats?.recentTickets || stats.recentTickets.length === 0) && (
-            <div className="py-8 text-center text-gray-400 text-sm">Henüz servis fişi yok</div>
+            <div className="py-8 text-center text-gray-400 text-sm">{t.pano.sonFisler.yok}</div>
           )}
         </div>
 
@@ -340,11 +355,11 @@ export default function DashboardPage() {
           <table className="w-full">
             <thead>
               <tr className="table-header">
-                <th className="px-4 py-3 text-left">Fiş No</th>
-                <th className="px-4 py-3 text-left">Müşteri</th>
-                <th className="px-4 py-3 text-left">Cihaz</th>
-                <th className="px-4 py-3 text-left">Durum</th>
-                <th className="px-4 py-3 text-left">Tarih</th>
+                <th className="px-4 py-3 text-left">{t.pano.sonFisler.fisNo}</th>
+                <th className="px-4 py-3 text-left">{t.genel.musteri}</th>
+                <th className="px-4 py-3 text-left">{t.genel.cihaz}</th>
+                <th className="px-4 py-3 text-left">{t.genel.durum}</th>
+                <th className="px-4 py-3 text-left">{t.genel.tarih}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -364,16 +379,16 @@ export default function DashboardPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`badge ${getStatusColor(ticket.status)}`}>
-                      {getStatusLabel(ticket.status)}
+                      {durumAdi(ticket.status)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{formatDate(ticket.createdAt)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{b.tarihSaat(ticket.createdAt)}</td>
                 </tr>
               ))}
               {(!stats?.recentTickets || stats.recentTickets.length === 0) && (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                    Henüz servis fişi yok
+                    {t.pano.sonFisler.yok}
                   </td>
                 </tr>
               )}
