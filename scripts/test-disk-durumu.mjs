@@ -12,7 +12,10 @@
 //   1. YÜZDE TEK BAŞINA YETMEZ — büyük diskte %85 rahat, küçükte değil.
 //   2. BOŞ ALAN ÖNCELİKLİ: asıl soru "bir sonraki derleme sığar mı".
 //   3. BOZUK GİRDİ HÜKÜM ÜRETMİYOR (sıfır disk, eksi boş alan, boş > toplam).
-import { mkdtempSync, existsSync, rmSync } from 'node:fs';
+//   4. CÜMLE İKİ DİLDE DE KURULUYOR — disk durumu artık metin değil KOD
+//      döndürüyor; cümleyi nobetci-metin.ts okuyanın dilinde kuruyor. Kod
+//      ile sözlük ayrışırsa ekranda ham kod ya da boş satır kalır.
+import { mkdtempSync, existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -23,14 +26,32 @@ const g = mkdtempSync(join(tmpdir(), 'st-disk-'));
 try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/disk-durumu.ts'),
+    join(KOK, 'src/lib/disk-durumu.ts'), join(KOK, 'src/lib/nobetci-metin.ts'),
+    join(KOK, 'src/lib/i18n/sozluk.ts'), join(KOK, 'src/lib/i18n/tr.ts'), join(KOK, 'src/lib/i18n/en.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
     '--moduleResolution', 'bundler', '--skipLibCheck',
   ], { stdio: 'pipe' });
 } catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
 
+// tsc uzantısız bırakıyor; Node ESM uzantı ister.
+for (const [d, ...cift] of [
+  ['i18n/sozluk.js', ["from './tr'", "from './tr.js'"], ["from './en'", "from './en.js'"]],
+  ['nobetci-metin.js', ["from './i18n/sozluk'", "from './i18n/sozluk.js'"]],
+]) {
+  const yol = join(g, d);
+  let icerik = readFileSync(yol, 'utf8');
+  for (const [a, b] of cift) icerik = icerik.replace(a, b);
+  writeFileSync(yol, icerik, 'utf8');
+}
+
 const { diskDurumu, DERLEME_ICIN_GB, KRITIK_GB, UYARI_YUZDE, KRITIK_YUZDE } =
   await import(pathToFileURL(join(g, 'disk-durumu.js')).href);
+const { kontrolMesaji, kontrolNedeni } = await import(pathToFileURL(join(g, 'nobetci-metin.js')).href);
+const { sozluk } = await import(pathToFileURL(join(g, 'i18n/sozluk.js')).href);
+const TRS = sozluk('tr'), ENS = sozluk('en');
+/** Kodu iki dilde de cümleye çevir. */
+const mesajTR = (d) => kontrolMesaji(TRS, d.mesajKod);
+const mesajEN = (d) => kontrolMesaji(ENS, d.mesajKod);
 
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
@@ -45,8 +66,9 @@ console.log('\n★ SAĞLIKLI DİSK\n');
   const d = diskDurumu(61.3 * GB, 37.8 * GB);
   t('seviye iyi', d.seviye === 'iyi', d);
   t('kullanım %38', d.kullanimYuzde === 38, d.kullanimYuzde);
-  t('★ sorun yokken nedeni YAZILMIYOR', d.nedeni === undefined, d.nedeni);
-  t('mesaj hem yüzde hem boş alan veriyor', /%38/.test(d.mesaj) && /37\.8 GB/.test(d.mesaj), d.mesaj);
+  t('★ sorun yokken nedeni YAZILMIYOR', d.nedenKod === undefined, d.nedenKod);
+  t('mesaj hem yüzde hem boş alan veriyor', /%38/.test(mesajTR(d)) && /37\.8 GB/.test(mesajTR(d)), mesajTR(d));
+  t('★ İngilizcede yüzde sayının ARKASINDA', /38%/.test(mesajEN(d)) && !/%38/.test(mesajEN(d)), mesajEN(d));
 }
 
 console.log('\n★ ASIL ARIZANIN YAŞANDIĞI NOKTA\n');
@@ -54,13 +76,17 @@ console.log('\n★ ASIL ARIZANIN YAŞANDIĞI NOKTA\n');
   // 4 Eylül öncesi durum: 58 GB diskte derleme sırasında alan bitti.
   const d = diskDurumu(58 * GB, 2 * GB);
   t('★ 2 GB boş → KRİTİK', d.seviye === 'kritik', d);
-  t('nedeni derleme önbelleğini işaret ediyor', /builder prune/.test(d.nedeni), d.nedeni);
-  t('mesaj boş alanı söylüyor', /2 GB boş/.test(d.mesaj), d.mesaj);
+  t('nedeni derleme önbelleğini işaret ediyor', /builder prune/.test(kontrolNedeni(TRS, d.nedenKod)), d.nedenKod);
+  t('★ neden İngilizcede de aynı komutu veriyor', /builder prune/.test(kontrolNedeni(ENS, d.nedenKod)));
+  t('mesaj boş alanı söylüyor', /2 GB boş/.test(mesajTR(d)), mesajTR(d));
+  t('★ İngilizce mesaj boş alanı söylüyor', /2 GB free/.test(mesajEN(d)), mesajEN(d));
 
   // Bu gece ölçülen tehlikeli nokta: 50/58 GB dolu, 7,4 GB boş.
   const b = diskDurumu(58 * GB, 7.4 * GB);
   t('★ 7,4 GB boş → UYARI (henüz kritik değil)', b.seviye === 'uyari', b);
-  t('uyarı "sığmayabilir" diyor', /sığmayabilir/.test(b.nedeni), b.nedeni);
+  t('uyarı "sığmayabilir" diyor', /sığmayabilir/.test(kontrolNedeni(TRS, b.nedenKod)), b.nedenKod);
+  t('★ kritik ile uyarı AYNI nedeni vermiyor', b.nedenKod !== d.nedenKod, [b.nedenKod, d.nedenKod]);
+  t('★ iki dilde de cümle boş kalmıyor', mesajTR(b).length > 5 && mesajEN(b).length > 5);
 }
 
 console.log('\n★ YÜZDE TEK BAŞINA YETMEZ\n');

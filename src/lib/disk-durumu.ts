@@ -26,6 +26,8 @@ export const KRITIK_GB = 4;
 export const UYARI_YUZDE = 85;
 export const KRITIK_YUZDE = 92;
 
+import type { MesajKod, NedenKod } from './nobetci-metin';
+
 export type DiskSeviye = 'iyi' | 'uyari' | 'kritik';
 
 export interface DiskDurumu {
@@ -33,9 +35,10 @@ export interface DiskDurumu {
   bosGB: number;
   kullanimYuzde: number;
   seviye: DiskSeviye;
-  mesaj: string;
+  /** Bulgu KOD olarak; cümleyi nobetci-metin.ts okuyanın dilinde kurar. */
+  mesajKod: MesajKod;
   /** Ne yapılacağı — yalnız sorun varken dolu. */
-  nedeni?: string;
+  nedenKod?: NedenKod;
 }
 
 const gb = (bayt: number) => Math.round((bayt / 1_000_000_000) * 10) / 10;
@@ -54,21 +57,21 @@ export function diskDurumu(toplamBayt: number, bosBayt: number): DiskDurumu | nu
   if (bosGB < KRITIK_GB || kullanimYuzde >= KRITIK_YUZDE) {
     return {
       toplamGB, bosGB, kullanimYuzde, seviye: 'kritik',
-      mesaj: `Disk %${kullanimYuzde} dolu — yalnız ${bosGB} GB boş`,
-      nedeni: 'Bu seviyede derleme yarıda ölür ve deploy sessizce durur. Sunucuda "docker builder prune -af" çalıştırın; derleme önbelleği genelde en büyük paydır.',
+      mesajKod: { kod: 'DISK_DOLU', yuzde: kullanimYuzde, bosGB },
+      nedenKod: 'DISK_KRITIK',
     };
   }
 
   if (bosGB < DERLEME_ICIN_GB || kullanimYuzde >= UYARI_YUZDE) {
     return {
       toplamGB, bosGB, kullanimYuzde, seviye: 'uyari',
-      mesaj: `Disk %${kullanimYuzde} dolu — ${bosGB} GB boş`,
-      nedeni: 'Bir sonraki derleme sığmayabilir. Derleme önbelleğini temizlemek genelde onlarca GB kazandırır.',
+      mesajKod: { kod: 'DISK_DOLU', yuzde: kullanimYuzde, bosGB },
+      nedenKod: 'DISK_UYARI',
     };
   }
 
   return {
     toplamGB, bosGB, kullanimYuzde, seviye: 'iyi',
-    mesaj: `%${kullanimYuzde} dolu · ${bosGB} GB boş`,
+    mesajKod: { kod: 'DISK_OK', yuzde: kullanimYuzde, bosGB },
   };
 }

@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Building2, Plus, Search, Filter, RefreshCw, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
+import { useT } from '@/lib/i18n/client';
+import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 
-const PLAN_LABELS: Record<string, string> = {
-    trial: 'Deneme', starter: 'Başlangıç', professional: 'Profesyonel', enterprise: 'Kurumsal',
-};
+const PLAN_KEYS = ['trial', 'starter', 'professional', 'enterprise'] as const;
 const PLAN_COLORS: Record<string, string> = {
     trial: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
     starter: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -14,30 +14,37 @@ const PLAN_COLORS: Record<string, string> = {
     enterprise: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
 };
 
-function relTime(iso: string | null): string {
-    if (!iso) return 'hiç';
+// Göreli zaman ve sağlık rozeti sözlüğü PARAMETRE alır: metni burada kurmak
+// yerine dışarıdan alması, aynı işlevin iki dilde de doğru cümleyi vermesini
+// sağlar.
+function relTime(sz: Sozluk, iso: string | null): string {
+    const z = sz.superAdmin.isletmeler;
+    if (!iso) return z.zamanHic;
     const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-    if (days <= 0) return 'bugün';
-    if (days === 1) return 'dün';
-    if (days < 30) return `${days} gün önce`;
-    return `${Math.floor(days / 30)} ay önce`;
+    if (days <= 0) return z.zamanBugun;
+    if (days === 1) return z.zamanDun;
+    if (days < 30) return doldur(z.zamanGun, { n: days });
+    return doldur(z.zamanAy, { n: Math.floor(days / 30) });
 }
 
 // Churn/sağlık rozeti — bayi gerçekten kullanıyor mu?
-function health(t: any): { label: string; cls: string } {
-    if (t.isSuspended) return { label: 'Askıda', cls: 'text-red-400 bg-red-500/10' };
-    if (!t.isActive) return { label: 'Pasif', cls: 'text-gray-400 bg-gray-500/10' };
+function health(sz: Sozluk, t: any): { label: string; cls: string } {
+    const z = sz.superAdmin.isletmeler;
+    if (t.isSuspended) return { label: z.askida, cls: 'text-red-400 bg-red-500/10' };
+    if (!t.isActive) return { label: z.pasif, cls: 'text-gray-400 bg-gray-500/10' };
     if (t.plan === 'trial' && t.trialEndsAt) {
         const d = Math.floor((new Date(t.trialEndsAt).getTime() - Date.now()) / 86400000);
-        if (d < 0) return { label: 'Deneme bitti', cls: 'text-red-400 bg-red-500/10' };
-        if (d <= 7) return { label: `Deneme ${d}g`, cls: 'text-amber-400 bg-amber-500/10' };
+        if (d < 0) return { label: z.saglikDenemeBitti, cls: 'text-red-400 bg-red-500/10' };
+        if (d <= 7) return { label: doldur(z.saglikDenemeGun, { n: d }), cls: 'text-amber-400 bg-amber-500/10' };
     }
     const last = t.lastActivityAt ? Math.floor((Date.now() - new Date(t.lastActivityAt).getTime()) / 86400000) : 9999;
-    if (last >= 14) return { label: 'Sessiz', cls: 'text-red-400 bg-red-500/10' };
-    return { label: 'Aktif', cls: 'text-green-400 bg-green-500/10' };
+    if (last >= 14) return { label: z.saglikSessiz, cls: 'text-red-400 bg-red-500/10' };
+    return { label: z.aktif, cls: 'text-green-400 bg-green-500/10' };
 }
 
 export default function TenantsPage() {
+    const sz = useT();
+    const z = sz.superAdmin.isletmeler;
     const [tenants, setTenants] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -68,14 +75,14 @@ export default function TenantsPage() {
                     <div>
                         <h1 className="text-2xl font-bold flex items-center gap-3">
                             <Building2 className="w-6 h-6 text-violet-400" />
-                            İşletmeler
+                            {z.baslik}
                         </h1>
-                        <p className="text-gray-400 text-sm mt-1">{total} kayıt</p>
+                        <p className="text-gray-400 text-sm mt-1">{doldur(z.kayit, { n: total })}</p>
                     </div>
                     <Link href="/super-admin/tenants/new"
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium">
                         <Plus className="w-4 h-4" />
-                        Yeni İşletme
+                        {sz.superAdmin.panel.yeniIsletme}
                     </Link>
                 </div>
             </div>
@@ -87,7 +94,7 @@ export default function TenantsPage() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="İşletme adı, yetkili, telefon..."
+                            placeholder={z.ara}
                             value={q}
                             onChange={e => { setQ(e.target.value); setPage(1); }}
                             className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500"
@@ -95,16 +102,16 @@ export default function TenantsPage() {
                     </div>
                     <select value={plan} onChange={e => { setPlan(e.target.value); setPage(1); }}
                         className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none bg-gray-900">
-                        <option value="" className="bg-gray-900">Tüm Paketler</option>
-                        {Object.entries(PLAN_LABELS).map(([k, v]) => <option key={k} value={k} className="bg-gray-900">{v}</option>)}
+                        <option value="" className="bg-gray-900">{z.tumPaketler}</option>
+                        {PLAN_KEYS.map(k => <option key={k} value={k} className="bg-gray-900">{sz.superAdmin.paket[k]}</option>)}
                     </select>
                     <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}
                         className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none bg-gray-900">
-                        <option value="" className="bg-gray-900">Tüm Durumlar</option>
-                        <option value="active" className="bg-gray-900">Aktif</option>
-                        <option value="trial" className="bg-gray-900">Deneme</option>
-                        <option value="suspended" className="bg-gray-900">Askıda</option>
-                        <option value="inactive" className="bg-gray-900">Pasif</option>
+                        <option value="" className="bg-gray-900">{z.tumDurumlar}</option>
+                        <option value="active" className="bg-gray-900">{z.aktif}</option>
+                        <option value="trial" className="bg-gray-900">{sz.superAdmin.paket.trial}</option>
+                        <option value="suspended" className="bg-gray-900">{z.askida}</option>
+                        <option value="inactive" className="bg-gray-900">{z.pasif}</option>
                     </select>
                 </div>
 
@@ -118,20 +125,20 @@ export default function TenantsPage() {
                         <table className="w-full text-sm min-w-[44rem]">
                             <thead>
                                 <tr className="border-b border-white/10 text-gray-400 text-xs">
-                                    <th className="text-left px-4 py-3">İşletme</th>
-                                    <th className="text-left px-4 py-3">Yetkili</th>
-                                    <th className="text-left px-4 py-3">Telefon</th>
-                                    <th className="text-left px-4 py-3 hidden md:table-cell">Şehir</th>
-                                    <th className="text-left px-4 py-3">Paket</th>
-                                    <th className="text-left px-4 py-3">Durum</th>
-                                    <th className="text-left px-4 py-3 hidden lg:table-cell">Sağlık / Son aktivite</th>
-                                    <th className="text-right px-4 py-3">Fiş / Kullanıcı</th>
+                                    <th className="text-left px-4 py-3">{z.sutunIsletme}</th>
+                                    <th className="text-left px-4 py-3">{z.sutunYetkili}</th>
+                                    <th className="text-left px-4 py-3">{z.sutunTelefon}</th>
+                                    <th className="text-left px-4 py-3 hidden md:table-cell">{z.sutunSehir}</th>
+                                    <th className="text-left px-4 py-3">{z.sutunPaket}</th>
+                                    <th className="text-left px-4 py-3">{z.sutunDurum}</th>
+                                    <th className="text-left px-4 py-3 hidden lg:table-cell">{z.sutunSaglik}</th>
+                                    <th className="text-right px-4 py-3">{z.sutunFisKullanici}</th>
                                     <th className="px-4 py-3"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {tenants.length === 0 ? (
-                                    <tr><td colSpan={9} className="text-center py-12 text-gray-500">Kayıt bulunamadı</td></tr>
+                                    <tr><td colSpan={9} className="text-center py-12 text-gray-500">{z.kayitYok}</td></tr>
                                 ) : tenants.map(t => (
                                     <tr key={t.id} className="border-b border-white/5 hover:bg-white/3 transition-all">
                                         <td className="px-4 py-3">
@@ -144,23 +151,25 @@ export default function TenantsPage() {
                                         <td className="px-4 py-3 text-gray-400 hidden md:table-cell">{t.city || '—'}</td>
                                         <td className="px-4 py-3">
                                             <span className={`text-xs px-2 py-1 rounded-lg border ${PLAN_COLORS[t.plan] || PLAN_COLORS.trial}`}>
-                                                {PLAN_LABELS[t.plan] || t.plan}
+                                                {sz.superAdmin.paket[t.plan as keyof typeof sz.superAdmin.paket] || t.plan}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3">
                                             {t.isSuspended ? (
-                                                <span className="text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-lg">Askıda</span>
+                                                <span className="text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-lg">{z.askida}</span>
                                             ) : t.isActive ? (
-                                                <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-lg">Aktif</span>
+                                                <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-lg">{z.aktif}</span>
                                             ) : (
-                                                <span className="text-xs text-gray-400 bg-gray-500/10 px-2 py-1 rounded-lg">Pasif</span>
+                                                <span className="text-xs text-gray-400 bg-gray-500/10 px-2 py-1 rounded-lg">{z.pasif}</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-3 hidden lg:table-cell">
-                                            {(() => { const h = health(t); return (
+                                            {(() => { const h = health(sz, t); return (
                                                 <div className="flex flex-col gap-0.5">
                                                     <span className={`text-xs px-2 py-0.5 rounded-lg w-fit ${h.cls}`}>{h.label}</span>
-                                                    <span className="text-[11px] text-gray-500">{relTime(t.lastActivityAt)} · {t.tickets30d || 0} fiş/30g</span>
+                                                    <span className="text-[11px] text-gray-500">
+                                                        {relTime(sz, t.lastActivityAt)} · {doldur(z.fis30g, { n: t.tickets30d || 0 })}
+                                                    </span>
                                                 </div>
                                             ); })()}
                                         </td>
@@ -181,15 +190,21 @@ export default function TenantsPage() {
                         {/* Sayfalama */}
                         {total > 20 && (
                             <div className="flex items-center justify-between px-4 py-3 border-t border-white/10">
-                                <span className="text-xs text-gray-500">{total} sonuçtan {Math.min((page - 1) * 20 + 1, total)}–{Math.min(page * 20, total)}</span>
+                                <span className="text-xs text-gray-500">
+                                    {doldur(z.sayfaBilgi, {
+                                        toplam: total,
+                                        bas: Math.min((page - 1) * 20 + 1, total),
+                                        son: Math.min(page * 20, total),
+                                    })}
+                                </span>
                                 <div className="flex gap-2">
                                     <button onClick={() => setPage(p => p - 1)} disabled={page <= 1}
                                         className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs disabled:opacity-40">
-                                        ← Önceki
+                                        {z.onceki}
                                     </button>
                                     <button onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}
                                         className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs disabled:opacity-40">
-                                        Sonraki →
+                                        {z.sonraki}
                                     </button>
                                 </div>
                             </div>

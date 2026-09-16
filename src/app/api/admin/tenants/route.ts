@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { PLAN_MODULES } from '@/lib/modules';
 
 // Süper Admin kontrolü
 async function getSuperAdmin() {
@@ -59,6 +60,19 @@ export async function GET() {
     return NextResponse.json(tenantsWithStats);
 }
 
+/**
+ * Paket adı SİSTEMİN TANIDIĞI bir ad olmak zorunda.
+ *
+ * Bu uç eskiden gelen adı doğrulamadan yazıyordu ve panel içindeki eski ekran
+ * "standard" / "pro" gönderiyordu. Bu adlar modules.ts'te yok; `PLAN_MODULES[plan]`
+ * boş kümeye düşüyor ve o bayinin bütün eklenti modülleri (faturalama, rota,
+ * takip, kaçan gelir, raporlar, pazar, müşteri paneli, mağaza) SESSİZCE
+ * kapanıyordu. Ekran düzeltildi; kapı burada da kapatılıyor.
+ */
+function paketGecerli(p: unknown): p is string {
+    return typeof p === 'string' && Object.prototype.hasOwnProperty.call(PLAN_MODULES, p);
+}
+
 // POST /api/admin/tenants — Yeni tenant + admin kullanıcı oluştur
 export async function POST(req: NextRequest) {
     const admin = await getSuperAdmin();
@@ -87,7 +101,7 @@ export async function POST(req: NextRequest) {
                     name: tenantName,
                     phone: phone || null,
                     address: address || null,
-                    plan: plan || 'starter',
+                    plan: paketGecerli(plan) ? plan : 'trial',
                 },
             });
 
@@ -130,7 +144,12 @@ export async function PATCH(req: NextRequest) {
         if (name !== undefined) updateData.name = name;
         if (phone !== undefined) updateData.phone = phone;
         if (address !== undefined) updateData.address = address;
-        if (plan !== undefined) updateData.plan = plan;
+        if (plan !== undefined) {
+            if (!paketGecerli(plan)) {
+                return NextResponse.json({ error: `Tanınmayan paket: ${plan}` }, { status: 400 });
+            }
+            updateData.plan = plan;
+        }
         if (isActive !== undefined) updateData.isActive = isActive;
 
         const tenant = await prisma.tenant.update({

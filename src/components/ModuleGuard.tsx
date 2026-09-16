@@ -17,7 +17,7 @@ export default function ModuleGuard({ modules, children }: { modules: string[]; 
     return (
       <div style={{ maxWidth: 540, margin: '4rem auto', padding: '2rem', textAlign: 'center' }}>
         <div style={{ fontSize: '2.6rem' }}>🔒</div>
-        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0.6rem 0' }}>{doldur(t.ortak.modulYok, { ad: MODULES[mod].label })}</h2>
+        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0.6rem 0' }}>{doldur(t.ortak.modulYok, { ad: t.modul.ad[mod] })}</h2>
         <p style={{ color: '#6b7280', margin: '0 0 1.3rem', lineHeight: 1.5 }}>
           {t.ortak.modulYokAlt}
         </p>

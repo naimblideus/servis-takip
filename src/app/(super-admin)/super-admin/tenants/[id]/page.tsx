@@ -3,13 +3,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Building2, BarChart3, Receipt, Package, Users, Edit3, AlertTriangle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { ALL_MODULE_KEYS, MODULES, effectiveModules } from '@/lib/modules';
-
-const PLAN_LABELS: Record<string, string> = { trial: 'Deneme', starter: 'Başlangıç', professional: 'Profesyonel', enterprise: 'Kurumsal' };
-const TABS = ['Genel', 'İstatistikler', 'Abonelik', 'Faturalar', 'Kullanıcılar', 'Notlar'];
+import { ALL_MODULE_KEYS, effectiveModules } from '@/lib/modules';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 export default function TenantDetailPage() {
     const { id } = useParams<{ id: string }>();
+    const sz = useT();
+    const b = useBicim();
+    const d = sz.superAdmin.detay;
+    const f = sz.superAdmin.fatura;
+    const paketAdi = (k: string) => sz.superAdmin.paket[k as keyof typeof sz.superAdmin.paket] || k;
+    const TABS = [d.sekmeGenel, d.sekmeIstatistik, d.sekmeAbonelik, d.sekmeFaturalar, d.sekmeKullanicilar, d.sekmeNotlar];
     const [tenant, setTenant] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
     const [tab, setTab] = useState(0);
@@ -41,8 +46,8 @@ export default function TenantDetailPage() {
             body: JSON.stringify(form),
         });
         if (!res.ok) {
-            const d = await res.json().catch(() => ({}));
-            alert('❌ ' + (d.error || 'Kaydedilemedi'));
+            const cevap = await res.json().catch(() => ({}));
+            alert('❌ ' + (cevap.error || d.kaydedilemedi));
             setSaving(false);
             return;
         }
@@ -61,8 +66,8 @@ export default function TenantDetailPage() {
     };
 
     const handleChangePlan = async () => {
-        const plan = prompt('Yeni paket (trial/starter/professional/enterprise):');
-        const amount = prompt('Ödenen tutar (₺, boş bırakabilirsiniz):');
+        const plan = prompt(d.yeniPaketSor);
+        const amount = prompt(d.odenenTutarSor);
         if (!plan) return;
         await fetch(`/api/super-admin/tenants/${id}/plan`, {
             method: 'PUT',
@@ -73,7 +78,7 @@ export default function TenantDetailPage() {
     };
 
     const handleExtend = async () => {
-        const days = prompt('Kaç gün uzatılsın?');
+        const days = prompt(d.kacGunSor);
         if (!days) return;
         await fetch(`/api/super-admin/tenants/${id}/extend`, {
             method: 'POST',
@@ -102,7 +107,7 @@ export default function TenantDetailPage() {
     };
 
     const handleCreateInvoice = async () => {
-        const amount = prompt('Fatura tutarı (₺, KDV hariç):');
+        const amount = prompt(d.faturaTutarSor);
         if (!amount) return;
         await fetch('/api/super-admin/billing', {
             method: 'POST',
@@ -110,11 +115,11 @@ export default function TenantDetailPage() {
             body: JSON.stringify({ tenantId: id, amount: parseFloat(amount) }),
         });
         await fetchTenant();
-        alert('Fatura oluşturuldu!');
+        alert(d.faturaOlusturuldu);
     };
 
     const handlePayInvoice = async (invoiceId: string) => {
-        const method = prompt('Ödeme yöntemi (cash/transfer/card):') || 'transfer';
+        const method = prompt(f.odemeYontemiSor) || 'transfer';
         await fetch(`/api/super-admin/billing/invoices/${invoiceId}/pay`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -124,7 +129,7 @@ export default function TenantDetailPage() {
     };
 
     if (loading) return <div className="flex items-center justify-center h-screen"><RefreshCw className="w-8 h-8 animate-spin text-violet-400" /></div>;
-    if (!tenant) return <div className="text-center py-24 text-gray-400">İşletme bulunamadı</div>;
+    if (!tenant) return <div className="text-center py-24 text-gray-400">{d.bulunamadi}</div>;
 
     const inpCls = editMode
         ? 'w-full px-3 py-2 bg-white/5 border border-violet-500/50 rounded-xl text-sm focus:outline-none'
@@ -143,10 +148,11 @@ export default function TenantDetailPage() {
                                         : tenant.isActive ? 'bg-green-500/20 text-green-400 border-green-500/30'
                                             : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
                                     }`}>
-                                    {tenant.isSuspended ? 'Askıda' : tenant.isActive ? 'Aktif' : 'Pasif'}
+                                    {tenant.isSuspended ? sz.superAdmin.isletmeler.askida
+                                        : tenant.isActive ? sz.superAdmin.isletmeler.aktif : sz.superAdmin.isletmeler.pasif}
                                 </span>
                                 <span className="text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2 py-0.5 rounded-lg">
-                                    {PLAN_LABELS[tenant.plan] || tenant.plan}
+                                    {paketAdi(tenant.plan)}
                                 </span>
                             </div>
                             <p className="text-gray-400 text-xs mt-0.5">{tenant.ownerName} · {tenant.phone} · {tenant.email}</p>
@@ -154,24 +160,24 @@ export default function TenantDetailPage() {
                         <div className="flex gap-2">
                             {!editMode ? (
                                 <button onClick={() => setEditMode(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs hover:bg-white/10">
-                                    <Edit3 className="w-3.5 h-3.5" />Düzenle
+                                    <Edit3 className="w-3.5 h-3.5" />{d.duzenle}
                                 </button>
                             ) : (
                                 <>
-                                    <button onClick={() => setEditMode(false)} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">İptal</button>
+                                    <button onClick={() => setEditMode(false)} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">{d.iptal}</button>
                                     <button onClick={handleSave} disabled={saving} className="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-xs">
-                                        {saving ? '...' : 'Kaydet'}
+                                        {saving ? '...' : d.kaydet}
                                     </button>
                                 </>
                             )}
                             {tenant.isSuspended ? (
                                 <button onClick={() => handleSuspend('activate')} className="px-3 py-2 rounded-xl bg-green-600/20 border border-green-500/30 text-xs text-green-400 hover:bg-green-600/30">
-                                    Aktif Et
+                                    {d.aktifEt}
                                 </button>
                             ) : (
-                                <button onClick={() => { const r = prompt('Askıya alma sebebi:'); handleSuspend('suspend', r || ''); }}
+                                <button onClick={() => { const r = prompt(d.askiSebebi); handleSuspend('suspend', r || ''); }}
                                     className="px-3 py-2 rounded-xl bg-red-600/20 border border-red-500/30 text-xs text-red-400 hover:bg-red-600/30">
-                                    Askıya Al
+                                    {d.askiyaAl}
                                 </button>
                             )}
                         </div>
@@ -195,15 +201,15 @@ export default function TenantDetailPage() {
                 {tab === 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {[
-                            ['İşletme Adı', 'name'], ['Slug', 'slug'], ['E-posta', 'email'], ['Telefon', 'phone'],
-                            ['Yetkili', 'ownerName'], ['Vergi No', 'taxNumber'], ['Vergi Dairesi', 'taxOffice'],
-                            ['Adres', 'address'], ['İl', 'city'], ['İlçe', 'district'],
+                            [d.alanAd, 'name'], [d.alanSlug, 'slug'], [d.alanEposta, 'email'], [d.alanTelefon, 'phone'],
+                            [d.alanYetkili, 'ownerName'], [d.alanVergiNo, 'taxNumber'], [d.alanVergiDairesi, 'taxOffice'],
+                            [d.alanAdres, 'address'], [d.alanIl, 'city'], [d.alanIlce, 'district'],
                             // e-Fatura ön eki GİB'e kayıtlı 3 harftir ve belge
                             // numarasının başına gelir (NXS2026000000001).
                             // Sıra sayacı BİLEREK forma konmadı: elle
                             // değiştirilirse aynı numaradan iki belge çıkar.
-                            ['e-Fatura Ön Eki (3 harf)', 'eFaturaOnEk'],
-                            ['e-Fatura Gönderici Etiketi', 'eFaturaEtiket'],
+                            [d.alanEFaturaOnEk, 'eFaturaOnEk'],
+                            [d.alanEFaturaEtiket, 'eFaturaEtiket'],
                         ].map(([label, key]) => (
                             <div key={key} className="bg-white/3 border border-white/10 rounded-xl p-3">
                                 <div className="text-xs text-gray-500 mb-1">{label}</div>
@@ -214,18 +220,16 @@ export default function TenantDetailPage() {
                         {/* WhatsApp bağlantısı — gelen mesajın HANGİ bayiye ait olduğu yalnızca buradan bulunur */}
                         <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
                             <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
-                                <div className="text-xs text-gray-400">WhatsApp Numara Kimliği (Meta phone_number_id)</div>
+                                <div className="text-xs text-gray-400">{d.waBaslik}</div>
                                 {form.whatsappPhoneId
-                                    ? <span className="text-[11px] font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded-full px-2 py-0.5">bağlı</span>
-                                    : <span className="text-[11px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">bağlı değil</span>}
+                                    ? <span className="text-[11px] font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded-full px-2 py-0.5">{d.waBagli}</span>
+                                    : <span className="text-[11px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">{d.waBagliDegil}</span>}
                             </div>
                             <input value={form.whatsappPhoneId || ''}
                                 onChange={e => setForm((p: any) => ({ ...p, whatsappPhoneId: e.target.value }))}
-                                readOnly={!editMode} placeholder="örn. 123456789012345" className={inpCls} />
+                                readOnly={!editMode} placeholder={d.waYer} className={inpCls} />
                             <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-                                Meta Business panelinde <b>WhatsApp → API Setup</b> altındaki <b>Phone number ID</b> değeri.
-                                Telefon numarası <b>değildir</b>. Boş bırakılırsa bu bayiye gelen WhatsApp mesajları kaydedilmez.
-                                Bir numara kimliği yalnızca <b>tek</b> bayiye bağlanabilir.
+                                {d.waAciklama}
                             </p>
                         </div>
                         {/* Üretici veri paylaşımı — sözleşme imzalanınca AÇILIR.
@@ -233,12 +237,12 @@ export default function TenantDetailPage() {
                             kazara kapsama girmesin. */}
                         <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
                             <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                                <div className="text-xs text-gray-400">Üretici Veri Paylaşımı (sözleşmeli)</div>
+                                <div className="text-xs text-gray-400">{d.oemBaslik}</div>
                                 {form.oemDataSharing
                                     ? <span className="text-[11px] font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded-full px-2 py-0.5">
-                                        rıza var{form.oemDataSharingAt ? ` · ${new Date(form.oemDataSharingAt).toLocaleDateString('tr-TR')}` : ''}
+                                        {d.oemRizaVar}{form.oemDataSharingAt ? ` · ${b.tarih(form.oemDataSharingAt)}` : ''}
                                       </span>
-                                    : <span className="text-[11px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">rıza yok</span>}
+                                    : <span className="text-[11px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">{d.oemRizaYok}</span>}
                             </div>
                             <label className={`flex items-center gap-2 ${editMode ? 'cursor-pointer' : 'opacity-70'}`}>
                                 <input type="checkbox" disabled={!editMode}
@@ -249,16 +253,14 @@ export default function TenantDetailPage() {
                                         // Rıza tarihi ilk açılışta damgalanır; kapatılırsa temizlenir.
                                         oemDataSharingAt: e.target.checked ? (p.oemDataSharingAt || new Date().toISOString()) : null,
                                     }))} />
-                                <span className="text-sm">Bu bayi, anonim saha verisinin üretici raporlarında kullanılmasına sözleşmeyle izin verdi</span>
+                                <span className="text-sm">{d.oemOnay}</span>
                             </label>
                             <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-                                Kapalıyken bu bayinin <b>hiçbir verisi</b> üretici raporu kapsamına girmez.
-                                Yalnızca ıslak imzalı sözleşmede veri paylaşım maddesi varsa işaretle —
-                                deneme hesaplarında <b>açma</b>.
+                                {d.oemAciklama1} <b>{d.oemAciklamaVurgu}</b> {d.oemAciklama2} <b>{d.oemAcma}</b>.
                             </p>
                         </div>
                         <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
-                            <div className="text-xs text-gray-500 mb-1">Admin Notu</div>
+                            <div className="text-xs text-gray-500 mb-1">{d.adminNotu}</div>
                             <textarea value={form.adminNotes || ''} onChange={e => setForm((p: any) => ({ ...p, adminNotes: e.target.value }))}
                                 readOnly={!editMode} rows={2}
                                 className={`${inpCls} resize-none`} />
@@ -270,12 +272,12 @@ export default function TenantDetailPage() {
                 {tab === 1 && stats && (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {[
-                            { label: 'Kullanıcılar', value: `${stats.userCount} / ${stats.maxUsers}`, pct: (stats.userCount / stats.maxUsers) * 100 },
-                            { label: 'Bu Ay Fiş', value: `${stats.thisMonthTickets}${stats.maxTicketsPerMonth ? ` / ${stats.maxTicketsPerMonth}` : ''}` },
-                            { label: 'Toplam Fiş', value: stats.totalTickets },
-                            { label: 'Müşteri', value: stats.customerCount },
-                            { label: 'Cihaz', value: stats.deviceCount },
-                            { label: 'Depolama', value: `${stats.storageUsedMB.toFixed(1)} / ${stats.storageLimitMB} MB`, pct: (stats.storageUsedMB / stats.storageLimitMB) * 100 },
+                            { label: d.istKullanicilar, value: `${stats.userCount} / ${stats.maxUsers}`, pct: (stats.userCount / stats.maxUsers) * 100 },
+                            { label: d.istBuAyFis, value: `${stats.thisMonthTickets}${stats.maxTicketsPerMonth ? ` / ${stats.maxTicketsPerMonth}` : ''}` },
+                            { label: d.istToplamFis, value: stats.totalTickets },
+                            { label: d.istMusteri, value: stats.customerCount },
+                            { label: d.istCihaz, value: stats.deviceCount },
+                            { label: d.istDepolama, value: `${b.sayi(stats.storageUsedMB, 1)} / ${b.sayi(stats.storageLimitMB)} MB`, pct: (stats.storageUsedMB / stats.storageLimitMB) * 100 },
                         ].map(s => (
                             <div key={s.label} className="bg-white/3 border border-white/10 rounded-xl p-4">
                                 <div className="text-xs text-gray-400 mb-1">{s.label}</div>
@@ -290,7 +292,7 @@ export default function TenantDetailPage() {
                         {stats.lastActivity && (
                             <div className="md:col-span-3 text-xs text-gray-500 flex items-center gap-2">
                                 <Clock className="w-3 h-3" />
-                                Son aktivite: {new Date(stats.lastActivity).toLocaleString('tr-TR')}
+                                {d.sonAktivite} {b.tarihSaat(stats.lastActivity)}
                             </div>
                         )}
                     </div>
@@ -302,21 +304,21 @@ export default function TenantDetailPage() {
                         <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <div className="text-sm text-gray-400">Mevcut Paket</div>
-                                    <div className="text-2xl font-bold text-violet-300">{PLAN_LABELS[tenant.plan] || tenant.plan}</div>
-                                    {tenant.trialEndsAt && <div className="text-xs text-orange-400 mt-1">Deneme bitiş: {new Date(tenant.trialEndsAt).toLocaleDateString('tr-TR')}</div>}
-                                    {tenant.planEndDate && <div className="text-xs text-gray-400 mt-1">Bitiş: {new Date(tenant.planEndDate).toLocaleDateString('tr-TR')}</div>}
+                                    <div className="text-sm text-gray-400">{d.mevcutPaket}</div>
+                                    <div className="text-2xl font-bold text-violet-300">{paketAdi(tenant.plan)}</div>
+                                    {tenant.trialEndsAt && <div className="text-xs text-orange-400 mt-1">{d.denemeBitis} {b.tarih(tenant.trialEndsAt)}</div>}
+                                    {tenant.planEndDate && <div className="text-xs text-gray-400 mt-1">{d.bitis} {b.tarih(tenant.planEndDate)}</div>}
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={handleChangePlan} className="px-3 py-2 rounded-xl bg-violet-600/20 border border-violet-500/30 text-xs text-violet-400 hover:bg-violet-600/30">Paket Değiştir</button>
-                                    <button onClick={handleExtend} className="px-3 py-2 rounded-xl bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30">Süre Uzat</button>
+                                    <button onClick={handleChangePlan} className="px-3 py-2 rounded-xl bg-violet-600/20 border border-violet-500/30 text-xs text-violet-400 hover:bg-violet-600/30">{d.paketDegistir}</button>
+                                    <button onClick={handleExtend} className="px-3 py-2 rounded-xl bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30">{d.sureUzat}</button>
                                 </div>
                             </div>
                         </div>
                         <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
                             <div className="flex justify-between items-center mb-4">
-                                <div className="text-sm font-semibold">Modüller (Paket Özellikleri)</div>
-                                <button onClick={handleResetModules} className="text-xs text-gray-400 hover:text-white">↺ Plan varsayılanına dön</button>
+                                <div className="text-sm font-semibold">{d.modullerBaslik}</div>
+                                <button onClick={handleResetModules} className="text-xs text-gray-400 hover:text-white">{d.planVarsayilanina}</button>
                             </div>
                             <div className="space-y-1">
                                 {ALL_MODULE_KEYS.map((k) => {
@@ -324,11 +326,11 @@ export default function TenantDetailPage() {
                                     return (
                                         <div key={k} className="flex items-start justify-between gap-3 py-2 border-b border-white/5 last:border-0">
                                             <div className="min-w-0">
-                                                <div className="text-sm text-gray-200">{MODULES[k].label}</div>
+                                                <div className="text-sm text-gray-200">{sz.modul.ad[k]}</div>
                                                 {/* Toggle'a basan kişi neyi kapattığını bilmeden basmasın */}
-                                                <div className="text-[11px] text-gray-500 leading-snug mt-0.5">{MODULES[k].aciklama}</div>
+                                                <div className="text-[11px] text-gray-500 leading-snug mt-0.5">{sz.modul.aciklama[k]}</div>
                                             </div>
-                                            <button onClick={() => handleToggleModule(k)} title={on ? 'Kapat' : 'Aç'}
+                                            <button onClick={() => handleToggleModule(k)} title={on ? d.modulKapat : d.modulAc}
                                                 className={`relative w-11 h-6 shrink-0 mt-0.5 rounded-full transition-all ${on ? 'bg-violet-500' : 'bg-gray-600'}`}>
                                                 <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${on ? 'left-5' : 'left-0.5'}`} />
                                             </button>
@@ -340,19 +342,19 @@ export default function TenantDetailPage() {
                                 plan varsayılanı mı, yoksa bu bayiye özel liste mi. */}
                             <div className="text-[11px] mt-3">
                                 {Array.isArray(tenant.modules) && tenant.modules.length > 0
-                                    ? <span className="text-amber-400">⚙ Bu bayiye ÖZEL liste geçerli — plan varsayılanı devre dışı.</span>
-                                    : <span className="text-gray-400">Plan varsayılanı geçerli: {PLAN_LABELS[tenant.plan] || tenant.plan}</span>}
+                                    ? <span className="text-amber-400">{d.ozelListe}</span>
+                                    : <span className="text-gray-400">{doldur(d.planVarsayilani, { paket: paketAdi(tenant.plan) })}</span>}
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">Çekirdek (fiş, müşteri, cihaz, stok, satış, etiket, muhasebe) her zaman açıktır ve kapatılamaz.</p>
+                            <p className="text-xs text-gray-500 mt-2">{d.cekirdekNot}</p>
                         </div>
 
                         <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
-                            <div className="text-sm font-semibold mb-4">Abonelik Geçmişi</div>
+                            <div className="text-sm font-semibold mb-4">{d.abonelikGecmisi}</div>
                             <div className="space-y-2">
                                 {(tenant.subscriptionHistory || []).map((h: any) => (
                                     <div key={h.id} className="flex items-center justify-between text-sm py-2 border-b border-white/5">
                                         <div className="text-gray-300">{h.action}</div>
-                                        <div className="text-xs text-gray-500">{new Date(h.createdAt).toLocaleDateString('tr-TR')}</div>
+                                        <div className="text-xs text-gray-500">{b.tarih(h.createdAt)}</div>
                                     </div>
                                 ))}
                             </div>
@@ -365,18 +367,18 @@ export default function TenantDetailPage() {
                     <div>
                         <div className="flex justify-end mb-4">
                             <button onClick={handleCreateInvoice} className="px-4 py-2 rounded-xl bg-violet-600/20 border border-violet-500/30 text-xs text-violet-400 hover:bg-violet-600/30">
-                                + Fatura Oluştur
+                                {d.faturaOlustur}
                             </button>
                         </div>
                         <div className="bg-white/3 border border-white/10 rounded-2xl overflow-x-auto">
                             <table className="w-full text-sm min-w-[40rem]">
                                 <thead>
                                     <tr className="border-b border-white/10 text-xs text-gray-400">
-                                        <th className="text-left px-4 py-3">No</th>
-                                        <th className="text-left px-4 py-3">Dönem</th>
-                                        <th className="text-right px-4 py-3">Tutar</th>
-                                        <th className="text-left px-4 py-3">Durum</th>
-                                        <th className="text-left px-4 py-3">Son Ödeme</th>
+                                        <th className="text-left px-4 py-3">{f.sutunKisaNo}</th>
+                                        <th className="text-left px-4 py-3">{f.sutunDonem}</th>
+                                        <th className="text-right px-4 py-3">{f.sutunTutar}</th>
+                                        <th className="text-left px-4 py-3">{f.sutunDurum}</th>
+                                        <th className="text-left px-4 py-3">{f.sutunSonOdeme}</th>
                                         <th className="px-4 py-3"></th>
                                     </tr>
                                 </thead>
@@ -385,17 +387,17 @@ export default function TenantDetailPage() {
                                         <tr key={inv.id} className="border-b border-white/5">
                                             <td className="px-4 py-3 font-mono text-xs">{inv.invoiceNumber}</td>
                                             <td className="px-4 py-3 text-gray-400">{inv.period}</td>
-                                            <td className="px-4 py-3 text-right">{inv.totalAmount.toLocaleString('tr-TR')} ₺</td>
+                                            <td className="px-4 py-3 text-right">{b.para(inv.totalAmount)}</td>
                                             <td className="px-4 py-3">
                                                 <span className={`text-xs px-2 py-1 rounded-lg ${inv.status === 'paid' ? 'bg-green-500/20 text-green-400' :
                                                         inv.status === 'overdue' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
-                                                    }`}>{inv.status === 'paid' ? 'Ödendi' : inv.status === 'overdue' ? 'Gecikmiş' : 'Bekliyor'}</span>
+                                                    }`}>{inv.status === 'paid' ? f.odendi : inv.status === 'overdue' ? f.gecikmisDurum : f.bekliyor}</span>
                                             </td>
-                                            <td className="px-4 py-3 text-xs text-gray-400">{new Date(inv.dueDate).toLocaleDateString('tr-TR')}</td>
+                                            <td className="px-4 py-3 text-xs text-gray-400">{b.tarih(inv.dueDate)}</td>
                                             <td className="px-4 py-3">
                                                 {inv.status !== 'paid' && (
                                                     <button onClick={() => handlePayInvoice(inv.id)} className="text-xs text-green-400 hover:text-green-300">
-                                                        Öde
+                                                        {f.ode}
                                                     </button>
                                                 )}
                                             </td>
@@ -413,10 +415,10 @@ export default function TenantDetailPage() {
                         <table className="w-full text-sm min-w-[40rem]">
                             <thead>
                                 <tr className="border-b border-white/10 text-xs text-gray-400">
-                                    <th className="text-left px-4 py-3">Ad Soyad</th>
-                                    <th className="text-left px-4 py-3">E-posta</th>
-                                    <th className="text-left px-4 py-3">Rol</th>
-                                    <th className="text-left px-4 py-3">Durum</th>
+                                    <th className="text-left px-4 py-3">{d.kullaniciAdSoyad}</th>
+                                    <th className="text-left px-4 py-3">{d.alanEposta}</th>
+                                    <th className="text-left px-4 py-3">{d.kullaniciRol}</th>
+                                    <th className="text-left px-4 py-3">{sz.superAdmin.isletmeler.sutunDurum}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -427,7 +429,7 @@ export default function TenantDetailPage() {
                                         <td className="px-4 py-3 text-xs">{u.role}</td>
                                         <td className="px-4 py-3">
                                             <span className={`text-xs px-2 py-1 rounded-lg ${u.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                                                {u.isActive ? 'Aktif' : 'Pasif'}
+                                                {u.isActive ? sz.superAdmin.isletmeler.aktif : sz.superAdmin.isletmeler.pasif}
                                             </span>
                                         </td>
                                     </tr>
@@ -440,16 +442,16 @@ export default function TenantDetailPage() {
                 {/* Tab: Notlar */}
                 {tab === 5 && (
                     <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
-                        <div className="text-sm font-semibold mb-3">Süper Admin Notu</div>
+                        <div className="text-sm font-semibold mb-3">{d.notBaslik}</div>
                         <textarea
                             value={form.adminNotes || ''}
                             onChange={e => setForm((p: any) => ({ ...p, adminNotes: e.target.value }))}
                             rows={6}
-                            placeholder="Bu işletme hakkında notlar..."
+                            placeholder={d.notYer}
                             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500 resize-none"
                         />
                         <button onClick={handleSave} disabled={saving} className="mt-3 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm disabled:opacity-50">
-                            {saving ? 'Kaydediliyor...' : 'Notu Kaydet'}
+                            {saving ? d.notKaydediliyor : d.notKaydet}
                         </button>
                     </div>
                 )}

@@ -12,15 +12,25 @@ import { prisma } from '@/lib/prisma';
 import { hedefOzeti, parolayiGizle } from '@/lib/db-hedef';
 import { diskDurumu } from '@/lib/disk-durumu';
 import { statfs } from 'node:fs/promises';
+import {
+  kontrolAdi, kontrolMesaji, kontrolNedeni, nobetciOzeti,
+  type KontrolAdi, type MesajKod, type NedenKod,
+} from '@/lib/nobetci-metin';
+import { sozluk, VARSAYILAN_DIL } from '@/lib/i18n/sozluk';
 
 export type Seviye = 'iyi' | 'uyari' | 'kritik';
 
+/**
+ * Kontrolün sonucu. Cümle KURULMAZ, KOD dönülür: aynı bulguyu süper admin
+ * ekranı kullanıcının dilinde, alarm webhook'u platform dilinde yazar.
+ * Cümleyi nobetci-metin.ts kurar.
+ */
 export interface Kontrol {
-  ad: string;
+  ad: KontrolAdi;
   seviye: Seviye;
-  mesaj: string;
+  mesajKod: MesajKod;
   /** İnsanın atacağı ilk adım — alarm okunduğunda ne yapılacağı belli olsun. */
-  nedeni?: string;
+  nedenKod?: NedenKod;
 }
 
 const gunOnce = (n: number) => new Date(Date.now() - n * 86_400_000);
@@ -40,7 +50,8 @@ const gunOnce = (n: number) => new Date(Date.now() - n * 86_400_000);
  */
 async function kVeritabani(): Promise<Kontrol> {
   const hedef = hedefOzeti(process.env.DATABASE_URL);
-  const nerede = hedef ? ` · ${hedef.veritabani} @ ${hedef.sunucu}` : '';
+  // Makine adı: çevrilmez, olduğu gibi gösterilir.
+  const nerede = hedef ? `${hedef.veritabani} @ ${hedef.sunucu}` : '';
   const t0 = Date.now();
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -49,28 +60,28 @@ async function kVeritabani(): Promise<Kontrol> {
 
     if (bayi === 0) {
       return {
-        ad: 'Veritabanı', seviye: 'kritik',
-        mesaj: `Bağlı ama BOŞ — hiç bayi yok${nerede}`,
-        nedeni: 'Tablolar var, veri yok. DATABASE_URL büyük ihtimalle yanlış veritabanını gösteriyor. Bağlantıyı değiştirmeden ÖNCE verinin durduğu veritabanını bulun; yanlış sırada yapılırsa veri kaybolmuş görünür.',
+        ad: 'VERITABANI', seviye: 'kritik',
+        mesajKod: { kod: 'DB_BOS', hedef: nerede },
+        nedenKod: 'DB_BOS',
       };
     }
     if (ms > 2000) {
-      return { ad: 'Veritabanı', seviye: 'uyari', mesaj: `Yanıt ${ms} ms — yavaş${nerede}`, nedeni: 'Sunucu yükü ya da disk. Coolify kaynak grafiğine bakın.' };
+      return { ad: 'VERITABANI', seviye: 'uyari', mesajKod: { kod: 'DB_YAVAS', ms, hedef: nerede }, nedenKod: 'DB_YAVAS' };
     }
     // Geliştirme makinesinde localhost normaldir; uyarı sadece üretimde.
     if (hedef?.yerel && process.env.NODE_ENV === 'production') {
       return {
-        ad: 'Veritabanı', seviye: 'uyari',
-        mesaj: `${ms} ms · ${bayi} bayi${nerede}`,
-        nedeni: 'Adres localhost — konteynerin kendi içi. Veritabanı Coolify panelinde ayrı bir kaynak ise DATABASE_URL o kaynağın servis adını göstermeli.',
+        ad: 'VERITABANI', seviye: 'uyari',
+        mesajKod: { kod: 'DB_OK', ms, bayi, hedef: nerede },
+        nedenKod: 'DB_YEREL',
       };
     }
-    return { ad: 'Veritabanı', seviye: 'iyi', mesaj: `${ms} ms · ${bayi} bayi${nerede}` };
+    return { ad: 'VERITABANI', seviye: 'iyi', mesajKod: { kod: 'DB_OK', ms, bayi, hedef: nerede } };
   } catch (e: any) {
     return {
-      ad: 'Veritabanı', seviye: 'kritik',
-      mesaj: `Bağlanılamıyor${nerede}: ${parolayiGizle(String(e?.message ?? 'bilinmeyen'))}`,
-      nedeni: 'Postgres kapalı ya da DATABASE_URL yanlış.',
+      ad: 'VERITABANI', seviye: 'kritik',
+      mesajKod: { kod: 'DB_YOK', hedef: nerede, hata: parolayiGizle(String(e?.message ?? '?')) },
+      nedenKod: 'DB_YOK',
     };
   }
 }
@@ -90,12 +101,12 @@ async function kDisk(): Promise<Kontrol> {
   try {
     const s = await statfs('/');
     const d = diskDurumu(Number(s.blocks) * Number(s.bsize), Number(s.bavail) * Number(s.bsize));
-    if (!d) return { ad: 'Disk', seviye: 'iyi', mesaj: 'Ölçülemedi' };
-    return { ad: 'Disk', seviye: d.seviye, mesaj: d.mesaj, nedeni: d.nedeni };
+    if (!d) return { ad: 'DISK', seviye: 'iyi', mesajKod: { kod: 'DISK_OLCULEMEDI' } };
+    return { ad: 'DISK', seviye: d.seviye, mesajKod: d.mesajKod, nedenKod: d.nedenKod };
   } catch (e: any) {
     // statfs her ortamda yok (eski Node, bazı kumlar). Ölçemiyor olmak
     // arıza değildir; nöbetçinin kendisi bu yüzden kırmızıya dönmemeli.
-    return { ad: 'Disk', seviye: 'iyi', mesaj: 'Ölçülemedi (bu ortamda desteklenmiyor)' };
+    return { ad: 'DISK', seviye: 'iyi', mesajKod: { kod: 'DISK_DESTEKSIZ' } };
   }
 }
 
@@ -106,22 +117,22 @@ async function kDisk(): Promise<Kontrol> {
  */
 async function kFaturaCron(): Promise<Kontrol> {
   const bugun = new Date();
-  if (bugun.getDate() < 5) return { ad: 'Aylık faturalama', seviye: 'iyi', mesaj: 'Ay başı — henüz kontrol edilmiyor' };
+  if (bugun.getDate() < 5) return { ad: 'FATURA_CRON', seviye: 'iyi', mesajKod: { kod: 'FATURA_AY_BASI' } };
 
   const ayBasi = new Date(bugun.getFullYear(), bugun.getMonth(), 1);
   const [aktifKiralik, buAy] = await Promise.all([
     prisma.device.count({ where: { isRental: true, tenant: { isActive: true, deletedAt: null } } }),
     prisma.customerInvoice.count({ where: { createdAt: { gte: ayBasi } } }),
   ]);
-  if (aktifKiralik === 0) return { ad: 'Aylık faturalama', seviye: 'iyi', mesaj: 'Kiralık cihaz yok' };
+  if (aktifKiralik === 0) return { ad: 'FATURA_CRON', seviye: 'iyi', mesajKod: { kod: 'FATURA_KIRALIK_YOK' } };
   if (buAy === 0) {
     return {
-      ad: 'Aylık faturalama', seviye: 'kritik',
-      mesaj: `${aktifKiralik} kiralık cihaz var ama bu ay hiç fatura üretilmemiş`,
-      nedeni: 'Coolify → Scheduled Tasks: "node run-cron.mjs faturalar" görevi çalışmıyor olabilir.',
+      ad: 'FATURA_CRON', seviye: 'kritik',
+      mesajKod: { kod: 'FATURA_URETILMEMIS', cihaz: aktifKiralik },
+      nedenKod: 'FATURA_CRON',
     };
   }
-  return { ad: 'Aylık faturalama', seviye: 'iyi', mesaj: `Bu ay ${buAy} fatura` };
+  return { ad: 'FATURA_CRON', seviye: 'iyi', mesajKod: { kod: 'FATURA_ADET', adet: buAy } };
 }
 
 /**
@@ -133,23 +144,23 @@ async function kWhatsapp(): Promise<Kontrol> {
   const kurulu = await prisma.tenant.count({
     where: { whatsappPhoneId: { not: null }, isActive: true, deletedAt: null } as any,
   });
-  if (kurulu === 0) return { ad: 'WhatsApp', seviye: 'iyi', mesaj: 'Kurulu bayi yok' };
+  if (kurulu === 0) return { ad: 'WHATSAPP', seviye: 'iyi', mesajKod: { kod: 'WA_KURULU_YOK' } };
 
   const sonMesaj = await prisma.whatsAppMessage.findFirst({
     orderBy: { receivedAt: 'desc' }, select: { receivedAt: true },
   });
   if (!sonMesaj) {
-    return { ad: 'WhatsApp', seviye: 'uyari', mesaj: `${kurulu} bayide kurulu ama hiç mesaj gelmemiş`, nedeni: 'Meta → Webhooks: doğrulama ve abonelik (messages) yapıldı mı?' };
+    return { ad: 'WHATSAPP', seviye: 'uyari', mesajKod: { kod: 'WA_HIC_MESAJ', bayi: kurulu }, nedenKod: 'WA_ABONELIK' };
   }
   const gun = Math.floor((Date.now() - sonMesaj.receivedAt.getTime()) / 86_400_000);
   if (gun >= 7) {
     return {
-      ad: 'WhatsApp', seviye: 'kritik',
-      mesaj: `${gun} gündür hiç mesaj gelmiyor (${kurulu} bayide kurulu)`,
-      nedeni: 'Webhook kopmuş olabilir: Meta panelinde abonelik ve WHATSAPP_APP_SECRET kontrol edin.',
+      ad: 'WHATSAPP', seviye: 'kritik',
+      mesajKod: { kod: 'WA_SESSIZ', gun, bayi: kurulu },
+      nedenKod: 'WA_WEBHOOK',
     };
   }
-  return { ad: 'WhatsApp', seviye: 'iyi', mesaj: `Son mesaj ${gun === 0 ? 'bugün' : `${gun} gün önce`}` };
+  return { ad: 'WHATSAPP', seviye: 'iyi', mesajKod: gun === 0 ? { kod: 'WA_SON_BUGUN' } : { kod: 'WA_SON_GUN', gun } };
 }
 
 /**
@@ -162,16 +173,16 @@ async function kSayacEposta(): Promise<Kontrol> {
     prisma.counterEmail.count({ where: { status: 'BEKLIYOR' } }),
     prisma.counterEmail.findFirst({ orderBy: { receivedAt: 'desc' }, select: { receivedAt: true } }),
   ]);
-  if (toplam === 0) return { ad: 'Sayaç e-postası', seviye: 'iyi', mesaj: 'Kullanılmıyor' };
+  if (toplam === 0) return { ad: 'SAYAC_EPOSTA', seviye: 'iyi', mesajKod: { kod: 'SE_KULLANILMIYOR' } };
 
   if (sonu && sonu.receivedAt < gunOnce(14)) {
     const gun = Math.floor((Date.now() - sonu.receivedAt.getTime()) / 86_400_000);
-    return { ad: 'Sayaç e-postası', seviye: 'uyari', mesaj: `${gun} gündür e-posta gelmiyor`, nedeni: 'E-posta yönlendirme (Cloudflare Email Routing) kuralı kapanmış olabilir.' };
+    return { ad: 'SAYAC_EPOSTA', seviye: 'uyari', mesajKod: { kod: 'SE_SESSIZ', gun }, nedenKod: 'SE_YONLENDIRME' };
   }
   if (bekleyen >= 25) {
-    return { ad: 'Sayaç e-postası', seviye: 'uyari', mesaj: `${bekleyen} e-posta inceleme bekliyor`, nedeni: 'Panelde "Sayaç e-postaları" ekranından geçin; birikirse faturalar eksik kesilir.' };
+    return { ad: 'SAYAC_EPOSTA', seviye: 'uyari', mesajKod: { kod: 'SE_KUYRUK', adet: bekleyen }, nedenKod: 'SE_KUYRUK' };
   }
-  return { ad: 'Sayaç e-postası', seviye: 'iyi', mesaj: bekleyen ? `${bekleyen} bekleyen` : 'Kuyruk temiz' };
+  return { ad: 'SAYAC_EPOSTA', seviye: 'iyi', mesajKod: bekleyen ? { kod: 'SE_BEKLEYEN', adet: bekleyen } : { kod: 'SE_TEMIZ' } };
 }
 
 /**
@@ -184,11 +195,11 @@ async function kBildirimKuyrugu(): Promise<Kontrol> {
       where: { status: 'PENDING', createdAt: { lt: gunOnce(2) } } as any,
     });
     if (takili >= 10) {
-      return { ad: 'Bildirim kuyruğu', seviye: 'uyari', mesaj: `${takili} bildirim 2 günden uzun süredir gönderilmemiş`, nedeni: 'WhatsApp/SMS anahtarları ya da şablon onayı eksik olabilir.' };
+      return { ad: 'BILDIRIM_KUYRUGU', seviye: 'uyari', mesajKod: { kod: 'BK_TAKILI', adet: takili }, nedenKod: 'BK_ANAHTAR' };
     }
-    return { ad: 'Bildirim kuyruğu', seviye: 'iyi', mesaj: takili ? `${takili} bekleyen` : 'Temiz' };
+    return { ad: 'BILDIRIM_KUYRUGU', seviye: 'iyi', mesajKod: takili ? { kod: 'BK_BEKLEYEN', adet: takili } : { kod: 'BK_TEMIZ' } };
   } catch {
-    return { ad: 'Bildirim kuyruğu', seviye: 'iyi', mesaj: 'Kontrol edilemedi' };
+    return { ad: 'BILDIRIM_KUYRUGU', seviye: 'iyi', mesajKod: { kod: 'BK_OKUNAMADI' } };
   }
 }
 
@@ -196,47 +207,57 @@ async function kBildirimKuyrugu(): Promise<Kontrol> {
 async function kDenetimZinciri(): Promise<Kontrol> {
   const hashsiz = await prisma.auditLog.count({ where: { hash: null } });
   const toplam = await prisma.auditLog.count();
-  if (toplam === 0) return { ad: 'Denetim kaydı', seviye: 'iyi', mesaj: 'Henüz kayıt yok' };
+  if (toplam === 0) return { ad: 'DENETIM_KAYDI', seviye: 'iyi', mesajKod: { kod: 'DZ_KAYIT_YOK' } };
   if (hashsiz > 0) {
-    return { ad: 'Denetim kaydı', seviye: 'uyari', mesaj: `${hashsiz} kayıtta hash yok`, nedeni: 'Denetim kaydı writeAudit dışından yazılmış olabilir.' };
+    return { ad: 'DENETIM_KAYDI', seviye: 'uyari', mesajKod: { kod: 'DZ_HASHSIZ', adet: hashsiz }, nedenKod: 'DZ_HASHSIZ' };
   }
-  return { ad: 'Denetim kaydı', seviye: 'iyi', mesaj: `${toplam} kayıt` };
+  return { ad: 'DENETIM_KAYDI', seviye: 'iyi', mesajKod: { kod: 'DZ_ADET', adet: toplam } };
 }
 
 export interface NobetciSonuc {
   seviye: Seviye;
+  /** Platform dilinde özet — alarm ve cron kaydı için. Ekran kendi dilinde kurar. */
   ozet: string;
+  kritikSayisi: number;
+  uyariSayisi: number;
   kontroller: Kontrol[];
   zaman: string;
 }
 
 /** Tüm kontrolleri çalıştır. Bir kontrol patlarsa diğerleri etkilenmez. */
 export async function nobetciCalistir(): Promise<NobetciSonuc> {
-  const isler: [string, () => Promise<Kontrol>][] = [
-    ['Veritabanı', kVeritabani],
-    ['Disk', kDisk],
-    ['Aylık faturalama', kFaturaCron],
-    ['WhatsApp', kWhatsapp],
-    ['Sayaç e-postası', kSayacEposta],
-    ['Bildirim kuyruğu', kBildirimKuyrugu],
-    ['Denetim kaydı', kDenetimZinciri],
+  const isler: [KontrolAdi, () => Promise<Kontrol>][] = [
+    ['VERITABANI', kVeritabani],
+    ['DISK', kDisk],
+    ['FATURA_CRON', kFaturaCron],
+    ['WHATSAPP', kWhatsapp],
+    ['SAYAC_EPOSTA', kSayacEposta],
+    ['BILDIRIM_KUYRUGU', kBildirimKuyrugu],
+    ['DENETIM_KAYDI', kDenetimZinciri],
   ];
 
   const kontroller = await Promise.all(
     isler.map(async ([ad, fn]): Promise<Kontrol> => {
       try { return await fn(); }
-      catch (e: any) { return { ad, seviye: 'uyari', mesaj: `Kontrol çalıştırılamadı: ${e?.message ?? 'bilinmeyen'}` }; }
+      catch (e: any) { return { ad, seviye: 'uyari', mesajKod: { kod: 'KONTROL_PATLADI', hata: String(e?.message ?? '?') } }; }
     }),
   );
 
   const kritik = kontroller.filter((k) => k.seviye === 'kritik');
   const uyari = kontroller.filter((k) => k.seviye === 'uyari');
   const seviye: Seviye = kritik.length ? 'kritik' : uyari.length ? 'uyari' : 'iyi';
-  const ozet = kritik.length
-    ? `${kritik.length} kritik, ${uyari.length} uyarı`
-    : uyari.length ? `${uyari.length} uyarı` : 'Her şey yolunda';
+  // Özet burada PLATFORM dilinde kuruluyor: alarmı ve cron kaydını okuyan
+  // sunucu tarafıdır. Ekran aynı işlevi kendi diliyle yeniden çağırır.
+  const ozet = nobetciOzeti(sozluk(VARSAYILAN_DIL), kritik.length, uyari.length);
 
-  return { seviye, ozet, kontroller, zaman: new Date().toISOString() };
+  return {
+    seviye,
+    ozet,
+    kritikSayisi: kritik.length,
+    uyariSayisi: uyari.length,
+    kontroller,
+    zaman: new Date().toISOString(),
+  };
 }
 
 /**
@@ -249,9 +270,14 @@ export async function alarmGonder(sonuc: NobetciSonuc): Promise<'gonderildi' | '
   if (!url) return 'kapali';
   if (sonuc.seviye === 'iyi') return 'gerekmiyor';
 
+  // Alarm sunucudan gidiyor: okuyan platform sahibidir, platform dili kullanılır.
+  const sz = sozluk(VARSAYILAN_DIL);
   const satirlar = sonuc.kontroller
     .filter((k) => k.seviye !== 'iyi')
-    .map((k) => `• [${k.seviye.toUpperCase()}] ${k.ad}: ${k.mesaj}${k.nedeni ? `\n   → ${k.nedeni}` : ''}`);
+    .map((k) => {
+      const neden = kontrolNedeni(sz, k.nedenKod);
+      return `• [${k.seviye.toUpperCase()}] ${kontrolAdi(sz, k.ad)}: ${kontrolMesaji(sz, k.mesajKod)}${neden ? `\n   → ${neden}` : ''}`;
+    });
   const text = `Nextus Servis nöbetçi — ${sonuc.ozet}\n${satirlar.join('\n')}`;
 
   try {

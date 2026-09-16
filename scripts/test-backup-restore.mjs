@@ -10,7 +10,7 @@
  * DateTime OLMAYAN bir alan açılırsa tarih kuralı sessizce yanlışa döner;
  * son test bunu yakalar.
  */
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -22,20 +22,38 @@ const kok = join(dirname(fileURLToPath(import.meta.url)), '..');
 // sessizce farklı bir kod üretebilir — o zaman test, kaynağı değil kendi
 // kopyasını test etmiş olur.
 const gecici = mkdtempSync(join(tmpdir(), 'st-restore-test-'));
-let mod;
+let mod, metin, sozlukMod;
 try {
   // node ile doğrudan tsc — npx/npx.cmd platforma göre değişir, bu değişmez.
   execFileSync(
     process.execPath,
-    [join(kok, 'node_modules/typescript/bin/tsc'), join(kok, 'src/lib/backup-restore.ts'),
-      '--outDir', gecici, '--module', 'esnext', '--target', 'es2022', '--skipLibCheck'],
+    [join(kok, 'node_modules/typescript/bin/tsc'),
+      join(kok, 'src/lib/backup-restore.ts'), join(kok, 'src/lib/yedek-metin.ts'),
+      join(kok, 'src/lib/i18n/sozluk.ts'), join(kok, 'src/lib/i18n/tr.ts'), join(kok, 'src/lib/i18n/en.ts'),
+      '--outDir', gecici, '--module', 'esnext', '--target', 'es2022',
+      '--moduleResolution', 'bundler', '--skipLibCheck'],
     { stdio: 'pipe' },
   );
+  // tsc uzantısız bırakıyor; Node ESM uzantı ister.
+  for (const [d, ...cift] of [
+    ['i18n/sozluk.js', ["from './tr'", "from './tr.js'"], ["from './en'", "from './en.js'"]],
+    ['yedek-metin.js', ["from './i18n/sozluk'", "from './i18n/sozluk.js'"]],
+  ]) {
+    const yol = join(gecici, d);
+    let icerik = readFileSync(yol, 'utf8');
+    for (const [a, b] of cift) icerik = icerik.replace(a, b);
+    writeFileSync(yol, icerik, 'utf8');
+  }
   mod = await import(pathToFileURL(join(gecici, 'backup-restore.js')).href);
+  metin = await import(pathToFileURL(join(gecici, 'yedek-metin.js')).href);
+  sozlukMod = await import(pathToFileURL(join(gecici, 'i18n/sozluk.js')).href);
 } finally {
   rmSync(gecici, { recursive: true, force: true });
 }
 const { YAZMA_SIRASI, MODEL_ADI, tarihAlaniMi, tarihleriCevir, dogrulaYedek, hazirlaSatirlar, hazirlaKullanicilar, hazirlaFirmaAyarlari, dosyadaBolumVar } = mod;
+const { yedekBulgusu } = metin;
+// Bulgu KOD dönüyor; cümlenin iki dilde de kurulduğunu burada kanıtlıyoruz.
+const TRS = sozlukMod.sozluk('tr'), ENS = sozlukMod.sozluk('en');
 
 let gecti = 0, kaldi = 0;
 const t = (ad, fn) => {
@@ -60,7 +78,7 @@ console.log('\nYedekten geri yükleme testleri\n');
 
 t('geçerli yedek doğrulanır', () => {
   const s = dogrulaYedek(ornekYedek());
-  dogru(s.ok, 'geçerli yedek reddedildi: ' + s.hatalar.join(', '));
+  dogru(s.ok, 'geçerli yedek reddedildi: ' + s.hatalar.map((h) => h.kod).join(', '));
   esit(s.sayimlar.customers, 1);
   esit(s.kaynakFirma, 'Kabim Elektronik');
 });
@@ -78,12 +96,14 @@ t('boş/bozuk girdi çökmez', () => {
 
 t('fotoğrafsız yedek uyarı verir', () => {
   const s = dogrulaYedek(ornekYedek());
-  dogru(s.uyarilar.some((u) => u.includes('fotoğraf')), 'fotoğraf uyarısı yok');
+  dogru(s.uyarilar.some((u) => u.kod === 'FOTOGRAFSIZ'), 'fotoğraf uyarısı yok');
 });
 
 t('şifresiz kullanıcı uyarısı verilir', () => {
   const s = dogrulaYedek(ornekYedek());
-  dogru(s.uyarilar.some((u) => u.includes('ŞİFRE YOK')), 'şifre uyarısı yok');
+  const u = s.uyarilar.find((x) => x.kod === 'SIFRESIZ');
+  dogru(u, 'şifre uyarısı yok');
+  esit(u.n, 1, 'kullanıcı sayısı uyarıya geçmedi');
 });
 
 t('tenantId hedefe yeniden yazılır', () => {
@@ -161,8 +181,12 @@ t('dosyada olmayan bölüm SİLİNMEZ (eski yedek kasayı yok etmesin)', () => {
   dogru(dosyadaBolumVar({ expenses: [] }, 'expenses'), 'boş dizi bölüm sayılmadı');
   // Uyarı metni artık "boş geri yüklenir" değil "olduğu gibi bırakılır" demeli
   const s2 = dogrulaYedek(y);
-  const u = s2.uyarilar.find((x) => x.includes('financialTransactions'));
-  dogru(u && u.includes('OLDUĞU GİBİ'), 'eksik bölüm uyarısı silme vaadi veriyor: ' + u);
+  const u = s2.uyarilar.find((x) => x.kod === 'BOLUM_YOK' && x.tablo === 'financialTransactions');
+  dogru(u, 'eksik bölüm uyarısı yok');
+  // Uyarı cümlesi "boş geri yüklenir" değil "olduğu gibi bırakılır" demeli:
+  // bu söz veriyi koruyor, tersi kasayı siler.
+  dogru(/OLDUĞU GİBİ/.test(yedekBulgusu(TRS, u)), 'TR uyarısı silme vaadi veriyor');
+  dogru(/LEFT AS IT IS/.test(yedekBulgusu(ENS, u)), 'EN uyarısı silme vaadi veriyor');
 });
 
 t('her tablonun bir Prisma modeli var', () => {
@@ -188,7 +212,7 @@ t('eksik bölüm çökme yerine uyarı üretir', () => {
   const y = ornekYedek(); delete y.payments;
   const s = dogrulaYedek(y);
   dogru(s.ok, 'eksik bölüm hata sayıldı');
-  dogru(s.uyarilar.some((u) => u.includes('payments')), 'eksik bölüm uyarısı yok');
+  dogru(s.uyarilar.some((u) => u.kod === 'BOLUM_YOK' && u.tablo === 'payments'), 'eksik bölüm uyarısı yok');
   esit(hazirlaSatirlar(y, 'YENI').payments, []);
 });
 

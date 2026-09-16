@@ -109,7 +109,8 @@ export interface ZincirSonuc {
   saglam: boolean;
   incelenen: number;
   ilkBozukId?: string;
-  sebep?: string;
+  /** Cümle DEĞİL kod: ekran okuyanın dilinde yazar. */
+  sebepKod?: 'ZINCIR_KOPUK' | 'HASH_UYUSMUYOR';
 }
 
 /**
@@ -126,7 +127,7 @@ export async function verifyAuditChain(tenantId: string, limit = 5000): Promise<
   let beklenenPrev: string | null = null;
   for (const k of kayitlar) {
     if ((k.prevHash ?? null) !== beklenenPrev) {
-      return { saglam: false, incelenen: kayitlar.length, ilkBozukId: k.id, sebep: 'Zincir kopuk — araya kayıt eklenmiş ya da silinmiş olabilir' };
+      return { saglam: false, incelenen: kayitlar.length, ilkBozukId: k.id, sebepKod: 'ZINCIR_KOPUK' };
     }
     const govde = [
       k.tenantId, k.userId ?? '', k.action, k.entityType, k.entityId,
@@ -135,7 +136,7 @@ export async function verifyAuditChain(tenantId: string, limit = 5000): Promise<
     ].join('|');
     const beklenen = crypto.createHash('sha256').update(govde, 'utf8').digest('hex');
     if (beklenen !== k.hash) {
-      return { saglam: false, incelenen: kayitlar.length, ilkBozukId: k.id, sebep: 'Kayıt içeriği hash ile uyuşmuyor — satır sonradan değiştirilmiş' };
+      return { saglam: false, incelenen: kayitlar.length, ilkBozukId: k.id, sebepKod: 'HASH_UYUSMUYOR' };
     }
     beklenenPrev = k.hash;
   }

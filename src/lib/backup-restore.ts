@@ -16,6 +16,8 @@
  *    fiyat/vergi/adres ayarları geri yüklenir.
  */
 
+import type { YedekBulgu } from './yedek-metin';
+
 export const YEDEK_FORMAT = 'nexus-servis-backup';
 
 /** FK'ye güvenli yazma sırası. Ters çevrilmiş hâli silme sırasıdır. */
@@ -94,8 +96,9 @@ export function tarihleriCevir<T extends Record<string, any>>(satir: T): T {
 
 export interface DogrulamaSonuc {
   ok: boolean;
-  hatalar: string[];
-  uyarilar: string[];
+  /** Cümle DEĞİL kod: ekran okuyanın dilinde yazar (yedek-metin.ts). */
+  hatalar: YedekBulgu[];
+  uyarilar: YedekBulgu[];
   sayimlar: Record<string, number>;
   kullaniciSayisi: number;
   fotografDahil: boolean;
@@ -105,19 +108,19 @@ export interface DogrulamaSonuc {
 
 /** Dosya gerçekten bizim yedeğimiz mi, ve içinde ne var? */
 export function dogrulaYedek(ham: any): DogrulamaSonuc {
-  const hatalar: string[] = [];
-  const uyarilar: string[] = [];
+  const hatalar: YedekBulgu[] = [];
+  const uyarilar: YedekBulgu[] = [];
   const sayimlar: Record<string, number> = {};
 
   if (!ham || typeof ham !== 'object') {
-    return { ok: false, hatalar: ['Dosya okunamadı ya da JSON değil'], uyarilar, sayimlar, kullaniciSayisi: 0, fotografDahil: false, kaynakFirma: '', olusturma: null };
+    return { ok: false, hatalar: [{ kod: 'DOSYA_OKUNAMADI' }], uyarilar, sayimlar, kullaniciSayisi: 0, fotografDahil: false, kaynakFirma: '', olusturma: null };
   }
   const meta = ham._meta ?? {};
   if (meta.format !== YEDEK_FORMAT) {
-    hatalar.push(`Bu dosya bir Nextus Servis yedeği değil (format: ${meta.format ?? 'yok'})`);
+    hatalar.push({ kod: 'FORMAT_YANLIS', format: String(meta.format ?? '—') });
   }
   if (meta.version !== 1) {
-    hatalar.push(`Desteklenmeyen yedek sürümü: ${meta.version ?? 'yok'}`);
+    hatalar.push({ kod: 'SURUM_DESTEKSIZ', surum: String(meta.version ?? '—') });
   }
 
   for (const t of YAZMA_SIRASI) {
@@ -126,20 +129,20 @@ export function dogrulaYedek(ham: any): DogrulamaSonuc {
       sayimlar[t] = 0;
       // "Boş geri yüklenir" DEĞİL: eski yedeklerde kasa/gider bölümü yok ve
       // boş yazmak hedefteki veriyi yok ederdi. Dokunulmuyor.
-      uyarilar.push(`"${t}" bölümü dosyada yok — bu tablo OLDUĞU GİBİ BIRAKILIR (silinmez, yazılmaz)`);
+      uyarilar.push({ kod: 'BOLUM_YOK', tablo: t });
       continue;
     }
-    if (!Array.isArray(dizi)) { hatalar.push(`"${t}" bir liste değil`); sayimlar[t] = 0; continue; }
+    if (!Array.isArray(dizi)) { hatalar.push({ kod: 'LISTE_DEGIL', tablo: t }); sayimlar[t] = 0; continue; }
     sayimlar[t] = dizi.length;
   }
 
   const kullanicilar = Array.isArray(ham.users) ? ham.users : [];
   const fotografDahil = Boolean(meta.photosIncluded);
   if (!fotografDahil && (sayimlar.readings ?? 0) > 0) {
-    uyarilar.push('Yedek fotoğrafsız alınmış — sayaç fotoğrafları geri gelmez (sayaç değerleri gelir)');
+    uyarilar.push({ kod: 'FOTOGRAFSIZ' });
   }
   if (kullanicilar.length > 0) {
-    uyarilar.push(`${kullanicilar.length} kullanıcı yedekte var ama ŞİFRE YOK — eksik olanlar pasif oluşturulur, yönetici şifre atamalı`);
+    uyarilar.push({ kod: 'SIFRESIZ', n: kullanicilar.length });
   }
 
   return {

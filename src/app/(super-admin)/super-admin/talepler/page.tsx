@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useT, useBicim } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 
 interface Lead {
   id: string; firma: string | null; yetkili: string | null; telefon: string | null;
@@ -11,6 +13,9 @@ interface Lead {
 }
 
 export default function TaleplerPage() {
+  const sz = useT();
+  const bic = useBicim();
+  const z = sz.superAdmin.talep;
   const [leads, setLeads] = useState<Lead[]>([]);
   const [bekleyen, setBekleyen] = useState(0);
   const [hepsi, setHepsi] = useState(false);
@@ -35,8 +40,7 @@ export default function TaleplerPage() {
     yukle();
   };
 
-  const tarih = (iso: string) =>
-    new Date(iso).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const tarih = (iso: string) => bic.tarihSaat(iso);
 
   const telLink = (t: string | null) => (t ? 'tel:+9' + t.replace(/\D/g, '').replace(/^9?0?/, '0') : undefined);
   const waLink = (t: string | null) => {
@@ -52,31 +56,28 @@ export default function TaleplerPage() {
       <div className="border-b border-white/10 bg-black/30">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <Link href="/super-admin/dashboard" className="text-xs text-gray-400 hover:text-white">← Panel</Link>
-            <h1 className="text-2xl font-bold mt-1">Talepler</h1>
+            <Link href="/super-admin/dashboard" className="text-xs text-gray-400 hover:text-white">{sz.superAdmin.denetim.panelDon}</Link>
+            <h1 className="text-2xl font-bold mt-1">{z.baslik}</h1>
             <p className="text-xs text-gray-400 mt-1">
-              Landing sayfasındaki formdan gelen demo/bilgi talepleri
-              {bekleyen > 0 && <span className="text-amber-300 font-semibold"> · {bekleyen} bekliyor</span>}
+              {z.alt}
+              {bekleyen > 0 && <span className="text-amber-300 font-semibold"> {doldur(z.bekliyorEk, { n: bekleyen })}</span>}
             </p>
           </div>
           <button onClick={() => setHepsi(!hepsi)}
             className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10">
-            {hepsi ? 'Sadece bekleyenler' : 'Tümünü göster'}
+            {hepsi ? z.sadeceBekleyen : z.tumunuGoster}
           </button>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6">
-        {yukleniyor && <div className="text-gray-400 text-sm">Yükleniyor…</div>}
+        {yukleniyor && <div className="text-gray-400 text-sm">{sz.superAdmin.denetim.yukleniyor}</div>}
 
         {!yukleniyor && leads.length === 0 && (
           <div className="bg-white/3 border border-white/10 rounded-2xl p-10 text-center">
             <div className="text-3xl mb-2">📭</div>
-            <div className="font-semibold">{hepsi ? 'Hiç talep yok' : 'Bekleyen talep yok'}</div>
-            <p className="text-xs text-gray-400 mt-2 max-w-md mx-auto">
-              Landing sayfasındaki form doldurulduğunda talepler burada birikir.
-              CRM bağlı olmasa bile hiçbir talep kaybolmaz.
-            </p>
+            <div className="font-semibold">{hepsi ? z.hicTalep : z.bekleyenYok}</div>
+            <p className="text-xs text-gray-400 mt-2 max-w-md mx-auto">{z.bosAlt}</p>
           </div>
         )}
 
@@ -86,18 +87,18 @@ export default function TaleplerPage() {
               className={`bg-white/3 border rounded-2xl p-4 ${l.okundu ? 'border-white/10 opacity-60' : 'border-amber-500/30'}`}>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <div className="font-bold">{l.firma || l.yetkili || 'İsimsiz talep'}</div>
+                  <div className="font-bold">{l.firma || l.yetkili || z.isimsiz}</div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {l.yetkili && l.firma ? `${l.yetkili} · ` : ''}
-                    {l.cihazSayisi ? `${l.cihazSayisi} cihaz · ` : ''}
+                    {l.cihazSayisi ? `${doldur(z.cihazEk, { n: l.cihazSayisi })} · ` : ''}
                     {tarih(l.createdAt)}
                     {l.kaynak ? ` · ${l.kaynak}` : ''}
-                    {l.crmDurum === 'hata' && <span className="text-red-300"> · CRM'e iletilemedi</span>}
+                    {l.crmDurum === 'hata' && <span className="text-red-300"> · {z.crmHata}</span>}
                   </div>
                 </div>
                 <button onClick={() => isaretle(l.id, !l.okundu)}
                   className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10 shrink-0">
-                  {l.okundu ? 'Geri al' : '✓ İlgilenildi'}
+                  {l.okundu ? z.geriAl : z.ilgilenildi}
                 </button>
               </div>
 

@@ -3,14 +3,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Eye, EyeOff } from 'lucide-react';
+import { useT } from '@/lib/i18n/client';
+
+/** Uç noktanın döndürdüğü hata kodları — cümleyi ekran kurar. */
+type GirisHatasi = 'ALAN_EKSIK' | 'TOTP_HATALI' | 'KIMLIK_HATALI' | 'SUNUCU_HATASI';
 
 export default function SuperAdminLoginPage() {
     const router = useRouter();
+    const sz = useT();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPass, setShowPass] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [hata, setHata] = useState<GirisHatasi | ''>('');
     // 2FA açıksa sunucu needsTotp döner; kod alanı ancak O ZAMAN açılır.
     const [totp, setTotp] = useState('');
     const [needsTotp, setNeedsTotp] = useState(false);
@@ -18,7 +23,7 @@ export default function SuperAdminLoginPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
+        setHata('');
         try {
             const res = await fetch('/api/super-admin/login', {
                 method: 'POST',
@@ -32,7 +37,7 @@ export default function SuperAdminLoginPage() {
                 if (data.needsTotp) setNeedsTotp(true);
                 // İlk kez kod isteniyorsa hata gösterme — kullanıcı henüz yanlış
                 // bir şey yapmadı, sadece ikinci adım gerekiyor.
-                setError(data.error || (data.needsTotp ? '' : 'Giriş başarısız'));
+                setHata(data.hata || (data.needsTotp ? '' : 'KIMLIK_HATALI'));
             }
         } finally {
             setLoading(false);
@@ -46,19 +51,19 @@ export default function SuperAdminLoginPage() {
                     <div className="w-16 h-16 bg-violet-600 rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-violet-900/50">
                         <Shield className="w-8 h-8 text-white" />
                     </div>
-                    <h1 className="text-2xl font-bold text-white">Süper Admin Girişi</h1>
-                    <p className="text-gray-500 text-sm mt-1">Platform yönetim paneli</p>
+                    <h1 className="text-2xl font-bold text-white">{sz.superAdmin.girisBaslik}</h1>
+                    <p className="text-gray-500 text-sm mt-1">{sz.superAdmin.altBaslik}</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="bg-gray-900 border border-white/10 rounded-2xl p-6 space-y-4">
-                    {error && (
+                    {hata && (
                         <div className="bg-red-900/30 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
-                            {error}
+                            {sz.superAdmin.girisHata[hata]}
                         </div>
                     )}
 
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1.5">E-posta</label>
+                        <label className="block text-xs text-gray-400 mb-1.5">{sz.superAdmin.eposta}</label>
                         <input
                             type="email"
                             value={email}
@@ -70,7 +75,7 @@ export default function SuperAdminLoginPage() {
                     </div>
 
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1.5">Şifre</label>
+                        <label className="block text-xs text-gray-400 mb-1.5">{sz.giris.sifre}</label>
                         <div className="relative">
                             <input
                                 type={showPass ? 'text' : 'password'}
@@ -89,7 +94,7 @@ export default function SuperAdminLoginPage() {
 
                     {needsTotp && (
                         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                            <label className="block text-xs text-gray-300 mb-1.5">Doğrulama kodu</label>
+                            <label className="block text-xs text-gray-300 mb-1.5">{sz.giris.dogrulamaKodu}</label>
                             <input
                                 type="text" inputMode="numeric" autoComplete="one-time-code" autoFocus
                                 value={totp} onChange={e => setTotp(e.target.value)} maxLength={13}
@@ -97,8 +102,9 @@ export default function SuperAdminLoginPage() {
                                 placeholder="000000"
                             />
                             <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-                                Doğrulama uygulamanızdaki 6 haneli kod. Telefonunuz yanınızda
-                                değilse <b className="text-gray-400">kurtarma kodlarından</b> birini yazabilirsiniz.
+                                {sz.giris.dogrulamaAciklamaOn}{' '}
+                                <b className="text-gray-400">{sz.giris.dogrulamaAciklamaVurgu}</b>{' '}
+                                {sz.giris.dogrulamaAciklamaSon}
                             </p>
                         </div>
                     )}
@@ -108,12 +114,12 @@ export default function SuperAdminLoginPage() {
                         disabled={loading}
                         className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold transition-all disabled:opacity-50"
                     >
-                        {loading ? 'Giriş yapılıyor...' : needsTotp ? 'Doğrula ve Gir' : 'Giriş Yap'}
+                        {loading ? sz.giris.giriliyor : needsTotp ? sz.giris.dogrulaVeGir : sz.giris.gir}
                     </button>
                 </form>
 
                 <p className="text-center text-xs text-gray-600 mt-4">
-                    <a href="/login" className="hover:text-gray-400">← Normal Kullanıcı Girişi</a>
+                    <a href="/login" className="hover:text-gray-400">← {sz.superAdmin.normalGiris}</a>
                 </p>
             </div>
         </div>

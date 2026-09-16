@@ -25,13 +25,13 @@ export async function POST(req: NextRequest) {
   if (!sa) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   let govde: any;
-  try { govde = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { govde = await req.json(); } catch { return NextResponse.json({ hata: 'GECERSIZ_ISTEK' }, { status: 400 }); }
 
   const { tenantId, backup, onay } = govde as { tenantId?: string; backup?: any; onay?: string };
-  if (!tenantId) return NextResponse.json({ error: 'Hedef bayi seçilmedi' }, { status: 400 });
+  if (!tenantId) return NextResponse.json({ hata: 'BAYI_SECILMEDI' }, { status: 400 });
 
   const hedef = await prisma.tenant.findFirst({ where: { id: tenantId, deletedAt: null }, select: { id: true, name: true } });
-  if (!hedef) return NextResponse.json({ error: 'Hedef bayi bulunamadı' }, { status: 404 });
+  if (!hedef) return NextResponse.json({ hata: 'BAYI_YOK' }, { status: 404 });
 
   const kontrol = dogrulaYedek(backup);
 
@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ...onizleme,
       uygulandi: false,
-      onayGerekli: `Uygulamak için "onay" alanına birebir şunu yazın: ${hedef.name}`,
+      // Metin değil AD: ekran cümleyi kendi dilinde kuruyor.
+      onayGerekli: hedef.name,
     });
   }
 
@@ -132,7 +133,7 @@ export async function POST(req: NextRequest) {
     // Transaction geri alındı — hedefteki veri olduğu gibi duruyor.
     console.error('[restore] başarısız:', e?.message);
     return NextResponse.json(
-      { ...onizleme, uygulandi: false, error: `Geri yükleme başarısız, hiçbir değişiklik yapılmadı: ${e?.message ?? 'bilinmeyen hata'}` },
+      { ...onizleme, uygulandi: false, hata: 'UYGULAMA_HATASI', hataAyrinti: String(e?.message ?? '?') },
       { status: 500 },
     );
   }

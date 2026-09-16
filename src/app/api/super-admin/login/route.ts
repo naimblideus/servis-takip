@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
         const { email, password, totp } = await req.json();
         if (!email || !password) {
-            return NextResponse.json({ error: 'E-posta ve şifre gerekli' }, { status: 400 });
+            return NextResponse.json({ hata: 'ALAN_EKSIK' }, { status: 400 });
         }
 
         const r = await loginSuperAdmin(email, password, totp);
@@ -23,11 +23,11 @@ export async function POST(req: NextRequest) {
             }
             if (r.reason === 'BAD_TOTP') {
                 return NextResponse.json(
-                    { needsTotp: true, error: 'Doğrulama kodu hatalı veya süresi geçti' },
+                    { needsTotp: true, hata: 'TOTP_HATALI' },
                     { status: 401 },
                 );
             }
-            return NextResponse.json({ error: 'E-posta veya şifre hatalı' }, { status: 401 });
+            return NextResponse.json({ hata: 'KIMLIK_HATALI' }, { status: 401 });
         }
 
         const session = r.session;
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
         return res;
     } catch (error: any) {
         console.error('SA login error:', error);
-        return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+        return NextResponse.json({ hata: 'SUNUCU_HATASI' }, { status: 500 });
     }
 }
 

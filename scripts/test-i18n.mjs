@@ -109,7 +109,13 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   // Sutun basligi 'Model' — iki dilde de ayni kelime.
   'teklif.sutunModel',
   // Veritabani terimi (upsert) — cevrilmez.
-  'iceAktar.uyari2Son']);
+  'iceAktar.uyari2Son',
+  // 'Disk' ve 'WhatsApp' iki dilde de ayni yazilir.
+  'nobetci.ad.DISK', 'nobetci.ad.WHATSAPP',
+  // 'Slug' URL terimi — Turkcesi de slug.
+  'superAdmin.yeni.slug', 'superAdmin.detay.alanSlug',
+  // 'Plan' iki dilde de ayni kelime.
+  'superAdmin.eskiPanel.plan']);
   const ayni = trY.filter(([p, v]) => !AYNI_OLABILIR.has(p) && String(v).length > 3 && oku(en, p) === v).map(([p]) => p);
   t('★ tr ile en birebir aynı metin yok (özel adlar dışında)', ayni.length === 0, ayni.slice(0, 8));
 }

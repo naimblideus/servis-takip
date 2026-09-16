@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nobetciCalistir, alarmGonder } from '@/lib/nobetci';
+import { kontrolAdi, kontrolMesaji } from '@/lib/nobetci-metin';
+import { sozluk, VARSAYILAN_DIL } from '@/lib/i18n/sozluk';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -29,9 +31,11 @@ export async function GET(req: NextRequest) {
   const sonuc = await nobetciCalistir();
   const alarm = await alarmGonder(sonuc);
 
+  // Sunucu kaydı: okuyan platform sahibidir, platform dilinde yazılır.
+  const sz = sozluk(VARSAYILAN_DIL);
   console.log(`[nobetci] ${sonuc.seviye}: ${sonuc.ozet} (alarm: ${alarm})`);
   for (const k of sonuc.kontroller.filter((x) => x.seviye !== 'iyi')) {
-    console.log(`[nobetci]   ${k.seviye}: ${k.ad} — ${k.mesaj}`);
+    console.log(`[nobetci]   ${k.seviye}: ${kontrolAdi(sz, k.ad)} — ${kontrolMesaji(sz, k.mesajKod)}`);
   }
 
   return NextResponse.json(
