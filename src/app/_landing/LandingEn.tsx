@@ -21,12 +21,12 @@ const BODY = `
       <span>Nextus Servis</span>
     </a>
     <ul class="nav-links">
-      <li><a href="#urun" class="nav-link">Ürün</a></li>
-      <li><a href="#hesap" class="nav-link">Kaçan Gelir Hesabı</a></li>
-      <li><a href="#ozellikler" class="nav-link">Özellikler</a></li>
-      <li><a href="#nasil" class="nav-link">Nasıl Çalışır</a></li>
-      <li><a href="#fiyatlandirma" class="nav-link">Fiyatlar</a></li>
-      <li><a href="#sss" class="nav-link">SSS</a></li>
+      <li><a href="#urun" class="nav-link">Product</a></li>
+      <li><a href="#hesap" class="nav-link">Lost revenue</a></li>
+      <li><a href="#ozellikler" class="nav-link">Features</a></li>
+      <li><a href="#nasil" class="nav-link">How it works</a></li>
+      <li><a href="#fiyatlandirma" class="nav-link">Pricing</a></li>
+      <li><a href="#sss" class="nav-link">FAQ</a></li>
     </ul>
     <div class="nav-cta">
       <!-- Genel "Demoyu Dene" butonu BİLEREK YOK.
@@ -36,21 +36,21 @@ const BODY = `
            Demo hesabı DURUYOR (/login?demo=1 bilgileri doldurur) ama sahada,
            kurucunun yönettiği bir gösterim için. Buradaki yol WhatsApp: bir
            konuşma başlar, gösterimi kurucu yönetir, talep de kaybolmaz. -->
-      <a href="/en" class="btn btn-ghost btn-sm dil-sec" hreflang="en" lang="en" aria-label="Switch to English">EN</a>
-      <a href="#hesap" class="btn btn-ghost btn-sm">Hesapla</a>
-      <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20demosu%20ve%20fiyat%20bilgisi%20istiyorum" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><span class="nav-cta-long">WhatsApp'tan&nbsp;</span>Demo →</a>
-      <button class="menu-btn" id="menuBtn" aria-label="Menü" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
+      <a href="/" class="btn btn-ghost btn-sm dil-sec" hreflang="tr" lang="tr" aria-label="Türkçe sürüme geç">TR</a>
+      <a href="#hesap" class="btn btn-ghost btn-sm">Calculate</a>
+      <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20a%20demo%20of%20Nextus%20Servis%20and%20pricing" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><span class="nav-cta-long">On WhatsApp&nbsp;</span>Demo →</a>
+      <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
     </div>
   </div>
 </nav>
-<div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="Menü">
-  <a href="#urun" class="nav-link-m">Ürün</a>
-  <a href="#hesap" class="nav-link-m">Kaçan Gelir Hesabı</a>
-  <a href="#ozellikler" class="nav-link-m">Özellikler</a>
-  <a href="#nasil" class="nav-link-m">Nasıl Çalışır</a>
-  <a href="#fiyatlandirma" class="nav-link-m">Fiyatlar</a>
-  <a href="#sss" class="nav-link-m">SSS</a>
-  <a href="/en" class="nav-link-m" hreflang="en" lang="en">English</a>
+<div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="Menu">
+  <a href="#urun" class="nav-link-m">Product</a>
+  <a href="#hesap" class="nav-link-m">Lost revenue</a>
+  <a href="#ozellikler" class="nav-link-m">Features</a>
+  <a href="#nasil" class="nav-link-m">How it works</a>
+  <a href="#fiyatlandirma" class="nav-link-m">Pricing</a>
+  <a href="#sss" class="nav-link-m">FAQ</a>
+  <a href="/" class="nav-link-m" hreflang="tr" lang="tr">Türkçe</a>
 </div>
 
 <!-- ========== HERO ========== -->
@@ -70,48 +70,48 @@ const BODY = `
       <span class="pulse"></span>
       <span class="hb-label">B2B</span>
       <span class="hb-sep"></span>
-      <span>🖨 Yazıcı · fotokopi · ofis cihazı kiralama ve servis bayileri için</span>
+      <span>🖨 For printer, copier and office equipment rental and service dealers</span>
     </div>
 
-    <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20canli%20demo%20istiyorum" target="_blank" rel="noopener" class="hero-demo-pill">
+    <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20a%20live%20demo%20of%20Nextus%20Servis" target="_blank" rel="noopener" class="hero-demo-pill">
       <span class="hdp-play">
         <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true" focusable="false"><polygon points="6,4 20,12 6,20"/></svg>
       </span>
-      <span class="hdp-text">Ekranı paylaşarak 15 dakikalık canlı demo</span>
+      <span class="hdp-text">A 15-minute live demo over a shared screen</span>
       <span class="hdp-arrow">→</span>
     </a>
 
     <h1 class="hero-title">
-      Sayacı okuyun,
-      <span class="gradient-text">faturayı sistem kessin</span>
+      Read the meter,
+      <span class="gradient-text">let the system raise the invoice</span>
       <span class="line-2" style="font-size:.56em;margin-top:12px;letter-spacing:-0.02em;color:#d4d4dc;font-weight:700">
-        kaçan gelir
-        <span class="hero-rotator" aria-hidden="true"><span class="hero-rotator-spacer">tahsil edilsin</span><span class="hero-rotator-word active">görünsün</span><span class="hero-rotator-word">tahsil edilsin</span></span>
-        <span class="sr-only">görünsün ve tahsil edilsin</span>
+        lost revenue
+        <span class="hero-rotator" aria-hidden="true"><span class="hero-rotator-spacer">gets paid</span><span class="hero-rotator-word active">shows up</span><span class="hero-rotator-word">gets paid</span></span>
+        <span class="sr-only">shows up and gets paid</span>
       </span>
     </h1>
 
     <p class="hero-sub">
-      Kiralık cihazlarınızın sayacı okunmazsa o ay <strong>hiç faturalanmıyor</strong>. Nextus Servis; sayaç turunu, dahil hacim + aşım hesabını, servis fişini, barkodlu stoğu ve tahsilat takibini tek programda toplar — ay sonu icmali tek tuşa iner.
+      If a rental device’s meter is not read, that month it is <strong>never invoiced at all</strong>. Nextus Servis brings the meter round, the included-volume and overage maths, service tickets, barcoded stock and payment tracking into one program — the month-end summary comes down to a single button.
     </p>
 
     <div class="hero-ctas">
-      <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20icin%2014%20gunluk%20denemeyi%20baslatmak%20istiyorum" target="_blank" rel="noopener" class="btn btn-grad">14 Gün Ücretsiz Dene <span style="font-size:18px;line-height:1">→</span></a>
-      <a href="#hesap" class="btn btn-ghost">Kaçan gelirimi hesapla</a>
+      <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20of%20Nextus%20Servis" target="_blank" rel="noopener" class="btn btn-grad">Try it free for 14 days <span style="font-size:18px;line-height:1">→</span></a>
+      <a href="#hesap" class="btn btn-ghost">Work out what I am losing</a>
     </div>
 
     <div class="hero-meta">
-      <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> Kredi kartı istenmez</span>
-      <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> Kurulum + Excel aktarımı + 2 saat eğitim ücretsiz</span>
-      <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> Taahhüt yok</span>
+      <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> No card needed</span>
+      <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> Setup + Excel import + 2 hours of training, free</span>
+      <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> No commitment</span>
     </div>
   </div>
 
   <!-- PANEL MOCKUP -->
   <div class="hero-mockup-wrap">
-    <div class="float-tag t1"><span class="tag-ico">📟</span><span>Sayaç → fatura</span></div>
-    <div class="float-tag t2"><span class="tag-ico">📉</span><span>Kaçan Gelir paneli</span></div>
-    <div class="float-tag t3"><span class="tag-ico">🏷</span><span>Barkodlu stok</span></div>
+    <div class="float-tag t1"><span class="tag-ico">📟</span><span>Meter → invoice</span></div>
+    <div class="float-tag t2"><span class="tag-ico">📉</span><span>Lost revenue panel</span></div>
+    <div class="float-tag t3"><span class="tag-ico">🏷</span><span>Barcoded stock</span></div>
 
     <div class="hero-toast">
       <div class="hero-toast-ico">
@@ -120,64 +120,64 @@ const BODY = `
         </svg>
       </div>
       <div class="hero-toast-body">
-        <div class="hero-toast-title">Sayaç girildi</div>
-        <div class="hero-toast-meta">Canon iR-ADV C3826 • S/B 48.210 • Renkli 6.940</div>
+        <div class="hero-toast-title">Meter entered</div>
+        <div class="hero-toast-meta">Canon iR-ADV C3826 • Mono 48,210 • Colour 6,940</div>
       </div>
-      <div class="hero-toast-amt">Fatura hazır</div>
+      <div class="hero-toast-amt">Invoice ready</div>
     </div>
 
     <div class="hero-mockup">
       <div class="mockup-titlebar">
         <span class="dot-r r"></span><span class="dot-r y"></span><span class="dot-r g"></span>
-        <div class="titlebar-url">Nextus Servis · Bayi Paneli</div>
-        <span class="mock-sample-badge">örnek ekran</span>
+        <div class="titlebar-url">Nextus Servis · Dealer panel</div>
+        <span class="mock-sample-badge">example screen</span>
         <div class="titlebar-actions"><span></span><span></span><span></span></div>
       </div>
       <div class="dash">
         <aside class="dash-side">
           <div class="dash-side-logo"><span class="lm"></span><span>Nextus Servis</span></div>
-          <div class="dash-side-section">Genel</div>
+          <div class="dash-side-section">General</div>
           <div class="dash-nav-item active">
             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-            <span>Panel</span>
+            <span>Dashboard</span>
           </div>
           <div class="dash-nav-item">
             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
-            <span>Müşteriler</span>
+            <span>Customers</span>
           </div>
-          <div class="dash-side-section">Operasyon</div>
+          <div class="dash-side-section">Operations</div>
           <div class="dash-nav-item">
-            <span class="ico">🖨</span><span>Cihazlar</span>
+            <span class="ico">🖨</span><span>Devices</span>
             <span class="dash-nav-badge">142</span>
           </div>
           <div class="dash-nav-item">
-            <span class="ico">🎫</span><span>Servis Fişleri</span>
+            <span class="ico">🎫</span><span>Service tickets</span>
             <span class="dash-nav-badge">12</span>
           </div>
           <div class="dash-nav-item">
-            <span class="ico">📟</span><span>Sayaç Turu</span>
+            <span class="ico">📟</span><span>Meter round</span>
             <span class="dash-nav-badge">7</span>
           </div>
           <div class="dash-nav-item">
-            <span class="ico">🏷</span><span>Stok & Barkod</span>
+            <span class="ico">🏷</span><span>Stock & barcode</span>
           </div>
-          <div class="dash-side-section">Para</div>
+          <div class="dash-side-section">Money</div>
           <div class="dash-nav-item">
-            <span class="ico">🧾</span><span>Faturalar</span>
+            <span class="ico">🧾</span><span>Invoices</span>
           </div>
           <div class="dash-nav-item">
             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M3 3h18v18H3z"/><path d="M9 9h6v6H9z"/></svg>
-            <span>Raporlar</span>
+            <span>Reports</span>
           </div>
           <div class="dash-nav-item">
-            <span class="ico">🔁</span><span>Bayi Pazarı</span>
+            <span class="ico">🔁</span><span>Dealer market</span>
           </div>
         </aside>
 
         <div class="dash-main">
           <div class="dash-topbar">
             <div>
-              <div class="mock-h">Ay Sonu Kapanışı <span class="pill"><span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block"></span>Hazır</span></div>
+              <div class="mock-h">Month-end close <span class="pill"><span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block"></span>Ready</span></div>
             </div>
             <div class="dash-topbar-right">
               <span class="ico-btn">🔔</span>
@@ -188,9 +188,9 @@ const BODY = `
 
           <div class="dash-stats">
             <div class="stat-card s1">
-              <div class="label">Kiralık Cihaz</div>
+              <div class="label">Rental devices</div>
               <div class="val">142</div>
-              <div class="trend">↑ 6 yeni sözleşme</div>
+              <div class="trend">↑ 6 new contracts</div>
               <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none" aria-hidden="true" focusable="false">
                 <defs><linearGradient id="sp1" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#f97316" stop-opacity=".5"/><stop offset="100%" stop-color="#f97316" stop-opacity="0"/></linearGradient></defs>
                 <path d="M0,22 L10,18 L20,20 L30,14 L40,16 L50,10 L60,12 L70,6 L80,8 L80,28 L0,28 Z" fill="url(#sp1)"/>
@@ -198,9 +198,9 @@ const BODY = `
               </svg>
             </div>
             <div class="stat-card s2">
-              <div class="label">Açık Servis Fişi</div>
+              <div class="label">Open service tickets</div>
               <div class="val">12</div>
-              <div class="trend" style="color:#f59e0b">3 tanesi bugün açıldı</div>
+              <div class="trend" style="color:#f59e0b">3 of them opened today</div>
               <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none" aria-hidden="true" focusable="false">
                 <defs><linearGradient id="sp2" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#14b8a6" stop-opacity=".5"/><stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/></linearGradient></defs>
                 <path d="M0,8 L10,12 L20,10 L30,16 L40,14 L50,18 L60,15 L70,20 L80,17 L80,28 L0,28 Z" fill="url(#sp2)"/>
@@ -208,9 +208,9 @@ const BODY = `
               </svg>
             </div>
             <div class="stat-card s3">
-              <div class="label">Sayacı Okunmamış</div>
+              <div class="label">Meters not read</div>
               <div class="val">7</div>
-              <div class="trend" style="color:#f59e0b">↓ faturalanmayı bekliyor</div>
+              <div class="trend" style="color:#f59e0b">↓ waiting to be invoiced</div>
               <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none" aria-hidden="true" focusable="false">
                 <defs><linearGradient id="sp3" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#a855f7" stop-opacity=".5"/><stop offset="100%" stop-color="#a855f7" stop-opacity="0"/></linearGradient></defs>
                 <path d="M0,18 L10,15 L20,17 L30,12 L40,14 L50,9 L60,11 L70,7 L80,4 L80,28 L0,28 Z" fill="url(#sp3)"/>
@@ -223,13 +223,13 @@ const BODY = `
             <div class="dash-chart">
               <div class="dash-chart-head">
                 <div>
-                  <span class="t">Faturalanan tutar (son 30 gün)</span>
-                  <span class="dash-chart-total">Kira + servis + sarf</span>
+                  <span class="t">Invoiced in the last 30 days</span>
+                  <span class="dash-chart-total">Rent + service + consumables</span>
                 </div>
                 <div class="leg">
-                  <span><i style="background:#f97316"></i>Kira</span>
-                  <span><i style="background:#14b8a6"></i>Servis</span>
-                  <span><i style="background:#a855f7"></i>Sarf</span>
+                  <span><i style="background:#f97316"></i>Rent</span>
+                  <span><i style="background:#14b8a6"></i>Service</span>
+                  <span><i style="background:#a855f7"></i>Consumables</span>
                 </div>
               </div>
               <svg class="dash-chart-svg" viewBox="0 0 500 180" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -264,44 +264,44 @@ const BODY = `
                 <g transform="translate(288,2)">
                   <rect width="158" height="26" rx="7" fill="rgba(15,15,25,0.96)" stroke="rgba(255,255,255,0.12)"/>
                   <circle cx="12" cy="13" r="3" fill="#f97316"/>
-                  <text x="22" y="17" fill="#fff" font-size="10" font-family="JetBrains Mono, monospace" font-weight="600">Kira icmali kesildi</text>
+                  <text x="22" y="17" fill="#fff" font-size="10" font-family="JetBrains Mono, monospace" font-weight="600">Rent summary raised</text>
                 </g>
                 <g fill="rgba(255,255,255,0.30)" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">
-                  <text x="0" y="174" text-anchor="start">1. gün</text>
-                  <text x="125" y="174">8. gün</text>
-                  <text x="250" y="174">15. gün</text>
-                  <text x="375" y="174">22. gün</text>
-                  <text x="500" y="174" text-anchor="end">30. gün</text>
+                  <text x="0" y="174" text-anchor="start">Day 1</text>
+                  <text x="125" y="174">Day 8</text>
+                  <text x="250" y="174">Day 15</text>
+                  <text x="375" y="174">Day 22</text>
+                  <text x="500" y="174" text-anchor="end">Day 30</text>
                 </g>
               </svg>
             </div>
 
             <div class="dash-list">
-              <div class="dash-list-head">Bugün</div>
+              <div class="dash-list-head">Today</div>
               <div class="dash-list-item">
-                <div class="ava" style="background:var(--p2-grad)">SY</div>
-                <div class="info"><div class="name">Sayaç turu tamamlandı</div><div class="meta">Kadıköy rotası · 9 durak</div></div>
-                <div class="amt">9 cihaz</div>
+                <div class="ava" style="background:var(--p2-grad)">MR</div>
+                <div class="info"><div class="name">Meter round finished</div><div class="meta">Kadıköy route · 9 stops</div></div>
+                <div class="amt">9 devices</div>
               </div>
               <div class="dash-list-item">
                 <div class="ava" style="background:var(--p1-grad)">TN</div>
-                <div class="info"><div class="name">Toner bitiyor uyarısı</div><div class="meta">Sayaç hızına göre ~11 gün</div></div>
-                <div class="amt" style="color:#f59e0b">Sipariş</div>
+                <div class="info"><div class="name">Toner running out</div><div class="meta">~11 days at the current meter pace</div></div>
+                <div class="amt" style="color:#f59e0b">Order</div>
               </div>
               <div class="dash-list-item">
                 <div class="ava" style="background:var(--p3-grad)">QR</div>
-                <div class="info"><div class="name">QR'dan arıza bildirimi</div><div class="meta">Müşteri girişsiz bildirdi</div></div>
-                <div class="amt" style="color:#a855f7">Fiş açıldı</div>
+                <div class="info"><div class="name">Fault reported by QR</div><div class="meta">The customer reported it without signing in</div></div>
+                <div class="amt" style="color:#a855f7">Ticket opened</div>
               </div>
               <div class="dash-list-item">
                 <div class="ava" style="background:linear-gradient(135deg,#10b981,#06b6d4)">WA</div>
-                <div class="info"><div class="name">WhatsApp durum bildirimi</div><div class="meta">Yapılan işlem + tutar gönderildi</div></div>
-                <div class="amt">Tek tık</div>
+                <div class="info"><div class="name">WhatsApp status update</div><div class="meta">Work done + amount sent</div></div>
+                <div class="amt">One click</div>
               </div>
               <div class="dash-list-item">
-                <div class="ava" style="background:linear-gradient(135deg,#f59e0b,#a855f7)">İC</div>
-                <div class="info"><div class="name">Toplu icmal yazdırıldı</div><div class="meta">100 fiş → tek sayfa</div></div>
-                <div class="amt">Hazır</div>
+                <div class="ava" style="background:linear-gradient(135deg,#f59e0b,#a855f7)">SM</div>
+                <div class="info"><div class="name">Bulk summary printed</div><div class="meta">100 tickets → one page</div></div>
+                <div class="amt">Ready</div>
               </div>
             </div>
           </div>
@@ -321,13 +321,13 @@ const BODY = `
       <picture>
         <source media="(max-width:767px)" srcset="/servis-m/f-001.webp" width="800" height="450">
         <img class="patlatma-poster" src="/servis/f-001.webp" width="1440" height="810" decoding="async"
-             alt="Kiralık fotokopi makinesi, kapalı gövde">
+             alt="A rental copier, closed body">
       </picture>
       <canvas class="patlatma-tuval" aria-hidden="true"></canvas>
       <div class="patlatma-yazi">
         <div class="inner">
-          <span class="patlatma-goz">02 — Cihaz</span>
-          <h2 class="patlatma-h">Faturayı cihaz değil, parçaları yazdırır.</h2>
+          <span class="patlatma-goz">02 — Device</span>
+          <h2 class="patlatma-h">The invoice is printed by the parts, not the machine.</h2>
         </div>
       </div>
       <span class="patlatma-no">02</span>
@@ -339,9 +339,9 @@ const BODY = `
 <section class="roi" id="hesap">
   <div class="container">
     <div class="section-head reveal">
-      <span class="section-eyebrow"><span class="dot" style="background:#10b981"></span>Kaçan Gelir Hesabı</span>
-      <h2 class="section-title">Ayda ne kadarı <span class="gradient-text">hiç faturalanmıyor?</span></h2>
-      <p class="section-sub">Üç değeri kendi bayinize göre ayarlayın. Bu bir <strong>tahmin modelidir</strong>, garanti değildir — girdileri siz verirsiniz, hesap tarayıcınızdan çıkmaz.</p>
+      <span class="section-eyebrow"><span class="dot" style="background:#10b981"></span>Lost revenue</span>
+      <h2 class="section-title">How much a month <span class="gradient-text">is never invoiced?</span></h2>
+      <p class="section-sub">Set three values for your own business. This is an <strong>estimate, a model</strong>, not a guarantee — you provide the inputs and the maths never leaves your browser.</p>
     </div>
 
     <div class="roi-card reveal">
@@ -351,39 +351,39 @@ const BODY = `
       <div class="roi-presets">
         <div class="roi-presets-label">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          Cihaz sayısını hızlı ayarla — <span class="rp-label-note">kaçırma oranını siz girin</span>
+          Set the device count quickly — <span class="rp-label-note">you enter the miss rate</span>
         </div>
         <div class="roi-presets-row">
           <button class="roi-preset" type="button" data-c="20">
             <span class="rp-emoji" aria-hidden="true">🌱</span>
             <span class="rp-text">
-              <span class="rp-name">20 cihaz</span>
-              <span class="rp-meta">örnek büyüklük</span>
+              <span class="rp-name">20 devices</span>
+              <span class="rp-meta">example size</span>
             </span>
           </button>
           <button class="roi-preset active" type="button" data-c="60">
             <span class="rp-emoji" aria-hidden="true">🖨</span>
             <span class="rp-text">
-              <span class="rp-name">60 cihaz</span>
-              <span class="rp-meta">örnek büyüklük</span>
+              <span class="rp-name">60 devices</span>
+              <span class="rp-meta">example size</span>
             </span>
           </button>
           <button class="roi-preset" type="button" data-c="150">
             <span class="rp-emoji" aria-hidden="true">🏭</span>
             <span class="rp-text">
-              <span class="rp-name">150 cihaz</span>
-              <span class="rp-meta">örnek büyüklük</span>
+              <span class="rp-name">150 devices</span>
+              <span class="rp-meta">example size</span>
             </span>
           </button>
           <button class="roi-preset" type="button" data-c="300">
             <span class="rp-emoji" aria-hidden="true">🏢</span>
             <span class="rp-text">
-              <span class="rp-name">300 cihaz</span>
-              <span class="rp-meta">örnek büyüklük</span>
+              <span class="rp-name">300 devices</span>
+              <span class="rp-meta">example size</span>
             </span>
           </button>
         </div>
-        <p class="roi-presets-note">Bu düğmeler yalnızca <strong>cihaz sayısını</strong> ayarlar. Ortalama fatura ve kaçırma oranı sizin kendi rakamınız — sektör ortalaması diye bir veri elimizde yok, uydurmuyoruz.</p>
+        <p class="roi-presets-note">These buttons only set the <strong>device count</strong> . The average invoice and the miss rate are your own figures — we have no industry-average data and we will not invent one.</p>
       </div>
 
       <div class="roi-grid">
@@ -392,10 +392,10 @@ const BODY = `
           <div class="roi-side-head">
             <span class="roi-pill">
               <span class="roi-pill-dot"></span>
-              CANLI HESAPLAMA
+              LIVE CALCULATION
             </span>
-            <h3>Bayinizi tanıyalım</h3>
-            <p class="roi-side-sub">Üç slider — gerisi otomatik. Kaydırdığınızda aşağıdaki fiyat kartları da cihaz sayınıza göre güncellenir.</p>
+            <h3>Tell us about your business</h3>
+            <p class="roi-side-sub">Three sliders — the rest is automatic. As you move them, the pricing cards below update to your device count too.</p>
           </div>
 
           <!-- 1 -->
@@ -405,17 +405,17 @@ const BODY = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20h10"/><path d="M8 8h8"/></svg>
               </div>
               <div class="roi-input-meta">
-                <div class="roi-input-label">Kiralık cihaz sayısı</div>
-                <div class="roi-input-help">sözleşmeli, sayaç okunan cihazlar</div>
+                <div class="roi-input-label">Number of rental devices</div>
+                <div class="roi-input-help">devices under contract whose meters are read</div>
               </div>
               <div class="roi-input-value" id="vd-count">60</div>
             </div>
             <div class="roi-slider-wrap">
-              <input type="range" class="roi-slider" id="roi-count" min="5" max="400" step="1" value="60" aria-label="Kiralık cihaz sayısı" />
+              <input type="range" class="roi-slider" id="roi-count" min="5" max="400" step="1" value="60" aria-label="Number of rental devices" />
             </div>
             <div class="roi-input-foot">
               <span class="roi-tick">5</span>
-              <span class="roi-context"><span class="roi-context-dot"></span>sahadaki toplam cihaz</span>
+              <span class="roi-context"><span class="roi-context-dot"></span>total devices in the field</span>
               <span class="roi-tick">400</span>
             </div>
           </div>
@@ -427,18 +427,18 @@ const BODY = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
               </div>
               <div class="roi-input-meta">
-                <div class="roi-input-label">Cihaz başına aylık ortalama fatura</div>
-                <div class="roi-input-help">kira + sayaç aşımı, KDV hariç</div>
+                <div class="roi-input-label">Average monthly invoice per device</div>
+                <div class="roi-input-help">rent + meter overage, excluding VAT</div>
               </div>
-              <div class="roi-input-value" id="vd-bill">₺1.500</div>
+              <div class="roi-input-value" id="vd-bill">₺1,500</div>
             </div>
             <div class="roi-slider-wrap">
-              <input type="range" class="roi-slider" id="roi-bill" min="200" max="6000" step="50" value="1500" aria-label="Cihaz başına aylık ortalama fatura" />
+              <input type="range" class="roi-slider" id="roi-bill" min="200" max="6000" step="50" value="1500" aria-label="Average monthly invoice per device" />
             </div>
             <div class="roi-input-foot">
               <span class="roi-tick">₺200</span>
-              <span class="roi-context"><span class="roi-context-dot"></span>kendi ortalamanız</span>
-              <span class="roi-tick">₺6.000</span>
+              <span class="roi-context"><span class="roi-context-dot"></span>your own average</span>
+              <span class="roi-tick">₺6,000</span>
             </div>
           </div>
 
@@ -449,24 +449,24 @@ const BODY = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               </div>
               <div class="roi-input-meta">
-                <div class="roi-input-label">Tahmini kaçırma oranı</div>
-                <div class="roi-input-help">okunmayan sayaç · geç fatura · unutulan aşım — <strong>%10 sadece başlangıç örneği, kendi tahmininizi girin</strong></div>
+                <div class="roi-input-label">Estimated miss rate</div>
+                <div class="roi-input-help">unread meters · late invoices · forgotten overage — <strong>10% is only a starting example; enter your own estimate</strong></div>
               </div>
-              <div class="roi-input-value" id="vd-miss">%10</div>
+              <div class="roi-input-value" id="vd-miss">10%</div>
             </div>
             <div class="roi-slider-wrap">
-              <input type="range" class="roi-slider" id="roi-miss" min="1" max="30" step="1" value="10" aria-label="Tahmini kaçırma oranı" />
+              <input type="range" class="roi-slider" id="roi-miss" min="1" max="30" step="1" value="10" aria-label="Estimated miss rate" />
             </div>
             <div class="roi-input-foot">
-              <span class="roi-tick">%1</span>
-              <span class="roi-context"><span class="roi-context-dot"></span>sizin tahmininiz</span>
-              <span class="roi-tick">%30</span>
+              <span class="roi-tick">1%</span>
+              <span class="roi-context"><span class="roi-context-dot"></span>your estimate</span>
+              <span class="roi-tick">30%</span>
             </div>
           </div>
 
           <div class="roi-disclaimer">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            Girdileriniz tarayıcınızda kalır, hiçbir yere gönderilmez. Sonuçlar tahmindir; taahhüt değildir.
+            Your inputs stay in your browser and are sent nowhere. The results are estimates, not commitments.
           </div>
         </div>
 
@@ -475,10 +475,10 @@ const BODY = `
           <div class="roi-side-head">
             <span class="roi-pill positive">
               <span class="roi-pill-dot positive"></span>
-              SİZİN TABLONUZ
+              YOUR NUMBERS
             </span>
-            <h3>Faturalanmayan gelir</h3>
-            <p class="roi-side-sub">Aylık ve yıllık kaçan tutar, seçilen pakete göre net kazanç ve geri ödeme süresi.</p>
+            <h3>Revenue never invoiced</h3>
+            <p class="roi-side-sub">What you lose monthly and yearly, the net gain for the plan you pick, and the payback period.</p>
           </div>
 
           <div class="roi-hero-result">
@@ -509,30 +509,30 @@ const BODY = `
                   </g>
                   <g font-family="JetBrains Mono, monospace" font-size="8" fill="rgba(255,255,255,0.4)" text-anchor="middle">
                     <text x="20" y="112">0×</text>
-                    <text x="36" y="44">2,5×</text>
+                    <text x="36" y="44">2.5×</text>
                     <text x="100" y="14">5×</text>
-                    <text x="164" y="44">7,5×</text>
+                    <text x="164" y="44">7.5×</text>
                     <text x="180" y="112">10×</text>
                   </g>
                 </svg>
                 <div class="roi-gauge-center">
-                  <div class="roi-gauge-label">GERİ KAZANIM / MALİYET</div>
-                  <div class="roi-gauge-value" id="roiGaugeNum">2,1×</div>
-                  <div class="roi-gauge-status" id="roiGaugeStatus">✓ Çok iyi</div>
+                  <div class="roi-gauge-label">RECOVERED / COST</div>
+                  <div class="roi-gauge-value" id="roiGaugeNum">2.1×</div>
+                  <div class="roi-gauge-status" id="roiGaugeStatus">✓ Very good</div>
                 </div>
               </div>
 
               <div class="roi-hero-num-side">
-                <div class="roi-hero-label">Yıllık kaçan gelir</div>
-                <div class="roi-hero-num" id="roi-year">₺108.000</div>
+                <div class="roi-hero-label">Lost revenue a year</div>
+                <div class="roi-hero-num" id="roi-year">₺108,000</div>
                 <div class="roi-hero-meta">
-                  <span>Aylık <strong id="roi-month">₺9.000</strong></span>
+                  <span>Monthly <strong id="roi-month">₺9,000</strong></span>
                   <span class="roi-hero-sep">•</span>
-                  <span id="roi-basis">60 cihaz × ₺1.500 × %10</span>
+                  <span id="roi-basis">60 devices × ₺1,500 × 10%</span>
                 </div>
                 <div class="roi-hero-fiveyear">
-                  <span class="rh5y-label">Paket sonrası yıllık net kazanç:</span>
-                  <span class="rh5y-num" id="roi-net">₺39.912</span>
+                  <span class="rh5y-label">Net gain a year after the subscription:</span>
+                  <span class="rh5y-num" id="roi-net">₺39,912</span>
                 </div>
               </div>
             </div>
@@ -542,11 +542,11 @@ const BODY = `
           <div class="roi-projection">
             <div class="roi-proj-head">
               <div>
-                <div class="rp-eyebrow">📈 5 YILLIK PROJEKSİYON</div>
-                <div class="rp-title">Programla <strong>birikimli net kazanç</strong>; altta modelde <strong>geri kazanılmayan pay</strong></div>
+                <div class="rp-eyebrow">📈 5-YEAR PROJECTION</div>
+                <div class="rp-title">With the software <strong>cumulative net gain</strong>; below, the share the model <strong>does not recover</strong></div>
               </div>
               <div class="rp-diff-pill" id="rpDiffPill">
-                +₺200K / 5 yıl
+                +₺200K / 5 years
               </div>
             </div>
             <div class="roi-proj-chart-wrap">
@@ -554,8 +554,8 @@ const BODY = `
                    Metin ve uc noktalari SVG'nin USTUNDE HTML katmanindadir; boylece
                    dar ekranda harfler yatayda sikismaz, daireler elipse donmez. -->
               <svg class="roi-proj-chart" viewBox="0 0 480 180" preserveAspectRatio="none" role="img" aria-labelledby="projChartTitle projChartDesc">
-                <title id="projChartTitle">5 yıllık projeksiyon</title>
-                <desc id="projChartDesc">Yeşil eğri: programla birikimli net kazanç. Kırmızı kesikli eğri: modelde geri kazanılmayan pay. Değerler solda ve rozette sayı olarak da yazılıdır.</desc>
+                <title id="projChartTitle">5-year projection</title>
+                <desc id="projChartDesc">Green curve: cumulative net gain with the software. Red dashed curve: the share the model does not recover. The values are also written out on the left and in the badge.</desc>
                 <defs>
                   <linearGradient id="projWith" x1="0" x2="0" y1="0" y2="1">
                     <stop offset="0%" stop-color="#10b981" stop-opacity=".45"/>
@@ -586,13 +586,13 @@ const BODY = `
               <span class="proj-dot proj-dot-without" id="projWithoutEnd" aria-hidden="true"></span>
               <span class="proj-end-label" id="projEndLabel"><span id="projEndLabelText">+₺200K</span></span>
               <div class="roi-proj-axis">
-                <span>1.yıl</span><span>2.yıl</span><span>3.yıl</span><span>4.yıl</span><span>5.yıl</span>
+                <span>Yr 1</span><span>Yr 2</span><span>Yr 3</span><span>Yr 4</span><span>Yr 5</span>
               </div>
             </div>
             <div class="roi-proj-legend">
-              <span><i class="rpl-with"></i><strong>Nextus Servis ile</strong> · birikimli net kazanç (bugünkü düzene göre fark)</span>
-              <span><i class="rpl-without"></i><strong>Modelde geri kazanılmayan pay</strong> · birikimli (kaçan gelirin %30'u)</span>
-              <span class="rpl-note">İki çizgi de aynı birimde: bugünkü düzene göre fark. Rozetteki tutar yeşil çizginin 5. yıl ucudur.</span>
+              <span><i class="rpl-with"></i><strong>With Nextus Servis</strong> · cumulative net gain (the difference against how you work today)</span>
+              <span><i class="rpl-without"></i><strong>The share the model does not recover</strong> · cumulative (30% of the lost revenue)</span>
+              <span class="rpl-note">Both lines are in the same unit: the difference against how you work today. The figure in the badge is the far end of the green line at year 5.</span>
             </div>
           </div>
 
@@ -601,15 +601,15 @@ const BODY = `
             <div class="roi-mini">
               <div class="roi-mini-icon">📅</div>
               <div class="roi-mini-body">
-                <div class="roi-mini-num" id="roi-monthly-mini">₺9.000</div>
-                <div class="roi-mini-label">Aylık kaçan gelir</div>
+                <div class="roi-mini-num" id="roi-monthly-mini">₺9,000</div>
+                <div class="roi-mini-label">Lost revenue a month</div>
               </div>
             </div>
             <div class="roi-mini">
               <div class="roi-mini-icon">⚡</div>
               <div class="roi-mini-body">
-                <div class="roi-mini-num" id="roi-payback">&lt; 1 ay</div>
-                <div class="roi-mini-label">Yazılımın geri ödeme süresi</div>
+                <div class="roi-mini-num" id="roi-payback">&lt; 1 month</div>
+                <div class="roi-mini-label">Payback period for the software</div>
               </div>
             </div>
           </div>
@@ -617,20 +617,20 @@ const BODY = `
           <!-- DAGILIM -->
           <div class="roi-breakdown">
             <div class="roi-breakdown-head">
-              <span>Net kazanç nasıl çıkıyor?</span>
-              <span class="roi-breakdown-total" id="roi-recovered">₺75.600 geri kazanım</span>
+              <span>How does the net gain come out?</span>
+              <span class="roi-breakdown-total" id="roi-recovered">₺75,600 recovered</span>
             </div>
             <div class="roi-breakdown-bar">
               <div class="rbb-segment rbb-1" id="rbb-net" style="width:53%"></div>
               <div class="rbb-segment rbb-2" id="rbb-cost" style="width:47%"></div>
             </div>
             <div class="roi-breakdown-legend">
-              <span><i class="rl-1"></i>Yıllık net kazanç <strong id="rbl-net">₺39.912</strong></span>
-              <span><i class="rl-2"></i>Yıllık yazılım maliyeti <strong id="rbl-cost">₺35.688</strong></span>
-              <span class="cost-line"><i class="rl-cost"></i>Modelde geri kazanılmayan pay <strong id="rbl-rest">₺32.400</strong></span>
+              <span><i class="rl-1"></i>Net gain a year <strong id="rbl-net">₺39,912</strong></span>
+              <span><i class="rl-2"></i>Software cost a year <strong id="rbl-cost">₺35,688</strong></span>
+              <span class="cost-line"><i class="rl-cost"></i>The share the model does not recover <strong id="rbl-rest">₺32,400</strong></span>
             </div>
             <div class="roi-assume">
-              <strong>Varsayım:</strong> kaçan gelirin <strong>%70'i</strong> geri kazanılıyor kabul edilir; kalan %30 modelde hesaba katılmaz. <strong>%70 ölçülmüş bir veri değil, bizim varsayımımızdır</strong> — siz farklı düşünüyorsanız birlikte değiştirelim. Yazılım maliyeti <strong>Profesyonel pakete</strong> göre alınır (taban ₺2.099 + dahil 25 cihaz üstü her cihaz ₺25, aylık ödeme, KDV hariç). Diğer paketlerin aynı cihaz sayısındaki fiyatını fiyat tablosunda görürsünüz. Yıllık ödemede 2 ay bedava olduğu için net kazanç bu tablodakinden yüksek çıkar.
+              <strong>Assumption:</strong> of the lost revenue, <strong>70%</strong> is taken to be recovered; the remaining 30% is left out of the model. <strong>70% is not measured data, it is our assumption</strong> — if you see it differently, let us change it together. The software cost is taken from the <strong>Professional plan</strong>  (₺2,099 base + ₺25 for each device above the 25 included, paid monthly, excluding VAT). The pricing table shows what the other plans cost at the same device count. Paid yearly you get 2 months free, so the net gain comes out higher than this table shows.
             </div>
           </div>
 
@@ -639,20 +639,20 @@ const BODY = `
             <div class="roi-recommend-glow"></div>
             <div class="roi-recommend-eyebrow">
               <span class="roi-rec-spark">✨</span>
-              <span>HESAP PROFESYONEL PAKETE GÖRE</span>
+              <span>FIGURES BASED ON THE PROFESSIONAL PLAN</span>
             </div>
             <div class="roi-recommend-row">
               <div>
-                <div class="roi-recommend-name" id="roi-rec-name">Profesyonel</div>
-                <p class="roi-recommend-desc"><strong id="roi-rec-detail">60 cihaz: ₺2.099 taban + 35 × ₺25</strong> — maliyetin geri gelmesi <strong id="roi-rec-payback">&lt; 1 ay</strong>. Diğer iki paketin aynı cihaz sayısındaki fiyatını fiyat tablosunda görebilirsiniz.</p>
+                <div class="roi-recommend-name" id="roi-rec-name">Professional</div>
+                <p class="roi-recommend-desc"><strong id="roi-rec-detail">60 devices: ₺2,099 base + 35 × ₺25</strong> — for the cost to come back <strong id="roi-rec-payback">&lt; 1 month</strong>. The pricing table shows what the other two plans cost at the same device count.</p>
               </div>
               <div class="roi-recommend-price">
-                <div class="roi-recommend-price-num" id="roi-rec-price">₺2.974</div>
-                <div class="roi-recommend-price-period">/ ay + KDV</div>
+                <div class="roi-recommend-price-num" id="roi-rec-price">₺2,974</div>
+                <div class="roi-recommend-price-period">/ month + VAT</div>
               </div>
             </div>
             <a href="#fiyatlandirma" class="btn btn-grad btn-block roi-cta-btn">
-              Fiyat tablosunu gör <span class="arr">→</span>
+              See the pricing table <span class="arr">→</span>
             </a>
           </div>
         </div>
@@ -662,12 +662,12 @@ const BODY = `
       <div class="roi-money-ticker">
         <div class="rmt-pulse"></div>
         <div class="rmt-text">
-          <span id="rmtIdle">Kaydırıcıları kendi bayinize göre ayarlayın; <strong>sizin rakamlarınıza göre</strong> kaçan gelir burada işlemeye başlar.</span>
-          <span id="rmtLive" hidden>Kaydırıcıya dokunduğunuzdan beri, <strong>girdiğiniz rakamlara göre</strong> <strong id="rmtAmount">₺0</strong> faturalanmamış gelir birikti</span>
+          <span id="rmtIdle">Set the sliders to your own business; <strong>against your own figures</strong> the lost revenue starts ticking here.</span>
+          <span id="rmtLive" hidden>Since you touched the slider, <strong>on the figures you entered</strong> <strong id="rmtAmount">₺0</strong> of uninvoiced revenue has built up</span>
         </div>
         <div class="rmt-rate" id="rmtRateWrap" hidden>
           <span class="rmt-rate-num" id="rmtRate">₺0</span>
-          <span class="rmt-rate-unit">/ saat</span>
+          <span class="rmt-rate-unit">/ hour</span>
         </div>
       </div>
     </div>
@@ -680,46 +680,46 @@ const BODY = `
     <div class="pd-grid">
       <div class="pd-content reveal reveal-right">
         <span class="pd-eyebrow">🖨 Nextus Servis</span>
-        <h2 class="pd-title">Kiralama bayisinin <span class="p2-text">tüm işi</span> tek programda</h2>
-        <p class="pd-tagline">Müşteri ve cihaz kartından sayaç turuna, servis fişinden tahsilata kadar aynı yerde.</p>
-        <p class="pd-desc">Nextus Servis genel amaçlı bir "iş takip" programı değil. Yazıcı, fotokopi ve ofis cihazı <strong>kiralayan ve servis veren bayiler</strong> için yazıldı: sayaç okuma, dahil hacim + aşım fiyatı, cihaz kârlılığı, toner tahmini ve rota planlama gibi bu işin kendine has adımları uygulamanın merkezinde duruyor.</p>
+        <h2 class="pd-title">A rental dealer’s <span class="p2-text">whole job</span> in one program</h2>
+        <p class="pd-tagline">From the customer and device card to the meter round, from the service ticket to the payment — all in the same place.</p>
+        <p class="pd-desc">Nextus Servis is not a general-purpose “job tracker”. It was written for dealers who <strong>rent out and service printers, copiers and office equipment</strong> : meter reading, included volume and overage pricing, device profitability, toner forecasting and route planning — the steps that belong to this trade sit at the centre of the app.</p>
 
         <div class="pd-features">
           <div class="pd-feature">
             <div class="pd-feature-icon">📟</div>
-            <h3>Sayaçtan otomatik fatura</h3>
-            <p>Sayaç okumasını girin; dahil hacim ve aşım fiyatına göre kira faturası kendiliğinden hesaplansın. Fatura öncesi sayaç ön kontrolü eksikleri size gösterir.</p>
+            <h3>Invoices straight from the meter</h3>
+            <p>Enter the meter reading and the rent invoice works itself out from the included volume and the overage price. A pre-invoice meter check shows you what is missing.</p>
           </div>
           <div class="pd-feature">
             <div class="pd-feature-icon">📉</div>
-            <h3>Kaçan Gelir paneli</h3>
-            <p>Sayacı geç girilen ya da hiç girilmeyen cihazlar isim isim listelenir. "Bu ay kimi faturalamadık?" sorusu tahmine kalmaz.</p>
+            <h3>Lost revenue panel</h3>
+            <p>Devices whose meters are late or never entered are listed by name. “Who did we not invoice this month?” stops being guesswork.</p>
           </div>
           <div class="pd-feature">
             <div class="pd-feature-icon">🎫</div>
-            <h3>Servis fişi ve QR arıza bildirimi</h3>
-            <p>Cihaz teslim al, fişi aç, işlemi ve parçayı işle, kapat. Müşteri QR'ı okutup <strong>giriş yapmadan</strong> arıza bildirebilir.</p>
+            <h3>Service tickets and QR fault reports</h3>
+            <p>Take the device in, open a ticket, record the work and the parts, close it. The customer can scan the QR and report a fault <strong>without signing in</strong> .</p>
           </div>
           <div class="pd-feature">
             <div class="pd-feature-icon">🏷</div>
-            <h3>Barkodlu stok · Zebra etiket</h3>
-            <p>Parça ve sarf girişi LS2208 barkod okuyucuyla, etiketler Zebra yazıcıdan. Sarf takibi ve toner tükenme tahmini sayaç hızından hesaplanır.</p>
+            <h3>Barcoded stock · Zebra labels</h3>
+            <p>Parts and consumables go in with an LS2208 barcode reader, labels come off a Zebra printer. Consumable tracking and the toner run-out forecast are worked out from the meter pace.</p>
           </div>
           <div class="pd-feature">
             <div class="pd-feature-icon">🧾</div>
-            <h3>Muhasebe, cari ve tahsilat</h3>
-            <p>Cari hesap, tahsilat takibi, toplu zam, toplu borç hatırlatma (SMS/WhatsApp — sağlayıcı hesabı ayrıca) ve 100 fişi tek sayfaya sığdıran toplu icmal yazdırma.</p>
+            <h3>Accounting, ledger and payments</h3>
+            <p>Ledger accounts, payment tracking, bulk price rises, bulk debt reminders (SMS/WhatsApp — the provider account is separate) and a bulk summary that fits 100 tickets on one page.</p>
           </div>
           <div class="pd-feature">
             <div class="pd-feature-icon">💬</div>
-            <h3>WhatsApp'la iletişim</h3>
-            <p>Gelen mesajda müşteri numarasından otomatik tanınır; yapılan işlem ve tutar tek tıkla müşteriye bildirilir. <span class="pd-cond">WhatsApp Business API (Meta) hesabı, işletme doğrulaması ve onaylı mesaj şablonu gerekir; konuşma ücreti Meta'ya ödenir.</span></p>
+            <h3>Talking on WhatsApp</h3>
+            <p>An incoming message is matched to the customer by their number; the work done and the amount go back to them in one click. <span class="pd-cond">A WhatsApp Business API (Meta) account, business verification and an approved message template are required; the conversation fee is paid to Meta.</span></p>
           </div>
         </div>
 
         <div class="pd-cta">
-          <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20demosu%20istiyorum" target="_blank" rel="noopener" class="btn btn-grad">WhatsApp'tan demo al →</a>
-          <a href="#fiyatlandirma" class="btn btn-ghost">Fiyatları gör</a>
+          <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20a%20demo%20of%20Nextus%20Servis" target="_blank" rel="noopener" class="btn btn-grad">Get a demo on WhatsApp →</a>
+          <a href="#fiyatlandirma" class="btn btn-ghost">See the pricing</a>
         </div>
       </div>
 
@@ -728,62 +728,62 @@ const BODY = `
           <div class="pd-mock-glow"></div>
           <div class="mockup-titlebar">
             <span class="dot-r r"></span><span class="dot-r y"></span><span class="dot-r g"></span>
-            <div class="titlebar-url">Servis Fişleri</div>
-            <span class="mock-sample-badge">örnek ekran</span>
+            <div class="titlebar-url">Service tickets</div>
+            <span class="mock-sample-badge">example screen</span>
           </div>
           <div class="mock-srv">
             <div class="mock-srv-head">
-              <div class="mock-h">Servis Akışı</div>
-              <span class="badge">● 12 açık fiş</span>
+              <div class="mock-h">Service flow</div>
+              <span class="badge">● 12 open tickets</span>
             </div>
             <div class="mock-srv-kanban">
               <div class="kan-col c1">
-                <div class="kan-head"><span>Beklemede</span><span class="ct">5</span></div>
+                <div class="kan-head"><span>Waiting</span><span class="ct">5</span></div>
                 <div class="kan-card">
                   <div class="id">#SF-2847</div>
-                  <div class="ttl">Canon iR-ADV · kağıt sıkışması</div>
-                  <div class="meta"><span><i class="priority h"></i>Acil</span><span>QR</span></div>
+                  <div class="ttl">Canon iR-ADV · paper jam</div>
+                  <div class="meta"><span><i class="priority h"></i>Urgent</span><span>QR</span></div>
                 </div>
                 <div class="kan-card">
                   <div class="id">#SF-2848</div>
-                  <div class="ttl">Konica Minolta · fuser hatası</div>
-                  <div class="meta"><span><i class="priority m"></i>Normal</span><span>Tel</span></div>
+                  <div class="ttl">Konica Minolta · fuser fault</div>
+                  <div class="meta"><span><i class="priority m"></i>Normal</span><span>Phone</span></div>
                 </div>
                 <div class="kan-card">
                   <div class="id">#SF-2849</div>
-                  <div class="ttl">Pantum · toner değişimi</div>
-                  <div class="meta"><span><i class="priority l"></i>Düşük</span><span>WA</span></div>
+                  <div class="ttl">Pantum · toner change</div>
+                  <div class="meta"><span><i class="priority l"></i>Low</span><span>WA</span></div>
                 </div>
               </div>
               <div class="kan-col c2">
-                <div class="kan-head"><span>Serviste</span><span class="ct">4</span></div>
+                <div class="kan-head"><span>In service</span><span class="ct">4</span></div>
                 <div class="kan-card">
                   <div class="id">#SF-2845</div>
-                  <div class="ttl">Ricoh MP · drum ünitesi</div>
-                  <div class="meta"><span><i class="priority h"></i>Parça bekliyor</span><span>Stok</span></div>
+                  <div class="ttl">Ricoh MP · drum unit</div>
+                  <div class="meta"><span><i class="priority h"></i>Waiting for a part</span><span>Stock</span></div>
                 </div>
                 <div class="kan-card">
                   <div class="id">#SF-2846</div>
-                  <div class="ttl">Kyocera TASKalfa · bakım</div>
-                  <div class="meta"><span><i class="priority m"></i>Periyodik</span><span>Rota</span></div>
+                  <div class="ttl">Kyocera TASKalfa · maintenance</div>
+                  <div class="meta"><span><i class="priority m"></i>Periodic</span><span>Route</span></div>
                 </div>
               </div>
               <div class="kan-col c3">
-                <div class="kan-head"><span>Kapandı</span><span class="ct">8</span></div>
+                <div class="kan-head"><span>Closed</span><span class="ct">8</span></div>
                 <div class="kan-card">
                   <div class="id">#SF-2841</div>
-                  <div class="ttl">Canon iR · besleme makarası</div>
-                  <div class="meta"><span style="color:#10b981">✓ Faturalandı</span><span>Cari</span></div>
+                  <div class="ttl">Canon iR · feed roller</div>
+                  <div class="meta"><span style="color:#10b981">✓ Invoiced</span><span>Ledger</span></div>
                 </div>
                 <div class="kan-card">
                   <div class="id">#SF-2842</div>
-                  <div class="ttl">Konica · sayaç okundu</div>
-                  <div class="meta"><span style="color:#10b981">✓ İcmale girdi</span><span>Kira</span></div>
+                  <div class="ttl">Konica · meter read</div>
+                  <div class="meta"><span style="color:#10b981">✓ On the summary</span><span>Rent</span></div>
                 </div>
                 <div class="kan-card">
                   <div class="id">#SF-2843</div>
-                  <div class="ttl">Pantum · sarf çıkışı</div>
-                  <div class="meta"><span style="color:#10b981">✓ Stoktan düştü</span><span>Barkod</span></div>
+                  <div class="ttl">Pantum · consumable issued</div>
+                  <div class="meta"><span style="color:#10b981">✓ Taken off stock</span><span>Barcode</span></div>
                 </div>
               </div>
             </div>
@@ -799,8 +799,8 @@ const BODY = `
                 <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
               </div>
               <div class="info">
-                <div class="t">QR ile müşteri arıza bildirimi</div>
-                <div class="s">Cihazın üstündeki QR'ı okutur, giriş yapmadan bildirir — fiş sizde açılır</div>
+                <div class="t">Customers report faults by QR</div>
+                <div class="s">They scan the QR on the machine and report without signing in — the ticket opens on your side</div>
               </div>
             </div>
           </div>
@@ -814,9 +814,9 @@ const BODY = `
 <section class="caps">
   <div class="container">
     <div class="section-head reveal">
-      <span class="section-eyebrow"><span class="dot" style="background:var(--p2-2)"></span>Kutudan Çıkanlar</span>
-      <h2 class="section-title">Ne varsa <span class="gradient-text">burada yazıyor</span></h2>
-      <p class="section-sub">Aşağıdaki listedeki her madde bugün üründe çalışıyor. Üçüncü taraf hesap gerektirenleri ayrıca not düştük. Olmayanları da aynı netlikte yazdık — sürpriz istemiyoruz.</p>
+      <span class="section-eyebrow"><span class="dot" style="background:var(--p2-2)"></span>What is in the box</span>
+      <h2 class="section-title">Whatever is there <span class="gradient-text">is written here</span></h2>
+      <p class="section-sub">Every item on the list below works in the product today. Where a third-party account is needed we have said so. What is missing is written just as plainly — we do not want surprises.</p>
     </div>
 
     <div class="cap-groups reveal reveal-stagger">
@@ -824,20 +824,20 @@ const BODY = `
         <div class="cap-group-head">
           <span class="cap-ico">💸</span>
           <div>
-            <h3>Para tarafı</h3>
-            <div class="cap-group-sub">kira · sayaç · tahsilat</div>
+            <h3>The money side</h3>
+            <div class="cap-group-sub">rent · meters · payments</div>
           </div>
         </div>
         <ul class="cap-list">
-          <li><strong>Sayaç okuma</strong> ve sayaç bazlı otomatik faturalama</li>
-          <li><strong>Kira faturalaması:</strong> dahil hacim + aşım fiyatı</li>
-          <li>Fatura öncesi <strong>sayaç ön kontrolü</strong> ve geç sayaç takibi</li>
-          <li><strong>Sayaç Turu</strong> — müşteri bazlı toplu sayaç girişi</li>
-          <li><strong>Kaçan Gelir paneli</strong></li>
-          <li>Muhasebe / cari hesap ve <strong>tahsilat takibi</strong></li>
-          <li><strong>Toplu zam</strong> ve toplu borç hatırlatma (SMS/WhatsApp — <span class="cap-cond">sağlayıcı hesabı ayrıca</span>)</li>
-          <li><strong>Toplu icmal yazdırma</strong> — 100 fiş, tek sayfa</li>
-          <li><strong>Cihaz kârlılık raporu</strong> ve cihaz dökümü</li>
+          <li><strong>Meter reading</strong> and meter-based automatic invoicing</li>
+          <li><strong>Rent invoicing:</strong> included volume + overage price</li>
+          <li>A pre-invoice <strong>meter check</strong> and late-meter tracking</li>
+          <li><strong>Meter round</strong> — bulk meter entry per customer</li>
+          <li><strong>Lost revenue panel</strong></li>
+          <li>Accounting / ledger and <strong>payment tracking</strong></li>
+          <li><strong>Bulk price rises</strong> and bulk debt reminders (SMS/WhatsApp — <span class="cap-cond">the provider account is separate</span>)</li>
+          <li><strong>Bulk summary printing</strong> — 100 tickets, one page</li>
+          <li><strong>Device profitability report</strong> and device list</li>
         </ul>
       </div>
 
@@ -845,19 +845,19 @@ const BODY = `
         <div class="cap-group-head">
           <span class="cap-ico">🔧</span>
           <div>
-            <h3>Saha tarafı</h3>
-            <div class="cap-group-sub">servis · stok · rota</div>
+            <h3>The field side</h3>
+            <div class="cap-group-sub">service · stock · routes</div>
           </div>
         </div>
         <ul class="cap-list">
-          <li>Müşteri, cihaz ve <strong>servis fişi</strong> yönetimi</li>
-          <li><strong>Stok + barkod</strong> (LS2208) ve <strong>Zebra etiket</strong></li>
-          <li>Sarf takibi ve <strong>toner tükenme tahmini</strong> — sayaç hızından "kaç gün sonra biter"</li>
-          <li><strong>Rota planlama</strong> — Google Maps çok duraklı bağlantı</li>
-          <li><strong>QR ile müşteri arıza bildirimi</strong> (giriş gerektirmez)</li>
-          <li>Müşteriye <strong>tek tıkla WhatsApp durum bildirimi</strong> (yapılan işlem + tutar) — <span class="cap-cond">WhatsApp Business API hesabı gerekir</span></li>
-          <li>WhatsApp'tan gelen mesajda <strong>müşteriyi otomatik tanıma</strong> — <span class="cap-cond">aynı hesaba bağlıdır</span></li>
-          <li><strong>Bayi Pazarı</strong> — bayiler arası parça ticareti <span class="cap-cond">(yeni açılıyor; bayi sayısı arttıkça değer kazanır)</span></li>
+          <li>Customer, device and <strong>service ticket</strong> management</li>
+          <li><strong>Stock + barcode</strong> (LS2208) and <strong>Zebra labels</strong></li>
+          <li>Consumable tracking and <strong>toner run-out forecasting</strong> — “how many days left” from the meter pace</li>
+          <li><strong>Route planning</strong> — a multi-stop Google Maps link</li>
+          <li><strong>Customers report faults by QR</strong> (no sign-in needed)</li>
+          <li>A one-click <strong>WhatsApp status update to the customer</strong> (work done + amount) — <span class="cap-cond">a WhatsApp Business API account is required</span></li>
+          <li>Incoming WhatsApp messages <strong>matched to the customer automatically</strong> — <span class="cap-cond">depends on the same account</span></li>
+          <li><strong>Dealer market</strong> — parts trading between dealers <span class="cap-cond">(just opening; it gets more useful as more dealers join)</span></li>
         </ul>
       </div>
 
@@ -865,18 +865,18 @@ const BODY = `
         <div class="cap-group-head">
           <span class="cap-ico">🗄</span>
           <div>
-            <h3>Veri tarafı</h3>
-            <div class="cap-group-sub">aktarım · rapor · güvenlik</div>
+            <h3>The data side</h3>
+            <div class="cap-group-sub">import · reports · security</div>
           </div>
         </div>
         <ul class="cap-list">
-          <li><strong>Excel / CSV içeri aktarma</strong> — mevcut listenizle başlarsınız</li>
-          <li><strong>Yedek indirme</strong> — tüm veriniz tek JSON dosyasında</li>
-          <li>İsteğe bağlı <strong>iki adımlı doğrulama (2FA)</strong></li>
-          <li><strong>Marka/model güvenilirlik raporları</strong></li>
-          <li>Cihaz kârlılığı ve cihaz dökümü raporları</li>
-          <li><strong>Logo'ya aktarım</strong> — muhasebe programına veri aktarımı</li>
-          <li>Web + <strong>PWA</strong> — telefonda ana ekrana eklenir</li>
+          <li><strong>Excel / CSV import</strong> — you start with the list you already have</li>
+          <li><strong>Backup download</strong> — all your data in one JSON file</li>
+          <li>Optional <strong>two-factor authentication (2FA)</strong></li>
+          <li><strong>Brand and model reliability reports</strong></li>
+          <li>Device profitability and device list reports</li>
+          <li><strong>Export to Logo</strong> — a data export for your accounting software</li>
+          <li>Web + <strong>PWA</strong> — add it to the home screen on a phone</li>
         </ul>
       </div>
     </div>
@@ -899,20 +899,20 @@ const BODY = `
 
   <div class="container">
     <div class="section-head reveal">
-      <span class="section-eyebrow"><span class="dot" style="background:var(--p3-1)"></span>Günlük Kullanım</span>
-      <h2 class="section-title">Sahada da, ofiste de <span class="gradient-text">aynı program</span></h2>
-      <p class="section-sub">Teknisyen telefondan fişi kapatır, ofis aynı anda faturayı görür. Ayrı ayrı Excel dosyası, ayrı ayrı defter yok.</p>
+      <span class="section-eyebrow"><span class="dot" style="background:var(--p3-1)"></span>Day to day</span>
+      <h2 class="section-title">In the field and in the office, <span class="gradient-text">the same program</span></h2>
+      <p class="section-sub">The engineer closes the ticket on a phone and the office sees the invoice at the same moment. No separate Excel files, no separate ledgers.</p>
     </div>
 
     <div class="bento-grid">
       <!-- 1 (LARGE): Mobil / PWA -->
       <div class="bento bento-mobile reveal reveal-scale">
         <div class="bento-content">
-          <div class="bento-eyebrow">SAHADAKİ TEKNİSYEN</div>
-          <h3>Telefondan tam panel</h3>
-          <p>Ayrı bir mobil uygulama indirmenize gerek yok: tarayıcıdan açıp ana ekrana ekleyin (PWA). Teknisyen sayacı girer, fişi kapatır, sarfı stoktan düşer — ofis anında görür.</p>
+          <div class="bento-eyebrow">THE ENGINEER IN THE FIELD</div>
+          <h3>The full panel on a phone</h3>
+          <p>There is no separate mobile app to download: open it in the browser and add it to the home screen (PWA). The engineer enters the meter, closes the ticket and takes the consumable off stock — the office sees it straight away.</p>
           <div class="bento-tags">
-            <span>Web</span><span>PWA</span><span>Ana ekrana ekle</span><span>Kurulum yok</span>
+            <span>Web</span><span>PWA</span><span>Add to home screen</span><span>No install</span>
           </div>
         </div>
         <div class="bento-visual">
@@ -929,38 +929,38 @@ const BODY = `
               <div class="phone-app">
                 <div class="phone-app-header">
                   <div>
-                    <div class="pah-greet">Bugünkü rota</div>
-                    <div class="pah-name">Sırada <strong>4 durak</strong></div>
+                    <div class="pah-greet">Today’s route</div>
+                    <div class="pah-name">Next up <strong>4 stops</strong></div>
                   </div>
-                  <div class="pah-avatar">T</div>
+                  <div class="pah-avatar">E</div>
                 </div>
                 <div class="phone-stat-card">
-                  <div class="psc-label">SAYACI GİRİLEN</div>
+                  <div class="psc-label">METER ENTERED</div>
                   <div class="psc-num">9 / 13</div>
-                  <div class="psc-trend">↑ tur devam ediyor</div>
+                  <div class="psc-trend">↑ the round is still running</div>
                 </div>
                 <div class="phone-list">
                   <div class="phone-list-item">
                     <span class="pli-dot" style="background:#10b981"></span>
                     <div class="pli-body">
-                      <div class="pli-title">Sayaç girildi</div>
-                      <div class="pli-meta">Canon iR-ADV · S/B 48.210</div>
+                      <div class="pli-title">Meter entered</div>
+                      <div class="pli-meta">Canon iR-ADV · Mono 48,210</div>
                     </div>
                     <div class="pli-amt">✓</div>
                   </div>
                   <div class="phone-list-item">
                     <span class="pli-dot" style="background:#f59e0b"></span>
                     <div class="pli-body">
-                      <div class="pli-title">Toner bitiyor</div>
-                      <div class="pli-meta">Tahmini 11 gün</div>
+                      <div class="pli-title">Toner running out</div>
+                      <div class="pli-meta">About 11 days left</div>
                     </div>
                     <div class="pli-amt small">⚠</div>
                   </div>
                   <div class="phone-list-item">
                     <span class="pli-dot" style="background:#a855f7"></span>
                     <div class="pli-body">
-                      <div class="pli-title">Fiş kapatıldı</div>
-                      <div class="pli-meta">Parça barkoddan düştü</div>
+                      <div class="pli-title">Ticket closed</div>
+                      <div class="pli-meta">Part taken off stock by barcode</div>
                     </div>
                     <div class="pli-amt">✓</div>
                   </div>
@@ -971,7 +971,7 @@ const BODY = `
               <div class="phone-notif-ico">💬</div>
               <div class="phone-notif-body">
                 <div class="phone-notif-title">Nextus Servis</div>
-                <div class="phone-notif-text">Müşteriye durum bildirimi gönderildi</div>
+                <div class="phone-notif-text">Status update sent to the customer</div>
               </div>
             </div>
           </div>
@@ -987,9 +987,9 @@ const BODY = `
           </svg>
         </div>
         <div class="bento-content">
-          <div class="bento-eyebrow">HESAP GÜVENLİĞİ</div>
-          <h3>Veriniz sizde kalır</h3>
-          <p>İsteğe bağlı iki adımlı doğrulama (2FA) ve tek tıkla yedek indirme. Müşteri listeniz her an elinizde.</p>
+          <div class="bento-eyebrow">ACCOUNT SECURITY</div>
+          <h3>Your data stays yours</h3>
+          <p>Optional two-factor authentication (2FA) and a one-click backup download. Your customer list is in your hands at any moment.</p>
         </div>
         <div class="bento-shield-rays"></div>
       </div>
@@ -997,9 +997,9 @@ const BODY = `
       <!-- 3: Toplu icmal / cikti -->
       <div class="bento bento-pdf reveal reveal-rotate">
         <div class="bento-content">
-          <div class="bento-eyebrow">AY SONU</div>
-          <h3>Toplu icmal</h3>
-          <p>100 servis fişi tek sayfada. Cihaz dökümü ve kârlılık raporu yanında.</p>
+          <div class="bento-eyebrow">MONTH END</div>
+          <h3>Bulk summary</h3>
+          <p>100 service tickets on one page, with the device list and the profitability report beside it.</p>
         </div>
         <div class="bento-pdf-stack">
           <div class="pdf-page pdf-3">
@@ -1021,7 +1021,7 @@ const BODY = `
             <div class="pdf-line short"></div>
             <div class="pdf-line"></div>
             <div class="pdf-line"></div>
-            <div class="pdf-stamp">İCMAL</div>
+            <div class="pdf-stamp">SUMMARY</div>
           </div>
         </div>
       </div>
@@ -1029,16 +1029,16 @@ const BODY = `
       <!-- 4: WhatsApp -->
       <div class="bento bento-wapp reveal reveal-scale">
         <div class="bento-content">
-          <div class="bento-eyebrow">MÜŞTERİ İLETİŞİMİ</div>
-          <h3>WhatsApp'tan bildirim</h3>
-          <p>Gelen mesajda müşteri otomatik tanınır; işlem ve tutar tek tıkla gider.</p>
+          <div class="bento-eyebrow">TALKING TO CUSTOMERS</div>
+          <h3>Updates over WhatsApp</h3>
+          <p>An incoming message is matched to the customer automatically; the work and the amount go back in one click.</p>
         </div>
         <div class="bento-chat">
           <div class="chat-bubble chat-in">
-            <span>Cihaz hazır mı?</span>
+            <span>Is the machine ready?</span>
           </div>
           <div class="chat-bubble chat-out">
-            <span>Fuser değişti, test edildi. Fiş #SF-2845 · ₺1.240 🖨</span>
+            <span>Fuser replaced and tested. Ticket #SF-2845 · ₺1,240 🖨</span>
             <span class="chat-tick">✓✓</span>
           </div>
           <div class="chat-bubble chat-in chat-typing">
@@ -1050,9 +1050,9 @@ const BODY = `
       <!-- 5: Raporlama -->
       <div class="bento bento-report reveal reveal-blur">
         <div class="bento-content">
-          <div class="bento-eyebrow">RAPORLAR</div>
-          <h3>Hangi cihaz kazandırıyor?</h3>
-          <p>Cihaz kârlılığı ve marka/model güvenilirliği tek panelde.</p>
+          <div class="bento-eyebrow">REPORTS</div>
+          <h3>Which machine actually pays?</h3>
+          <p>Device profitability and brand/model reliability on one screen.</p>
         </div>
         <div class="bento-chart">
           <svg viewBox="0 0 140 70" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -1071,8 +1071,8 @@ const BODY = `
             <circle cx="140" cy="6" r="3" fill="#a855f7" stroke="#0a0a14" stroke-width="1.5"/>
           </svg>
           <div class="bento-chart-stat">
-            <span class="bcs-num">Cihaz</span>
-            <span class="bcs-lbl">bazında kâr</span>
+            <span class="bcs-num">Device</span>
+            <span class="bcs-lbl">level profit</span>
           </div>
         </div>
       </div>
@@ -1080,10 +1080,10 @@ const BODY = `
       <!-- 6 (LARGE): Cevre birimler -->
       <div class="bento bento-integ reveal reveal-rotate">
         <div class="bento-content">
-          <div class="bento-eyebrow">NELERLE KONUŞUYOR</div>
-          <h3>Zaten kullandığınız aletlerle</h3>
-          <p>Elinizdeki Excel dosyası, barkod okuyucu, etiket yazıcısı, WhatsApp ve Google Maps ile çalışır. Muhasebe tarafında Logo'ya aktarım mevcut; e-Fatura / GİB entegrasyonu yok.</p>
-          <p class="bento-foot-note">WhatsApp ve SMS için üçüncü taraf hesap gerekir: WhatsApp Business API (Meta) hesabı ve onaylı mesaj şablonu, SMS için Netgsm kontörü. Bu hesapların ücretini sağlayıcıya siz ödersiniz; kurulumu birlikte yaparız.</p>
+          <div class="bento-eyebrow">WHAT IT TALKS TO</div>
+          <h3>The tools you already use</h3>
+          <p>It works with the Excel file you have, your barcode reader, your label printer, WhatsApp and Google Maps. On the accounting side there is an export to Logo; there is no Turkish e-invoice (GİB) integration.</p>
+          <p class="bento-foot-note">WhatsApp and SMS need third-party accounts: a WhatsApp Business API (Meta) account with an approved message template, and Netgsm credit for SMS. You pay those providers directly; we set them up with you.</p>
         </div>
         <div class="bento-integ-cloud">
           <div class="integ-orbit"></div>
@@ -1100,7 +1100,7 @@ const BODY = `
           <div class="integ-node n5" style="--del:1.6s">Zebra</div>
           <div class="integ-node n6" style="--del:2.0s">WhatsApp<sup class="integ-star">*</sup></div>
           <div class="integ-node n7" style="--del:2.4s">SMS<sup class="integ-star">*</sup></div>
-          <div class="integ-node n8" style="--del:2.8s">Maps rota</div>
+          <div class="integ-node n8" style="--del:2.8s">Maps routes</div>
         </div>
       </div>
     </div>
@@ -1121,25 +1121,25 @@ const BODY = `
 
   <div class="container">
     <div class="section-head reveal">
-      <span class="section-eyebrow"><span class="dot" style="background:#10b981"></span>Ay Sonu</span>
-      <h2 class="section-title">Aynı iş, <span class="gradient-text">iki farklı ay sonu</span></h2>
-      <p class="section-sub">Kiralama bayisinin ay sonu kapanışı, defter–Excel karışımıyla ve tek programla nasıl görünüyor?</p>
+      <span class="section-eyebrow"><span class="dot" style="background:#10b981"></span>Month end</span>
+      <h2 class="section-title">The same job, <span class="gradient-text">two different month ends</span></h2>
+      <p class="section-sub">What a rental dealer’s month-end close looks like with a ledger-and-Excel mix, and with one program.</p>
     </div>
 
     <div class="ba-grid">
       <div class="ba-side before reveal reveal-left">
-        <span class="ba-side-label">😩 EXCEL + DEFTER</span>
-        <h3>Ay sonu avı</h3>
+        <span class="ba-side-label">😩 EXCEL + LEDGER</span>
+        <h3>The month-end hunt</h3>
         <ul class="ba-list">
-          <li>Sayaç kâğıtları teknisyenin çantasında, bir kısmı hiç ulaşmıyor</li>
-          <li>Hangi cihazın sayacı okundu, hangisi atlandı — kimse tam bilmiyor</li>
-          <li>Dahil hacim ve aşım hesabı elle, her ay yeniden</li>
-          <li>Servis fişleri ayrı, kira faturası ayrı, sarf çıkışı ayrı yerde</li>
-          <li>Toner ne zaman biter belli değil; cihaz durunca öğreniliyor</li>
-          <li>Hangi cihaz para kazandırıyor, hangisi sürekli servis yiyor — bilinmiyor</li>
-          <li>Borcunu geciktireni bulmak için cari defteri tek tek geziliyor</li>
+          <li>The meter slips are in the engineer’s bag and some never arrive</li>
+          <li>Which meters were read and which were skipped — nobody quite knows</li>
+          <li>Included volume and overage worked out by hand, again every month</li>
+          <li>Service tickets in one place, the rent invoice in another, consumables in a third</li>
+          <li>Nobody knows when the toner runs out; you find out when the machine stops</li>
+          <li>Which machine makes money and which keeps eating service — unknown</li>
+          <li>Finding who is late paying means walking the ledger line by line</li>
         </ul>
-        <div class="ba-side-stat">Faturalanmamış sayaç hacmi <strong>görünmez</strong>: fark edilse bile ay kapanmıştır.</div>
+        <div class="ba-side-stat">Uninvoiced meter volume <strong>is invisible</strong>: by the time anyone notices, the month has closed.</div>
       </div>
 
       <div class="ba-divider">
@@ -1147,18 +1147,18 @@ const BODY = `
       </div>
 
       <div class="ba-side after reveal reveal-right">
-        <span class="ba-side-label">🚀 NEXTUS SERVİS</span>
-        <h3>Ay sonu kapanışı</h3>
+        <span class="ba-side-label">🚀 NEXTUS SERVIS</span>
+        <h3>The month-end close</h3>
         <ul class="ba-list">
-          <li>Sayaç turu ile müşteri bazlı toplu giriş — teknisyen telefondan</li>
-          <li>Fatura öncesi sayaç ön kontrolü eksik kalanları listeler</li>
-          <li>Dahil hacim + aşım fiyatı otomatik hesaplanır</li>
-          <li>Servis fişi, kira faturası, sarf çıkışı aynı cihaz kartında</li>
-          <li>Toner tükenme tahmini sayaç hızından "kaç gün sonra biter" der</li>
-          <li>Cihaz kârlılık raporu ve marka/model güvenilirliği elinizde</li>
-          <li>Toplu borç hatırlatma SMS/WhatsApp ile tek seferde gider</li>
+          <li>Bulk entry per customer on the meter round — the engineer does it on a phone</li>
+          <li>The pre-invoice meter check lists whatever is still missing</li>
+          <li>Included volume and overage price are worked out automatically</li>
+          <li>The service ticket, the rent invoice and the consumables sit on the same device card</li>
+          <li>The toner forecast reads the meter pace and says how many days are left</li>
+          <li>The device profitability report and brand/model reliability are in your hands</li>
+          <li>Bulk debt reminders go out by SMS or WhatsApp in one pass</li>
         </ul>
-        <div class="ba-side-stat"><strong>Kaçan Gelir paneli</strong> faturalanmamış cihazları isim isim önünüze koyar.</div>
+        <div class="ba-side-stat"><strong>Lost revenue panel</strong> puts the uninvoiced devices in front of you by name.</div>
       </div>
     </div>
   </div>
@@ -1168,9 +1168,9 @@ const BODY = `
 <section class="how" id="nasil">
   <div class="container">
     <div class="section-head reveal">
-      <span class="section-eyebrow"><span class="dot"></span>Nasıl Başlıyoruz</span>
-      <h2 class="section-title">3 adımda <span class="gradient-text">ilk ay sonunuza</span></h2>
-      <p class="section-sub">IT departmanı, sunucu kurulumu, aylarca proje yok. Konuşma, taşıma, ilk kapanış.</p>
+      <span class="section-eyebrow"><span class="dot"></span>How we start</span>
+      <h2 class="section-title">Three steps <span class="gradient-text">to your first month end</span></h2>
+      <p class="section-sub">No IT department, no server build, no months-long project. A conversation, a migration, a first close.</p>
     </div>
 
     <div class="how-grid">
@@ -1179,42 +1179,42 @@ const BODY = `
           <div class="step-emblem-glow"></div>
           <div class="step-emblem-ring"></div>
           <div class="step-emblem-inner">
-            <span class="step-emblem-label">ADIM</span>
+            <span class="step-emblem-label">STEP</span>
             <span class="step-emblem-num">01</span>
           </div>
           <span class="step-emblem-icon">💬</span>
         </div>
-        <h3>WhatsApp'tan yazın</h3>
-        <p>Ekran paylaşımıyla 15 dakikalık canlı demo. Kendi cihaz listenizden bir örnekle bakarız — hazır sunum değil, gerçek ekran.</p>
-        <div class="how-meta">⏱ 15 dakika</div>
+        <h3>Message us on WhatsApp</h3>
+        <p>A 15-minute live demo over a shared screen. We look at a sample from your own device list — a real screen, not a canned deck.</p>
+        <div class="how-meta">⏱ 15 minutes</div>
       </div>
       <div class="how-card reveal reveal-flip">
         <div class="step-emblem">
           <div class="step-emblem-glow"></div>
           <div class="step-emblem-ring"></div>
           <div class="step-emblem-inner">
-            <span class="step-emblem-label">ADIM</span>
+            <span class="step-emblem-label">STEP</span>
             <span class="step-emblem-num">02</span>
           </div>
           <span class="step-emblem-icon">📥</span>
         </div>
-        <h3>Verinizi biz taşıyalım</h3>
-        <p>Müşteri ve cihaz listenizi Excel/CSV ile aktarıyoruz. Kurulum, aktarım ve 2 saat eğitim — <strong>liste fiyatı ₺12.000; kuruluş döneminde ücretsiz</strong>.</p>
-        <div class="how-meta">🤝 Birebir kurulum</div>
+        <h3>Let us move your data</h3>
+        <p>We import your customer and device lists from Excel or CSV. Setup, import and 2 hours of training — <strong>list price ₺12,000; free during our founding period</strong>.</p>
+        <div class="how-meta">🤝 One-to-one setup</div>
       </div>
       <div class="how-card reveal reveal-flip">
         <div class="step-emblem">
           <div class="step-emblem-glow"></div>
           <div class="step-emblem-ring"></div>
           <div class="step-emblem-inner">
-            <span class="step-emblem-label">ADIM</span>
+            <span class="step-emblem-label">STEP</span>
             <span class="step-emblem-num">03</span>
           </div>
           <span class="step-emblem-icon">🧾</span>
         </div>
-        <h3>İlk ay sonunu birlikte kapatalım</h3>
-        <p>Sayaç turu → ön kontrol → kira icmali. İlk kapanışta yanınızdayız; kaçan geliri ilk aydan görün.</p>
-        <div class="how-meta">📟 14 gün ücretsiz</div>
+        <h3>Let us close the first month together</h3>
+        <p>Meter round → pre-check → rent summary. We are with you for the first close, so you see the lost revenue from month one.</p>
+        <div class="how-meta">📟 14 days free</div>
       </div>
     </div>
   </div>
@@ -1231,18 +1231,18 @@ const BODY = `
         </svg>
       </div>
       <div>
-        <div class="guarantee-eyebrow">★ KURULUŞ DÖNEMİ</div>
-        <h3>Kurulum paketi şu an ücretsiz</h3>
-        <p>Kurulum + Excel veri aktarımı + 2 saat eğitim için <strong>liste fiyatımız ₺12.000</strong>. Kuruluş döneminde ücret almıyoruz — çünkü ürünü sahada birlikte oturtuyoruz.</p>
+        <div class="guarantee-eyebrow">★ FOUNDING PERIOD</div>
+        <h3>The setup package is free right now</h3>
+        <p>For setup + the Excel data import + 2 hours of training our <strong>list price is ₺12,000</strong>. We are not charging for it during the founding period, because we are bedding the product in together, in the field.</p>
         <ul class="guarantee-list">
-          <li>14 gün ücretsiz deneme <span class="trial-limit">(deneme hesabı: 2 kullanıcı · 50 fiş)</span></li>
-          <li>Kredi kartı istenmez</li>
-          <li>Taahhüt yok</li>
-          <li>Yedeğinizi her an indirin</li>
+          <li>14 days free <span class="trial-limit">(trial account: 2 users · 50 tickets)</span></li>
+          <li>No card needed</li>
+          <li>No commitment</li>
+          <li>Download your backup whenever you like</li>
         </ul>
       </div>
       <div class="guarantee-cta" style="display:flex;align-items:center">
-        <a href="https://wa.me/905526961703?text=Merhaba%2C%20kurulus%20donemi%20kurulum%20paketi%20hakkinda%20bilgi%20istiyorum" target="_blank" rel="noopener" class="btn btn-grad">Yerimi ayır</a>
+        <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20information%20about%20the%20founding-period%20setup%20package" target="_blank" rel="noopener" class="btn btn-grad">Save my place</a>
       </div>
     </div>
   </div>
@@ -1252,15 +1252,15 @@ const BODY = `
 <section class="pricing" id="fiyatlandirma">
   <div class="container">
     <div class="section-head reveal">
-      <span class="section-eyebrow"><span class="dot" style="background:var(--p2-1)"></span>Fiyatlandırma</span>
-      <h2 class="section-title">Taban fiyat + <span class="gradient-text">cihaz başına ₺25</span></h2>
-      <p class="section-sub">Her pakette dahil bir cihaz adedi var; dahil sayının üstündeki her kiralık cihaz <strong>üç pakette de ₺25</strong>. Fiyatlar KDV hariçtir.</p>
+      <span class="section-eyebrow"><span class="dot" style="background:var(--p2-1)"></span>Pricing</span>
+      <h2 class="section-title">A base price + <span class="gradient-text">₺25 per device</span></h2>
+      <p class="section-sub">Every plan includes a number of devices; each rental device above that number costs <strong>₺25 in all three plans</strong>. Prices exclude VAT.</p>
 
       <div class="toggle-wrap reveal">
         <div class="toggle" id="billingToggle" data-active="monthly">
           <div class="indicator"></div>
-          <button class="toggle-btn active" data-bill="monthly">Aylık</button>
-          <button class="toggle-btn" data-bill="yearly">Yıllık <span class="save-badge">2 ay bedava</span></button>
+          <button class="toggle-btn active" data-bill="monthly">Monthly</button>
+          <button class="toggle-btn" data-bill="yearly">Yearly <span class="save-badge">2 months free</span></button>
         </div>
       </div>
     </div>
@@ -1269,92 +1269,92 @@ const BODY = `
       <!-- BASLANGIC -->
       <div class="price-card reveal reveal-scale" data-plan="baslangic" data-base="1749" data-included="20">
         <div class="price-icon">🌱</div>
-        <div class="price-name">Başlangıç</div>
-        <div class="price-tag">20 cihaza kadar</div>
+        <div class="price-name">Starter</div>
+        <div class="price-tag">Up to 20 devices</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">1.749</span>
-          <span class="period">/ ay</span>
-          <span class="price-vat">+KDV</span>
+          <span class="num">1,749</span>
+          <span class="period">/ month</span>
+          <span class="price-vat">+VAT</span>
         </div>
-        <div class="price-note">İlk <strong>20</strong> kiralık cihaz dahil · sonrası cihaz başına ₺25</div>
+        <div class="price-note">The first <strong>20</strong> rental devices included · ₺25 per device after that</div>
         <div class="price-calc" hidden></div>
-        <a href="https://wa.me/905526961703?text=Merhaba%2C%20Baslangic%20paketi%20icin%2014%20gunluk%20denemeyi%20baslatmak%20istiyorum" target="_blank" rel="noopener" class="btn btn-ghost btn-block">14 Gün Ücretsiz Dene</a>
+        <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20on%20the%20Starter%20plan" target="_blank" rel="noopener" class="btn btn-ghost btn-block">Try it free for 14 days</a>
         <ul class="price-features">
-          <li class="has"><strong>İlk 20 kiralık cihaz dahil</strong> · aşan her cihaz ₺25</li>
-          <li class="has"><strong>3 kullanıcı · 200 servis fişi/ay</strong></li>
-          <li class="has">Müşteri · cihaz · servis fişi · QR arıza bildirimi</li>
-          <li class="has">Stok · barkod · Zebra etiket · toner tahmini</li>
-          <li class="has">Muhasebe / cari hesap</li>
-          <li class="has">Bayi Pazarı <span class="feat-note">(yeni açılıyor)</span></li>
-          <li class="has">Kurulum + Excel aktarımı + 2 saat eğitim</li>
-          <li class="no">Sayaç okuma ve otomatik kira faturalaması</li>
-          <li class="no">Kaçan Gelir paneli · tahsilat · rota</li>
-          <li class="no">Marka/model güvenilirlik raporları</li>
+          <li class="has"><strong>The first 20 rental devices included</strong> · ₺25 for each device beyond</li>
+          <li class="has"><strong>3 users · 200 service tickets a month</strong></li>
+          <li class="has">Customers · devices · service tickets · QR fault reports</li>
+          <li class="has">Stock · barcode · Zebra labels · toner forecast</li>
+          <li class="has">Accounting / ledger</li>
+          <li class="has">Dealer market <span class="feat-note">(just opening)</span></li>
+          <li class="has">Setup + Excel import + 2 hours of training</li>
+          <li class="no">Meter reading and automatic rent invoicing</li>
+          <li class="no">Lost revenue panel · payments · routes</li>
+          <li class="no">Brand and model reliability reports</li>
         </ul>
       </div>
 
       <!-- PROFESYONEL -->
       <div class="price-card featured reveal reveal-scale" data-plan="profesyonel" data-base="2099" data-included="25">
-        <div class="price-badge">Önerdiğimiz başlangıç noktası</div>
+        <div class="price-badge">Where we suggest starting</div>
         <div class="price-icon">⚡</div>
-        <div class="price-name">Profesyonel</div>
-        <div class="price-tag">21–100 cihaz</div>
+        <div class="price-name">Professional</div>
+        <div class="price-tag">21–100 devices</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">2.099</span>
-          <span class="period">/ ay</span>
-          <span class="price-vat">+KDV</span>
+          <span class="num">2,099</span>
+          <span class="period">/ month</span>
+          <span class="price-vat">+VAT</span>
         </div>
-        <div class="price-note">İlk <strong>25</strong> kiralık cihaz dahil · sonrası cihaz başına ₺25</div>
+        <div class="price-note">The first <strong>25</strong> rental devices included · ₺25 per device after that</div>
         <div class="price-calc" hidden></div>
-        <a href="https://wa.me/905526961703?text=Merhaba%2C%20Profesyonel%20paket%20icin%2014%20gunluk%20denemeyi%20baslatmak%20istiyorum" target="_blank" rel="noopener" class="btn btn-grad btn-block">14 Gün Ücretsiz Dene</a>
+        <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20on%20the%20Professional%20plan" target="_blank" rel="noopener" class="btn btn-grad btn-block">Try it free for 14 days</a>
         <ul class="price-features">
-          <li class="has"><strong>İlk 25 kiralık cihaz dahil</strong> · aşan her cihaz ₺25</li>
-          <li class="has"><strong>10 kullanıcı · sınırsız servis fişi</strong></li>
-          <li class="has"><strong>Başlangıç'taki her şey</strong>, ayrıca:</li>
-          <li class="has">Sayaç okuma ve otomatik kira faturalaması</li>
-          <li class="has">Tahsilat takibi · rota planlama · geç sayaç takibi</li>
-          <li class="has">Kaçan Gelir paneli ve cihaz kârlılığı</li>
-          <li class="has">WhatsApp bildirim <span class="feat-note">(WhatsApp Business API hesabı gerekir)</span> · toplu borç hatırlatma SMS <span class="feat-note">(Netgsm kontörü ayrıca)</span></li>
-          <li class="has">Kurulum + Excel aktarımı + 2 saat eğitim</li>
-          <li class="no">Marka/model güvenilirlik raporları</li>
+          <li class="has"><strong>The first 25 rental devices included</strong> · ₺25 for each device beyond</li>
+          <li class="has"><strong>10 users · unlimited service tickets</strong></li>
+          <li class="has"><strong>Everything in Starter</strong>, plus:</li>
+          <li class="has">Meter reading and automatic rent invoicing</li>
+          <li class="has">Payment tracking · route planning · late-meter tracking</li>
+          <li class="has">The lost revenue panel and device profitability</li>
+          <li class="has">WhatsApp updates <span class="feat-note">(a WhatsApp Business API account is required)</span> · bulk debt reminder SMS <span class="feat-note">(Netgsm credit is separate)</span></li>
+          <li class="has">Setup + Excel import + 2 hours of training</li>
+          <li class="no">Brand and model reliability reports</li>
         </ul>
       </div>
 
       <!-- KURUMSAL -->
       <div class="price-card reveal reveal-scale" data-plan="kurumsal" data-base="5249" data-included="100">
         <div class="price-icon">🏢</div>
-        <div class="price-name">Kurumsal</div>
-        <div class="price-tag">100+ cihaz · 50 kullanıcıya kadar</div>
+        <div class="price-name">Enterprise</div>
+        <div class="price-tag">100+ devices · up to 50 users</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">5.249</span>
-          <span class="period">/ ay</span>
-          <span class="price-vat">+KDV</span>
+          <span class="num">5,249</span>
+          <span class="period">/ month</span>
+          <span class="price-vat">+VAT</span>
         </div>
-        <div class="price-note">İlk <strong>100</strong> kiralık cihaz dahil · sonrası cihaz başına ₺25</div>
+        <div class="price-note">The first <strong>100</strong> rental devices included · ₺25 per device after that</div>
         <div class="price-calc" hidden></div>
-        <a href="https://wa.me/905526961703?text=Merhaba%2C%20Kurumsal%20paket%20icin%20gorusmek%20istiyorum" target="_blank" rel="noopener" class="btn btn-ghost btn-block">Görüşelim</a>
+        <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20talk%20about%20the%20Enterprise%20plan" target="_blank" rel="noopener" class="btn btn-ghost btn-block">Let’s talk</a>
         <ul class="price-features">
-          <li class="has"><strong>İlk 100 kiralık cihaz dahil</strong> · aşan her cihaz ₺25</li>
-          <li class="has"><strong>50 kullanıcı · sınırsız servis fişi</strong></li>
-          <li class="has"><strong>Profesyonel'deki her şey</strong>, ayrıca:</li>
-          <li class="has">Marka/model güvenilirlik raporları</li>
-          <li class="has">Cihaz yenileme raporu</li>
-          <li class="has">Kurulum + Excel aktarımı + 2 saat eğitim</li>
+          <li class="has"><strong>The first 100 rental devices included</strong> · ₺25 for each device beyond</li>
+          <li class="has"><strong>50 users · unlimited service tickets</strong></li>
+          <li class="has"><strong>Everything in Professional</strong>, plus:</li>
+          <li class="has">Brand and model reliability reports</li>
+          <li class="has">Device renewal report</li>
+          <li class="has">Setup + Excel import + 2 hours of training</li>
         </ul>
       </div>
     </div>
 
     <div class="pricing-foot reveal">
-      <span class="check-mini">✓</span> 14 gün ücretsiz deneme <span class="trial-limit">(deneme: 2 kullanıcı · 50 fiş)</span> &nbsp;·&nbsp;
-      <span class="check-mini">✓</span> Kredi kartı istenmez &nbsp;·&nbsp;
-      <span class="check-mini">✓</span> Yıllık ödemede 2 ay bedava &nbsp;·&nbsp;
-      <span class="check-mini">✓</span> Fiyatlar KDV hariçtir
+      <span class="check-mini">✓</span> 14 days free <span class="trial-limit">(trial: 2 users · 50 tickets)</span> &nbsp;·&nbsp;
+      <span class="check-mini">✓</span> No card needed &nbsp;·&nbsp;
+      <span class="check-mini">✓</span> 2 months free when you pay yearly &nbsp;·&nbsp;
+      <span class="check-mini">✓</span> Prices exclude VAT
       <div style="margin-top:16px;font-size:13px;color:var(--text-faint);max-width:720px;margin-left:auto;margin-right:auto;line-height:1.6">
-        Aşım bedeli üç pakette de aynıdır (₺25); taban fiyat ve dahil cihaz adedi paketten pakete değişir. Paketler asıl olarak <strong>açılan özellikler ve kullanıcı sayısıyla</strong> ayrışır: sayaç/kira faturalaması, tahsilat, rota ve Kaçan Gelir paneli Profesyonel ile başlar, marka/model güvenilirlik raporları Kurumsal'dadır. Bu yüzden sadece cihaz sayısına bakıp karar vermeyin — <strong>ihtiyacınız olan özelliğin hangi pakette açık olduğuna bakın</strong>. Kaydırıcıyı oynattığınızda kartlar kendi cihaz sayınıza göre güncellenir. Hangi paketin size oturduğundan emin değilseniz
-        <a href="https://wa.me/905526961703?text=Merhaba%2C%20cihaz%20sayima%20gore%20hangi%20paket%20uygun%20ogrenmek%20istiyorum" target="_blank" rel="noopener" style="color:#5eead4;border-bottom:1px solid rgba(94,234,212,0.35)">WhatsApp'tan yazın</a>, birlikte seçelim.
+        The overage price is the same in all three plans (₺25); the base price and the number of included devices change from plan to plan. What really separates the plans is <strong>the features they unlock and the number of users</strong> : meter and rent invoicing, payments, routes and the lost revenue panel start with Professional, and the brand/model reliability reports are in Enterprise. So do not decide on device count alone — <strong>look at which plan unlocks the feature you actually need</strong>. Move the slider and the cards update to your own device count. If you are not sure which plan fits you,
+        <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20know%20which%20plan%20fits%20my%20device%20count" target="_blank" rel="noopener" style="color:#5eead4;border-bottom:1px solid rgba(94,234,212,0.35)">Message us on WhatsApp</a>let us choose it together.
       </div>
     </div>
   </div>
@@ -1364,109 +1364,109 @@ const BODY = `
 <section class="faq" id="sss">
   <div class="container">
     <div class="section-head reveal">
-      <span class="section-eyebrow"><span class="dot" style="background:var(--p3-1)"></span>SSS</span>
-      <h2 class="section-title">Sık sorulan <span class="gradient-text">sorular</span></h2>
-      <p class="section-sub">En çok sorulanları, olmayanları da gizlemeden yazdık. Kalanı için WhatsApp'tan yazın.</p>
+      <span class="section-eyebrow"><span class="dot" style="background:var(--p3-1)"></span>FAQ</span>
+      <h2 class="section-title">Frequently asked <span class="gradient-text">questions</span></h2>
+      <p class="section-sub">Here are the questions we get most, including the answers about what the product does not do. For anything else, message us on WhatsApp.</p>
     </div>
 
     <div class="faq-wrap">
       <div class="faq-item reveal reveal-left">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-1" id="faq-q-1">
-          <span>Fiyat tam olarak nasıl hesaplanıyor?</span>
+          <span>How exactly is the price worked out?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-1" role="region" aria-labelledby="faq-q-1" aria-hidden="true">
-          <p>Taban fiyat + dahil cihaz adedi + aşım. Örnek: <strong>150 kiralık cihazınız varsa Profesyonel pakette</strong> ₺2.099 taban + (150 − 25) × ₺25 = <strong>₺5.224/ay + KDV</strong>. Aşım bedeli üç pakette de ₺25'tir. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani <strong>2 ay bedava</strong>.</p>
+          <p>Base price + included devices + overage. For example: <strong>with 150 rental devices, on the Professional plan</strong> ₺2,099 base + (150 − 25) × ₺25 = <strong>₺5,224/month + VAT</strong>. The overage price is ₺25 in all three plans. Paid yearly you pay ten times the monthly total — that is <strong>2 months free</strong>.</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-right">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-2" id="faq-q-2">
-          <span>Kurulum ve veri aktarımı ne kadar?</span>
+          <span>What do setup and data import cost?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-2" role="region" aria-labelledby="faq-q-2" aria-hidden="true">
-          <p>Kurulum + Excel/CSV veri aktarımı + 2 saat eğitim için <strong>liste fiyatımız ₺12.000</strong>; kuruluş döneminde <strong>ücretsiz</strong> yapıyoruz. Müşteri ve cihaz listenizi mevcut dosyanızdan aktarıyoruz, sıfırdan veri girmenize gerek yok.</p>
+          <p>Setup + the Excel/CSV data import + 2 hours of training have a <strong>list price is ₺12,000</strong>; during the founding period we do it <strong>free of charge</strong> . We import your customer and device lists from the file you already have, so you do not key anything in from scratch.</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-left">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-3" id="faq-q-3">
-          <span>e-Fatura entegrasyonu var mı?</span>
+          <span>Is there a Turkish e-invoice integration?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-3" role="region" aria-labelledby="faq-q-3" aria-hidden="true">
-          <p><strong>Hayır, şu an e-Fatura / GİB entegrasyonu yok.</strong> Bugün için <strong>Logo'ya aktarım mevcut</strong>. Tarih veremediğimiz bir şeye "yolda" demek istemiyoruz — kararınızı ürünün bugünkü haliyle verin.</p>
+          <p><strong>No, there is no e-invoice / GİB integration at the moment.</strong> What there is today is an <strong>export to Logo</strong>. We will not call something “coming soon” when we cannot give a date — make your decision on the product as it is today.</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-right">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-4" id="faq-q-4">
-          <span>Müşterim kendi panelinden cihazlarını görebiliyor mu?</span>
+          <span>Can my customer see their own devices in a portal?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-4" role="region" aria-labelledby="faq-q-4" aria-hidden="true">
-          <p><strong>Müşteri portalı yok</strong> — müşteriniz giriş yapıp cihazlarını göremez. Bunun yerine cihazdaki <strong>QR kodu okutup giriş yapmadan arıza bildirebilir</strong>, siz de yapılan işlem ve tutarı tek tıkla WhatsApp'tan gönderirsiniz.</p>
+          <p><strong>There is no customer portal</strong> — your customer cannot sign in and look at their machines. What they can do instead is scan the <strong>QR code on the machine and report a fault without signing in</strong>, and you send the work done and the amount back over WhatsApp in one click.</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-left">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-5" id="faq-q-5">
-          <span>Teknisyenin konumunu canlı görebilir miyim?</span>
+          <span>Can I see the engineer’s location live?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-5" role="region" aria-labelledby="faq-q-5" aria-hidden="true">
-          <p><strong>Hayır, canlı konum / GPS takibi yok.</strong> Olan şey rota planlama: günün duraklarını sıralayıp <strong>Google Maps çok duraklı bağlantısı</strong> üretiyoruz; teknisyen tek dokunuşla navigasyona geçiyor.</p>
+          <p><strong>No, there is no live location or GPS tracking.</strong> What there is, is route planning: we order the day’s stops and produce a <strong>multi-stop Google Maps link</strong> , so the engineer goes into navigation with one tap.</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-right">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-6" id="faq-q-6">
-          <span>Mobil uygulaması var mı?</span>
+          <span>Is there a mobile app?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-6" role="region" aria-labelledby="faq-q-6" aria-hidden="true">
-          <p>App Store veya Play'de <strong>ayrı bir uygulama yok</strong>. Nextus Servis <strong>web + PWA</strong> olarak çalışır: tarayıcıdan açıp ana ekrana eklersiniz, telefonda uygulama gibi durur. Teknisyen sayaç girişini ve fiş kapatmayı telefondan yapar.</p>
+          <p>There is <strong>no separate app on the App Store or Play</strong>. Nextus Servis runs as <strong>web + PWA</strong> : you open it in the browser and add it to the home screen, and on a phone it behaves like an app. The engineer enters meters and closes tickets from the phone.</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-left">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-7" id="faq-q-7">
-          <span>Sayaç bazlı faturalama nasıl işliyor?</span>
+          <span>How does meter-based invoicing work?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-7" role="region" aria-labelledby="faq-q-7" aria-hidden="true">
-          <p><strong>Sayaç Turu</strong> ekranında müşteri bazlı toplu sayaç girersiniz. Sözleşmedeki <strong>dahil hacim</strong> ve <strong>aşım fiyatı</strong> üzerinden kira faturası otomatik hesaplanır. Fatura öncesi <strong>sayaç ön kontrolü</strong> eksik okumaları listeler, <strong>geç sayaç takibi</strong> gecikenleri gösterir, <strong>Kaçan Gelir paneli</strong> faturalanmamışları isim isim önünüze koyar.</p>
+          <p><strong>Meter round</strong> screen you enter meters in bulk, customer by customer. The rent invoice is then worked out automatically from the <strong>included volume</strong> and the <strong>overage price</strong> in the contract. Before invoicing, the <strong>meter check</strong> lists the readings that are missing, <strong>late-meter tracking</strong> shows what is running late, and the <strong>Lost revenue panel</strong> puts the uninvoiced ones in front of you by name.</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-right">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-8" id="faq-q-8">
-          <span>Verilerim bana ait mi? Dışarı alabilir miyim?</span>
+          <span>Is the data mine? Can I take it out?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-8" role="region" aria-labelledby="faq-q-8" aria-hidden="true">
-          <p>Evet. <strong>Yedeğinizi tek tıkla indirirsiniz</strong> — tüm verinizi içeren bir JSON dosyası olarak (yönetici yetkisiyle). Müşteri ve cihaz listenizi <strong>Excel/CSV ile içeri aktarıyoruz</strong>; dışarı çıkan dosya bugün JSON formatındadır, Excel dışa aktarımı henüz yok. Hesabınızda <strong>isteğe bağlı iki adımlı doğrulama (2FA)</strong> açabilirsiniz.</p>
+          <p>Yes. <strong>You download your backup in one click</strong> — a JSON file containing all of your data (with administrator rights). We import your customer and device lists <strong>from Excel or CSV</strong>; the file that comes out is JSON today, and there is no Excel export yet. On your account you can turn on <strong>optional two-factor authentication (2FA)</strong> .</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-left">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-9" id="faq-q-9">
-          <span>Kaç bayi kullanıyor?</span>
+          <span>How many dealers use it?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-9" role="region" aria-labelledby="faq-q-9" aria-hidden="true">
-          <p>Dürüst cevap: <strong>erken dönemdeyiz</strong> ve şu an kurucu müşterimizle sahada çalışıyoruz. Bu yüzden bu sayfada müşteri sayısı, yorum, yıldız puanı veya basın logosu göremezsiniz — <strong>uydurmamayı tercih ettik</strong>. İkna yöntemimiz canlı ekranı göstermek ve ilk ay sonu kapanışını birlikte yapmak.</p>
+          <p>The honest answer: <strong>we are early</strong> and we are working in the field with our founding customer. That is why you will not find a customer count, testimonials, star ratings or press logos on this page — <strong>we would rather not invent them</strong>. The way we convince you is to show the live screen and do the first month-end close with you.</p>
         </div>
       </div>
 
       <div class="faq-item reveal reveal-right">
         <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-10" id="faq-q-10">
-          <span>Yapay zekâ özellikleri var mı?</span>
+          <span>Are there any AI features?</span>
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-10" role="region" aria-labelledby="faq-q-10" aria-hidden="true">
-          <p><strong>Hayır.</strong> Toner tükenme tahmini gibi hesaplar yapay zekâ değil, <strong>sayaç hızına dayalı düz aritmetik</strong>. Programın işi tahmin etmek değil, kaydı doğru tutup faturayı doğru kesmek.</p>
+          <p><strong>No.</strong> Calculations like the toner run-out forecast are not AI, they are <strong>plain arithmetic on the meter pace</strong>. The program’s job is not to guess; it is to keep the record right and raise the invoice right.</p>
         </div>
       </div>
     </div>
@@ -1484,34 +1484,33 @@ const BODY = `
         <div class="founder-ava" aria-hidden="true">MN</div>
         <div>
           <h3 class="founder-name">Mehmet Naim Çetin</h3>
-          <div class="founder-role">Kurucu · Yazılımı yazan kişi</div>
+          <div class="founder-role">Founder · the person who wrote the software</div>
         </div>
       </div>
 
       <p class="founder-lead">
-        Bir fotokopi bayisinde, okunmamış sayaçlar yüzünden <strong>faturalanmamış işler</strong> olduğunu
-        gördüm. Sorunu masa başında değil, bayinin yanında oturarak çözdüm — Nextus Servis oradan çıktı.
+        In a copier dealership I saw work that was <strong>never invoiced</strong> because the meters had not been read. I solved it sitting next to the dealer, not at a desk — Nextus Servis came out of that.
       </p>
 
       <div class="founder-grid">
         <div class="founder-item">
-          <span class="founder-item-t">Doğrudan bana ulaşırsınız</span>
-          Çağrı merkezi yok. Yazan kişi ile konuşursunuz.
+          <span class="founder-item-t">You reach me directly</span>
+          There is no call centre. You talk to the person who wrote it.
         </div>
         <div class="founder-item">
-          <span class="founder-item-t">Kurulumu ben yaparım</span>
-          Excel'inizi ben aktarırım, ekibinize ben anlatırım.
+          <span class="founder-item-t">I do the setup myself</span>
+          I import your Excel and I train your team.
         </div>
         <div class="founder-item">
-          <span class="founder-item-t">İstediğiniz an çıkarsınız</span>
-          Veriniz sizin. Tek tuşla indirir, gidersiniz.
+          <span class="founder-item-t">You can leave whenever you want</span>
+          The data is yours. One button, you download it and go.
         </div>
       </div>
 
       <div class="founder-cta">
-        <a href="https://wa.me/905526961703?text=Merhaba%20Mehmet%20Naim%2C%20Nextus%20Servis%20hakkinda%20konusmak%20istiyorum"
-           target="_blank" rel="noopener" class="btn btn-grad">Doğrudan bana yazın →</a>
-        <span class="founder-tel">0552 696 17 03</span>
+        <a href="https://wa.me/905526961703?text=Hello%20Mehmet%20Naim%2C%20I%20would%20like%20to%20talk%20about%20Nextus%20Servis"
+           target="_blank" rel="noopener" class="btn btn-grad">Message me directly →</a>
+        <span class="founder-tel">+90 552 696 17 03</span>
       </div>
     </div>
   </div>
@@ -1534,30 +1533,30 @@ const BODY = `
     <div class="cta-card reveal reveal-scale">
       <div class="cta-mesh"></div>
       <div class="cta-inner">
-        <span class="section-eyebrow"><span class="dot"></span>Şimdi Başla</span>
-        <h2 class="cta-title">Cihazlarınızı bir kere sayalım, <span class="gradient-text">kaçanı birlikte görelim</span></h2>
-        <p class="cta-sub">14 gün ücretsiz (deneme hesabı: 2 kullanıcı · 50 fiş). Kredi kartı istenmez, taahhüt yok. Kurulum + Excel aktarımı + 2 saat eğitim kuruluş döneminde ücretsiz.</p>
+        <span class="section-eyebrow"><span class="dot"></span>Start now</span>
+        <h2 class="cta-title">Let us count your machines once <span class="gradient-text">and see what is leaking, together</span></h2>
+        <p class="cta-sub">14 days free (trial account: 2 users · 50 tickets). No card needed, no commitment. Setup + Excel import + 2 hours of training are free during the founding period.</p>
         <div class="cta-actions">
-          <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20icin%2014%20gunluk%20denemeyi%20baslatmak%20istiyorum" target="_blank" rel="noopener" class="btn btn-grad btn-lg btn-pulse">WhatsApp'tan başlayalım <span class="arr">→</span></a>
-          <a href="#hesap" class="btn btn-ghost btn-lg">Önce hesabı göreyim</a>
+          <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20of%20Nextus%20Servis" target="_blank" rel="noopener" class="btn btn-grad btn-lg btn-pulse">Let’s start on WhatsApp <span class="arr">→</span></a>
+          <a href="#hesap" class="btn btn-ghost btn-lg">Show me the numbers first</a>
         </div>
         <div class="cta-meta">
-          <span>✓ 0552 696 17 03</span>
-          <span>✓ Birebir kurulum</span>
-          <span>✓ Verinizi her an indirin</span>
+          <span>✓ +90 552 696 17 03</span>
+          <span>✓ One-to-one setup</span>
+          <span>✓ Download your data any time</span>
         </div>
 
         <!-- WhatsApp kullanmak istemeyen / mesai dışı bakan ziyaretçi için ikinci yol.
              /api/talep talebi önce veritabanına yazar; CRM bağlı olmasa da kaybolmaz. -->
         <div class="cta-form-wrap">
-          <div class="cta-form-or">— ya da numaranızı bırakın, biz arayalım —</div>
+          <div class="cta-form-or">— or leave your number and we will call you —</div>
           <form id="leadForm" class="cta-form" novalidate>
-            <input type="text" name="firma" id="lfFirma" placeholder="Firma adı" autocomplete="organization" required>
-            <input type="tel" name="telefon" id="lfTel" placeholder="Telefon" autocomplete="tel" inputmode="tel" required>
-            <input type="text" name="cihazSayisi" id="lfCihaz" placeholder="Kaç kiralık cihaz?" inputmode="numeric">
+            <input type="text" name="firma" id="lfFirma" placeholder="Company name" autocomplete="organization" required>
+            <input type="tel" name="telefon" id="lfTel" placeholder="Phone" autocomplete="tel" inputmode="tel" required>
+            <input type="text" name="cihazSayisi" id="lfCihaz" placeholder="How many rental devices?" inputmode="numeric">
             <!-- bal küpü: gerçek kullanıcı görmez, botlar doldurur -->
             <input type="text" name="website_hp" id="lfHp" tabindex="-1" autocomplete="off" aria-hidden="true">
-            <button type="submit" class="btn btn-grad" id="lfBtn">Beni arayın</button>
+            <button type="submit" class="btn btn-grad" id="lfBtn">Call me</button>
           </form>
           <div id="lfMsg" class="cta-form-msg" role="status" aria-live="polite"></div>
         </div>
@@ -1577,49 +1576,49 @@ const BODY = `
              src baştan verilmez, görüşe yaklaşınca yüklenir (sayfa kasmasın). -->
         <video class="brand-clip-v" data-src="/nextus-servis.mp4"
                autoplay muted loop playsinline preload="none" disablepictureinpicture
-               aria-label="Nextus Servis marka animasyonu"></video>
+               aria-label="Nextus Servis brand animation"></video>
         <a href="#" class="logo">
           <span class="logo-mark"><svg class="logo-n" viewBox="0 0 230 200" aria-hidden="true"><g class="nx-body"><rect x="30" y="20" width="38" height="160"/><polygon points="68,20 106,20 150,180 112,180"/><rect x="150" y="20" width="38" height="160"/></g><path class="nx-cut" d="M14 154 C84 120 152 78 224 34" pathLength="100"/></svg></span>
           <span class="logo-text">Nextus Servis</span>
         </a>
-        <p>Yazıcı, fotokopi ve ofis cihazı kiralayan ve servis veren bayiler için sayaç, kira faturalaması ve servis takip programı. NEXUS GROUP ürünüdür.</p>
+        <p>Meter reading, rent invoicing and service tracking for dealers who rent out and service printers, copiers and office equipment. A NEXUS GROUP product.</p>
       </div>
 
       <div class="footer-col">
-        <h3>Ürün</h3>
-        <a href="#urun">Ne yapıyor</a>
-        <a href="#ozellikler">Günlük kullanım</a>
-        <a href="#donusum">Ay sonu karşılaştırması</a>
-        <a href="#fiyatlandirma">Fiyatlar</a>
+        <h3>Product</h3>
+        <a href="#urun">What it does</a>
+        <a href="#ozellikler">Day to day</a>
+        <a href="#donusum">The month-end comparison</a>
+        <a href="#fiyatlandirma">Pricing</a>
       </div>
 
       <div class="footer-col">
-        <h3>Karar vermeden</h3>
-        <a href="#hesap">Kaçan gelir hesabı</a>
-        <a href="#nasil">Nasıl başlıyoruz</a>
-        <a href="#sss">Sık sorulan sorular</a>
+        <h3>Before you decide</h3>
+        <a href="#hesap">Lost revenue calculator</a>
+        <a href="#nasil">How we start</a>
+        <a href="#sss">Frequently asked questions</a>
       </div>
 
       <div class="footer-col">
-        <h3>İletişim</h3>
-        <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20hakkinda%20bilgi%20istiyorum" target="_blank" rel="noopener">WhatsApp: 0552 696 17 03</a>
-        <a href="tel:+905526961703">Telefon: 0552 696 17 03</a>
+        <h3>Contact</h3>
+        <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20information%20about%20Nextus%20Servis" target="_blank" rel="noopener">WhatsApp: +90 552 696 17 03</a>
+        <a href="tel:+905526961703">Phone: +90 552 696 17 03</a>
       </div>
     </div>
 
     <div class="footer-bottom">
       <span>© 2026 Nextus Servis — NEXUS GROUP</span>
-      <span class="footer-meta">Fiyatlar KDV hariçtir · Hesaplayıcı sonuçları tahmindir</span>
+      <span class="footer-meta">Prices exclude VAT · Calculator results are estimates</span>
     </div>
   </div>
 </footer>
 
 <!-- WhatsApp Floating Button -->
-<a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20demosu%20ve%20fiyat%20bilgisi%20istiyorum" class="wa-float" aria-label="WhatsApp ile iletişim" target="_blank" rel="noopener">
+<a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20a%20demo%20of%20Nextus%20Servis%20and%20pricing" class="wa-float" aria-label="Contact on WhatsApp" target="_blank" rel="noopener">
   <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true" focusable="false">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
   </svg>
-  <span class="wa-tooltip">Demo için yazın</span>
+  <span class="wa-tooltip">Ask for a demo</span>
 </a>
 
 <!-- ========== JAVASCRIPT ========== -->
@@ -1636,22 +1635,22 @@ document.documentElement.classList.add('js');
      ============================================================ */
   function formatTL(n) {
     var neg = Math.round(n) < 0;
-    var s = Math.round(Math.abs(n)).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');
+    var s = Math.round(Math.abs(n)).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
     return (neg ? '−' : '') + s;
   }
   /* isaretli para: eksi, para biriminin ONUNE gelir */
   function tl(n) {
-    return (Math.round(n) < 0 ? '−₺' : '₺') + Math.round(Math.abs(n)).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');
+    return (Math.round(n) < 0 ? '−₺' : '₺') + Math.round(Math.abs(n)).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
   }
   function formatCompact(n) {
     var neg = n < 0, a = Math.abs(n);
     var s;
-    if (a >= 1000000) s = (a / 1000000).toFixed(1).replace('.', ',') + 'M';
+    if (a >= 1000000) s = (a / 1000000).toFixed(1) + 'M';
     else if (a >= 1000) s = Math.round(a / 1000) + 'K';
     else s = Math.round(a).toString();
     return (neg ? '−' : '') + s;
   }
-  function dec1(n) { return n.toFixed(1).replace('.', ','); }
+  function dec1(n) { return n.toFixed(1); }
 
   /* ============================================================
      FIYAT MODELI  (tek kaynak — ROI ve fiyat kartlari ayni yerden okur)
@@ -1660,9 +1659,9 @@ document.documentElement.classList.add('js');
   var YEARLY_MONTHS = 10;              // yillik odeme = aylik x10 (2 ay bedava)
   var RECOVERY = 0.70;                 // kacan gelirin geri kazanildigi varsayilan oran
   var PLANS = {
-    baslangic:   { name: 'Başlangıç',   base: 1749, included: 20 },
-    profesyonel: { name: 'Profesyonel', base: 2099, included: 25 },
-    kurumsal:    { name: 'Kurumsal',    base: 5249, included: 100 }
+    baslangic:   { name: 'Starter',      base: 1749, included: 20 },
+    profesyonel: { name: 'Professional', base: 2099, included: 25 },
+    kurumsal:    { name: 'Enterprise',   base: 5249, included: 100 }
   };
   function planMonthly(plan, devices) {
     return plan.base + Math.max(0, devices - plan.included) * PER_DEVICE;
@@ -1823,11 +1822,11 @@ document.documentElement.classList.add('js');
       if (num && per && amt) {
         if (billing === 'yearly') {
           num.textContent = formatTL(yearly);
-          per.textContent = '/ yıl';
+          per.textContent = '/ year';
           amt.classList.add('yearly');
         } else {
           num.textContent = formatTL(monthly);
-          per.textContent = '/ ay';
+          per.textContent = '/ month';
           amt.classList.remove('yearly');
         }
       }
@@ -1837,10 +1836,10 @@ document.documentElement.classList.add('js');
         if (deviceTouched) {
           var overTxt = over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : '';
           calc.innerHTML = billing === 'yearly'
-            ? '<strong>' + dev + ' cihaz</strong> · ₺' + formatTL(base) + ' taban' + overTxt +
-              ' = <strong>₺' + formatTL(monthly) + '/ay</strong> → yıllık <strong>₺' + formatTL(yearly) + '</strong> + KDV (2 ay bedava)'
-            : '<strong>' + dev + ' cihaz</strong> · ₺' + formatTL(base) + ' taban' + overTxt +
-              ' = <strong>₺' + formatTL(monthly) + '/ay</strong> + KDV';
+            ? '<strong>' + dev + ' devices</strong> · ₺' + formatTL(base) + ' base' + overTxt +
+              ' = <strong>₺' + formatTL(monthly) + '/month</strong> → <strong>₺' + formatTL(yearly) + '</strong> a year + VAT (2 months free)'
+            : '<strong>' + dev + ' devices</strong> · ₺' + formatTL(base) + ' base' + overTxt +
+              ' = <strong>₺' + formatTL(monthly) + '/month</strong> + VAT';
           calc.hidden = false;
         } else {
           calc.hidden = true;
@@ -1997,11 +1996,11 @@ document.documentElement.classList.add('js');
   }
 
   function multStatus(mult) {
-    if (mult < 1) return '⚠️ Zayıf';
-    if (mult < 1.5) return '🆗 İdare eder';
-    if (mult < 3) return '✓ Çok iyi';
-    if (mult < 6) return '⚡ Mükemmel';
-    return '🚀 Olağanüstü';
+    if (mult < 1) return '⚠️ Weak';
+    if (mult < 1.5) return '🆗 Fair';
+    if (mult < 3) return '✓ Very good';
+    if (mult < 6) return '⚡ Excellent';
+    return '🚀 Outstanding';
   }
 
   /* Canli sayac durumu.
@@ -2015,7 +2014,7 @@ document.documentElement.classList.add('js');
 
   function renderTicker(value, perHour) {
     if (rmtAmount) rmtAmount.textContent = '₺' + formatTL(value);
-    if (rmtRate) rmtRate.textContent = '₺' + (perHour >= 10 ? formatTL(perHour) : perHour.toFixed(2).replace('.', ','));
+    if (rmtRate) rmtRate.textContent = '₺' + (perHour >= 10 ? formatTL(perHour) : perHour.toFixed(2));
   }
 
   function tickerLoop(now) {
@@ -2067,7 +2066,7 @@ document.documentElement.classList.add('js');
 
     if (vdCount) vdCount.textContent = devices;
     if (vdBill) vdBill.textContent = '₺' + formatTL(billPer);
-    if (vdMiss) vdMiss.textContent = '%' + missPct;
+    if (vdMiss) vdMiss.textContent = missPct + '%';
     paintSliderTracks();
 
     /* --- kacan gelir --- */
@@ -2089,7 +2088,7 @@ document.documentElement.classList.add('js');
     if (monthlyRecovered <= 0) paybackTxt = '—';
     else {
       var pm = monthlyCost / monthlyRecovered;
-      paybackTxt = pm < 1 ? '< 1 ay' : (pm < 12 ? dec1(pm) + ' ay' : dec1(pm / 12) + ' yıl');
+      paybackTxt = pm < 1 ? '< 1 month' : (pm < 12 ? dec1(pm) + ' months' : dec1(pm / 12) + ' years');
     }
 
     /* --- ekran --- */
@@ -2100,10 +2099,10 @@ document.documentElement.classList.add('js');
     }
     if (elMonth) elMonth.textContent = tl(monthlyLeak);
     if (elMonthlyMini) elMonthlyMini.textContent = tl(monthlyLeak);
-    if (elBasis) elBasis.textContent = devices + ' cihaz × ' + tl(billPer) + ' × %' + missPct;
+    if (elBasis) elBasis.textContent = devices + ' devices × ' + tl(billPer) + ' × ' + missPct + '%';
     if (elNet) elNet.textContent = tl(net);
     if (elPayback) elPayback.textContent = paybackTxt;
-    if (elRecovered) elRecovered.textContent = tl(recovered) + ' geri kazanım';
+    if (elRecovered) elRecovered.textContent = tl(recovered) + ' recovered';
 
     var netShare = recovered > 0 ? Math.max(0, net) / recovered * 100 : 0;
     var costShare = Math.max(0, 100 - netShare);
@@ -2115,8 +2114,8 @@ document.documentElement.classList.add('js');
 
     if (recName) recName.textContent = plan.name;
     if (recDetail) {
-      recDetail.textContent = devices + ' cihaz: ' + tl(plan.base) + ' taban' +
-        (over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : ' (dahil adedin içinde)');
+      recDetail.textContent = devices + ' devices: ' + tl(plan.base) + ' base' +
+        (over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : ' (within the included count)');
     }
     if (recPrice) recPrice.textContent = tl(monthlyCost);
     if (recPayback) recPayback.textContent = paybackTxt;
@@ -2165,7 +2164,7 @@ document.documentElement.classList.add('js');
     }
     if (rpDiffPill) {
       /* 5 yillik fark = yalnizca birikimli NET kazanc (yesil cizginin ucu). */
-      rpDiffPill.textContent = '+₺' + formatCompact(Math.max(0, net) * 5) + ' / 5 yıl';
+      rpDiffPill.textContent = '+₺' + formatCompact(Math.max(0, net) * 5) + ' / 5 years';
     }
 
     /* --- canli sayac oranini guncelle (yalnizca kullanici dokunduysa) --- */
@@ -2179,7 +2178,7 @@ document.documentElement.classList.add('js');
       /* rAF calismasa bile oran etiketi dogru kalsin */
       if (rmtRate) {
         var ph = yearlyLeak / (365 * 24);
-        rmtRate.textContent = '₺' + (ph >= 10 ? formatTL(ph) : ph.toFixed(2).replace('.', ','));
+        rmtRate.textContent = '₺' + (ph >= 10 ? formatTL(ph) : ph.toFixed(2));
       }
     }
 
@@ -2510,32 +2509,32 @@ document.documentElement.classList.add('js');
     e.preventDefault();
     var firma = document.getElementById('lfFirma').value.trim();
     var tel = document.getElementById('lfTel').value.trim();
-    if (!firma || !tel) { say('Firma adı ve telefon gerekli.', 'err'); return; }
+    if (!firma || !tel) { say('Company name and phone number are required.', 'err'); return; }
 
     var veri = {
       firma: firma,
       telefon: tel,
       cihazSayisi: document.getElementById('lfCihaz').value.trim(),
       website_hp: document.getElementById('lfHp').value,
-      utm_source: new URLSearchParams(location.search).get('utm_source') || 'landing',
+      utm_source: new URLSearchParams(location.search).get('utm_source') || 'landing-en',
       utm_campaign: new URLSearchParams(location.search).get('utm_campaign') || ''
     };
 
-    btn.disabled = true; say('Gönderiliyor…');
+    btn.disabled = true; say('Sending…');
     fetch('/api/talep', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(veri)
     })
       .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
       .then(function () {
         form.reset();
-        say('Aldık. En kısa sürede arayacağız.', 'ok');
+        say('Got it. We will call you shortly.', 'ok');
       })
       .catch(function () {
         /* Uc yoksa/ulasilamiyorsa talebi kaybetme: WhatsApp'a tasi. */
-        say('Bağlantı kurulamadı — WhatsApp üzerinden iletiyoruz.', 'err');
+        say('Could not connect — we are sending this over WhatsApp.', 'err');
         window.open(WA + encodeURIComponent(
-          'Merhaba, Nextus Servis için bilgi istiyorum.\\nFirma: ' + firma +
-          '\\nTelefon: ' + tel + (veri.cihazSayisi ? '\\nCihaz: ' + veri.cihazSayisi : '')
+          'Hello, I would like information about Nextus Servis.\\nCompany: ' + firma +
+          '\\nPhone: ' + tel + (veri.cihazSayisi ? '\\nDevices: ' + veri.cihazSayisi : '')
         ), '_blank');
       })
       .then(function () { btn.disabled = false; });
@@ -2907,15 +2906,15 @@ document.documentElement.classList.add('js');
 })();
 `;
 
-export default function Landing() {
+export default function LandingEn() {
   return (
     <>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
       <style dangerouslySetInnerHTML={{ __html: LANDING_CSS }} />
-      <div lang="tr" dangerouslySetInnerHTML={{ __html: BODY }} />
-      <Script id="stk-landing-tr" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: JS }} />
+      <div lang="en" dangerouslySetInnerHTML={{ __html: BODY }} />
+      <Script id="stk-landing-en" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: JS }} />
     </>
   );
 }

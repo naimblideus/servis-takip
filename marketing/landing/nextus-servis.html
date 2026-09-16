@@ -227,6 +227,9 @@ a.logo:hover .logo-mark{transform:translateY(-1px) scale(1.04)}
 }
 .nav-link:hover{color:#fff;background:rgba(255,255,255,0.05)}
 .nav-cta{display:flex;gap:10px;align-items:center}
+/* Dil secici: TR <-> EN. btn-ghost oldugu icin 900px altinda gizlenir;
+   o genislikte mobil menudeki bagalanti devreye girer. */
+.dil-sec{padding:10px 12px;font-weight:700;letter-spacing:.04em}
 .nav-mobile{display:none}
 
 @media (max-width:900px){
@@ -3791,6 +3794,14 @@ input:focus-visible,
 .hero-rotator{line-height:1.25}
 .hero-rotator-word{padding-bottom:.08em}
 
+/* Dönen kelime BÖLÜNMEZ. Türkçe karşılıklar tek kelime ("görünsün"), bu
+   yüzden sorun çıkmamıştı; İngilizcede iki kelime ("gets paid") ve dar
+   ekranda ikiye sarıyordu — kelimeler mutlak konumlu olduğu için ikinci
+   satır kutunun dışına taşıp bir sonraki kelimenin üstüne biniyordu.
+   nowrap ile kutuya sığmazsa kelime tümden alt satıra iner, üst üste binmez. */
+.hero-rotator-word,
+.hero-rotator-spacer{white-space:nowrap}
+
 /* 3 ── RENKLİ PARILTI YOK.
    Sıfır ofsetli renkli gölge, "AI yapımı arayüz" izlenimi veren en belirgin
    işaret. Yerine düz, nötr yükseklik. */
@@ -3986,6 +3997,7 @@ h2,.section-title,.cta-title{letter-spacing:-0.022em;font-weight:700}
            Demo hesabı DURUYOR (/login?demo=1 bilgileri doldurur) ama sahada,
            kurucunun yönettiği bir gösterim için. Buradaki yol WhatsApp: bir
            konuşma başlar, gösterimi kurucu yönetir, talep de kaybolmaz. -->
+      <a href="/en" class="btn btn-ghost btn-sm dil-sec" hreflang="en" lang="en" aria-label="Switch to English">EN</a>
       <a href="#hesap" class="btn btn-ghost btn-sm">Hesapla</a>
       <a href="https://wa.me/905526961703?text=Merhaba%2C%20Nextus%20Servis%20demosu%20ve%20fiyat%20bilgisi%20istiyorum" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><span class="nav-cta-long">WhatsApp'tan&nbsp;</span>Demo →</a>
       <button class="menu-btn" id="menuBtn" aria-label="Menü" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
@@ -3999,6 +4011,7 @@ h2,.section-title,.cta-title{letter-spacing:-0.022em;font-weight:700}
   <a href="#nasil" class="nav-link-m">Nasıl Çalışır</a>
   <a href="#fiyatlandirma" class="nav-link-m">Fiyatlar</a>
   <a href="#sss" class="nav-link-m">SSS</a>
+  <a href="/en" class="nav-link-m" hreflang="en" lang="en">English</a>
 </div>
 
 <!-- ========== HERO ========== -->

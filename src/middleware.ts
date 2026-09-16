@@ -31,7 +31,8 @@ export async function middleware(request: NextRequest) {
     // sayfayı DİNAMİK yapıyor ve 555 KB'lık landing her ziyarette sunucuda
     // yeniden üretiliyordu (Cache-Control: no-store). Buraya taşınınca sayfa
     // statik kaldı; middleware yalnız çereze bakıyor, render etmiyor.
-    if (pathname === '/') {
+    // /en aynı sayfanın İngilizcesi; girişli ziyaretçi için davranışı da aynı.
+    if (pathname === '/' || pathname === '/en') {
         if (oturumCerezi(request)) {
             return NextResponse.redirect(new URL('/dashboard', request.url));
         }
@@ -83,6 +84,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         '/',
+        '/en',
         '/super-admin/:path*',
         '/api/super-admin/:path*',
     ],

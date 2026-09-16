@@ -5,6 +5,12 @@ export const metadata: Metadata = {
   title: 'Nextus Servis — Kiralık Cihaz Servis & Sayaç-Kira Yönetimi',
   description:
     'Fotokopi/yazıcı kiralama ve servis bayileri için: sayacı okur, kira + servisi tek faturada otomatik birleştirir, kaçan geliri yakalar. 14 gün ücretsiz, kart yok.',
+  // İngilizcesi /en'de. Aynı sayfanın iki dili olduğunu arama motoruna burada
+  // söylüyoruz; ziyaretçi için nav'da TR/EN bağlantısı duruyor.
+  alternates: {
+    canonical: '/',
+    languages: { tr: '/', en: '/en', 'x-default': '/' },
+  },
 };
 
 /**
