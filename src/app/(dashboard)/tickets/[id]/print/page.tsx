@@ -297,7 +297,10 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
 
             <PrintButton ticketId={ticket.id} />
 
-            <div className="print-wrapper">
+            {/* lang: belge BAYİNİN dilinde ama <html lang> KULLANICININ dili.
+                CSS text-transform:uppercase dile bakıyor; İngilizce kuralla
+                "MÜŞTERİ" → "MÜŞTERI" oluyordu (noktasız I). Ölçüldü. */}
+            <div className="print-wrapper" lang={dil}>
                 <div className="receipt">
 
                     {/* ── HEADER ── */}

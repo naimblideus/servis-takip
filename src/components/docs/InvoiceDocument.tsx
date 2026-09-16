@@ -150,7 +150,9 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
         @media print { .appendix .ext-table thead { display: table-header-group; } .appendix tr { page-break-inside: avoid; } }
       `}</style>
 
-      <div className="print-wrapper">
+      {/* lang: belgenin dili bayinin dili; büyük harf kuralları buna bakar
+          (İngilizce kuralla Türkçe "İ" noktasını kaybediyordu). */}
+      <div className="print-wrapper" lang={dil}>
         <div className="receipt">
           <div className="header">
             <div className="header-left">

@@ -87,7 +87,7 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
         .empty { text-align: center; color: #9ca3af; padding: 18px; font-size: 12.5px; }
       `}</style>
 
-      <div className="print-wrapper">
+      <div className="print-wrapper" lang={dil}>
         <div className="receipt">
           <div className="header">
             <div className="header-left">

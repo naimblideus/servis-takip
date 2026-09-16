@@ -116,7 +116,7 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
 
       <PrintNowButton />
 
-      <div className="print-wrapper">
+      <div className="print-wrapper" lang={dil}>
         <div className="receipt">
           {/* HEADER */}
           <div className="header">
