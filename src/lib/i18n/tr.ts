@@ -3416,6 +3416,18 @@ export const tr = {
   // WhatsApp'tan gelen mesajlar.
   // Parça grubu — veritabanında KOD durur, adı burada.
   stokBaslik: { toplamGosterilen: 'Toplam {n} kalem • {g} gösteriliyor' },
+  // Ekranlarda kalan son etiketler — ekran okuyucu metni ve örnek adlar dahil.
+  kalanEtiket: {
+    barkodIpucu: 'USB barkod okuyucuyla bir parça barkodunu okutun — kayıtlıysa düzenleme açılır, değilse yeni parça formu barkodla dolar.',
+    parcayiDuzenle: 'Parçayı düzenle',
+    parcayiSil: 'Parçayı sil',
+    pesin: 'Peşin',
+    acikHesap: 'Açık Hesap',
+    menuyuAc: 'Menüyü aç',
+    menuyuKapat: 'Menüyü kapat',
+    ornekAdSoyad: 'Ahmet Yılmaz',
+    yeniSifreOpsiyonel: 'Yeni şifre (opsiyonel)',
+  },
   parcaGrubu: {
     TONER: 'Toner',
     INK: 'Mürekkep',

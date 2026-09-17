@@ -94,7 +94,7 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
                                         </select>
                                     </td>
                                     <td style={{ padding: '0.5rem 1rem' }}>
-                                        <input style={inp} type="password" placeholder="Yeni şifre (opsiyonel)" value={editForm.password} onChange={e => setEditForm({ ...editForm, password: e.target.value })} />
+                                        <input style={inp} type="password" placeholder={t.kalanEtiket.yeniSifreOpsiyonel} value={editForm.password} onChange={e => setEditForm({ ...editForm, password: e.target.value })} />
                                     </td>
                                     <td style={{ padding: '0.5rem 1rem' }}>{ticketCounts[u.id] || 0}</td>
                                     <td style={{ padding: '0.5rem 1rem' }}>—</td>

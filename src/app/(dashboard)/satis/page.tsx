@@ -146,8 +146,8 @@ export default function SatisPage() {
           <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 4 }}>{t.satis.odeme}</label>
           <div style={{ display: 'flex', gap: 6 }}>
             <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 3, flex: 1 }}>
-              <button type="button" onClick={() => setPaid(true)} style={{ flex: 1, padding: '0.45rem', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', background: paid ? '#16a34a' : 'transparent', color: paid ? 'white' : '#6b7280' }}>Peşin</button>
-              <button type="button" onClick={() => setPaid(false)} style={{ flex: 1, padding: '0.45rem', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', background: !paid ? '#d97706' : 'transparent', color: !paid ? 'white' : '#6b7280' }}>Açık Hesap</button>
+              <button type="button" onClick={() => setPaid(true)} style={{ flex: 1, padding: '0.45rem', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', background: paid ? '#16a34a' : 'transparent', color: paid ? 'white' : '#6b7280' }}>{t.kalanEtiket.pesin}</button>
+              <button type="button" onClick={() => setPaid(false)} style={{ flex: 1, padding: '0.45rem', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', background: !paid ? '#d97706' : 'transparent', color: !paid ? 'white' : '#6b7280' }}>{t.kalanEtiket.acikHesap}</button>
             </div>
             {paid && (
               <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...inp, width: 'auto' }}>

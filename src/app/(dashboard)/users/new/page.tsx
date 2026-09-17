@@ -59,7 +59,7 @@ export default function NewUserPage() {
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: '1rem' }}>
                         <label style={lbl}>{t.musteri.adSoyad}</label>
-                        <input required style={inp} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ahmet Yılmaz" />
+                        <input required style={inp} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t.kalanEtiket.ornekAdSoyad} />
                     </div>
                     <div style={{ marginBottom: '1rem' }}>
                         <label style={lbl}>{t.musteri.eposta} *</label>

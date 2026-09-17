@@ -380,7 +380,7 @@ export default function InventoryPage() {
                 )}
 
                 {/* Barkod okuyucu hazır rozeti */}
-                <span title="USB barkod okuyucuyla bir parça barkodunu okutun — kayıtlıysa düzenleme açılır, değilse yeni parça formu barkodla dolar."
+                <span title={t.kalanEtiket.barkodIpucu}
                     style={{
                         marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                         backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc',
@@ -677,9 +677,9 @@ export default function InventoryPage() {
                                                         barcode: p.barcode || '',
                                                     });
                                                 }}
-                                                style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Parçayı düzenle">✏</button>
+                                                style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label={t.kalanEtiket.parcayiDuzenle}>✏</button>
                                             <button onClick={() => deletePart(p.id, p.name)} title="Sil"
-                                                style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', border: 'none', backgroundColor: '#fee2e2', color: '#b91c1c', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Parçayı sil">✕</button>
+                                                style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', border: 'none', backgroundColor: '#fee2e2', color: '#b91c1c', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label={t.kalanEtiket.parcayiSil}>✕</button>
                                         </div>
                                     </td>
                                 </tr>

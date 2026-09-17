@@ -3317,6 +3317,18 @@ export const en: Sozluk = {
   },
 
   stokBaslik: { toplamGosterilen: '{n} items in total • {g} shown' },
+  kalanEtiket: {
+    barkodIpucu: 'Scan a part barcode with a USB reader — if it is on file the edit form opens, if not the new-part form fills in with the barcode.',
+    parcayiDuzenle: 'Edit the part',
+    parcayiSil: 'Delete the part',
+    pesin: 'Cash',
+    acikHesap: 'On account',
+    menuyuAc: 'Open the menu',
+    menuyuKapat: 'Close the menu',
+    // Örnek ad: forma ne yazılacağını gösterir, gerçek kişi değildir.
+    ornekAdSoyad: 'John Smith',
+    yeniSifreOpsiyonel: 'New password (optional)',
+  },
   parcaGrubu: {
     TONER: 'Toner',
     INK: 'Ink',

@@ -492,7 +492,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
     <>
       {/* ── Mobil üst bar (yalnız telefon/tablet) ── */}
       <div id="app-topbar" className="md:hidden fixed top-0 left-0 right-0 h-14 bg-gray-900 z-40 flex items-center gap-3 px-4 print:hidden">
-        <button onClick={() => setOpen(true)} aria-label="Menüyü aç" className="text-white p-1 -ml-1">
+        <button onClick={() => setOpen(true)} aria-label={t.kalanEtiket.menuyuAc} className="text-white p-1 -ml-1">
           <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
@@ -523,7 +523,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
               <p className="text-white font-semibold text-sm">Nextus Servis</p>
               <p className="text-gray-400 text-xs truncate">{tenantName}</p>
             </div>
-            <button onClick={close} aria-label="Menüyü kapat" className="md:hidden ml-auto text-gray-400 hover:text-white p-1">
+            <button onClick={close} aria-label={t.kalanEtiket.menuyuKapat} className="md:hidden ml-auto text-gray-400 hover:text-white p-1">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>

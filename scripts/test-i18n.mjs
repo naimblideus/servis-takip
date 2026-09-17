@@ -12,7 +12,7 @@
 //      yazılmamış. Yol adı olduğu gibi ekranda kalır.
 //   3. BİÇİMLENDİRME — ₺1.234,56 ile €1,234.56 farkı; 16.09 ile 16/09 farkı.
 //      Yanlış olursa Alman bayi 09/16'yı ay 9 gün 16 diye okur.
-import { mkdtempSync, existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, existsSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -218,6 +218,57 @@ console.log('\n★ TARİH — AVRUPA GÜN/AY/YIL\n');
   t('ISO metin kabul', tarih('2026-09-16T10:00:00', 'tr') === '16.09.2026');
   t('★ geçersiz tarih "—"', tarih('bu tarih değil', 'tr') === '—');
   t('null "—"', tarih(null, 'en') === '—');
+}
+
+console.log('\n★ EKRANLARDA GÖMÜLÜ TÜRKÇE METİN YOK\n');
+{
+  // Sözlük eksiksiz olsa bile bir ekran metni doğrudan JSX'e yazarsa o satır
+  // hiçbir zaman çevrilmez ve kimse fark etmez — arayüzün tamamı İngilizceyken
+  // tek bir Türkçe düğme, ürünün o dile yazılmadığını söyler.
+  //
+  // Tanıtım sayfası (_landing) ve süper admin konsolu hariç: ikisinin de kendi
+  // testi var (test-landing-en.mjs, test-super-admin.mjs).
+  const ATLA = ['_landing', '(super-admin)'];
+
+  /** Yorum satırlarını at: geliştirici notu Türkçe kalabilir, ekrana çıkmaz. */
+  const yorumsuz = (s) => {
+    const out = [];
+    let blok = false;
+    for (const ham of s.split('\n')) {
+      const d = ham.trim();
+      if (blok) { if (d.includes('*/')) blok = false; continue; }
+      if (d.startsWith('/*') || d.startsWith('{/*')) { if (!d.includes('*/')) blok = true; continue; }
+      if (d.startsWith('//') || d.startsWith('*')) continue;
+      out.push(ham);
+    }
+    return out.join('\n');
+  };
+
+  const ekranlar = [];
+  const gez = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, e.name);
+      if (e.isDirectory()) { if (!ATLA.some((a) => p.includes(a))) gez(p); }
+      else if (e.name.endsWith('.tsx')) ekranlar.push(p);
+    }
+  };
+  gez(join(KOK, 'src/app'));
+  gez(join(KOK, 'src/components'));
+
+  const kalinti = [];
+  for (const f of ekranlar) {
+    const s = yorumsuz(readFileSync(f, 'utf8'));
+    const kisa = f.replace(/\\/g, '/').split('/src/')[1];
+    for (const m of s.matchAll(/>([^<>{}\n]*[ğĞıİşŞçÇöÖüÜ][^<>{}\n]*)</g)) {
+      if (m[1].trim()) kalinti.push(`${kisa} · ${m[1].trim().slice(0, 40)}`);
+    }
+    for (const attr of ['placeholder', 'title', 'aria-label', 'alt']) {
+      const re = new RegExp(`(?<![-\\w])${attr}="([^"]*[ğĞıİşŞçÇöÖüÜ][^"]*)"`, 'g');
+      for (const m of s.matchAll(re)) kalinti.push(`${kisa} · ${attr}=${m[1].slice(0, 32)}`);
+    }
+  }
+  t(`${ekranlar.length} ekran dosyası tarandı`, ekranlar.length >= 100, ekranlar.length);
+  t('★ ekranlarda gömülü Türkçe metin yok', kalinti.length === 0, kalinti.slice(0, 6));
 }
 
 if (existsSync(g)) rmSync(g, { recursive: true, force: true });
