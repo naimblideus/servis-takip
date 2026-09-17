@@ -1670,6 +1670,7 @@ export const tr = {
     alisGir: 'Alış Gir',
     yeniParca: '+ Yeni Parça',
     toplamKalem: 'Toplam Kalem',
+    kritikStok: 'Kritik Stok',
     stokDegeri: 'Stok Değeri',
     maliyetsiz: 'Maliyeti Girilmemiş',
     araYer: 'SKU veya parça adı ile ara...',
@@ -3413,7 +3414,24 @@ export const tr = {
   },
 
   // WhatsApp'tan gelen mesajlar.
+  // Parça grubu — veritabanında KOD durur, adı burada.
+  stokBaslik: { toplamGosterilen: 'Toplam {n} kalem • {g} gösteriliyor' },
+  parcaGrubu: {
+    TONER: 'Toner',
+    INK: 'Mürekkep',
+    FUSER: 'Fırın Grubu',
+    ROLLER: 'Paten',
+    GEAR: 'Dişli Grubu',
+    DRUM: 'Drum',
+    SPARE: 'Yedek Parça',
+    PAPER: 'Kağıt / Sarf',
+    LABOUR: 'İşçilik',
+    REPAIR: 'Tamirat',
+    OTHER: 'Diğer',
+  },
   wa: {
+    // Fiş aşama geçmişine YAZILAN not — bayinin dilinde kaydedilir.
+    fistenAcildi: 'WhatsApp mesajından açıldı',
     baslik: '💬 WhatsApp’tan Gelenler',
     sadeceBekleyen: 'Sadece bekleyenler',
     tumunuGoster: 'Tümünü göster',

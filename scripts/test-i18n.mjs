@@ -115,7 +115,9 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   // 'Slug' URL terimi — Turkcesi de slug.
   'superAdmin.yeni.slug', 'superAdmin.detay.alanSlug',
   // 'Plan' iki dilde de ayni kelime.
-  'superAdmin.eskiPanel.plan']);
+  'superAdmin.eskiPanel.plan',
+  // 'Toner' ve 'Drum' iki dilde de ayni yazilir.
+  'parcaGrubu.TONER', 'parcaGrubu.DRUM']);
   const ayni = trY.filter(([p, v]) => !AYNI_OLABILIR.has(p) && String(v).length > 3 && oku(en, p) === v).map(([p]) => p);
   t('★ tr ile en birebir aynı metin yok (özel adlar dışında)', ayni.length === 0, ayni.slice(0, 8));
 }

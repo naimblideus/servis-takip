@@ -23,7 +23,15 @@ type StockFilter = 'all' | 'critical' | 'ok';
 
 export default function InventoryPage() {
     const t = useT();
+    // Grup KOD olarak saklanıyor; ekranda adı görünür. Tanınmayan bir değer
+    // (bayinin elle yazdığı eski grup) olduğu gibi gösterilir — kaybolmasın.
+    const grupAdi = (g?: string | null) =>
+        (g && (t.parcaGrubu as Record<string, string>)[g]) || g || '';
+
     const b = useBicim();
+    // Karşılaştırıcının içinde `b` listedeki satıra dönüşüyor; sıralama dilini
+    // burada yakalıyoruz. 'tr' sabitken İngiliz bayide ad sıralaması yanlıştı.
+    const siraDili = b.dil;
     const [parts, setParts] = useState<Part[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -106,17 +114,19 @@ export default function InventoryPage() {
 
             // İkincil sıralama
             let cmp = 0;
-            if (sortField === 'name') cmp = a.name.localeCompare(b.name, 'tr');
-            else if (sortField === 'sku') cmp = a.sku.localeCompare(b.sku, 'tr');
+            if (sortField === 'name') cmp = a.name.localeCompare(b.name, siraDili);
+            else if (sortField === 'sku') cmp = a.sku.localeCompare(b.sku, siraDili);
             else if (sortField === 'stockQty') cmp = a.stockQty - b.stockQty;
             else if (sortField === 'sellPrice') cmp = Number(a.sellPrice) - Number(b.sellPrice);
             else if (sortField === 'buyPrice') cmp = Number(a.buyPrice) - Number(b.buyPrice);
-            else if (sortField === 'group') cmp = (a.group || '').localeCompare(b.group || '', 'tr');
+            // Sıralama EKRANDAKİ ada göre: kod sırası ('FUSER' < 'TONER')
+            // kullanıcının gördüğü sırayla ilgisizdir.
+            else if (sortField === 'group') cmp = grupAdi(a.group).localeCompare(grupAdi(b.group), siraDili);
             return sortAsc ? cmp : -cmp;
         });
 
         return list;
-    }, [parts, search, stockFilter, sortField, sortAsc]);
+    }, [parts, search, stockFilter, sortField, sortAsc, siraDili, t]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -245,7 +255,9 @@ export default function InventoryPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
                     <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{t.stokSayfa.baslik}</h1>
-                    <p style={{ color: '#6b7280' }}>Toplam {parts.length} kalem • {filtered.length} gösteriliyor</p>
+                    <p style={{ color: '#6b7280' }}>
+                        {doldur(t.stokBaslik.toplamGosterilen, { n: parts.length, g: filtered.length })}
+                    </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <a href="/inventory/scan" style={{
@@ -291,15 +303,18 @@ export default function InventoryPage() {
                 Bayi telefonda stoğunun ₺ değerini göremiyordu. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(9rem,1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
-                    { label: t.stokSayfa.toplamKalem, value: parts.length, color: '#6b7280', icon: '📦', onClick: () => setStockFilter('all') },
-                    { label: 'Kritik Stok', value: lowStock.length, color: lowStock.length > 0 ? '#ef4444' : '#10b981', icon: '⚠️', onClick: () => setStockFilter('critical') },
-                    { label: t.stokSayfa.stokDegeri, value: b.para(totalValue, 0), color: '#10b981', icon: '💰', onClick: () => setStockFilter('all') },
-                    { label: t.stokSayfa.maliyetsiz, value: String(maliyetsiz), color: maliyetsiz ? '#b45309' : '#9ca3af', icon: '?', onClick: () => setStockFilter('all') },
+                    // `anahtar` ETİKETTEN ayrı: seçili kartın çerçevesi eskiden
+                    // etiket metnine bakıyordu ("Kritik Stok"), yani başka dilde
+                    // hiçbir kart seçili görünmüyordu.
+                    { anahtar: 'all', label: t.stokSayfa.toplamKalem, value: parts.length, color: '#6b7280', icon: '📦', onClick: () => setStockFilter('all') },
+                    { anahtar: 'critical', label: t.stokSayfa.kritikStok, value: lowStock.length, color: lowStock.length > 0 ? '#ef4444' : '#10b981', icon: '⚠️', onClick: () => setStockFilter('critical') },
+                    { anahtar: 'value', label: t.stokSayfa.stokDegeri, value: b.para(totalValue, 0), color: '#10b981', icon: '💰', onClick: () => setStockFilter('all') },
+                    { anahtar: 'nocost', label: t.stokSayfa.maliyetsiz, value: String(maliyetsiz), color: maliyetsiz ? '#b45309' : '#9ca3af', icon: '?', onClick: () => setStockFilter('all') },
                 ].map(c => (
-                    <div key={c.label} onClick={c.onClick} style={{
+                    <div key={c.anahtar} onClick={c.onClick} style={{
                         backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer',
-                        border: (c.label === 'Kritik Stok' && stockFilter === 'critical') ? '2px solid #ef4444' : '2px solid transparent',
+                        border: (c.anahtar === 'critical' && stockFilter === 'critical') ? '2px solid #ef4444' : '2px solid transparent',
                         transition: 'border-color 0.2s',
                     }}>
                         <div style={{ fontSize: '2rem' }}>{c.icon}</div>
@@ -396,7 +411,7 @@ export default function InventoryPage() {
                                 <label style={lbl}>{t.stokSayfa.urunGrubu}</label>
                                 <select style={inp} value={form.group} onChange={e => setForm({ ...form, group: e.target.value })}>
                                     <option value="">{t.stokSayfa.grupSecin}</option>
-                                    {PART_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                                    {PART_GROUPS.map(g => <option key={g} value={g}>{grupAdi(g)}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -542,7 +557,7 @@ export default function InventoryPage() {
                                                 value={editRow.group}
                                                 onChange={e => setEditRow({ ...editRow, group: e.target.value })}>
                                                 <option value="">—</option>
-                                                {PART_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                                                {PART_GROUPS.map(g => <option key={g} value={g}>{grupAdi(g)}</option>)}
                                             </select>
                                         </td>
                                         <td style={{ padding: '0.5rem 0.75rem' }}>
@@ -632,7 +647,7 @@ export default function InventoryPage() {
                                             <span style={{
                                                 backgroundColor: '#f3f4f6', color: '#374151',
                                                 padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.7rem', fontWeight: '500',
-                                            }}>{p.group}</span>
+                                            }}>{grupAdi(p.group)}</span>
                                         ) : (
                                             <span style={{ fontSize: '0.75rem', color: '#d1d5db' }}>—</span>
                                         )}

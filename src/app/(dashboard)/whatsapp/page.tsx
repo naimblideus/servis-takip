@@ -24,7 +24,7 @@ interface Msg {
     deviceId: string | null;
     device: { id: string; brand: string; model: string; serialNo: string; location: string | null } | null;
     category: string | null;
-    categoryLabel: string | null;
+
     confidence: number;
     source: string | null;
   } | null;
@@ -246,7 +246,7 @@ export default function WhatsAppInboxPage() {
                   : <i style={{ color: '#65a30d' }}>{t.wa.cihazBelirlenemedi}</i>}
                 {' · '}
                 {m.suggestion.category
-                  ? <b>{(t.ariza as Record<string, string>)[m.suggestion.category] ?? m.suggestion.categoryLabel}</b>
+                  ? <b>{(t.ariza as Record<string, string>)[m.suggestion.category] ?? m.suggestion.category}</b>
                   : <i style={{ color: '#65a30d' }}>{t.wa.kategoriBelirlenemedi}</i>}
               </div>
 

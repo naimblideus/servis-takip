@@ -5,7 +5,8 @@ import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { findCustomerByPhone } from '@/lib/whatsapp-inbound';
 import { createReading, ReadingError } from '@/lib/readings';
 import { MIN_CONFIDENCE } from '@/lib/whatsapp-suggest';
-import { faultLabel, parseFaultCategory } from '@/lib/fault-categories';
+import { parseFaultCategory } from '@/lib/fault-categories';
+import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 
 /**
@@ -83,8 +84,10 @@ export async function GET(req: NextRequest) {
             ? {
                 deviceId: m.suggestedDeviceId,
                 device: m.suggestedDeviceId ? devById.get(m.suggestedDeviceId) ?? null : null,
+                // Yalnız KOD gönderiliyor; arıza adını ekran kendi dilinde yazar.
+                // Buradan Türkçe etiket de gidiyordu ve ekran onu yedek olarak
+                // tutuyordu — İngilizce arayüzde tek bir kayma, Türkçe kelime.
                 category: m.suggestedCategory,
-                categoryLabel: m.suggestedCategory ? faultLabel(m.suggestedCategory) : null,
                 confidence: m.suggestionConfidence,
                 source: m.suggestionSource,
               }
@@ -112,7 +115,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { tenantId, user: oturumKul } = await requireTenantUser();
     const body = await req.json();
     const { action, messageId, name, handled } = body;
 
@@ -189,6 +192,9 @@ export async function POST(req: NextRequest) {
      */
     if (action === 'createTicket') {
       const { deviceId, faultCategory, issueText } = body;
+      // Fişe YAZILAN metin bayinin dilinde olmalı: fişi bayi okur, gerekirse
+      // müşteriye basar. Ekranı açan kişinin dili değil, işletmenin dili.
+      const { bayiSz } = await sunucuBicimi(oturumKul);
       if (!deviceId) return NextResponse.json({ error: 'Cihaz seçilmedi' }, { status: 400 });
       if (msg.ticketId) return NextResponse.json({ error: 'Bu mesajdan zaten fiş açılmış' }, { status: 409 });
 
@@ -218,9 +224,9 @@ export async function POST(req: NextRequest) {
           customerId: device.customerId,
           ticketNumber: `SF-${maxNum + 1}`,
           faultCategory: cat,
-          issueTemplate: faultLabel(cat),
+          issueTemplate: bayiSz.ariza[cat],
           // Müşterinin kendi cümlesi kayda geçer — teknisyen bağlamı görsün
-          issueText: (issueText || msg.text || faultLabel(cat)).slice(0, 2000),
+          issueText: (issueText || msg.text || bayiSz.ariza[cat]).slice(0, 2000),
           notes: `WhatsApp: ${msg.fromPhone}`,
           createdByUserId: user!.id,
         },
@@ -229,7 +235,7 @@ export async function POST(req: NextRequest) {
 
       await kaydetAsama({
         tenantId, ticketId: ticket.id, status: 'NEW',
-        kaynak: 'PORTAL', notu: 'WhatsApp mesajından açıldı',
+        kaynak: 'PORTAL', notu: bayiSz.wa.fistenAcildi,
       });
 
       await prisma.whatsAppMessage.update({

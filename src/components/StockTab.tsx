@@ -16,6 +16,11 @@ const EMPTY_FORM = { source:'PART' as 'PART'|'PRINTER', name:'', sku:'', barcode
 export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectForSale:(item:StockItem)=>void; onStockChanged?:()=>void }) {
   // `sz` (sözlük): `s` stil nesnesi olarak kullanılıyor.
   const sz = useT();
+  // Grup KOD olarak saklanıyor; ekranda adı görünür. Tanınmayan bir değer
+  // (bayinin elle yazdığı eski grup) olduğu gibi gösterilir — kaybolmasın.
+  const grupAdi = (g?: string | null) =>
+      (g && (sz.parcaGrubu as Record<string, string>)[g]) || g || '';
+
   const bic = useBicim();
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +107,7 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
           <div style={{gridColumn:'1/-1'}}><label style={s.lbl}>{sz.stok.parcaAdi}</label><input style={s.inp} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder={sz.stok.parcaAdiYer} /></div>
           <div><label style={s.lbl}>{sz.stok.skuKod}</label><input style={s.inp} value={form.sku} onChange={e=>setForm(f=>({...f,sku:e.target.value}))} placeholder={sz.stok.otomatik} /></div>
           <div><label style={s.lbl}>{sz.stok.barkod}</label><input style={s.inp} value={form.barcode} onChange={e=>setForm(f=>({...f,barcode:e.target.value}))} placeholder={sz.stok.barkodYer} /></div>
-          <div><label style={s.lbl}>{sz.stok.grup}</label><select style={s.inp} value={form.group} onChange={e=>setForm(f=>({...f,group:e.target.value}))}><option value="">{sz.stok.seciniz}</option>{PART_GROUPS.map(g=><option key={g} value={g}>{g}</option>)}</select></div>
+          <div><label style={s.lbl}>{sz.stok.grup}</label><select style={s.inp} value={form.group} onChange={e=>setForm(f=>({...f,group:e.target.value}))}><option value="">{sz.stok.seciniz}</option>{PART_GROUPS.map(g=><option key={g} value={g}>{grupAdi(g)}</option>)}</select></div>
           <div><label style={s.lbl}>{doldur(sz.stok.alisFiyati, { birim: bic.simge })}</label><input type="number" style={s.inp} value={form.buyPrice} onChange={e=>setForm(f=>({...f,buyPrice:e.target.value}))} placeholder="0.00" /></div>
           <div><label style={s.lbl}>{doldur(sz.stok.satisFiyati, { birim: bic.simge })}</label><input type="number" style={s.inp} value={form.sellPrice} onChange={e=>setForm(f=>({...f,sellPrice:e.target.value}))} placeholder="0.00" /></div>
           <div><label style={s.lbl}>{sz.stok.stokAdedi}</label><input type="number" style={s.inp} value={form.stockQty} onChange={e=>setForm(f=>({...f,stockQty:e.target.value}))} /></div>
@@ -224,7 +229,7 @@ export default function StockTab({ onSelectForSale, onStockChanged }:{ onSelectF
                     </td>
                     <td style={{padding:'0.625rem 0.875rem'}}>
                       <span style={{backgroundColor:cc.bg,color:cc.color,border:`1px solid ${cc.border}`,padding:'0.15rem 0.5rem',borderRadius:'9999px',fontSize:'0.72rem',fontWeight:'600'}}>
-                        {item.source==='PART'?(item.group||sz.stok.parca):(item.category||sz.stok.stokKisa)}
+                        {item.source==='PART'?(grupAdi(item.group)||sz.stok.parca):(item.category||sz.stok.stokKisa)}
                       </span>
                     </td>
                     <td style={{padding:'0.625rem 0.875rem'}}>

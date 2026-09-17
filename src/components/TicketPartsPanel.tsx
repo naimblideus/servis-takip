@@ -31,6 +31,11 @@ export default function TicketPartsPanel({ ticketId }: Props) {
     const router = useRouter();
     // `sz` (sözlük): aşağıdaki zamanlayıcı efekti `t` adını kullanıyor.
     const sz = useT();
+    // Grup KOD olarak saklanıyor; ekranda adı görünür. Tanınmayan bir değer
+    // (bayinin elle yazdığı eski grup) olduğu gibi gösterilir — kaybolmasın.
+    const grupAdi = (g?: string | null) =>
+        (g && (sz.parcaGrubu as Record<string, string>)[g]) || g || '';
+
     const b = useBicim();
     const [ticketParts, setTicketParts] = useState<TicketPart[]>([]);
     const [allParts, setAllParts] = useState<Part[]>([]);
@@ -443,7 +448,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                                         <span style={{ fontWeight: '600', color: '#059669', fontSize: '0.8rem' }}>{b.para(Number(p.sellPrice))}</span>
                                     </div>
                                     <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.15rem' }}>
-                                        {doldur(sz.parcalar.stok, { n: p.stockQty })} {p.group ? `• ${p.group}` : ''}
+                                        {doldur(sz.parcalar.stok, { n: p.stockQty })} {p.group ? `• ${grupAdi(p.group)}` : ''}
                                         {p.stockQty <= 0 && <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>{sz.parcalar.stokYok}</span>}
                                     </div>
                                 </div>
@@ -580,7 +585,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                                     <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem' }}>
                                         {tp.part.group ? (
                                             <span style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '0.15rem 0.5rem', borderRadius: '9999px', fontSize: '0.7rem', fontWeight: '500' }}>
-                                                {tp.part.group}
+                                                {grupAdi(tp.part.group)}
                                             </span>
                                         ) : (
                                             <span style={{ color: '#9ca3af' }}>—</span>
