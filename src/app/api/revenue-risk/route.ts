@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { counterOverage } from '@/lib/invoicing';
@@ -18,7 +19,7 @@ export async function GET() {
     where: { id: user.tenantId },
     select: { pricePerBlack: true, pricePerColor: true },
   });
-  if (!tenant) return NextResponse.json({ error: 'Tenant bulunamadı' }, { status: 404 });
+  if (!tenant) return ucHatasi('TENANT_BULUNAMADI', 404);
 
   const now = new Date();
   const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;

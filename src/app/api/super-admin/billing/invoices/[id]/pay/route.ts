@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { getSuperAdminSession } from '@/lib/super-admin-auth';
 
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             notes: notes || null,
         },
     });
-    if (res.count === 0) return NextResponse.json({ error: 'Fatura bulunamadı' }, { status: 404 });
+    if (res.count === 0) return ucHatasi('FATURA_BULUNAMADI', 404);
 
     const invoice = await (prisma as any).tenantInvoice.findUnique({ where: { id } });
     return NextResponse.json(invoice);

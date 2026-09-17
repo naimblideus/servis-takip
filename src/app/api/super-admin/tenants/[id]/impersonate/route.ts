@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { SignJWT } from 'jose';
 
@@ -11,10 +12,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         where: { id },
         include: { users: { where: { role: 'ADMIN', isActive: true }, take: 1 } },
     });
-    if (!tenant) return NextResponse.json({ error: 'İşletme bulunamadı' }, { status: 404 });
+    if (!tenant) return ucHatasi('ISLETME_BULUNAMADI', 404);
 
     const adminUser = tenant.users[0];
-    if (!adminUser) return NextResponse.json({ error: 'Admin kullanıcı bulunamadı' }, { status: 404 });
+    if (!adminUser) return ucHatasi('ADMIN_KULLANICI_BULUNAMADI', 404);
 
     const impersonateToken = await new SignJWT({
         id: adminUser.id,

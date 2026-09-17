@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
@@ -12,10 +13,7 @@ export async function POST(req: Request) {
     try {
         const beklenen = process.env.SETUP_SECRET;
         if (!beklenen) {
-            return NextResponse.json(
-                { error: 'Kurulum ucu kapalı — SETUP_SECRET tanımlı değil.' },
-                { status: 503 },
-            );
+            return ucHatasi('KURULUM_UCU_KAPALI_SETUP_SECRET', 503);
         }
 
         // Zaten SUPER_ADMIN varsa reddet

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { teklifHesapla } from '@/lib/teklif';
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const { tenantId } = await requireTenantUser();
     const sonuc = await teklifHesapla(tenantId, id);
-    if (!sonuc) return NextResponse.json({ error: 'Teklif bulunamadı' }, { status: 404 });
+    if (!sonuc) return ucHatasi('TEKLIF_BULUNAMADI', 404);
 
     // HAM satırlar da dönüyor: hesap toplam sayfayı adetle çarpılmış
     // veriyor, form ise kullanıcının yazdığı ham değeri geri istiyor.
@@ -66,14 +67,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { tenantId } = await requireTenantUser();
     const mevcut = await prisma.teklif.findFirst({ where: { id, tenantId }, select: { id: true } });
-    if (!mevcut) return NextResponse.json({ error: 'Teklif bulunamadı' }, { status: 404 });
+    if (!mevcut) return ucHatasi('TEKLIF_BULUNAMADI', 404);
 
     const g = await req.json().catch(() => ({}));
     const data: Record<string, unknown> = {};
 
     if (typeof g.musteriAdi === 'string') {
       const v = g.musteriAdi.trim();
-      if (!v) return NextResponse.json({ error: 'Müşteri adı boş olamaz' }, { status: 400 });
+      if (!v) return ucHatasi('MUSTERI_ADI_BOS_OLAMAZ', 400);
       data.musteriAdi = v;
     }
     for (const alan of ['yetkili', 'telefon', 'eposta', 'notlar'] as const) {
@@ -81,7 +82,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     if (g.durum !== undefined) {
       if (!DURUMLAR.includes(g.durum)) {
-        return NextResponse.json({ error: 'Geçersiz durum' }, { status: 400 });
+        return ucHatasi('GECERSIZ_DURUM', 400);
       }
       data.durum = g.durum;
     }
@@ -92,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // Ekran YÜZDE gönderiyor (25), veritabanı ORAN tutuyor (0,25).
         const n = Number(g.hedefMarj) / 100;
         if (!Number.isFinite(n) || n < 0 || n >= 1) {
-          return NextResponse.json({ error: 'Hedef marj %0 ile %99 arasında olmalı' }, { status: 400 });
+          return ucHatasi('HEDEF_MARJ_0_ILE_99', 400);
         }
         data.hedefMarj = n;
       }
@@ -135,7 +136,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const { tenantId } = await requireTenantUser();
     const mevcut = await prisma.teklif.findFirst({ where: { id, tenantId }, select: { id: true } });
-    if (!mevcut) return NextResponse.json({ error: 'Teklif bulunamadı' }, { status: 404 });
+    if (!mevcut) return ucHatasi('TEKLIF_BULUNAMADI', 404);
     await prisma.teklif.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e) {

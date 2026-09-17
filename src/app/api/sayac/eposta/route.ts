@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { parseCounterEmail, parseCounterEmailCoklu, htmlToText, bildirilenSeri } from '@/lib/counter-email';
 import { createReading, ReadingError, sonOkumalar } from '@/lib/readings';
@@ -35,7 +36,7 @@ export const maxDuration = 120;
 export async function POST(req: NextRequest) {
   const secret = process.env.SAYAC_EPOSTA_SECRET;
   if (!secret) {
-    return NextResponse.json({ error: 'SAYAC_EPOSTA_SECRET tanımlı değil — uç kapalı' }, { status: 503 });
+    return ucHatasi('SAYAC_EPOSTA_SECRET_TANIMLI_DEGIL', 503);
   }
   const verilen = req.headers.get('x-sayac-secret') ?? new URL(req.url).searchParams.get('secret');
   if (verilen !== secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

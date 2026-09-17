@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { kaydetAsama } from '@/lib/ticket-asama';
 
@@ -39,28 +40,28 @@ export async function POST(req: Request) {
     // Rate limit: IP başına (brute-force/spam) + cihaz başına (tek cihazı bombalamayı önle)
     const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
     if (rateLimited(`ip:${ip}`, 8, 15 * 60 * 1000)) {
-      return NextResponse.json({ error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' }, { status: 429 });
+      return ucHatasi('COK_FAZLA_ISTEK_LUTFEN_BIRAZ', 429);
     }
 
     const body = await req.json().catch(() => ({}));
     const code = String(body.code || '').trim();
     const issue = String(body.issue || '').trim();
     if (code && rateLimited(`code:${code}`, 5, 60 * 60 * 1000)) {
-      return NextResponse.json({ error: 'Bu cihaz için çok fazla bildirim alındı. Lütfen sonra deneyin.' }, { status: 429 });
+      return ucHatasi('BU_CIHAZ_ICIN_COK_FAZLA', 429);
     }
     const name = String(body.name || '').trim().slice(0, 120);
     const phone = String(body.phone || '').trim().slice(0, 40);
 
     if (!code) return NextResponse.json({ error: 'Kod gerekli' }, { status: 400 });
-    if (issue.length < 5) return NextResponse.json({ error: 'Lütfen arızayı kısaca açıklayın (en az 5 karakter)' }, { status: 400 });
-    if (issue.length > 1000) return NextResponse.json({ error: 'Açıklama çok uzun' }, { status: 400 });
+    if (issue.length < 5) return ucHatasi('LUTFEN_ARIZAYI_KISACA_ACIKLAYIN_EN', 400);
+    if (issue.length > 1000) return ucHatasi('ACIKLAMA_COK_UZUN', 400);
 
     // Cihazı publicCode ile bul (oturumsuz erişimin tek anahtarı bu koddur)
     const device = await prisma.device.findUnique({
       where: { publicCode: code },
       select: { id: true, tenantId: true, customerId: true, brand: true, model: true },
     });
-    if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+    if (!device) return ucHatasi('CIHAZ_BULUNAMADI', 404);
 
     // createdByUserId için tenant'ın bir kullanıcısı (tercihen ADMIN)
     const creator = await prisma.user.findFirst({
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
       orderBy: { role: 'asc' }, // ADMIN < FRONT_DESK < SUPER_ADMIN < TECHNICIAN (alfabetik; en azından deterministik)
       select: { id: true },
     });
-    if (!creator) return NextResponse.json({ error: 'Bu cihaz için kayıt oluşturulamadı' }, { status: 409 });
+    if (!creator) return ucHatasi('BU_CIHAZ_ICIN_KAYIT_OLUSTURULAMADI', 409);
 
     const ticketNumber = await genTicketNumber(device.tenantId);
     const reporter = [name, phone].filter(Boolean).join(' · ') || 'Bilinmiyor';

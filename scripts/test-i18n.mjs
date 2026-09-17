@@ -80,7 +80,8 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
 
   // Türkçeye özgü harf İngilizce metinde geçiyorsa çeviri unutulmuştur.
   // Özel adlar (Türkçe, Nextus) muaf.
-  const MUAF = new Set(['dil.tr']);
+  // GİB Türk vergi idaresinin kendi kısaltması — İngilizce metinde de öyle geçer.
+  const MUAF = new Set(['dil.tr', 'ucHata.E_FATURA_ON_EKI_TAM_2']);
   const turkceKalan = enY
     .filter(([p, v]) => !MUAF.has(p) && /[şğıöüçŞĞİÖÜÇ]/.test(String(v)))
     .map(([p, v]) => `${p}: ${v}`);

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -16,16 +17,16 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   let body: any;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { body = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
 
   const { customerId, paid, method, date } = body;
   const items: any[] = Array.isArray(body.items) ? body.items : [];
-  if (!customerId) return NextResponse.json({ error: 'Müşteri seçilmeli' }, { status: 400 });
-  if (items.length === 0) return NextResponse.json({ error: 'En az bir ürün okutun' }, { status: 400 });
+  if (!customerId) return ucHatasi('MUSTERI_SECILMELI', 400);
+  if (items.length === 0) return ucHatasi('EN_AZ_BIR_URUN_OKUTUN', 400);
 
   // Müşteri bu tenant'a ait mi (IDOR)
   const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId: user.tenantId } });
-  if (!customer) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+  if (!customer) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
   // Satışı yapan teknisyen: elle girilebilir; geçerli kullanıcı seçildiyse id'si de tutulur, yoksa giriş yapan.
   let sellerUserId = user.id;

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -46,17 +47,17 @@ export async function POST(
         // Adet doğrulaması (string/0/negatif/NaN'a karşı)
         const quantity = parseInt(body.quantity ?? 1, 10);
         if (isNaN(quantity) || quantity < 1) {
-            return NextResponse.json({ error: 'Adet en az 1 olmalı' }, { status: 400 });
+            return ucHatasi('ADET_EN_AZ_1_OLMALI', 400);
         }
 
         // IDOR koruması: fiş bu tenant'a mı ait?
         const ticket = await prisma.serviceTicket.findFirst({ where: { id: ticketId, tenantId: user.tenantId } });
-        if (!ticket) return NextResponse.json({ error: 'Fiş bulunamadı' }, { status: 404 });
+        if (!ticket) return ucHatasi('FIS_BULUNAMADI', 404);
 
         // Barkod doğrulaması (çok kısa/kazara okutma yanlış parça eşleştirmesin)
         const bc = barcode != null ? String(barcode).trim() : '';
         if (!partId && bc && bc.length < 3) {
-            return NextResponse.json({ error: `Geçersiz barkod: ${bc}` }, { status: 400 });
+            return ucHatasi('GECERSIZ_BARKOD', 400, { deger: { p1: bc } });
         }
 
         // Parçayı TENANT-SCOPED bul (IDOR koruması). partId yoksa BARKOD veya SKU ile ara
@@ -163,19 +164,19 @@ export async function PATCH(
 
         const { ticketPartId, kanal } = await req.json();
         if (kanal !== 'BLACK' && kanal !== 'COLOR') {
-            return NextResponse.json({ error: 'Kanal S/B ya da Renkli olmalı' }, { status: 400 });
+            return ucHatasi('KANAL_S_B_YA_DA', 400);
         }
         const tp = await prisma.ticketPart.findFirst({
             where: { id: ticketPartId, ticketId, tenantId: user.tenantId },
             include: { part: true, ticket: { select: { deviceId: true } } },
         });
-        if (!tp) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (!tp) return ucHatasi('BULUNAMADI', 404);
 
         const device = await prisma.device.findFirst({
             where: { id: tp.ticket.deviceId, tenantId: user.tenantId },
             select: { id: true, counterBlack: true, counterColor: true },
         });
-        if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+        if (!device) return ucHatasi('CIHAZ_BULUNAMADI', 404);
 
         const r = await degisimKaydet({
             tenantId: user.tenantId, deviceId: device.id, channel: kanal as Kanal,
@@ -209,7 +210,7 @@ export async function DELETE(
             where: { id: ticketPartId, tenantId: user.tenantId },
             include: { part: true },
         });
-        if (!ticketPart) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (!ticketPart) return ucHatasi('BULUNAMADI', 404);
 
         await prisma.$transaction([
             prisma.ticketPart.delete({ where: { id: ticketPartId } }),

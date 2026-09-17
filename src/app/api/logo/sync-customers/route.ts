@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { createLogoIntegration } from '@/lib/logo-integration';
 import { prisma } from '@/lib/prisma';
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     const integration = createLogoIntegration(tenant);
-    if (!integration) return NextResponse.json({ error: 'Logo entegrasyonu aktif değil' }, { status: 400 });
+    if (!integration) return ucHatasi('LOGO_ENTEGRASYONU_AKTIF_DEGIL', 400);
 
     const customers = await prisma.customer.findMany({
         where: { tenantId },

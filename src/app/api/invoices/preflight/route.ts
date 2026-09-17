@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { periodOf } from '@/lib/invoicing';
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
 
     const [y, m] = period.split('-').map(Number);
     if (!y || !m || m < 1 || m > 12) {
-      return NextResponse.json({ error: 'Geçersiz dönem' }, { status: 400 });
+      return ucHatasi('GECERSIZ_DONEM', 400);
     }
     const start = new Date(y, m - 1, 1, 0, 0, 0, 0);
     const end = new Date(y, m, 1, 0, 0, 0, 0);

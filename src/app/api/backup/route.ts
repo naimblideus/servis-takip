@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { writeAudit, istekIp } from '@/lib/audit';
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const { user, tenantId } = await requireTenantUser();
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Yedek almak için yönetici yetkisi gerekir' }, { status: 403 });
+      return ucHatasi('YEDEK_ALMAK_ICIN_YONETICI_YETKISI', 403);
     }
     const withPhotos = new URL(req.url).searchParams.get('photos') === '1';
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { addSubscriptionHistory } from '@/lib/tenant-manager';
 
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         where: { id },
         select: { planEndDate: true, trialEndsAt: true, plan: true } as any,
     });
-    if (!tenant) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+    if (!tenant) return ucHatasi('BULUNAMADI', 404);
 
     const t = tenant as any;
     const base = t.plan === 'trial' ? (t.trialEndsAt || new Date()) : (t.planEndDate || new Date());

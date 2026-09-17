@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { writeAudit, istekIp } from '@/lib/audit';
@@ -33,14 +34,14 @@ export async function POST(req: NextRequest) {
 
     const val = Number(value);
     if (!Number.isFinite(val) || val === 0) {
-      return NextResponse.json({ error: 'Geçerli bir zam değeri girin' }, { status: 400 });
+      return ucHatasi('GECERLI_BIR_ZAM_DEGERI_GIRIN', 400);
     }
     if (mode !== 'percent' && mode !== 'amount') {
-      return NextResponse.json({ error: 'Geçersiz zam türü' }, { status: 400 });
+      return ucHatasi('GECERSIZ_ZAM_TURU', 400);
     }
     const selected = (Array.isArray(fields) ? fields : []).filter((f): f is Field => FIELDS.includes(f));
     if (selected.length === 0) {
-      return NextResponse.json({ error: 'En az bir fiyat alanı seçin' }, { status: 400 });
+      return ucHatasi('EN_AZ_BIR_FIYAT_ALANI', 400);
     }
 
     // Yalnız KİRALIK cihazlar (fiyat bunlarda anlamlı) + tenant guard
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
     if (dryRun) return NextResponse.json({ ...preview, applied: false });
 
     if (updates.length === 0) {
-      return NextResponse.json({ error: 'Güncellenecek cihaz yok' }, { status: 400 });
+      return ucHatasi('GUNCELLENECEK_CIHAZ_YOK', 400);
     }
 
     // Tek transaction: ya hepsi ya hiçbiri (yarım zam listesi olmasın)

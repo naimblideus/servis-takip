@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { yeniPortalJetonu, portalHazirlik } from '@/lib/portal';
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { tenantId } = await requireTenantUser();
     const { id } = await params;
     const m = await musteriBul(id, tenantId);
-    if (!m) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+    if (!m) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
     // Bayi linki göndermeden ÖNCE görsün: panel onun verisini gösteriyor.
     const [hazirlik, firma] = await Promise.all([
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { tenantId, user } = await requireTenantUser();
     const { id } = await params;
     const m = await musteriBul(id, tenantId);
-    if (!m) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+    if (!m) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
     const { islem } = (await req.json().catch(() => ({}))) as { islem?: string };
 
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         where: { id: tenantId }, select: { plan: true, modules: true, marketEnabled: true },
       });
       if (!firma || !hasModule(firma, 'PORTAL')) {
-        return NextResponse.json({ error: 'Müşteri Paneli paketinizde yok.' }, { status: 403 });
+        return ucHatasi('MUSTERI_PANELI_PAKETINIZDE_YOK', 403);
       }
     }
 
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data = { portalEnabled: true, portalToken: yeniPortalJetonu(), portalTokenAt: new Date() };
       eylem = islem === 'ac' ? 'MUSTERI_PORTALI_ACILDI' : 'MUSTERI_PORTALI_YENILENDI';
     } else {
-      return NextResponse.json({ error: 'Geçersiz işlem' }, { status: 400 });
+      return ucHatasi('GECERSIZ_ISLEM', 400);
     }
 
     const g = await prisma.customer.update({ where: { id }, data, select: { portalToken: true, portalEnabled: true } });

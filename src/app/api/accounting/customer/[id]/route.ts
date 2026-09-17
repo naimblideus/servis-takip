@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
@@ -24,7 +25,7 @@ export async function GET(
         select: { id: true, name: true, phone: true },
     });
 
-    if (!customer) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+    if (!customer) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
     // Tüm işlemler
     const transactions = await prisma.financialTransaction.findMany({

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -42,7 +43,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       where: { id, tenantId: user.tenantId },
       select: { deviceId: true, device: { select: { brand: true, model: true } } },
     });
-    if (!ticket) return NextResponse.json({ error: 'Fiş bulunamadı' }, { status: 404 });
+    if (!ticket) return ucHatasi('FIS_BULUNAMADI', 404);
 
     const anahtar = modelAnahtari(ticket.device?.brand, ticket.device?.model);
 

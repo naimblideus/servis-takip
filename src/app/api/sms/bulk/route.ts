@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { resolveRecipients, fmtTLm } from '@/lib/reminders';
 import { sendBulkSms, smsConfigured, netgsmPhone } from '@/lib/sms';
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     const { tenantId } = await requireTenantUser();
     if (!smsConfigured()) {
-      return NextResponse.json({ error: 'SMS sağlayıcı ayarlı değil. Yönetici NETGSM_USER/PASS/HEADER eklemeli.' }, { status: 503 });
+      return ucHatasi('SMS_SAGLAYICI_AYARLI_DEGIL_YONETICI', 503);
     }
 
     const { customerIds, template } = await req.json();
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'customerIds ve template zorunlu' }, { status: 400 });
     }
     if (customerIds.length > 500) {
-      return NextResponse.json({ error: 'Tek seferde en fazla 500 alıcı' }, { status: 400 });
+      return ucHatasi('TEK_SEFERDE_EN_FAZLA_500', 400);
     }
 
     const recipients = await resolveRecipients(tenantId, customerIds);
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     const skipped = recipients.length - items.length;
 
     if (items.length === 0) {
-      return NextResponse.json({ error: 'Seçili müşterilerde geçerli telefon yok', skipped }, { status: 400 });
+      return ucHatasi('SECILI_MUSTERILERDE_GECERLI_TELEFON_YOK', 400, { ek: { skipped } });
     }
 
     const result = await sendBulkSms(items);

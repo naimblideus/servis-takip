@@ -23,7 +23,10 @@ interface ImportCounts {
 interface ImportError {
     row: number;
     table: string;
+    /** Eski oturumların kaydedilmiş metni — kodsuz raporlar için yedek. */
     error: string;
+    kod?: string;
+    deger?: Record<string, string | number>;
 }
 
 interface ImportSession {
@@ -59,6 +62,17 @@ const kategoriler = (t: Sozluk) => [
 
 export default function ImportPage() {
     const t = useT();
+    /**
+     * Rapordaki satır hatası.
+     * `kod` varsa cümleyi burada, kullanıcının dilinde kuruyoruz. Kodsuz kayıt
+     * ESKİ oturumlardan gelir (rapor kodsuz yazılıyordu); onlarda kaydedilmiş
+     * metni gösteriyoruz — çevirisi yok ama veri de kaybolmuyor.
+     */
+    const satirHatasi = (err: ImportError) => {
+        const kalip = err.kod ? (t.ucHata as Record<string, string>)[err.kod] : undefined;
+        if (!kalip) return err.error;
+        return err.deger ? doldur(kalip, err.deger) : kalip;
+    };
     const b = useBicim();
     const CATEGORIES = kategoriler(t);
     const { data: session, status: sessionStatus } = useSession();
@@ -541,7 +555,7 @@ export default function ImportPage() {
                                     <div key={idx} className="px-6 py-3 text-sm hover:bg-gray-50">
                                         <span className="text-gray-400 mr-2">#{err.row}</span>
                                         <span className="font-medium text-gray-700 mr-2">{err.table}:</span>
-                                        <span className="text-red-600">{err.error}</span>
+                                        <span className="text-red-600">{satirHatasi(err)}</span>
                                     </div>
                                 ))}
                             </div>

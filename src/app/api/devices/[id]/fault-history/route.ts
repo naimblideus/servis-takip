@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -41,7 +42,7 @@ export async function GET(
         warrantyStart: true, warrantyEnd: true, warrantyNote: true,
       },
     });
-    if (!device) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+    if (!device) return ucHatasi('BULUNAMADI', 404);
 
     const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const tickets = await prisma.serviceTicket.findMany({

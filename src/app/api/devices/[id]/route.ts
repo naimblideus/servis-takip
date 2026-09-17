@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { normalizeBrandModel } from '@/lib/device-brands';
@@ -26,13 +27,13 @@ export async function PATCH(
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         // IDOR koruması: cihaz bu tenant'a mı ait?
         const existing = await prisma.device.findFirst({ where: { id, tenantId: user.tenantId } });
-        if (!existing) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (!existing) return ucHatasi('BULUNAMADI', 404);
 
         const body = await req.json();
         // Cihaz baska bir musteriye tasiniyorsa, hedef musteri de ayni tenant'ta olmali
         if (body.customerId !== undefined && body.customerId) {
             const target = await prisma.customer.findFirst({ where: { id: body.customerId, tenantId: user.tenantId } });
-            if (!target) return NextResponse.json({ error: 'Geçersiz müşteri' }, { status: 400 });
+            if (!target) return ucHatasi('GECERSIZ_MUSTERI', 400);
         }
         const updateData: any = {};
         // Marka/model birlikte gönderildiyse ters kayıt düzeltmesinden geçir
@@ -105,7 +106,7 @@ export async function DELETE(
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         // IDOR koruması: yalnızca bu tenant'ın cihazı silinebilir
         const res = await prisma.device.deleteMany({ where: { id, tenantId: user.tenantId } });
-        if (res.count === 0) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (res.count === 0) return ucHatasi('BULUNAMADI', 404);
         return NextResponse.json({ ok: true });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });

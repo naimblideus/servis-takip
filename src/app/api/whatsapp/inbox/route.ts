@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     const { action, messageId, name, handled } = body;
 
     const msg = await prisma.whatsAppMessage.findFirst({ where: { id: messageId, tenantId } });
-    if (!msg) return NextResponse.json({ error: 'Mesaj bulunamadı' }, { status: 404 });
+    if (!msg) return ucHatasi('MESAJ_BULUNAMADI', 404);
 
     if (action === 'handled') {
       await prisma.whatsAppMessage.update({ where: { id: msg.id }, data: { handled: handled !== false } });
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
 
     if (action === 'addCustomer') {
       const customerName = (name || msg.contactName || '').trim();
-      if (!customerName) return NextResponse.json({ error: 'Müşteri adı gerekli' }, { status: 400 });
+      if (!customerName) return ucHatasi('MUSTERI_ADI_GEREKLI', 400);
 
       // Yarış durumu: iki kullanıcı aynı anda eklerse ikinci kayıt patlamasın
       const existing = await findCustomerByPhone(tenantId, msg.fromPhone);
@@ -156,7 +157,7 @@ export async function POST(req: NextRequest) {
     // düşüş kontrolü ve dönem/aşım hesabını yapıyor; o mantığı burada tekrarlamıyoruz.
     if (action === 'saveReading') {
       const { deviceId, counterBlack, counterColor, reset, resetTur } = body;
-      if (!deviceId) return NextResponse.json({ error: 'Cihaz seçilmedi' }, { status: 400 });
+      if (!deviceId) return ucHatasi('CIHAZ_SECILMEDI', 400);
       try {
         const r = await createReading({
           tenantId,
@@ -195,18 +196,18 @@ export async function POST(req: NextRequest) {
       // Fişe YAZILAN metin bayinin dilinde olmalı: fişi bayi okur, gerekirse
       // müşteriye basar. Ekranı açan kişinin dili değil, işletmenin dili.
       const { bayiSz } = await sunucuBicimi(oturumKul);
-      if (!deviceId) return NextResponse.json({ error: 'Cihaz seçilmedi' }, { status: 400 });
-      if (msg.ticketId) return NextResponse.json({ error: 'Bu mesajdan zaten fiş açılmış' }, { status: 409 });
+      if (!deviceId) return ucHatasi('CIHAZ_SECILMEDI', 400);
+      if (msg.ticketId) return ucHatasi('BU_MESAJDAN_ZATEN_FIS_ACILMIS', 409);
 
       // IDOR: cihaz bu bayiye ait olmalı
       const device = await prisma.device.findFirst({
         where: { id: deviceId, tenantId },
         select: { id: true, customerId: true, brand: true, model: true },
       });
-      if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+      if (!device) return ucHatasi('CIHAZ_BULUNAMADI', 404);
 
       const cat = parseFaultCategory(faultCategory);
-      if (!cat) return NextResponse.json({ error: 'Arıza kategorisi seçin' }, { status: 400 });
+      if (!cat) return ucHatasi('ARIZA_KATEGORISI_SECIN', 400);
 
       // Fiş numarası — mevcut mantıkla aynı biçim (SF-N)
       const all = await prisma.serviceTicket.findMany({ where: { tenantId }, select: { ticketNumber: true } });
@@ -248,7 +249,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, ticketId: ticket.id, ticketNumber: ticket.ticketNumber });
     }
 
-    return NextResponse.json({ error: 'Bilinmeyen işlem' }, { status: 400 });
+    return ucHatasi('BILINMEYEN_ISLEM', 400);
   } catch (e) {
     return authErrorResponse(e);
   }

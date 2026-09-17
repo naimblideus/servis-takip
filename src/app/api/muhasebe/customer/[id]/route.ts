@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi, yoneticiDegilse } from '@/lib/api-auth';
@@ -68,7 +69,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     } catch (e: any) {
         console.error('MUHASEBE CUSTOMER DETAIL ERROR:', e.message);
         if (e.message?.includes('does not exist')) {
-            return NextResponse.json({ error: 'AccountEntry tablosu henüz oluşturulmamış.' }, { status: 503 });
+            return ucHatasi('ACCOUNTENTRY_TABLOSU_HENUZ_OLUSTURULMAMIS', 503);
         }
         return NextResponse.json({ error: e.message }, { status: 500 });
     }

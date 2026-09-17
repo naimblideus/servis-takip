@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
@@ -108,7 +109,7 @@ export async function DELETE(req: Request) {
             return { notFound: false as const, ticketId: payment.ticketId, status, totalPaid, remaining };
         });
 
-        if (result.notFound) return NextResponse.json({ error: 'Ödeme bulunamadı' }, { status: 404 });
+        if (result.notFound) return ucHatasi('ODEME_BULUNAMADI', 404);
 
         // P0 FIX: Cari (AccountEntry) defterini gerçek duruma göre yeniden uzlaştır — silinen tahsilat cariden düşer.
         if (result.ticketId) {

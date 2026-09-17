@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi, yoneticiDegilse } from '@/lib/api-auth';
@@ -16,7 +17,7 @@ export async function PATCH(
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         // IDOR koruması: müşteri bu tenant'a mı ait?
         const existing = await prisma.customer.findFirst({ where: { id, tenantId: user.tenantId } });
-        if (!existing) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (!existing) return ucHatasi('BULUNAMADI', 404);
 
         const body = await req.json();
         const updateData: any = {};
@@ -52,7 +53,7 @@ export async function PATCH(
             else {
                 const [y, m, d] = v.split('-').map(Number);
                 const dt = new Date(y, (m || 1) - 1, d || 1);
-                if (isNaN(dt.getTime())) return NextResponse.json({ error: 'Geçersiz sözleşme tarihi' }, { status: 400 });
+                if (isNaN(dt.getTime())) return ucHatasi('GECERSIZ_SOZLESME_TARIHI', 400);
                 updateData.contractEndDate = dt;
             }
         }
@@ -92,7 +93,7 @@ export async function DELETE(
         const musteri = await prisma.customer.findFirst({
             where: { id, tenantId }, select: { id: true, name: true },
         });
-        if (!musteri) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (!musteri) return ucHatasi('BULUNAMADI', 404);
 
         // ── NEDEN MALİ GEÇMİŞİ OLAN MÜŞTERİ SİLİNEMİYOR ──────────────────
         // Silme geri alınamaz ve fatura/cari kaydı vergi açısından tutulması
@@ -116,17 +117,14 @@ export async function DELETE(
             if (kasa) parca.push(`${kasa} kasa hareketi`);
             if (fis) parca.push(`${fis} servis fişi`);
             if (cihaz) parca.push(`${cihaz} cihaz`);
-            return NextResponse.json({
-                error: `"${musteri.name}" silinemez: ${parca.join(', ')} bağlı. ` +
-                    `Silmek bu kayıtların hepsini de siler ve geri alınamaz. ` +
-                    `Müşteri artık çalışmıyorsa cihazlarını başka müşteriye taşıyın ` +
-                    `ya da adına "(pasif)" ekleyip listede bırakın.`,
-                engel: { cari, fatura, tahsilat, kasa, fis, cihaz },
-            }, { status: 409 });
+            return ucHatasi('SILINEMEZ_BAGLI', 409, {
+                deger: { p1: musteri.name, p2: parca.join(', ') },
+                ek: { engel: { cari, fatura, tahsilat, kasa, fis, cihaz } },
+            });
         }
 
         const res = await prisma.customer.deleteMany({ where: { id, tenantId } });
-        if (res.count === 0) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (res.count === 0) return ucHatasi('BULUNAMADI', 404);
         return NextResponse.json({ ok: true });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });

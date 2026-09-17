@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { normalizePartGroup } from '@/lib/part-groups';
@@ -17,7 +18,7 @@ export async function PATCH(
         const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         const existing = await prisma.part.findFirst({ where: { id, tenantId: user.tenantId } });
-        if (!existing) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (!existing) return ucHatasi('BULUNAMADI', 404);
 
         const body = await req.json();
         const updateData: any = {};
@@ -48,7 +49,7 @@ export async function PATCH(
         if (body.adjustQty !== undefined) {
             const delta = parseInt(body.adjustQty);
             if (!Number.isFinite(delta)) {
-                return NextResponse.json({ error: 'Geçersiz miktar.' }, { status: 400 });
+                return ucHatasi('GECERSIZ_MIKTAR', 400);
             }
             const sonuc = await prisma.part.updateMany({
                 // Azaltmada yalnız yeterli stok varsa güncellenir (stockQty + delta >= 0).
@@ -56,10 +57,7 @@ export async function PATCH(
                 data: { stockQty: { increment: delta } },
             });
             if (sonuc.count === 0) {
-                return NextResponse.json(
-                    { error: `Yetersiz stok: "${existing.name}" için elde ${existing.stockQty} adet var.` },
-                    { status: 409 },
-                );
+                return ucHatasi('YETERSIZ_STOK_ICIN_ELDE_ADET', 409, { deger: { p1: existing.name, p2: existing.stockQty } });
             }
             // Aynı istekte başka alanlar da geldiyse onları da yaz.
             if (Object.keys(updateData).length > 0) {
@@ -89,7 +87,7 @@ export async function DELETE(
         const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         const res = await prisma.part.deleteMany({ where: { id, tenantId: user.tenantId } });
-        if (res.count === 0) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+        if (res.count === 0) return ucHatasi('BULUNAMADI', 404);
         return NextResponse.json({ ok: true });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });

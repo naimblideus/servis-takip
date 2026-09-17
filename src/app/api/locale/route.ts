@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   const govde = await req.json().catch(() => null);
   const dil = govde?.dil;
   if (!dilMi(dil)) {
-    return NextResponse.json({ error: 'Geçersiz dil' }, { status: 400 });
+    return ucHatasi('GECERSIZ_DIL', 400);
   }
 
   const cerezler = await cookies();

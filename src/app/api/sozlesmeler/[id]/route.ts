@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 
@@ -37,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const b = await req.json();
 
     const mevcut = await prisma.contract.findFirst({ where: { id, tenantId } });
-    if (!mevcut) return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
+    if (!mevcut) return ucHatasi('SOZLESME_BULUNAMADI', 404);
 
     // ── CİHAZ ŞARTLARI ──────────────────────────────────────────────────
     if (b.cihazSartlari && typeof b.cihazSartlari === 'object') {
@@ -45,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         where: { id: String(b.cihazSartlari.id || ''), contractId: id, tenantId },
         select: { id: true },
       });
-      if (!cd) return NextResponse.json({ error: 'Sözleşme cihazı bulunamadı' }, { status: 404 });
+      if (!cd) return ucHatasi('SOZLESME_CIHAZI_BULUNAMADI', 404);
       const v = b.cihazSartlari;
       await prisma.contractDevice.update({
         where: { id: cd.id },
@@ -70,7 +71,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const cd = await prisma.contractDevice.findFirst({
         where: { id: String(b.sistemeUygula), contractId: id, tenantId },
       });
-      if (!cd) return NextResponse.json({ error: 'Sözleşme cihazı bulunamadı' }, { status: 404 });
+      if (!cd) return ucHatasi('SOZLESME_CIHAZI_BULUNAMADI', 404);
 
       const d: any = {};
       if (cd.monthlyRent !== null) d.monthlyRent = cd.monthlyRent;
@@ -81,7 +82,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (cd.overagePriceBlack !== null) d.overagePriceBlack = cd.overagePriceBlack;
       if (cd.overagePriceColor !== null) d.overagePriceColor = cd.overagePriceColor;
       if (!Object.keys(d).length) {
-        return NextResponse.json({ error: 'Sözleşmede taşınacak şart yok' }, { status: 400 });
+        return ucHatasi('SOZLESMEDE_TASINACAK_SART_YOK', 400);
       }
       await prisma.device.update({ where: { id: cd.deviceId }, data: d });
       return NextResponse.json({ ok: true, uygulanan: Object.keys(d) });
@@ -97,7 +98,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         },
       });
       // Başka müşterinin cihazı bu sözleşmeye giremez.
-      if (!d) return NextResponse.json({ error: 'Cihaz bu müşteride bulunamadı' }, { status: 404 });
+      if (!d) return ucHatasi('CIHAZ_BU_MUSTERIDE_BULUNAMADI', 404);
       await prisma.contractDevice.upsert({
         where: { contractId_deviceId: { contractId: id, deviceId: d.id } },
         create: {
@@ -132,7 +133,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (b.notes !== undefined) d.notes = (b.notes || '').trim() || null;
     if (b.status !== undefined) {
       if (!['AKTIF', 'BITTI', 'FESIH'].includes(b.status)) {
-        return NextResponse.json({ error: 'Geçersiz durum' }, { status: 400 });
+        return ucHatasi('GECERSIZ_DURUM', 400);
       }
       d.status = b.status;
     }
@@ -141,15 +142,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const bas = d.startDate ?? mevcut.startDate;
     const bit = d.endDate ?? mevcut.endDate;
     if (isNaN(new Date(bas).getTime()) || isNaN(new Date(bit).getTime())) {
-      return NextResponse.json({ error: 'Tarih okunamadı' }, { status: 400 });
+      return ucHatasi('TARIH_OKUNAMADI', 400);
     }
     if (new Date(bit) <= new Date(bas)) {
-      return NextResponse.json({ error: 'Bitiş tarihi başlangıçtan sonra olmalı' }, { status: 400 });
+      return ucHatasi('BITIS_TARIHI_BASLANGICTAN_SONRA_OLMALI', 400);
     }
     const ihbar = d.noticeDays ?? mevcut.noticeDays;
     const sure = Math.round((new Date(bit).getTime() - new Date(bas).getTime()) / GUN);
     if (ihbar < 0 || ihbar >= sure) {
-      return NextResponse.json({ error: `İhbar süresi 0 ile ${sure - 1} gün arasında olmalı` }, { status: 400 });
+      return ucHatasi('IHBAR_SURESI_0_ILE_GUN', 400, { deger: { p1: sure - 1 } });
     }
 
     await prisma.contract.update({ where: { id }, data: d });
@@ -165,7 +166,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { tenantId } = await requireTenantUser();
     const { id } = await params;
     const n = await prisma.contract.deleteMany({ where: { id, tenantId } });
-    if (!n.count) return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
+    if (!n.count) return ucHatasi('SOZLESME_BULUNAMADI', 404);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return authErrorResponse(e);

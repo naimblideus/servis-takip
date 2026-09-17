@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { shopServisYetkili } from '@/lib/shop-auth';
 import { createReading, ReadingError } from '@/lib/readings';
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 });
+    return ucHatasi('GECERSIZ_ISTEK', 400);
   }
 
   const { tenantId, publicCode, counterBlack, counterColor } = body;
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'tenantId ve publicCode zorunlu' }, { status: 400 });
   }
   if (!Number.isFinite(counterBlack) || (counterBlack as number) < 0) {
-    return NextResponse.json({ error: 'Siyah sayaç değeri geçersiz' }, { status: 400 });
+    return ucHatasi('SIYAH_SAYAC_DEGERI_GECERSIZ', 400);
   }
 
   /**
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
     select: { id: true, counterColor: true },
   });
   if (!device) {
-    return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+    return ucHatasi('CIHAZ_BULUNAMADI', 404);
   }
 
   /**

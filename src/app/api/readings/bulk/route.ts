@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { createReading, ReadingError } from '@/lib/readings';
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
       where: { id: customerId, tenantId },
       select: { id: true, name: true, phone: true },
     });
-    if (!customer) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+    if (!customer) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
     const devices = await prisma.device.findMany({
       where: { tenantId, customerId, isRental: true },
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
     const { rows, includeMonthlyRent } = await req.json();
 
     if (!Array.isArray(rows) || rows.length === 0) {
-      return NextResponse.json({ error: 'Kaydedilecek satır yok' }, { status: 400 });
+      return ucHatasi('KAYDEDILECEK_SATIR_YOK', 400);
     }
     if (rows.length > 300) {
       return NextResponse.json({ error: 'Tek seferde en fazla 300 cihaz' }, { status: 400 });
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
 
     // Tenant'ı BİR KEZ çek, her satıra geçir (N+1 önle)
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant bulunamadı' }, { status: 404 });
+    if (!tenant) return ucHatasi('TENANT_BULUNAMADI', 404);
 
     const results: any[] = [];
     let saved = 0, failed = 0, totalCost = 0;

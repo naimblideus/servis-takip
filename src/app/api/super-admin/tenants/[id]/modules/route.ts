@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { ALL_MODULE_KEYS, effectiveModules } from '@/lib/modules';
 
@@ -8,13 +9,13 @@ import { ALL_MODULE_KEYS, effectiveModules } from '@/lib/modules';
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let body: any;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { body = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
 
   const incoming: string[] = Array.isArray(body.modules) ? body.modules : [];
   const modules = Array.from(new Set(incoming.filter((m) => (ALL_MODULE_KEYS as string[]).includes(m))));
 
   const t = await prisma.tenant.findUnique({ where: { id }, select: { plan: true } });
-  if (!t) return NextResponse.json({ error: 'İşletme bulunamadı' }, { status: 404 });
+  if (!t) return ucHatasi('ISLETME_BULUNAMADI', 404);
 
   // Efektif durumu hesapla (boşsa plan varsayılanı) → eski marketEnabled bayrağını ona göre senkronla
   const eff = effectiveModules({ plan: t.plan, modules });

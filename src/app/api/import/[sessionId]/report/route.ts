@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
@@ -16,14 +17,14 @@ export async function GET(
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Oturum bulunamadı' }, { status: 401 });
+            return ucHatasi('OTURUM_BULUNAMADI', 401);
         }
 
         const user = await prisma.user.findFirst({
             where: { email: session.user?.email!, ...bayiSuzgeci(session) },
         });
         if (!user) {
-            return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+            return ucHatasi('KULLANICI_BULUNAMADI', 404);
         }
 
         const { sessionId } = await params;
@@ -35,7 +36,7 @@ export async function GET(
         });
 
         if (!importSession) {
-            return NextResponse.json({ error: 'Import oturumu bulunamadı' }, { status: 404 });
+            return ucHatasi('IMPORT_OTURUMU_BULUNAMADI', 404);
         }
 
         const importResult: ImportResult = {

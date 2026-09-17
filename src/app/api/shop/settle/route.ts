@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { shopServisYetkili } from '@/lib/shop-auth';
 
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 });
+    return ucHatasi('GECERSIZ_ISTEK', 400);
   }
 
   const { tenantId, customerId, siparisNo, paid, method } = body;
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
     where: { id: tenantId, isActive: true, isSuspended: false, deletedAt: null },
     select: { id: true },
   });
-  if (!tenant) return NextResponse.json({ error: 'Bayi bulunamadı veya askıda' }, { status: 404 });
+  if (!tenant) return ucHatasi('BAYI_BULUNAMADI_VEYA_ASKIDA', 404);
 
   // Müşteri bu bayiye mi ait (IDOR)? Mağaza doğru gönderse bile burada
   // yeniden kontrol edilir: sınırın iki tarafında da kontrol olmalı.
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
     where: { id: customerId, tenantId },
     select: { id: true, name: true },
   });
-  if (!customer) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+  if (!customer) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
   // İDEMPOTENSİ: aynı sipariş daha önce kapandıysa yeniden stok düşme.
   // Notlarda sipariş numarası tutulur; bu, ayrı bir tablo eklemeden

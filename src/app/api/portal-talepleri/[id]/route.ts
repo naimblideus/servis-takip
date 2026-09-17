@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
@@ -23,8 +24,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       where: { id, tenantId },
       include: { device: { select: { id: true, counterBlack: true, counterColor: true } } },
     });
-    if (!talep) return NextResponse.json({ error: 'Bildirim bulunamadı' }, { status: 404 });
-    if (talep.durum !== 'BEKLIYOR') return NextResponse.json({ error: 'Bu bildirim zaten işlenmiş' }, { status: 409 });
+    if (!talep) return ucHatasi('BILDIRIM_BULUNAMADI', 404);
+    if (talep.durum !== 'BEKLIYOR') return ucHatasi('BU_BILDIRIM_ZATEN_ISLENMIS', 409);
 
     if (islem === 'reddet') {
       await prisma.portalRequest.update({
@@ -34,11 +35,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ ok: true, durum: 'REDDEDILDI' });
     }
 
-    if (islem !== 'onayla') return NextResponse.json({ error: 'Geçersiz işlem' }, { status: 400 });
+    if (islem !== 'onayla') return ucHatasi('GECERSIZ_ISLEM', 400);
 
     // ── ARIZA → servis fişi ──
     if (talep.tur === 'ARIZA') {
-      if (!talep.deviceId) return NextResponse.json({ error: 'Cihazsız bildirimden fiş açılamaz' }, { status: 400 });
+      if (!talep.deviceId) return ucHatasi('CIHAZSIZ_BILDIRIMDEN_FIS_ACILAMAZ', 400);
       const ticketNumber = await generateTicketNumber(tenantId);
       const fis = await prisma.serviceTicket.create({
         data: {
@@ -70,8 +71,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // ── SAYAC → okuma ──
-    if (!talep.deviceId || !talep.device) return NextResponse.json({ error: 'Sayaç bildiriminde cihaz yok' }, { status: 400 });
-    if (talep.sayacBlack == null) return NextResponse.json({ error: 'Siyah/beyaz sayaç değeri yok' }, { status: 400 });
+    if (!talep.deviceId || !talep.device) return ucHatasi('SAYAC_BILDIRIMINDE_CIHAZ_YOK', 400);
+    if (talep.sayacBlack == null) return ucHatasi('SIYAH_BEYAZ_SAYAC_DEGERI_YOK', 400);
 
     // Müşteri renkliyi yazmadıysa SON BİLİNEN değeri kullanıyoruz: uydurma bir
     // artış yazmaktansa renkli fark 0 olsun. Sıfır yazmak sayaç düşüşü sayılır

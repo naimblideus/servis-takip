@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { resolveRecipients, fmtTLm } from '@/lib/reminders';
 import { sendOneWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     const { tenantId } = await requireTenantUser();
     if (!waConfigured()) {
-      return NextResponse.json({ error: 'WhatsApp API ayarlı değil. Yönetici WHATSAPP_TOKEN/PHONE_ID/TEMPLATE eklemeli.' }, { status: 503 });
+      return ucHatasi('WHATSAPP_API_AYARLI_DEGIL_YONETICI', 503);
     }
 
     const { customerIds } = await req.json();
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'customerIds zorunlu' }, { status: 400 });
     }
     if (customerIds.length > 500) {
-      return NextResponse.json({ error: 'Tek seferde en fazla 500 alıcı' }, { status: 400 });
+      return ucHatasi('TEK_SEFERDE_EN_FAZLA_500', 400);
     }
 
     const recipients = await resolveRecipients(tenantId, customerIds);
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     const skipped = recipients.length - items.length;
 
     if (items.length === 0) {
-      return NextResponse.json({ error: 'Seçili müşterilerde geçerli telefon yok', skipped }, { status: 400 });
+      return ucHatasi('SECILI_MUSTERILERDE_GECERLI_TELEFON_YOK', 400, { ek: { skipped } });
     }
 
     // Tek tek gönderiliyor ki HER ALICI için ayrı kayıt tutulabilsin.

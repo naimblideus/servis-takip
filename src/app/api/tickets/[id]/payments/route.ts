@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
@@ -38,14 +39,14 @@ export async function POST(
 
         const body = await req.json();
         const amount = parseFloat(body.amount);
-        if (!amount || amount <= 0) return NextResponse.json({ error: 'Geçersiz tutar' }, { status: 400 });
+        if (!amount || amount <= 0) return ucHatasi('GECERSIZ_TUTAR', 400);
 
         // Ticket + müşteri bilgilerini al (IDOR koruması: bu tenant'ın fişi)
         const ticket = await prisma.serviceTicket.findFirst({
             where: { id: ticketId, tenantId: user.tenantId },
             include: { device: { include: { customer: true } } },
         });
-        if (!ticket) return NextResponse.json({ error: 'Fiş bulunamadı' }, { status: 404 });
+        if (!ticket) return ucHatasi('FIS_BULUNAMADI', 404);
 
         // Tüm ödemelerin toplamını hesapla
         const existing = await prisma.payment.aggregate({

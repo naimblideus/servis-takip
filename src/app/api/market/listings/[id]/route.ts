@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { marketAuth, publicListing, sellerRatings } from '@/lib/market';
 
@@ -13,17 +14,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (a.error) return NextResponse.json({ error: a.error }, { status: a.status });
 
   const l = await prisma.marketListing.findUnique({ where: { id } });
-  if (!l) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
+  if (!l) return ucHatasi('ILAN_BULUNAMADI', 404);
 
   const isOwner = l.sellerTenantId === a.user!.tenantId;
-  if (l.status !== 'ACTIVE' && !isOwner) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
+  if (l.status !== 'ACTIVE' && !isOwner) return ucHatasi('ILAN_BULUNAMADI', 404);
 
   const sellerTenant = await prisma.tenant.findUnique({
     where: { id: l.sellerTenantId },
     select: { name: true, marketDisplayName: true, marketCity: true, marketEnabled: true },
   });
   // Satıcı pazardan ayrıldıysa ilan başkalarına görünmez (hayalet ilan önle)
-  if (!isOwner && !sellerTenant?.marketEnabled) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
+  if (!isOwner && !sellerTenant?.marketEnabled) return ucHatasi('ILAN_BULUNAMADI', 404);
 
   const ratings = await sellerRatings([l.sellerTenantId]);
   const seller = sellerTenant ? { name: sellerTenant.marketDisplayName || sellerTenant.name, city: sellerTenant.marketCity || null, ...(ratings.get(l.sellerTenantId) || {}) } : undefined;
@@ -37,13 +38,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (a.error) return NextResponse.json({ error: a.error }, { status: a.status });
 
   const existing = await prisma.marketListing.findFirst({ where: { id, sellerTenantId: a.user!.tenantId } });
-  if (!existing) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
+  if (!existing) return ucHatasi('ILAN_BULUNAMADI', 404);
 
   let body: any;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { body = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
 
   const data: any = {};
-  if (body.title !== undefined) { const t = String(body.title).trim(); if (!t) return NextResponse.json({ error: 'Başlık zorunlu' }, { status: 400 }); data.title = t.slice(0, 160); }
+  if (body.title !== undefined) { const t = String(body.title).trim(); if (!t) return ucHatasi('BASLIK_ZORUNLU', 400); data.title = t.slice(0, 160); }
   if (body.description !== undefined) data.description = body.description ? String(body.description).slice(0, 2000) : null;
   if (body.kind !== undefined && ['PART', 'PRINTER', 'MACHINE', 'OTHER'].includes(body.kind)) data.kind = body.kind;
   if (body.brand !== undefined) data.brand = body.brand ? String(body.brand).slice(0, 80) : null;
@@ -71,6 +72,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     where: { id, sellerTenantId: a.user!.tenantId },
     data: { status: 'REMOVED' },
   });
-  if (res.count === 0) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
+  if (res.count === 0) return ucHatasi('ILAN_BULUNAMADI', 404);
   return NextResponse.json({ ok: true });
 }

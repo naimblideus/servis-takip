@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { eBelgeGonder, eBelgeDurumGuncelle } from '@/lib/e-belge-gonderim';
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     const { tenantId } = await requireTenantUser();
     const { id, islem } = await req.json();
     if (!id || typeof id !== 'string') {
-      return NextResponse.json({ error: 'Fatura seçilmedi' }, { status: 400 });
+      return ucHatasi('FATURA_SECILMEDI', 400);
     }
 
     const cevap = islem === 'durum'

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { marketAuth, publicListing, sellerRatings } from '@/lib/market';
 
@@ -59,18 +60,18 @@ export async function POST(req: Request) {
   if (a.error) return NextResponse.json({ error: a.error }, { status: a.status });
 
   let body: any;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { body = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
 
   const title = (body.title || '').trim();
   const kind = ['PART', 'PRINTER', 'MACHINE', 'OTHER'].includes(body.kind) ? body.kind : 'OTHER';
-  if (!title) return NextResponse.json({ error: 'Başlık zorunlu' }, { status: 400 });
+  if (!title) return ucHatasi('BASLIK_ZORUNLU', 400);
   const price = Math.max(0, parseFloat(body.price) || 0);
   const quantity = Math.max(1, parseInt(body.quantity) || 1);
 
   // Basit hız sınırı (spam/DB şişmesi): son 24 saatte 50 ilan
   const since = new Date(Date.now() - 24 * 3600 * 1000);
   const todayCount = await prisma.marketListing.count({ where: { sellerTenantId: a.user!.tenantId, createdAt: { gte: since } } });
-  if (todayCount >= 50) return NextResponse.json({ error: 'Günlük ilan limiti doldu (50). Yarın tekrar deneyin.' }, { status: 429 });
+  if (todayCount >= 50) return ucHatasi('GUNLUK_ILAN_LIMITI_DOLDU_50', 429);
 
   const listing = await prisma.marketListing.create({
     data: {

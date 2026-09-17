@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { shopServisYetkili } from '@/lib/shop-auth';
 import { sendText, waOutConfigured } from '@/lib/whatsapp-out';
@@ -26,17 +27,14 @@ export async function POST(req: Request) {
   }
 
   if (!waOutConfigured()) {
-    return NextResponse.json(
-      { error: 'WhatsApp giden ayarlı değil (WHATSAPP_TOKEN / WHATSAPP_PHONE_ID)' },
-      { status: 503 }
-    );
+    return ucHatasi('WHATSAPP_GIDEN_AYARLI_DEGIL_WHATSAPP', 503);
   }
 
   let body: { tenantId?: string; telefon?: string; metin?: string };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 });
+    return ucHatasi('GECERSIZ_ISTEK', 400);
   }
 
   const { tenantId, telefon, metin } = body;
@@ -47,12 +45,12 @@ export async function POST(req: Request) {
     where: { id: tenantId, isActive: true, isSuspended: false, deletedAt: null },
     select: { id: true },
   });
-  if (!tenant) return NextResponse.json({ error: 'Bayi bulunamadı veya askıda' }, { status: 404 });
+  if (!tenant) return ucHatasi('BAYI_BULUNAMADI_VEYA_ASKIDA', 404);
 
   // Numara tek biçime indirgenir: "0532 111 22 33" ve "+90 532 111 2233"
   // aynı hattır. Meta yalnız 90XXXXXXXXXX biçimini kabul eder.
   const hedef = waApiPhone(telefon);
-  if (!hedef) return NextResponse.json({ error: 'Geçersiz telefon numarası' }, { status: 400 });
+  if (!hedef) return ucHatasi('GECERSIZ_TELEFON_NUMARASI', 400);
 
   const r = await sendText(hedef, metin.trim());
 

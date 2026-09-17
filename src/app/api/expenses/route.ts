@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi, yoneticiDegilse } from '@/lib/api-auth';
@@ -105,7 +106,7 @@ export async function PATCH(req: Request) {
     const { id, ...data } = body;
     if (!id) return NextResponse.json({ error: 'id zorunlu' }, { status: 400 });
     const ex = await prisma.expense.findFirst({ where: { id, tenantId: user.tenantId } });
-    if (!ex) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+    if (!ex) return ucHatasi('BULUNAMADI', 404);
     const updated = await prisma.expense.update({
       where: { id },
       data: {

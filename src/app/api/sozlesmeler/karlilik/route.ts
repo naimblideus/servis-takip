@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { sozlesmeKarliliklari, VARSAYILAN_HEDEF_MARJ } from '@/lib/sozlesme-karlilik';
 import { prisma } from '@/lib/prisma';
@@ -60,13 +61,13 @@ export async function POST(req: NextRequest) {
         // Ekran YÜZDE gönderiyor (25), veritabanı ORAN tutuyor (0,25).
         const n = Number(v) / 100;
         if (!Number.isFinite(n) || n < 0 || n >= 1) {
-          return NextResponse.json({ error: 'Hedef marj %0 ile %99 arasında olmalı' }, { status: 400 });
+          return ucHatasi('HEDEF_MARJ_0_ILE_99', 400);
         }
         data.hedefMarj = n;
       }
     }
     if (!Object.keys(data).length) {
-      return NextResponse.json({ error: 'Değişiklik yok' }, { status: 400 });
+      return ucHatasi('DEGISIKLIK_YOK', 400);
     }
 
     await prisma.tenant.update({ where: { id: tenantId }, data });

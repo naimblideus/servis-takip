@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { marketAuth } from '@/lib/market';
 
@@ -11,21 +12,21 @@ export async function POST(req: Request) {
   const me = a.user!.tenantId;
 
   let b: any;
-  try { b = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { b = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
   if (!b.listingId) return NextResponse.json({ error: 'listingId zorunlu' }, { status: 400 });
 
   const listing = await prisma.marketListing.findUnique({ where: { id: b.listingId } });
-  if (!listing || listing.status !== 'ACTIVE') return NextResponse.json({ error: 'İlan aktif değil' }, { status: 400 });
-  if (listing.sellerTenantId === me) return NextResponse.json({ error: 'Kendi ilanına sipariş veremezsin' }, { status: 400 });
+  if (!listing || listing.status !== 'ACTIVE') return ucHatasi('ILAN_AKTIF_DEGIL', 400);
+  if (listing.sellerTenantId === me) return ucHatasi('KENDI_ILANINA_SIPARIS_VEREMEZSIN', 400);
 
   // Satıcı hâlâ pazara açık mı
   const seller = await prisma.tenant.findUnique({ where: { id: listing.sellerTenantId }, select: { marketEnabled: true, name: true, marketDisplayName: true } });
-  if (!seller?.marketEnabled) return NextResponse.json({ error: 'Satıcı şu an pazarda değil' }, { status: 400 });
+  if (!seller?.marketEnabled) return ucHatasi('SATICI_SU_AN_PAZARDA_DEGIL', 400);
 
   // Spam koruması: son 1 saatte 30 sipariş
   const since = new Date(Date.now() - 3600 * 1000);
   const recent = await prisma.marketOrder.count({ where: { buyerTenantId: me, createdAt: { gte: since } } });
-  if (recent >= 30) return NextResponse.json({ error: 'Çok fazla sipariş, biraz bekleyin' }, { status: 429 });
+  if (recent >= 30) return ucHatasi('COK_FAZLA_SIPARIS_BIRAZ_BEKLEYIN', 429);
 
   const quantity = Math.max(1, Math.min(listing.quantity, parseInt(b.quantity) || 1));
   const unitPrice = Number(listing.price);

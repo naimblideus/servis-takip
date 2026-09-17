@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { createReading, ReadingError } from '@/lib/readings';
@@ -102,20 +103,20 @@ export async function POST(req: NextRequest) {
         ? { id, OR: [{ tenantId }, { tenantId: null }] }
         : { id, tenantId },
     });
-    if (!kayit) return NextResponse.json({ error: 'Kayıt bulunamadı' }, { status: 404 });
+    if (!kayit) return ucHatasi('KAYIT_BULUNAMADI', 404);
 
     if (yoksay) {
       await prisma.counterEmail.update({ where: { id: kayit.id }, data: { status: 'ATLANDI' } });
       return NextResponse.json({ ok: true });
     }
 
-    if (!deviceId) return NextResponse.json({ error: 'Cihaz seçilmedi' }, { status: 400 });
+    if (!deviceId) return ucHatasi('CIHAZ_SECILMEDI', 400);
     // IDOR: cihaz bu bayiye mi ait?
     const cihaz = await prisma.device.findFirst({
       where: { id: deviceId, tenantId },
       select: { id: true, serialNo: true, reportedSerial: true },
     });
-    if (!cihaz) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+    if (!cihaz) return ucHatasi('CIHAZ_BULUNAMADI', 404);
 
     try {
       const r = await createReading({

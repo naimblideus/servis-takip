@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -17,7 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // IDOR: cihaz bu tenant'a mı ait?
     const device = await prisma.device.findFirst({ where: { id, tenantId: user.tenantId } });
-    if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+    if (!device) return ucHatasi('CIHAZ_BULUNAMADI', 404);
 
     const body = await req.json();
     const data: any = {};

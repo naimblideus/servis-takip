@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
@@ -17,7 +18,7 @@ export async function GET(
         const user = await prisma.user.findFirst({
             where: { email: session.user?.email!, ...bayiSuzgeci(session) },
         });
-        if (!user) return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+        if (!user) return ucHatasi('KULLANICI_BULUNAMADI', 404);
 
         const devices = await prisma.device.findMany({
             where: { tenantId: user.tenantId, customerId },

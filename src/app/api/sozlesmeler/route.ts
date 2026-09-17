@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { normalHizBul } from '@/lib/sayac-anomali';
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
         },
       }),
     ]);
-    if (!tenant) return NextResponse.json({ error: 'Bayi bulunamadı' }, { status: 404 });
+    if (!tenant) return ucHatasi('BAYI_BULUNAMADI', 404);
 
     // ── CİHAZLARIN GERÇEK AYLIK HACMİ ───────────────────────────────────
     const cihazIdleri = [...new Set(sozlesmeler.flatMap((k) => k.devices.map((d) => d.deviceId)))];
@@ -220,20 +221,20 @@ export async function POST(req: NextRequest) {
     const musteri = await prisma.customer.findFirst({
       where: { id: String(b.customerId || ''), tenantId }, select: { id: true },
     });
-    if (!musteri) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+    if (!musteri) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
     const bas = yerelTarih(b.startDate);
     const bit = yerelTarih(b.endDate);
-    if (!bas || isNaN(bas.getTime())) return NextResponse.json({ error: 'Başlangıç tarihi gerekli' }, { status: 400 });
-    if (!bit || isNaN(bit.getTime())) return NextResponse.json({ error: 'Bitiş tarihi gerekli' }, { status: 400 });
-    if (bit <= bas) return NextResponse.json({ error: 'Bitiş tarihi başlangıçtan sonra olmalı' }, { status: 400 });
+    if (!bas || isNaN(bas.getTime())) return ucHatasi('BASLANGIC_TARIHI_GEREKLI', 400);
+    if (!bit || isNaN(bit.getTime())) return ucHatasi('BITIS_TARIHI_GEREKLI', 400);
+    if (bit <= bas) return ucHatasi('BITIS_TARIHI_BASLANGICTAN_SONRA_OLMALI', 400);
 
     const ihbar = Number(b.noticeDays ?? 0) || 0;
     // İhbar süresi sözleşmeden uzun olamaz: öyle olsaydı ihbar günü
     // sözleşme başlamadan önceye düşer ve ekran anlamsız bir şey söylerdi.
     const sure = Math.round((bit.getTime() - bas.getTime()) / GUN);
     if (ihbar < 0 || ihbar >= sure) {
-      return NextResponse.json({ error: `İhbar süresi 0 ile ${sure - 1} gün arasında olmalı` }, { status: 400 });
+      return ucHatasi('IHBAR_SURESI_0_ILE_GUN', 400, { deger: { p1: sure - 1 } });
     }
 
     const k = await prisma.contract.create({

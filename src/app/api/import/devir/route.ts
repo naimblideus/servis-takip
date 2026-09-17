@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { parseCSV, detectDelimiter, trNumber, normalizePhone, basligiNormalle } from '@/lib/sheet-import';
@@ -73,31 +74,31 @@ export async function POST(req: NextRequest) {
     const { user, tenantId } = await requireTenantUser();
     // Doğrudan borcu belirleyen veri — yönetici işi.
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Devir aktarmak için yönetici yetkisi gerekir', kod: 'YETKI' }, { status: 403 });
+      return ucHatasi('DEVIR_AKTARMAK_ICIN_YONETICI_YETKISI', 403, { ek: { kod: 'YETKI' } });
     }
 
     const { csv, tur, tarih, dryRun } = await req.json();
     if (tur !== 'bakiye' && tur !== 'fatura') {
-      return NextResponse.json({ error: 'Aktarım türü "bakiye" ya da "fatura" olmalı', kod: 'TUR_GECERSIZ' }, { status: 400 });
+      return ucHatasi('AKTARIM_TURU_BAKIYE_YA_DA', 400, { ek: { kod: 'TUR_GECERSIZ' } });
     }
     if (typeof csv !== 'string' || !csv.trim()) {
-      return NextResponse.json({ error: 'Dosya boş görünüyor', kod: 'BOS_DOSYA' }, { status: 400 });
+      return ucHatasi('DOSYA_BOS_GORUNUYOR', 400, { ek: { kod: 'BOS_DOSYA' } });
     }
 
     const devirTarihi = tarih ? parseDate(String(tarih)) : new Date();
-    if (!devirTarihi) return NextResponse.json({ error: 'Devir tarihi okunamadı', kod: 'DEVIR_TARIHI_OKUNAMADI' }, { status: 400 });
+    if (!devirTarihi) return ucHatasi('DEVIR_TARIHI_OKUNAMADI', 400, { ek: { kod: 'DEVIR_TARIHI_OKUNAMADI' } });
     if (devirTarihi.getTime() > Date.now() + 86400000) {
-      return NextResponse.json({ error: 'Devir tarihi gelecekte olamaz', kod: 'DEVIR_TARIHI_GELECEK' }, { status: 400 });
+      return ucHatasi('DEVIR_TARIHI_GELECEKTE_OLAMAZ', 400, { ek: { kod: 'DEVIR_TARIHI_GELECEK' } });
     }
 
     const ham = parseCSV(csv, detectDelimiter(csv));
     if (ham.length < 2) {
-      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı', kod: 'SATIR_YOK' }, { status: 400 });
+      return ucHatasi('DOSYADA_BASLIK_SATIRI_EN_AZ', 400, { ek: { kod: 'SATIR_YOK' } });
     }
     const basliklar = ham[0].map((h) => h.trim());
     const veri = ham.slice(1);
     if (veri.length > MAX_ROWS) {
-      return NextResponse.json({ error: `Tek seferde en fazla ${MAX_ROWS} satır (dosyada ${veri.length})` }, { status: 400 });
+      return ucHatasi('TEK_SEFERDE_EN_FAZLA_SATIR_2', 400, { deger: { p1: MAX_ROWS, p2: veri.length } });
     }
 
     const s = sutunlar(basliklar);
@@ -111,11 +112,9 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
     if (tur === 'fatura' && (s.faturaNo < 0 || s.tarih < 0)) {
-      return NextResponse.json({
-        error: 'Fatura geçmişi için "Fatura No" ve "Tarih" sütunları da gerekli.',
-        kod: 'FATURA_KOLON_EKSIK',
-        bulunanBasliklar: basliklar,
-      }, { status: 400 });
+      return ucHatasi('FATURA_GECMISI_ICIN_FATURA_NO', 400, {
+        ek: { kod: 'FATURA_KOLON_EKSIK', bulunanBasliklar: basliklar },
+      });
     }
 
     const al = (r: string[], i: number) => (i >= 0 ? (r[i] ?? '').trim() : '');

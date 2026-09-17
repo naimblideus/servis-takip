@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
@@ -12,16 +13,13 @@ export async function POST(req: NextRequest) {
     try {
         const beklenen = process.env.SETUP_SECRET;
         if (!beklenen) {
-            return NextResponse.json(
-                { error: 'Kurulum ucu kapalı — SETUP_SECRET tanımlı değil.' },
-                { status: 503 },
-            );
+            return ucHatasi('KURULUM_UCU_KAPALI_SETUP_SECRET', 503);
         }
 
         const { secret, email, password, name } = await req.json();
 
         if (secret !== beklenen) {
-            return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 403 });
+            return ucHatasi('YETKISIZ_ERISIM', 403);
         }
 
         const adminEmail = email || 'superadmin@demo.com';

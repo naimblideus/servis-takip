@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
 
     if (body.source === 'PART') {
       const bc = body.barcode?.trim();
-      if (bc && await barcodeTaken(user.tenantId, bc)) return NextResponse.json({ error: 'Bu barkod zaten başka bir kalemde kullanılıyor' }, { status: 409 });
+      if (bc && await barcodeTaken(user.tenantId, bc)) return ucHatasi('BU_BARKOD_ZATEN_BASKA_BIR', 409);
       const part = await prisma.part.create({
         data: {
           tenantId: user.tenantId,
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
 
     if (body.source === 'PRINTER') {
       const bc = body.barcode?.trim();
-      if (bc && await barcodeTaken(user.tenantId, bc)) return NextResponse.json({ error: 'Bu barkod zaten başka bir kalemde kullanılıyor' }, { status: 409 });
+      if (bc && await barcodeTaken(user.tenantId, bc)) return ucHatasi('BU_BARKOD_ZATEN_BASKA_BIR', 409);
       const p = await prisma.printerStock.create({
         data: {
           tenantId: user.tenantId,
@@ -125,7 +126,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ id: p.id, source: 'PRINTER', name, category: p.category, brand: p.brand, model: p.model, color: p.color, condition: p.condition, barcode: (p as any).barcode, buyPrice: Number(p.buyPrice), sellPrice: Number(p.sellPrice), stockQty: p.quantity, notes: p.notes });
     }
 
-    return NextResponse.json({ error: 'source: PART veya PRINTER olmalı' }, { status: 400 });
+    return ucHatasi('SOURCE_PART_VEYA_PRINTER_OLMALI', 400);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -144,9 +145,9 @@ export async function PATCH(req: Request) {
 
     if (source === 'PART') {
       const ex = await prisma.part.findFirst({ where: { id, tenantId: user.tenantId } });
-      if (!ex) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+      if (!ex) return ucHatasi('BULUNAMADI', 404);
       const bc = body.barcode !== undefined ? (body.barcode?.trim() || null) : ex.barcode;
-      if (bc && await barcodeTaken(user.tenantId, bc, { table: 'PART', id })) return NextResponse.json({ error: 'Bu barkod zaten başka bir kalemde kullanılıyor' }, { status: 409 });
+      if (bc && await barcodeTaken(user.tenantId, bc, { table: 'PART', id })) return ucHatasi('BU_BARKOD_ZATEN_BASKA_BIR', 409);
       const updated = await prisma.part.update({
         where: { id },
         data: {
@@ -165,9 +166,9 @@ export async function PATCH(req: Request) {
 
     if (source === 'PRINTER') {
       const ex = await prisma.printerStock.findFirst({ where: { id, tenantId: user.tenantId } });
-      if (!ex) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+      if (!ex) return ucHatasi('BULUNAMADI', 404);
       const bc = body.barcode !== undefined ? (body.barcode?.trim() || null) : (ex as any).barcode;
-      if (bc && await barcodeTaken(user.tenantId, bc, { table: 'PRINTER', id })) return NextResponse.json({ error: 'Bu barkod zaten başka bir kalemde kullanılıyor' }, { status: 409 });
+      if (bc && await barcodeTaken(user.tenantId, bc, { table: 'PRINTER', id })) return ucHatasi('BU_BARKOD_ZATEN_BASKA_BIR', 409);
       const updated = await prisma.printerStock.update({
         where: { id },
         data: {
@@ -186,7 +187,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json(updated);
     }
 
-    return NextResponse.json({ error: 'source: PART veya PRINTER olmalı' }, { status: 400 });
+    return ucHatasi('SOURCE_PART_VEYA_PRINTER_OLMALI', 400);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

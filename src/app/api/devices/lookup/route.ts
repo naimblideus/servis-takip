@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
     where: { tenantId: user.tenantId, OR: [{ publicCode: code }, { serialNo: code }, { barcode: code }] },
     include: { customer: { select: { id: true, name: true, phone: true } } },
   });
-  if (!device) return NextResponse.json({ error: `Cihaz bulunamadı: ${code}` }, { status: 404 });
+  if (!device) return ucHatasi('CIHAZ_BULUNAMADI_2', 404, { deger: { p1: code } });
 
   return NextResponse.json({
     id: device.id,

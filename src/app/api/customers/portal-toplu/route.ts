@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { yeniPortalJetonu } from '@/lib/portal';
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, plan: true, modules: true, isActive: true, isSuspended: true },
     });
     if (!firma || !hasModule(firma, 'PORTAL')) {
-      return NextResponse.json({ error: 'Müşteri Paneli paketinizde yok.' }, { status: 403 });
+      return ucHatasi('MUSTERI_PANELI_PAKETINIZDE_YOK', 403);
     }
 
     const govde = await req.json().catch(() => ({}));

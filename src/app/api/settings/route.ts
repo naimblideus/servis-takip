@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -62,19 +63,19 @@ export async function POST(req: Request) {
     try {
         const formData = await req.formData();
         const file = formData.get('logo') as File;
-        if (!file) return NextResponse.json({ error: 'Logo dosyası gerekli' }, { status: 400 });
+        if (!file) return ucHatasi('LOGO_DOSYASI_GEREKLI', 400);
 
         // Dosya uzantısı kontrolü
         const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
         const allowedExts = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
         if (!allowedExts.includes(ext)) {
-            return NextResponse.json({ error: 'Sadece PNG, JPG, SVG, WebP yüklenebilir' }, { status: 400 });
+            return ucHatasi('SADECE_PNG_JPG_SVG_WEBP', 400);
         }
 
         // Boyut kontrolü: max 2MB
         const maxSize = 2 * 1024 * 1024;
         if (file.size > maxSize) {
-            return NextResponse.json({ error: "Logo 2MB'dan küçük olmalıdır" }, { status: 400 });
+            return ucHatasi('LOGO_2MB_DAN_KUCUK_OLMALIDIR', 400);
         }
 
         const bytes = await file.arrayBuffer();

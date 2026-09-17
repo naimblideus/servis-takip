@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { verimGruplari, verimUygula } from '@/lib/toner-verimi';
 import { verimleriOgren } from '@/lib/verim-ogrenme';
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     const govde = await req.json().catch(() => ({}));
 
     const anahtar = typeof govde?.anahtar === 'string' ? govde.anahtar : '';
-    if (!anahtar) return NextResponse.json({ error: 'Model seçilmedi' }, { status: 400 });
+    if (!anahtar) return ucHatasi('MODEL_SECILMEDI', 400);
 
     /** Boş dize "temizle" değil "dokunma" demek — alan hiç gönderilmemiş sayılır. */
     const sayi = (v: unknown): number | null => {

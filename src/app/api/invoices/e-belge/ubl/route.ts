@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { eBelgeUbl } from '@/lib/e-belge-gonderim';
 import { zipUret } from '@/lib/zip';
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    if (!cok.length) return NextResponse.json({ error: 'Fatura seçilmedi' }, { status: 400 });
+    if (!cok.length) return ucHatasi('FATURA_SECILMEDI', 400);
     if (cok.length > TAVAN) {
       return NextResponse.json({ error: `Tek seferde en fazla ${TAVAN} fatura indirilebilir.` }, { status: 400 });
     }
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
       else atlanan.push(id);
     }
     if (!girdiler.length) {
-      return NextResponse.json({ error: 'Seçilenlerin hiçbirinin belge numarası yok. Önce gönderin.' }, { status: 400 });
+      return ucHatasi('SECILENLERIN_HICBIRININ_BELGE_NUMARASI_YOK', 400);
     }
 
     const zip = zipUret(girdiler);

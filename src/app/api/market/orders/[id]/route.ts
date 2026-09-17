@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { marketAuth } from '@/lib/market';
 import { completeOrder } from '@/lib/market-settle';
@@ -14,24 +15,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     where: { id, OR: [{ sellerTenantId: me }, { buyerTenantId: me }] },
     select: { id: true, sellerTenantId: true, buyerTenantId: true, status: true },
   });
-  if (!o) return NextResponse.json({ error: 'Sipariş bulunamadı' }, { status: 404 });
+  if (!o) return ucHatasi('SIPARIS_BULUNAMADI', 404);
 
   let b: any;
-  try { b = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { b = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
   const role: 'seller' | 'buyer' = o.sellerTenantId === me ? 'seller' : 'buyer';
   const action = b.action;
 
   // ── complete: yalnız ALICI, atomik claim + iki taraflı settle (market-settle) ──
   if (action === 'complete') {
-    if (role !== 'buyer') return NextResponse.json({ error: 'Siparişi yalnız alıcı tamamlayabilir' }, { status: 403 });
+    if (role !== 'buyer') return ucHatasi('SIPARISI_YALNIZ_ALICI_TAMAMLAYABILIR', 403);
     try {
       const r = await completeOrder(o.id, me);
-      if (!r.ok) return NextResponse.json({ error: 'Sipariş durumu değişmiş, sayfayı yenileyin' }, { status: 409 });
+      if (!r.ok) return ucHatasi('SIPARIS_DURUMU_DEGISMIS_SAYFAYI_YENILEYIN', 409);
       return NextResponse.json({ ok: true, status: 'COMPLETED', settled: r.settled });
     } catch (e: any) {
       console.error('MARKET COMPLETE/SETTLE ERROR:', e?.message);
-      if (e?.message === 'SETTLE_INSUFFICIENT_STOCK') return NextResponse.json({ error: 'Satıcının stoğu yetersiz; tamamlanamadı. Satıcıyla görüşün.' }, { status: 409 });
-      return NextResponse.json({ error: 'Tamamlama sırasında hata oluştu, tekrar deneyin.' }, { status: 500 });
+      if (e?.message === 'SETTLE_INSUFFICIENT_STOCK') return ucHatasi('SATICININ_STOGU_YETERSIZ_TAMAMLANAMADI_SATICIYLA', 409);
+      return ucHatasi('TAMAMLAMA_SIRASINDA_HATA_OLUSTU_TEKRAR', 500);
     }
   }
 
@@ -42,15 +43,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     case 'reject': from = ['REQUESTED']; to = 'REJECTED'; allowedRole = 'seller'; break;
     case 'ship': from = ['ACCEPTED']; to = 'SHIPPED'; allowedRole = 'seller'; break;
     case 'cancel': from = ['REQUESTED', 'ACCEPTED']; to = 'CANCELLED'; allowedRole = 'any'; break;
-    default: return NextResponse.json({ error: 'Geçersiz işlem' }, { status: 400 });
+    default: return ucHatasi('GECERSIZ_ISLEM', 400);
   }
-  if (allowedRole !== 'any' && role !== allowedRole) return NextResponse.json({ error: 'Bu işlem için yetkin yok' }, { status: 403 });
+  if (allowedRole !== 'any' && role !== allowedRole) return ucHatasi('BU_ISLEM_ICIN_YETKIN_YOK', 403);
 
   const where: any = { id: o.id, status: { in: from } };
   if (allowedRole === 'seller') where.sellerTenantId = me;
   else where.OR = [{ sellerTenantId: me }, { buyerTenantId: me }];
 
   const upd = await prisma.marketOrder.updateMany({ where, data: { status: to } });
-  if (upd.count === 0) return NextResponse.json({ error: 'Bu işlem şu an yapılamaz' }, { status: 409 });
+  if (upd.count === 0) return ucHatasi('BU_ISLEM_SU_AN_YAPILAMAZ', 409);
   return NextResponse.json({ ok: true, status: to });
 }

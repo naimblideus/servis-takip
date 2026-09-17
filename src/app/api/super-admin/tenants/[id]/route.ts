@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { writeAudit, istekIp } from '@/lib/audit';
 import { getSuperAdminSession } from '@/lib/super-admin-auth';
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             _count: { select: { serviceTickets: true, customers: true, devices: true } },
         } as any,
     });
-    if (!tenant) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+    if (!tenant) return ucHatasi('BULUNAMADI', 404);
     return NextResponse.json(tenant);
 }
 
@@ -40,7 +41,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (body.eFaturaOnEk !== undefined) {
             const h = String(body.eFaturaOnEk ?? '').toLocaleUpperCase('tr-TR').replace(/[^A-Z]/g, '');
             if (h && h.length !== 3) {
-                return NextResponse.json({ error: 'e-Fatura ön eki tam 3 harf olmalı (GİB\'e kayıtlı ön ek)' }, { status: 400 });
+                return ucHatasi('E_FATURA_ON_EKI_TAM_2', 400);
             }
             body.eFaturaOnEk = h || null;
         }
@@ -83,12 +84,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     } catch (error: any) {
         // Benzersizlik ihlali: aynı Meta numarası başka bir bayide tanımlı
         if (error?.code === 'P2002' && String(error?.meta?.target).includes('whatsappPhoneId')) {
-            return NextResponse.json(
-                { error: 'Bu WhatsApp numara kimliği başka bir bayide tanımlı. Bir numara yalnızca bir bayiye bağlanabilir.' },
-                { status: 409 },
-            );
+            return ucHatasi('BU_WHATSAPP_NUMARA_KIMLIGI_BASKA', 409);
         }
-        return NextResponse.json({ error: 'Güncellenemedi' }, { status: 500 });
+        return ucHatasi('GUNCELLENEMEDI', 500);
     }
 }
 

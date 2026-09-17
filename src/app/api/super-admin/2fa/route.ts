@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import QRCode from 'qrcode';
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const { action, code, password } = await req.json();
   const admin = await (prisma as any).superAdmin.findUnique({ where: { id: sa.id } });
-  if (!admin) return NextResponse.json({ error: 'Hesap bulunamadı' }, { status: 404 });
+  if (!admin) return ucHatasi('HESAP_BULUNAMADI', 404);
 
   if (action === 'setup') {
     // Anahtar üretilir ama totpEnabled AÇILMAZ: kod doğrulanana kadar kullanıcı
@@ -47,9 +48,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'enable') {
-    if (!admin.totpSecret) return NextResponse.json({ error: 'Önce kurulum yapın' }, { status: 400 });
+    if (!admin.totpSecret) return ucHatasi('ONCE_KURULUM_YAPIN', 400);
     if (verifyTOTP(admin.totpSecret, String(code || '')) === null) {
-      return NextResponse.json({ error: 'Kod doğrulanamadı' }, { status: 400 });
+      return ucHatasi('KOD_DOGRULANAMADI', 400);
     }
     // Kurtarma kodları YALNIZCA burada, bir kez döner; veritabanında hash tutulur.
     const codes = generateRecoveryCodes();
@@ -63,10 +64,10 @@ export async function POST(req: NextRequest) {
   if (action === 'disable') {
     // Kapatmak açmaktan daha tehlikeli: şifre VE güncel kod birlikte istenir.
     if (!(await bcrypt.compare(String(password || ''), admin.password))) {
-      return NextResponse.json({ error: 'Şifre hatalı' }, { status: 400 });
+      return ucHatasi('SIFRE_HATALI', 400);
     }
     if (!admin.totpSecret || verifyTOTP(admin.totpSecret, String(code || '')) === null) {
-      return NextResponse.json({ error: 'Kod doğrulanamadı' }, { status: 400 });
+      return ucHatasi('KOD_DOGRULANAMADI', 400);
     }
     await (prisma as any).superAdmin.update({
       where: { id: admin.id },
@@ -75,5 +76,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.json({ error: 'Bilinmeyen işlem' }, { status: 400 });
+  return ucHatasi('BILINMEYEN_ISLEM', 400);
 }

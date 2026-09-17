@@ -8,6 +8,7 @@ export const maxDuration = 300; // 5 dakika (vercel için)
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
@@ -69,17 +70,17 @@ export async function POST(req: NextRequest) {
         // 1. Session kontrolü (sadece ADMIN)
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Oturum bulunamadı' }, { status: 401 });
+            return ucHatasi('OTURUM_BULUNAMADI', 401);
         }
 
         const currentUser = await prisma.user.findFirst({
             where: { email: session.user?.email!, ...bayiSuzgeci(session) },
         });
         if (!currentUser) {
-            return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+            return ucHatasi('KULLANICI_BULUNAMADI', 404);
         }
         if (currentUser.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Bu işlem için ADMIN yetkisi gerekli' }, { status: 403 });
+            return ucHatasi('BU_ISLEM_ICIN_ADMIN_YETKISI', 403);
         }
 
         const tenantId = currentUser.tenantId;
@@ -88,12 +89,12 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         const file = formData.get('file') as File | null;
         if (!file) {
-            return NextResponse.json({ error: 'SQL dosyası bulunamadı' }, { status: 400 });
+            return ucHatasi('SQL_DOSYASI_BULUNAMADI', 400);
         }
 
         // Max 50MB kontrolü
         if (file.size > 50 * 1024 * 1024) {
-            return NextResponse.json({ error: 'Dosya boyutu 50MB\'ı aşamaz' }, { status: 400 });
+            return ucHatasi('DOSYA_BOYUTU_50MB_I_ASAMAZ', 400);
         }
 
         const fileName = file.name || 'import.sql';
@@ -117,15 +118,17 @@ export async function POST(req: NextRequest) {
                 where: { id: importSession.id },
                 data: {
                     status: 'FAILED',
-                    errors: [{ row: 0, table: 'SQL', error: `Parse hatası: ${parseError.message}` }],
+                    errors: [{
+                        row: 0, table: 'SQL',
+                        error: `Parse hatası: ${parseError.message}`,
+                        kod: 'PARSE_HATASI', deger: { p1: parseError.message },
+                    }],
                     completedAt: new Date(),
                 },
             });
-            return NextResponse.json({
-                error: 'SQL dosyası parse edilemedi',
-                sessionId: importSession.id,
-                detail: parseError.message,
-            }, { status: 400 });
+            return ucHatasi('SQL_DOSYASI_PARSE_EDILEMEDI', 400, {
+                ek: { sessionId: importSession.id, detail: parseError.message },
+            });
         }
 
         const result = createEmptyResult();
@@ -181,7 +184,7 @@ export async function POST(req: NextRequest) {
                     const sku = (urun.UrunKod || '').trim();
                     if (!sku) {
                         result.failedRows.urunler++;
-                        result.errors.push({ row: urun.ID, table: 'Ürünler', error: 'Ürün kodu boş' });
+                        result.errors.push({ row: urun.ID, table: 'Ürünler', error: 'Ürün kodu boş', kod: 'URUN_KODU_BOS' });
                         continue;
                     }
 
@@ -229,7 +232,7 @@ export async function POST(req: NextRequest) {
                     const name = fixEncoding(musteri.Musteri || '').trim();
                     if (!name) {
                         result.failedRows.musteriler++;
-                        result.errors.push({ row: musteri.ID, table: 'Müşteriler', error: 'Müşteri adı boş' });
+                        result.errors.push({ row: musteri.ID, table: 'Müşteriler', error: 'Müşteri adı boş', kod: 'MUSTERI_ADI_BOS' });
                         continue;
                     }
 
@@ -326,6 +329,7 @@ export async function POST(req: NextRequest) {
                             row: servis.ID,
                             table: 'Servisler',
                             error: `Müşteri bulunamadı (MusteriID: ${servis.MusteriID})`,
+                            kod: 'MUSTERI_BULUNAMADI_MUSTERIID', deger: { p1: servis.MusteriID ?? '—' },
                         });
                         continue;
                     }
@@ -339,6 +343,7 @@ export async function POST(req: NextRequest) {
                             row: servis.ID,
                             table: 'Servisler',
                             error: `Müşteri bulunamadı (MusteriID: ${servis.MusteriID})`,
+                            kod: 'MUSTERI_BULUNAMADI_MUSTERIID', deger: { p1: servis.MusteriID ?? '—' },
                         });
                         continue;
                     }
@@ -505,6 +510,7 @@ export async function POST(req: NextRequest) {
                             row: su.ID,
                             table: 'Servis Ürünleri',
                             error: `Servis kaydı bulunamadı (ServisNo: ${su.ServisNo})`,
+                            kod: 'SERVIS_KAYDI_BULUNAMADI_SERVISNO', deger: { p1: su.ServisNo },
                         });
                         continue;
                     }
@@ -538,6 +544,7 @@ export async function POST(req: NextRequest) {
                             row: su.ID,
                             table: 'Servis Ürünleri',
                             error: 'Ürün kodu boş, parça oluşturulamadı',
+                            kod: 'URUN_KODU_BOS_PARCA_OLUSTURULAMADI',
                         });
                         continue;
                     }
@@ -579,7 +586,7 @@ export async function POST(req: NextRequest) {
 
                     if (amount === 0) {
                         result.failedRows.kasa++;
-                        result.errors.push({ row: kasa.ID, table: 'Kasa', error: 'Tutar sıfır' });
+                        result.errors.push({ row: kasa.ID, table: 'Kasa', error: 'Tutar sıfır', kod: 'TUTAR_SIFIR' });
                         continue;
                     }
 

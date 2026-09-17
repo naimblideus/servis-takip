@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import {
@@ -19,24 +20,24 @@ export async function POST(req: NextRequest) {
   try {
     const { user, tenantId } = await requireTenantUser();
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Veri aktarmak için yönetici yetkisi gerekir', kod: 'YETKI' }, { status: 403 });
+      return ucHatasi('VERI_AKTARMAK_ICIN_YONETICI_YETKISI', 403, { ek: { kod: 'YETKI' } });
     }
 
     const { csv, mapping: userMapping, dryRun } = await req.json();
     if (typeof csv !== 'string' || !csv.trim()) {
-      return NextResponse.json({ error: 'Dosya boş görünüyor', kod: 'BOS_DOSYA' }, { status: 400 });
+      return ucHatasi('DOSYA_BOS_GORUNUYOR', 400, { ek: { kod: 'BOS_DOSYA' } });
     }
 
     const delimiter = detectDelimiter(csv);
     const rows = parseCSV(csv, delimiter);
     if (rows.length < 2) {
-      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı', kod: 'SATIR_YOK' }, { status: 400 });
+      return ucHatasi('DOSYADA_BASLIK_SATIRI_EN_AZ', 400, { ek: { kod: 'SATIR_YOK' } });
     }
 
     const headers = rows[0].map((h) => h.trim());
     const dataRows = rows.slice(1);
     if (dataRows.length > MAX_ROWS) {
-      return NextResponse.json({ error: `Tek seferde en fazla ${MAX_ROWS} satır (dosyada ${dataRows.length})` }, { status: 400 });
+      return ucHatasi('TEK_SEFERDE_EN_FAZLA_SATIR', 400, { deger: { p1: MAX_ROWS, p2: dataRows.length } });
     }
 
     // Eşleme: kullanıcı düzelttiyse onu kullan, yoksa otomatik tahmin
@@ -53,11 +54,9 @@ export async function POST(req: NextRequest) {
     const hasCustomer = idx('customerName') >= 0 || idx('legalName') >= 0;
     const hasDevice = idx('serialNo') >= 0 || idx('model') >= 0 || idx('brand') >= 0;
     if (!hasCustomer && !hasDevice) {
-      return NextResponse.json({
-        error: 'Kolonlar tanınamadı. En azından "Müşteri" ya da "Marka/Model/Seri No" kolonu gerekli.',
-        kod: 'KOLON_TANINMADI',
-        headers, mapping,
-      }, { status: 400 });
+      return ucHatasi('KOLONLAR_TANINAMADI_EN_AZINDAN_MUSTERI', 400, {
+        ek: { kod: 'KOLON_TANINMADI', headers, mapping },
+      });
     }
 
     // ── Satırları çöz ──
@@ -158,7 +157,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (valid.length === 0) {
-      return NextResponse.json({ error: 'Aktarılabilecek geçerli satır yok', kod: 'GECERLI_SATIR_YOK', invalidRows: invalid.length }, { status: 400 });
+      return ucHatasi('AKTARILABILECEK_GECERLI_SATIR_YOK', 400, {
+        ek: { kod: 'GECERLI_SATIR_YOK', invalidRows: invalid.length },
+      });
     }
 
     // ── AKTAR ──

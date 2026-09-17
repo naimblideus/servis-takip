@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { shopServisYetkili } from '@/lib/shop-auth';
 
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 });
+    return ucHatasi('GECERSIZ_ISTEK', 400);
   }
 
   const { tenantId } = body;
@@ -43,13 +44,13 @@ export async function POST(req: Request) {
   const telefon = (body.telefon ?? '').replace(/\D/g, '');
 
   if (!tenantId || !ad || telefon.length < 10)
-    return NextResponse.json({ error: 'tenantId, ad ve geçerli telefon zorunlu' }, { status: 400 });
+    return ucHatasi('TENANTID_AD_VE_GECERLI_TELEFON', 400);
 
   const tenant = await prisma.tenant.findFirst({
     where: { id: tenantId, isActive: true, isSuspended: false, deletedAt: null },
     select: { id: true },
   });
-  if (!tenant) return NextResponse.json({ error: 'Bayi bulunamadı veya askıda' }, { status: 404 });
+  if (!tenant) return ucHatasi('BAYI_BULUNAMADI_VEYA_ASKIDA', 404);
 
   const mevcut = await prisma.customer.findFirst({ where: { tenantId, phone: telefon } });
 

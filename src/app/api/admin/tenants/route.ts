@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
@@ -17,7 +18,7 @@ async function getSuperAdmin() {
 // GET /api/admin/tenants — Tüm tenant'ları listele
 export async function GET() {
     const admin = await getSuperAdmin();
-    if (!admin) return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 403 });
+    if (!admin) return ucHatasi('YETKISIZ_ERISIM', 403);
 
     const tenants = await prisma.tenant.findMany({
         orderBy: { createdAt: 'desc' },
@@ -76,20 +77,20 @@ function paketGecerli(p: unknown): p is string {
 // POST /api/admin/tenants — Yeni tenant + admin kullanıcı oluştur
 export async function POST(req: NextRequest) {
     const admin = await getSuperAdmin();
-    if (!admin) return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 403 });
+    if (!admin) return ucHatasi('YETKISIZ_ERISIM', 403);
 
     try {
         const body = await req.json();
         const { tenantName, phone, address, adminName, adminEmail, adminPassword, plan } = body;
 
         if (!tenantName || !adminName || !adminEmail || !adminPassword) {
-            return NextResponse.json({ error: 'Firma adı, admin adı, e-posta ve şifre zorunlu' }, { status: 400 });
+            return ucHatasi('FIRMA_ADI_ADMIN_ADI_E', 400);
         }
 
         // E-posta benzersizlik kontrolü (tüm tenant'larda)
         const existingUser = await prisma.user.findFirst({ where: { email: adminEmail } });
         if (existingUser) {
-            return NextResponse.json({ error: 'Bu e-posta adresi zaten kayıtlı' }, { status: 409 });
+            return ucHatasi('BU_E_POSTA_ADRESI_ZATEN', 409);
         }
 
         const passwordHash = await bcrypt.hash(adminPassword, 10);
@@ -132,7 +133,7 @@ export async function POST(req: NextRequest) {
 // PATCH /api/admin/tenants — Tenant güncelle (aktif/pasif, plan değiştirme)
 export async function PATCH(req: NextRequest) {
     const admin = await getSuperAdmin();
-    if (!admin) return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 403 });
+    if (!admin) return ucHatasi('YETKISIZ_ERISIM', 403);
 
     try {
         const body = await req.json();
@@ -146,7 +147,7 @@ export async function PATCH(req: NextRequest) {
         if (address !== undefined) updateData.address = address;
         if (plan !== undefined) {
             if (!paketGecerli(plan)) {
-                return NextResponse.json({ error: `Tanınmayan paket: ${plan}` }, { status: 400 });
+                return ucHatasi('TANINMAYAN_PAKET', 400, { deger: { p1: plan } });
             }
             updateData.plan = plan;
         }
@@ -166,7 +167,7 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/admin/tenants — Tenant sil (dikkatli!)
 export async function DELETE(req: NextRequest) {
     const admin = await getSuperAdmin();
-    if (!admin) return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 403 });
+    if (!admin) return ucHatasi('YETKISIZ_ERISIM', 403);
 
     try {
         const { searchParams } = new URL(req.url);
@@ -175,7 +176,7 @@ export async function DELETE(req: NextRequest) {
 
         // Süper admin'in kendi tenant'ını silemezsin
         if (tenantId === admin.tenantId) {
-            return NextResponse.json({ error: 'Kendi tenant\'ınızı silemezsiniz' }, { status: 400 });
+            return ucHatasi('KENDI_TENANT_INIZI_SILEMEZSINIZ', 400);
         }
 
         await prisma.tenant.delete({ where: { id: tenantId } });

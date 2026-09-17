@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { AccountEntryType } from '@prisma/client';
@@ -109,10 +110,9 @@ export async function GET(req: Request) {
         console.error('MUHASEBE GET ERROR:', e.message);
         // Tablo yoksa anlamlı hata mesajı dön
         if (e.message?.includes('does not exist')) {
-            return NextResponse.json({
-                error: 'Muhasebe tablosu henüz oluşturulmamış. Lütfen veritabanı migration işlemini çalıştırın.',
-                detail: e.message,
-            }, { status: 503 });
+            return ucHatasi('MUHASEBE_TABLOSU_HENUZ_OLUSTURULMAMIS_LUTFEN', 503, {
+                ek: { detail: e.message },
+            });
         }
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
@@ -140,15 +140,15 @@ export async function POST(req: Request) {
         }
 
         if (type === 'SALE' && !product) {
-            return NextResponse.json({ error: 'Satış kaydı için ürün/hizmet adı zorunlu' }, { status: 400 });
+            return ucHatasi('SATIS_KAYDI_ICIN_URUN_HIZMET', 400);
         }
 
         const amt = validateAmount(amount);
-        if (!amt) return NextResponse.json({ error: 'Geçerli (pozitif) bir tutar girin' }, { status: 400 });
+        if (!amt) return ucHatasi('GECERLI_POZITIF_BIR_TUTAR_GIRIN', 400);
 
         // Müşteri bu bayiye mi ait? (cross-tenant IDOR + PII sızıntısı engeli)
         const owned = await prisma.customer.findFirst({ where: { id: customerId, tenantId: user.tenantId }, select: { id: true } });
-        if (!owned) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+        if (!owned) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
         const entry = await prisma.accountEntry.create({
             data: {
@@ -196,7 +196,7 @@ export async function PATCH(req: Request) {
 
         // Kaydın bu tenant'a ait olduğunu kontrol et
         const existing = await prisma.accountEntry.findFirst({ where: { id, tenantId: user.tenantId } });
-        if (!existing) return NextResponse.json({ error: 'Kayıt bulunamadı' }, { status: 404 });
+        if (!existing) return ucHatasi('KAYIT_BULUNAMADI', 404);
 
         const data: any = {};
         if (type) data.type = type as AccountEntryType;

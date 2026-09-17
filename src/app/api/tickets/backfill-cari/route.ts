@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
@@ -11,7 +12,7 @@ export async function POST() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const user = await prisma.user.findFirst({ where: { email: session.user?.email!, ...bayiSuzgeci(session) }, select: { tenantId: true, role: true } });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-  if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Bu işlem için yönetici yetkisi gerekir' }, { status: 403 });
+  if (user.role !== 'ADMIN') return ucHatasi('BU_ISLEM_ICIN_YONETICI_YETKISI', 403);
 
   const tickets = await prisma.serviceTicket.findMany({
     // NOT: customerId şemada zorunlu (nullable değil) — ayrıca filtrelemeye gerek yok

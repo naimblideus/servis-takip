@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { siradakiTeklifNo } from '@/lib/teklif';
@@ -46,13 +47,13 @@ export async function POST(req: NextRequest) {
     const g = await req.json().catch(() => ({}));
 
     const musteriAdi = typeof g.musteriAdi === 'string' ? g.musteriAdi.trim() : '';
-    if (!musteriAdi) return NextResponse.json({ error: 'Müşteri adı gerekli' }, { status: 400 });
+    if (!musteriAdi) return ucHatasi('MUSTERI_ADI_GEREKLI', 400);
 
     // Mevcut müşteriye bağlanıyorsa IDOR kontrolü.
     let customerId: string | null = null;
     if (g.customerId) {
       const m = await prisma.customer.findFirst({ where: { id: g.customerId, tenantId }, select: { id: true } });
-      if (!m) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+      if (!m) return ucHatasi('MUSTERI_BULUNAMADI', 404);
       customerId = m.id;
     }
 
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
         if (!/Unique constraint/i.test(e?.message || '')) throw e;
       }
     }
-    return NextResponse.json({ error: 'Teklif numarası üretilemedi, tekrar deneyin' }, { status: 409 });
+    return ucHatasi('TEKLIF_NUMARASI_URETILEMEDI_TEKRAR_DENEYIN', 409);
   } catch (e) {
     return authErrorResponse(e);
   }

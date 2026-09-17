@@ -5,7 +5,15 @@
 export interface ImportError {
     row: number;
     table: string;
+    /**
+     * Rapordaki satır hatası. `kod` varsa ekran cümleyi okuyanın dilinde kurar;
+     * `error` ESKİ oturumlar için yedek olarak kalıyor — arşivdeki raporlar
+     * kodsuz yazılmıştı ve onları boş göstermek veriyi kaybetmek olurdu.
+     */
     error: string;
+    kod?: string;
+    /** Kodun {p1}, {p2}… yer tutucuları. */
+    deger?: Record<string, string | number>;
     rawData?: string;
 }
 

@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi, type UcHataKodu } from '@/lib/uc-hata';
 import { Prisma, PaymentStatus, PaymentMethod, TransactionType, TransactionCategory } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 
 type PayResult =
-  | { ok: false; status: number; error: string }
+  // İşlem içinde cümle KURULMAZ: kod taşınır, yanıtı dışarıda ucHatasi kurar.
+  // İşlem gövdesi cookies() okuyamaz (hem yanlış yer hem de kilidi uzatır).
+  | { ok: false; status: number; kod: UcHataKodu }
   | { ok: true; payment: any; newStatus: PaymentStatus; totalPaid: number; totalCost: number; remaining: number };
 
 // POST /api/accounting/debtors/pay — Borçluya ödeme al (tekli fiş)
@@ -22,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     const amt = parseFloat(amount);
     if (!ticketId || !amt || amt <= 0) {
-      return NextResponse.json({ error: 'ticketId ve geçerli amount zorunlu' }, { status: 400 });
+      return ucHatasi('TICKETID_VE_GECERLI_AMOUNT_ZORUNLU', 400);
     }
 
     const runTxn = (): Promise<PayResult> => prisma.$transaction(async (tx) => {
@@ -30,12 +33,12 @@ export async function POST(req: NextRequest) {
         where: { id: ticketId, tenantId, deletedAt: null, status: { not: 'CANCELLED' as any } }, // tenant + iptal/silinmiş guard
         include: { payments: { select: { amount: true } } },
       });
-      if (!ticket) return { ok: false, status: 404, error: 'Fiş bulunamadı' };
+      if (!ticket) return { ok: false, status: 404, kod: 'FIS_BULUNAMADI' };
 
       const currentPaid = ticket.payments.reduce((s, p) => s + Number(p.amount), 0);
       const totalCost = Number(ticket.totalCost) || 0;
       const maxPayable = totalCost - currentPaid;
-      if (maxPayable <= 0) return { ok: false, status: 400, error: 'Bu fiş zaten tamamen ödenmiş' };
+      if (maxPayable <= 0) return { ok: false, status: 400, kod: 'BU_FIS_ZATEN_TAMAMEN_ODENMIS' };
 
       const payAmount = Math.min(amt, maxPayable);
       const totalPaid = currentPaid + payAmount;
@@ -66,8 +69,8 @@ export async function POST(req: NextRequest) {
       try { result = await runTxn(); break; }
       catch (e: any) { if (e?.code === 'P2034' && attempt < 2) continue; throw e; }
     }
-    if (!result) return NextResponse.json({ error: 'İşlem çakışması, tekrar deneyin' }, { status: 409 });
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    if (!result) return ucHatasi('ISLEM_CAKISMASI_TEKRAR_DENEYIN', 409);
+    if (!result.ok) return ucHatasi(result.kod, result.status);
 
     // Cari (AccountEntry) defterini bu ödemeye göre uzlaştır (idempotent).
     try { await syncTicketToCari(ticketId, tenantId); } catch (e: any) { console.error('DEBTOR PAY CARI SYNC ERROR:', e?.message); }

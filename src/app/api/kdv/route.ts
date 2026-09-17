@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { kdvOzeti } from '@/lib/kdv';
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
     const donem = req.nextUrl.searchParams.get('donem') || periodOf();
     const [y, m] = donem.split('-').map(Number);
     if (!y || !m || m < 1 || m > 12) {
-      return NextResponse.json({ error: 'Dönem YYYY-AA biçiminde olmalı' }, { status: 400 });
+      return ucHatasi('DONEM_YYYY_AA_BICIMINDE_OLMALI', 400);
     }
     const bas = new Date(y, m - 1, 1, 0, 0, 0, 0);
     const bit = new Date(y, m, 1, 0, 0, 0, 0);

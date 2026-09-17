@@ -68,11 +68,16 @@ writeFileSync(join(g, 'prisma-shim.js'),
   `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
 writeFileSync(join(g, 'next-server-shim.js'),
   'export const NextResponse = { json: (veri, init) => ({ __json: veri, status: init?.status ?? 200 }) };\n');
+writeFileSync(join(g, 'uc-hata-shim.js'),
+  // ucHatasi normalde çerezden dil okur; testte dil yok, KOD yeter:
+  // testler durum koduna ve koda bakıyor, cümleye değil.
+  'export const ucHatasi = (kod, durum = 400) => ({ __json: { kod, error: kod }, status: durum });\n');
 duzelt('app/api/sayac/eposta/route.js', [
   ["'@/lib/prisma'", "'../../../../prisma-shim.js'"],
   ["'@/lib/counter-email'", "'../../../../lib/counter-email.js'"],
   ["'@/lib/readings'", "'../../../../lib/readings.js'"],
   ["'next/server'", "'../../../../next-server-shim.js'"],
+  ["'@/lib/uc-hata'", "'../../../../uc-hata-shim.js'"],
   ["'@/lib/sayac-eposta'", "'../../../../lib/sayac-eposta.js'"],
   ["'@/lib/ek-dosya'", "'../../../../lib/ek-dosya.js'"],
 ]);

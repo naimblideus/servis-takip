@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -106,7 +107,7 @@ export async function PATCH(req: Request) {
 
     const body = await req.json();
     const ids: string[] = Array.isArray(body.ids) ? body.ids.filter((x: unknown) => typeof x === 'string') : [];
-    if (!ids.length) return NextResponse.json({ error: 'Cihaz seçilmedi' }, { status: 400 });
+    if (!ids.length) return ucHatasi('CIHAZ_SECILMEDI', 400);
 
     // "Bilmiyorum" — soruldu, cevap yok. Tarih UYDURULMAZ, sadece işaretlenir.
     if (body.unknown) {
@@ -120,7 +121,7 @@ export async function PATCH(req: Request) {
 
     const year = parseInt(body.year);
     if (!year || year < 1990 || year > new Date().getFullYear()) {
-      return NextResponse.json({ error: 'Geçersiz yıl' }, { status: 400 });
+      return ucHatasi('GECERSIZ_YIL', 400);
     }
     const month = body.month ? Math.min(Math.max(parseInt(body.month), 1), 12) : null;
     const tarih = new Date(Date.UTC(year, month ? month - 1 : 0, 1));

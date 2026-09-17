@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { jetondanMusteri, talepSiniriAsildi } from '@/lib/portal';
 
@@ -16,19 +17,16 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const musteri = await jetondanMusteri(token);
-  if (!musteri) return NextResponse.json({ error: 'Bağlantı geçersiz' }, { status: 404 });
+  if (!musteri) return ucHatasi('BAGLANTI_GECERSIZ', 404);
 
   let govde: any;
-  try { govde = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { govde = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
 
   const tur = govde?.tur === 'SAYAC' ? 'SAYAC' : govde?.tur === 'ARIZA' ? 'ARIZA' : null;
-  if (!tur) return NextResponse.json({ error: 'Bildirim türü geçersiz' }, { status: 400 });
+  if (!tur) return ucHatasi('BILDIRIM_TURU_GECERSIZ', 400);
 
   if (await talepSiniriAsildi(musteri.id)) {
-    return NextResponse.json(
-      { error: 'Çok sayıda bildirim gönderildi. Lütfen servisi telefonla arayın.' },
-      { status: 429 },
-    );
+    return ucHatasi('COK_SAYIDA_BILDIRIM_GONDERILDI_LUTFEN', 429);
   }
 
   // Cihaz bu müşteriye mi ait? Değilse bildirim cihazsız kaydedilir; başkasının
@@ -39,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       where: { id: govde.cihazId, tenantId: musteri.tenantId, customerId: musteri.id },
       select: { id: true },
     });
-    if (!c) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+    if (!c) return ucHatasi('CIHAZ_BULUNAMADI', 404);
     deviceId = c.id;
   }
 
@@ -56,12 +54,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   if (tur === 'ARIZA') {
     aciklama = String(govde?.aciklama ?? '').trim().slice(0, 1000);
-    if (aciklama.length < 5) return NextResponse.json({ error: 'Lütfen sorunu birkaç kelimeyle yazın' }, { status: 400 });
+    if (aciklama.length < 5) return ucHatasi('LUTFEN_SORUNU_BIRKAC_KELIMEYLE_YAZIN', 400);
   } else {
     sayacBlack = sayi(govde?.sayacBlack);
     sayacColor = sayi(govde?.sayacColor);
-    if (sayacBlack == null) return NextResponse.json({ error: 'Siyah/beyaz sayaç değerini girin' }, { status: 400 });
-    if (!deviceId) return NextResponse.json({ error: 'Sayaç bildirimi için cihaz gerekli' }, { status: 400 });
+    if (sayacBlack == null) return ucHatasi('SIYAH_BEYAZ_SAYAC_DEGERINI_GIRIN', 400);
+    if (!deviceId) return ucHatasi('SAYAC_BILDIRIMI_ICIN_CIHAZ_GEREKLI', 400);
   }
 
   await prisma.portalRequest.create({

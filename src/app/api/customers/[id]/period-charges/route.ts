@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { previewPeriodCharges, commitPeriodCharges } from '@/lib/period-charges';
@@ -19,10 +20,11 @@ async function authCustomer(id: string) {
   if (!user) return { error: 'User not found', status: 404 as const };
   // POST cari'ye PARA yazar; GET bütün dönem bedelini gösterir. Ofis işi.
   if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-    return { error: 'Bu ekran için yönetici yetkisi gerekir.', status: 403 as const };
+    // Cümle değil KOD: yanıtı aşağıda ucHatasi okuyanın dilinde kuruyor.
+    return { kod: 'BU_EKRAN_ICIN_YONETICI_YETKISI' as const, status: 403 as const };
   }
   const customer = await prisma.customer.findFirst({ where: { id, tenantId: user.tenantId }, select: { id: true } });
-  if (!customer) return { error: 'Müşteri bulunamadı', status: 404 as const };
+  if (!customer) return { kod: 'MUSTERI_BULUNAMADI' as const, status: 404 as const };
   return { tenantId: user.tenantId };
 }
 
@@ -30,6 +32,9 @@ async function authCustomer(id: string) {
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const a = await authCustomer(id);
+  // 'error' hâlâ İngilizce teknik yanıtlar için (Unauthorized); 'kod' bizim
+  // çevrilebilir hatalarımız. İkisi de aynı yerden yanıta dönüşüyor.
+  if ('kod' in a && a.kod) return ucHatasi(a.kod, a.status);
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status });
   const charges = await previewPeriodCharges(a.tenantId, id);
   return NextResponse.json(charges);
@@ -39,12 +44,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const a = await authCustomer(id);
+  // 'error' hâlâ İngilizce teknik yanıtlar için (Unauthorized); 'kod' bizim
+  // çevrilebilir hatalarımız. İkisi de aynı yerden yanıta dönüşüyor.
+  if ('kod' in a && a.kod) return ucHatasi(a.kod, a.status);
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status });
   try {
     const r = await commitPeriodCharges(a.tenantId, id);
     return NextResponse.json({ ok: true, ...r });
   } catch (e: any) {
     console.error('PERIOD CHARGES COMMIT ERROR:', e?.message);
-    return NextResponse.json({ error: 'Eklenirken hata oluştu' }, { status: 500 });
+    return ucHatasi('EKLENIRKEN_HATA_OLUSTU', 500);
   }
 }

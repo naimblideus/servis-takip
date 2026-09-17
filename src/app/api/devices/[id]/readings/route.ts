@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { counterOverage } from '@/lib/invoicing';
@@ -64,7 +65,7 @@ export async function GET(
 
     // Cihaz bilgisi + tenant fiyatlarını da dön (IDOR: yalnız bu tenant'ın cihazı)
     const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
-    if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+    if (!device) return ucHatasi('CIHAZ_BULUNAMADI', 404);
     const tenant = await prisma.tenant.findUnique({
         where: { id: user.tenantId },
         select: { pricePerBlack: true, pricePerColor: true },
@@ -120,8 +121,8 @@ export async function DELETE(
         const reading = await prisma.counterReading.findFirst({
             where: { id: readingId, tenantId: user.tenantId, deviceId },
         });
-        if (!reading) return NextResponse.json({ error: 'Okuma bulunamadı' }, { status: 404 });
-        if (reading.billed) return NextResponse.json({ error: 'Bu okuma faturalandığı için silinemez' }, { status: 409 });
+        if (!reading) return ucHatasi('OKUMA_BULUNAMADI', 404);
+        if (reading.billed) return ucHatasi('BU_OKUMA_FATURALANDIGI_ICIN_SILINEMEZ', 409);
 
         // ── SİLİNEN OKUMADAN SONRAKİNİN FARKI ─────────────────────────────
         // Okumalar bir ZİNCİR: her okumanın farkı bir öncekine göre hesaplanır.
@@ -139,9 +140,7 @@ export async function DELETE(
         // geriye dönük bozulur. Düzeltmezsek de sayfa kaybolur. İkisi de kabul
         // edilemez, o yüzden silme reddedilir ve sebebi söylenir.
         if (sonraki?.billed) {
-            return NextResponse.json({
-                error: 'Bu okuma silinemez: sonrasındaki okuma faturalandı. Silinirse o faturanın dayandığı sayfa farkı bozulur. Önce ilgili faturayı iptal edin.',
-            }, { status: 409 });
+            return ucHatasi('BU_OKUMA_SILINEMEZ_SONRASINDAKI_OKUMA', 409);
         }
 
         const oncekiOkuma = await prisma.counterReading.findFirst({
@@ -212,12 +211,12 @@ export async function PATCH(
         const reading = await prisma.counterReading.findFirst({
             where: { id: readingId, tenantId: user.tenantId, deviceId },
         });
-        if (!reading) return NextResponse.json({ error: 'Okuma bulunamadı' }, { status: 404 });
+        if (!reading) return ucHatasi('OKUMA_BULUNAMADI', 404);
         // Faturalanmış okuma DEĞİŞTİRİLEMEZ (immutable evidence — fatura/defter desync olmasın).
-        if (reading.billed) return NextResponse.json({ error: 'Bu okuma faturalandığı için düzenlenemez.' }, { status: 409 });
+        if (reading.billed) return ucHatasi('BU_OKUMA_FATURALANDIGI_ICIN_DUZENLENEMEZ', 409);
 
         const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
-        if (!device) return NextResponse.json({ error: 'Cihaz bulunamadı' }, { status: 404 });
+        if (!device) return ucHatasi('CIHAZ_BULUNAMADI', 404);
 
         const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
 
@@ -231,7 +230,7 @@ export async function PATCH(
         const prevC = prev ? prev.counterColor : null;
         const decreased = (prevB !== null && counterBlack < prevB) || (prevC !== null && counterColor < prevC);
         if (decreased && !reset) {
-            return NextResponse.json({ error: 'Sayaç değeri öncekinden düşük. Cihaz sıfırlandıysa/değiştiyse "sayaç sıfırlandı" onayıyla tekrar gönderin.', code: 'COUNTER_DECREASE' }, { status: 400 });
+            return ucHatasi('SAYAC_DEGERI_ONCEKINDEN_DUSUK_CIHAZ', 400, { ek: { code: 'COUNTER_DECREASE' } });
         }
         // TEK KURAL: fark hesabı src/lib/readings.ts'teki okumaFarki().
         // Burada AYRI bir kopya vardı ve o kopya, oluşturma yolunda düzeltilen
@@ -257,16 +256,17 @@ export async function PATCH(
         // yarım tutarlı bir zincir bırakmaktansa hayır demek doğru.
         if (sonraki) {
             if (counterBlack > sonraki.counterBlack || counterColor > sonraki.counterColor) {
-                return NextResponse.json({
-                    error: `Bu değer bir sonraki okumadan (S/B ${sonraki.counterBlack.toLocaleString('tr-TR')}) büyük. Sayaç geriye gidemez.`,
-                    code: 'SONRAKI_DUSUK',
-                }, { status: 400 });
+                return ucHatasi('BU_DEGER_BIR_SONRAKI_OKUMADAN', 400, {
+                    // Sayı sunucuda biçimlenmiyor: cümleyi kuran sözlük,
+                    // biçimi de okuyanın diline bırakıyor.
+                    deger: { p1: sonraki.counterBlack },
+                    ek: { code: 'SONRAKI_DUSUK' },
+                });
             }
             if (sonraki.billed) {
-                return NextResponse.json({
-                    error: 'Bir sonraki okuma faturalandığı için bu okuma düzenlenemez — düzenleme onun farkını da değiştirirdi.',
-                    code: 'SONRAKI_FATURALI',
-                }, { status: 409 });
+                return ucHatasi('BIR_SONRAKI_OKUMA_FATURALANDIGI_ICIN', 409, {
+                    ek: { code: 'SONRAKI_FATURALI' },
+                });
             }
         }
 

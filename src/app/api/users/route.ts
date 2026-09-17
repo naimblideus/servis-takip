@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
 
     const me = await oturumKullanicisi(session);
     if (!me || me.role !== 'ADMIN') {
-        return NextResponse.json({ error: 'Sadece yöneticiler kullanıcı ekleyebilir' }, { status: 403 });
+        return ucHatasi('SADECE_YONETICILER_KULLANICI_EKLEYEBILIR', 403);
     }
 
     try {
@@ -35,10 +36,10 @@ export async function POST(req: Request) {
         const { name, email, password, role = 'TECHNICIAN' } = body;
 
         if (!name || !email || !password) {
-            return NextResponse.json({ error: 'Ad, e-posta ve şifre zorunlu' }, { status: 400 });
+            return ucHatasi('AD_E_POSTA_VE_SIFRE', 400);
         }
         if (password.length < 6) {
-            return NextResponse.json({ error: 'Şifre en az 6 karakter olmalı' }, { status: 400 });
+            return ucHatasi('SIFRE_EN_AZ_6_KARAKTER_2', 400);
         }
 
         // Yetki yükseltmeyi önle: bu uçtan yalnızca tenant-içi roller verilebilir (SUPER_ADMIN değil)
@@ -51,12 +52,12 @@ export async function POST(req: Request) {
             prisma.user.count({ where: { tenantId: me.tenantId, isActive: true } }),
         ]);
         if (tenant && activeCount >= tenant.maxUsers) {
-            return NextResponse.json({ error: `Plan limitiniz ${tenant.maxUsers} kullanıcı doldu. Daha fazla kullanıcı için planınızı yükseltin.` }, { status: 403 });
+            return ucHatasi('PLAN_LIMITINIZ_KULLANICI_DOLDU_DAHA', 403, { deger: { p1: tenant.maxUsers } });
         }
 
         // E-posta benzersizliği bu tenant içinde (aynı e-posta başka bayide olabilir)
         const existing = await prisma.user.findFirst({ where: { email, tenantId: me.tenantId } });
-        if (existing) return NextResponse.json({ error: 'Bu e-posta bu işletmede zaten kayıtlı' }, { status: 400 });
+        if (existing) return ucHatasi('BU_E_POSTA_BU_ISLETMEDE', 400);
 
         const hashedPassword = await bcrypt.hash(password, 12);
 

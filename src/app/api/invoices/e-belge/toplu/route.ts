@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { eBelgeGonder } from '@/lib/e-belge-gonderim';
@@ -54,14 +55,13 @@ export async function POST(req: NextRequest) {
         take: TAVAN + 1,
       });
       if (liste.length > TAVAN) {
-        return NextResponse.json({
-          error: `Bu dönemde ${liste.length}+ gönderilecek fatura var; tek seferde en fazla ${TAVAN}. `
-            + 'Listeden seçerek parça parça gönderin.',
-        }, { status: 400 });
+        return ucHatasi('BU_DONEMDE_GONDERILECEK_FATURA_VAR', 400, {
+          deger: { p1: liste.length, p2: TAVAN },
+        });
       }
       hedefler = liste.map((x) => x.id);
     } else {
-      return NextResponse.json({ error: 'Gönderilecek fatura seçilmedi' }, { status: 400 });
+      return ucHatasi('GONDERILECEK_FATURA_SECILMEDI', 400);
     }
 
     if (!hedefler.length) {

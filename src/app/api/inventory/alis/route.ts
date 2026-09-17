@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { alisKaydet, tedarikciKarsilastirmasi } from '@/lib/stok-maliyet';
 import { prisma } from '@/lib/prisma';
@@ -16,14 +17,14 @@ export async function GET(req: NextRequest) {
   try {
     const { tenantId } = await requireTenantUser();
     const partId = req.nextUrl.searchParams.get('partId');
-    if (!partId) return NextResponse.json({ error: 'Parça seçilmedi' }, { status: 400 });
+    if (!partId) return ucHatasi('PARCA_SECILMEDI', 400);
 
     // IDOR: parça bu bayiye mi ait?
     const part = await prisma.part.findFirst({
       where: { id: partId, tenantId },
       select: { id: true, name: true, sku: true, stockQty: true, buyPrice: true, avgCost: true, sellPrice: true },
     });
-    if (!part) return NextResponse.json({ error: 'Parça bulunamadı' }, { status: 404 });
+    if (!part) return ucHatasi('PARCA_BULUNAMADI', 404);
 
     const alislar = await prisma.partPurchase.findMany({
       where: { tenantId, partId },
@@ -63,13 +64,13 @@ export async function POST(req: NextRequest) {
     const adet = parseInt(g.adet, 10);
     const birimAlis = Number(g.birimAlis);
     if (!g.partId || typeof g.partId !== 'string') {
-      return NextResponse.json({ error: 'Parça seçilmedi' }, { status: 400 });
+      return ucHatasi('PARCA_SECILMEDI', 400);
     }
     if (!Number.isFinite(adet) || adet < 1) {
-      return NextResponse.json({ error: 'Adet en az 1 olmalı' }, { status: 400 });
+      return ucHatasi('ADET_EN_AZ_1_OLMALI', 400);
     }
     if (!Number.isFinite(birimAlis) || birimAlis < 0) {
-      return NextResponse.json({ error: 'Birim alış fiyatı geçersiz' }, { status: 400 });
+      return ucHatasi('BIRIM_ALIS_FIYATI_GECERSIZ', 400);
     }
 
     // Gelecek tarihli alış, ortalamanın geçmişini bozar ve raporda "bu ay
@@ -77,9 +78,9 @@ export async function POST(req: NextRequest) {
     let tarih: Date | undefined;
     if (g.tarih) {
       const t = new Date(g.tarih);
-      if (isNaN(t.getTime())) return NextResponse.json({ error: 'Tarih geçersiz' }, { status: 400 });
+      if (isNaN(t.getTime())) return ucHatasi('TARIH_GECERSIZ', 400);
       if (t.getTime() > Date.now() + 86400000) {
-        return NextResponse.json({ error: 'Alış tarihi gelecekte olamaz' }, { status: 400 });
+        return ucHatasi('ALIS_TARIHI_GELECEKTE_OLAMAZ', 400);
       }
       tarih = t;
     }

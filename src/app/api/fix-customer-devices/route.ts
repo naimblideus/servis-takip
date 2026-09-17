@@ -18,6 +18,7 @@
 // ═══════════════════════════════════════
 
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
@@ -34,7 +35,7 @@ async function calistir(uygula: boolean) {
         const user = await prisma.user.findFirst({
             where: { email: session.user?.email!, ...bayiSuzgeci(session) },
         });
-        if (!user) return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+        if (!user) return ucHatasi('KULLANICI_BULUNAMADI', 404);
         if (user.role !== 'ADMIN') {
             return NextResponse.json({ error: 'ADMIN yetkisi gerekli' }, { status: 403 });
         }

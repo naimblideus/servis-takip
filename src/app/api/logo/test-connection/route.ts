@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { createLogoIntegration } from '@/lib/logo-integration';
 import { prisma } from '@/lib/prisma';
@@ -10,11 +11,12 @@ export async function POST(req: NextRequest) {
 
     try {
         const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-        if (!tenant) return NextResponse.json({ error: 'Tenant bulunamadı' }, { status: 404 });
+        if (!tenant) return ucHatasi('TENANT_BULUNAMADI', 404);
 
         const integration = createLogoIntegration(tenant);
         if (!integration) {
-            return NextResponse.json({ connected: false, error: 'Logo entegrasyonu aktif değil' });
+            // Durum 200: bu bir istek hatası değil, "bağlı değil" cevabı.
+            return ucHatasi('LOGO_ENTEGRASYONU_AKTIF_DEGIL', 200, { ek: { connected: false } });
         }
 
         const connected = await integration.testConnection();

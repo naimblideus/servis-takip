@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { belgeEksikAnahtari } from '@/lib/fatura-eksik';
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId }, select: SATICI_ALANLARI,
     });
-    if (!tenant) return NextResponse.json({ error: 'Bayi bulunamadı' }, { status: 404 });
+    if (!tenant) return ucHatasi('BAYI_BULUNAMADI', 404);
     const satici = saticiyaCevir(tenant);
     const saticiEksik = saticiEksikleri(satici);
 
@@ -76,7 +77,7 @@ export async function GET(req: NextRequest) {
           },
         },
       });
-      if (!f) return NextResponse.json({ error: 'Fatura bulunamadı' }, { status: 404 });
+      if (!f) return ucHatasi('FATURA_BULUNAMADI', 404);
 
       const satirlar = f.lines.map((l) => ({
         aciklama: l.description,

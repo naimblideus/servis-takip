@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
@@ -18,7 +19,7 @@ export async function PATCH(
 
     // IDOR koruması: hedef kullanıcı aynı tenant'ta olmalı
     const target = await prisma.user.findFirst({ where: { id, tenantId: me.tenantId } });
-    if (!target) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+    if (!target) return ucHatasi('BULUNAMADI', 404);
 
     try {
         const body = await req.json();
@@ -28,7 +29,7 @@ export async function PATCH(
         if (body.role) updateData.role = body.role;
         if (body.isActive !== undefined) updateData.isActive = body.isActive;
         if (body.password) {
-            if (body.password.length < 6) return NextResponse.json({ error: 'Şifre en az 6 karakter' }, { status: 400 });
+            if (body.password.length < 6) return ucHatasi('SIFRE_EN_AZ_6_KARAKTER', 400);
             updateData.passwordHash = await bcrypt.hash(body.password, 12);
         }
 
@@ -72,7 +73,7 @@ export async function DELETE(
 
     // IDOR koruması: hedef kullanıcı aynı tenant'ta olmalı
     const target = await prisma.user.findFirst({ where: { id, tenantId: me.tenantId } });
-    if (!target) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
+    if (!target) return ucHatasi('BULUNAMADI', 404);
 
     try {
         // Önce kullanıcıyı pasife çek (ilişkili fişler bozulmasın)

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { addSubscriptionHistory } from '@/lib/tenant-manager';
 
@@ -14,7 +15,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const { plan, amount, notes, overrideLimits } = body;
 
-    if (!plan || !PLAN_LIMITS[plan]) return NextResponse.json({ error: 'Geçersiz paket' }, { status: 400 });
+    if (!plan || !PLAN_LIMITS[plan]) return ucHatasi('GECERSIZ_PAKET', 400);
 
     const limits = overrideLimits || PLAN_LIMITS[plan];
     const tenant = await prisma.tenant.findUnique({ where: { id }, select: { plan: true } });

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { marketAuth } from '@/lib/market';
 
@@ -20,11 +21,11 @@ export async function PATCH(req: Request) {
   const a = await marketAuth(false);
   if (a.error) return NextResponse.json({ error: a.error }, { status: a.status });
   if (a.user!.role !== 'ADMIN' && a.user!.role !== 'SUPER_ADMIN') {
-    return NextResponse.json({ error: 'Bu ayarı yalnızca yönetici değiştirebilir' }, { status: 403 });
+    return ucHatasi('BU_AYARI_YALNIZCA_YONETICI_DEGISTIREBILIR', 403);
   }
 
   let body: any;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { body = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
 
   const data: any = {};
   if (body.enabled !== undefined) data.marketEnabled = !!body.enabled;

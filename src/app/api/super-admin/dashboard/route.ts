@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
@@ -69,6 +70,6 @@ export async function GET(req: NextRequest) {
         });
     } catch (error: any) {
         console.error('SA dashboard error:', error);
-        return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+        return ucHatasi('SUNUCU_HATASI', 500);
     }
 }

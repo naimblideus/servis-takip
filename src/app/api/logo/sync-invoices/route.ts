@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { createLogoIntegration } from '@/lib/logo-integration';
 import { prisma } from '@/lib/prisma';
@@ -14,12 +15,12 @@ export async function POST(req: NextRequest) {
         select: { role: true },
     });
     if (kullanici?.role !== 'ADMIN' && kullanici?.role !== 'SUPER_ADMIN') {
-        return NextResponse.json({ error: 'Bu işlem için yönetici yetkisi gerekir.' }, { status: 403 });
+        return ucHatasi('BU_ISLEM_ICIN_YONETICI_YETKISI_2', 403);
     }
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     const integration = createLogoIntegration(tenant);
-    if (!integration) return NextResponse.json({ error: 'Logo entegrasyonu aktif değil' }, { status: 400 });
+    if (!integration) return ucHatasi('LOGO_ENTEGRASYONU_AKTIF_DEGIL', 400);
 
     const { period } = await req.json();
     // Dönem filtresi BOZUKTU: gte ile lt aynı tarihti (`YYYY-MM-01` ve
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
                 lt: new Date(Date.UTC(ay === 12 ? yil + 1 : yil, ay === 12 ? 0 : ay, 1)),
             };
         } else {
-            return NextResponse.json({ error: 'Dönem YYYY-AA biçiminde olmalı' }, { status: 400 });
+            return ucHatasi('DONEM_YYYY_AA_BICIMINDE_OLMALI', 400);
         }
     }
 

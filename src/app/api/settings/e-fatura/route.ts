@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { sirla, sirCoz, sirMaskesi, sirAnahtariVarMi, SirAnahtariYok } from '@/lib/sir';
@@ -30,7 +31,7 @@ export async function GET() {
         eFaturaSeq: true, eFaturaSeqYil: true,
       },
     });
-    if (!t) return NextResponse.json({ error: 'Bayi bulunamadı' }, { status: 404 });
+    if (!t) return ucHatasi('BAYI_BULUNAMADI', 404);
 
     const cozulen = sirCoz(t.eFaturaParola);
     return NextResponse.json({
@@ -66,10 +67,7 @@ export async function POST(req: NextRequest) {
       // Bilinmeyen sağlayıcı kabul edilmiyor: kaydedilseydi gönderim anında
       // patlar ve bayi sebebini ayarlarda değil faturada arardı.
       if (v && !entegratorBul(v)) {
-        return NextResponse.json(
-          { error: `Tanımlı olmayan sağlayıcı: ${v}. Seçenekler: ${SAGLAYICILAR.join(', ')}` },
-          { status: 400 },
-        );
+        return ucHatasi('TANIMLI_OLMAYAN_SAGLAYICI_SECENEKLER', 400, { deger: { p1: v, p2: SAGLAYICILAR.join(', ') } });
       }
       d.eFaturaSaglayici = v || null;
     }
@@ -78,7 +76,7 @@ export async function POST(req: NextRequest) {
     if (b.onEk !== undefined) {
       const h = (b.onEk || '').toLocaleUpperCase('tr-TR').replace(/[^A-Z]/g, '');
       if (h && h.length !== 3) {
-        return NextResponse.json({ error: 'e-Fatura ön eki tam 3 harf olmalı' }, { status: 400 });
+        return ucHatasi('E_FATURA_ON_EKI_TAM', 400);
       }
       d.eFaturaOnEk = h || null;
     }

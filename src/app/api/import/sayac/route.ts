@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { parseCSV, detectDelimiter, trInt } from '@/lib/sheet-import';
@@ -65,31 +66,29 @@ export async function POST(req: NextRequest) {
     const { user, tenantId } = await requireTenantUser();
     // Sayaç geçmişi doğrudan faturayı belirleyen veridir — yönetici işi.
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Sayaç geçmişi aktarmak için yönetici yetkisi gerekir', kod: 'YETKI' }, { status: 403 });
+      return ucHatasi('SAYAC_GECMISI_AKTARMAK_ICIN_YONETICI', 403, { ek: { kod: 'YETKI' } });
     }
 
     const { csv, dryRun } = await req.json();
     if (typeof csv !== 'string' || !csv.trim()) {
-      return NextResponse.json({ error: 'Dosya boş görünüyor', kod: 'BOS_DOSYA' }, { status: 400 });
+      return ucHatasi('DOSYA_BOS_GORUNUYOR', 400, { ek: { kod: 'BOS_DOSYA' } });
     }
 
     const satirlarHam = parseCSV(csv, detectDelimiter(csv));
     if (satirlarHam.length < 2) {
-      return NextResponse.json({ error: 'Dosyada başlık satırı + en az 1 veri satırı olmalı', kod: 'SATIR_YOK' }, { status: 400 });
+      return ucHatasi('DOSYADA_BASLIK_SATIRI_EN_AZ', 400, { ek: { kod: 'SATIR_YOK' } });
     }
     const basliklar = satirlarHam[0].map((h) => h.trim());
     const veri = satirlarHam.slice(1);
     if (veri.length > MAX_ROWS) {
-      return NextResponse.json({ error: `Tek seferde en fazla ${MAX_ROWS} satır (dosyada ${veri.length})` }, { status: 400 });
+      return ucHatasi('TEK_SEFERDE_EN_FAZLA_SATIR_2', 400, { deger: { p1: MAX_ROWS, p2: veri.length } });
     }
 
     const s = sutunlar(basliklar);
     if (s.seri < 0 || s.tarih < 0 || s.siyah < 0) {
-      return NextResponse.json({
-        error: 'Gerekli sütunlar bulunamadı. Dosyada en az şunlar olmalı: Seri No, Tarih, Siyah Sayaç (Renkli isteğe bağlı).',
-        kod: 'KOLON_EKSIK',
-        bulunanBasliklar: basliklar,
-      }, { status: 400 });
+      return ucHatasi('GEREKLI_SUTUNLAR_BULUNAMADI_DOSYADA_EN', 400, {
+        ek: { kod: 'KOLON_EKSIK', bulunanBasliklar: basliklar },
+      });
     }
 
     const al = (r: string[], i: number) => (i >= 0 ? (r[i] ?? '').trim() : '');

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { marketAuth } from '@/lib/market';
 
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
   if (!listingId) return NextResponse.json({ error: 'listingId zorunlu' }, { status: 400 });
 
   const listing = await prisma.marketListing.findUnique({ where: { id: listingId }, select: { id: true, sellerTenantId: true, title: true } });
-  if (!listing) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
+  if (!listing) return ucHatasi('ILAN_BULUNAMADI', 404);
 
   const isSeller = listing.sellerTenantId === me;
   // Satıcıysam hangi alıcı thread'i; alıcıysam thread = kendi tenantım
@@ -41,32 +42,32 @@ export async function POST(req: Request) {
   const me = a.user!.tenantId;
 
   let b: any;
-  try { b = await req.json(); } catch { return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 }); }
+  try { b = await req.json(); } catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
   const listingId = b.listingId;
   const text = (b.body || '').trim();
   if (!listingId || !text) return NextResponse.json({ error: 'listingId ve mesaj zorunlu' }, { status: 400 });
-  if (text.length > 2000) return NextResponse.json({ error: 'Mesaj çok uzun' }, { status: 400 });
+  if (text.length > 2000) return ucHatasi('MESAJ_COK_UZUN', 400);
 
   // Basit hız sınırı (flood): son 60 saniyede 20 mesaj
   const since = new Date(Date.now() - 60 * 1000);
   const recent = await prisma.marketMessage.count({ where: { senderTenantId: me, createdAt: { gte: since } } });
-  if (recent >= 20) return NextResponse.json({ error: 'Çok hızlı mesaj gönderiyorsunuz, biraz bekleyin' }, { status: 429 });
+  if (recent >= 20) return ucHatasi('COK_HIZLI_MESAJ_GONDERIYORSUNUZ_BIRAZ', 429);
 
   const listing = await prisma.marketListing.findUnique({ where: { id: listingId }, select: { id: true, sellerTenantId: true, status: true } });
-  if (!listing) return NextResponse.json({ error: 'İlan bulunamadı' }, { status: 404 });
+  if (!listing) return ucHatasi('ILAN_BULUNAMADI', 404);
 
   const isSeller = listing.sellerTenantId === me;
   let buyerTenantId: string;
   if (isSeller) {
     buyerTenantId = (b.toTenantId || '').trim();
-    if (!buyerTenantId) return NextResponse.json({ error: 'Alıcı belirtilmeli' }, { status: 400 });
+    if (!buyerTenantId) return ucHatasi('ALICI_BELIRTILMELI', 400);
     // Satıcı yalnız var olan bir thread'e yanıt verebilir (rastgele tenant'a mesaj atamaz)
     const exists = await prisma.marketMessage.findFirst({ where: { listingId, sellerTenantId: me, buyerTenantId }, select: { id: true } });
-    if (!exists) return NextResponse.json({ error: 'Bu alıcıyla konuşma bulunamadı' }, { status: 404 });
+    if (!exists) return ucHatasi('BU_ALICIYLA_KONUSMA_BULUNAMADI', 404);
   } else {
     // Alıcı: yeni konuşma yalnız ACTIVE ilanda başlatılabilir
     const hasThread = await prisma.marketMessage.findFirst({ where: { listingId, buyerTenantId: me }, select: { id: true } });
-    if (!hasThread && listing.status !== 'ACTIVE') return NextResponse.json({ error: 'İlan aktif değil' }, { status: 400 });
+    if (!hasThread && listing.status !== 'ACTIVE') return ucHatasi('ILAN_AKTIF_DEGIL', 400);
     buyerTenantId = me;
   }
 

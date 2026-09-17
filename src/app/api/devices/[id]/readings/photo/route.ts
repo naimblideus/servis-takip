@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -24,14 +25,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   // Yalnız image/* MIME kabul + bozuk base64'te 400 (500 değil)
   const m = reading.photo.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-  if (!m) return NextResponse.json({ error: 'Geçersiz foto formatı' }, { status: 400 });
+  if (!m) return ucHatasi('GECERSIZ_FOTO_FORMATI', 400);
   try {
     const buf = Buffer.from(m[2], 'base64');
-    if (buf.length === 0) return NextResponse.json({ error: 'Boş foto' }, { status: 400 });
+    if (buf.length === 0) return ucHatasi('BOS_FOTO', 400);
     return new NextResponse(new Uint8Array(buf), {
       headers: { 'Content-Type': m[1], 'Cache-Control': 'private, max-age=3600' },
     });
   } catch {
-    return NextResponse.json({ error: 'Foto çözümlenemedi' }, { status: 400 });
+    return ucHatasi('FOTO_COZUMLENEMEDI', 400);
   }
 }

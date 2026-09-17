@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { allocatePayment } from '@/lib/invoicing';
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
       where: { id: customerId, tenantId: user.tenantId },
       select: { id: true },
     });
-    if (!customer) return NextResponse.json({ error: 'Müşteri bulunamadı' }, { status: 404 });
+    if (!customer) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
     const result = await allocatePayment({
       tenantId: user.tenantId,
