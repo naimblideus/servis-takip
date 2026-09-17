@@ -1289,6 +1289,7 @@ const BODY = `
           <li class="has">Dealer market <span class="feat-note">(just opening)</span></li>
           <li class="has">Setup + Excel import + 2 hours of training</li>
           <li class="no">Meter reading and automatic rent invoicing</li>
+          <li class="no">SLA compliance report</li>
           <li class="no">Lost revenue panel · payments · routes</li>
           <li class="no">Brand and model reliability reports</li>
         </ul>
@@ -1316,6 +1317,7 @@ const BODY = `
           <li class="has">Meter reading and automatic rent invoicing</li>
           <li class="has">Payment tracking · route planning · late-meter tracking</li>
           <li class="has">The lost revenue panel and device profitability</li>
+          <li class="has">SLA compliance report <span class="feat-note">(the response and resolution times in the contract, in working hours)</span></li>
           <li class="has">WhatsApp updates <span class="feat-note">(a WhatsApp Business API account is required)</span> · bulk debt reminder SMS <span class="feat-note">(Netgsm credit is separate)</span></li>
           <li class="has">Setup + Excel import + 2 hours of training</li>
           <li class="no">Brand and model reliability reports</li>

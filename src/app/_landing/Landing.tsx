@@ -1289,6 +1289,7 @@ const BODY = `
           <li class="has">Bayi Pazarı <span class="feat-note">(yeni açılıyor)</span></li>
           <li class="has">Kurulum + Excel aktarımı + 2 saat eğitim</li>
           <li class="no">Sayaç okuma ve otomatik kira faturalaması</li>
+          <li class="no">SLA uyum raporu</li>
           <li class="no">Kaçan Gelir paneli · tahsilat · rota</li>
           <li class="no">Marka/model güvenilirlik raporları</li>
         </ul>
@@ -1316,6 +1317,7 @@ const BODY = `
           <li class="has">Sayaç okuma ve otomatik kira faturalaması</li>
           <li class="has">Tahsilat takibi · rota planlama · geç sayaç takibi</li>
           <li class="has">Kaçan Gelir paneli ve cihaz kârlılığı</li>
+          <li class="has">SLA uyum raporu <span class="feat-note">(sözleşmedeki müdahale/çözüm süresi, mesai saatine göre)</span></li>
           <li class="has">WhatsApp bildirim <span class="feat-note">(WhatsApp Business API hesabı gerekir)</span> · toplu borç hatırlatma SMS <span class="feat-note">(Netgsm kontörü ayrıca)</span></li>
           <li class="has">Kurulum + Excel aktarımı + 2 saat eğitim</li>
           <li class="no">Marka/model güvenilirlik raporları</li>
