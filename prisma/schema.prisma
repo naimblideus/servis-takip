@@ -174,6 +174,7 @@ model Tenant {
   contracts           Contract[]
   contractDevices     ContractDevice[]
   statusHistory       TicketStatusHistory[]
+  customerGroups      CustomerGroup[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -469,8 +470,18 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ── KURUMSAL GRUP ────────────────────────────────────────────────────
+  // Büyük hesapların şubeleri bayide AYRI müşteri olarak kayıtlıdır
+  // ("X Bank Kadıköy", "X Bank Levent") — fatura da servis de şube bazında
+  // yürür ve bu doğrudur. Eksik olan tek şey birleştirme: genel müdürlüğün
+  // sorduğu "bize toplam ne veriyorsunuz" sorusunun cevabı hiçbir ekranda
+  // yoktu. Grup yalnızca bir ÇATIDIR; faturayı, sözleşmeyi, cariyi
+  // değiştirmez.
+  groupId String?
+
   // Relations
   tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group            CustomerGroup?         @relation(fields: [groupId], references: [id], onDelete: SetNull)
   devices          Device[]
   transactions     FinancialTransaction[]
   accountEntries   AccountEntry[]
@@ -484,6 +495,27 @@ model Customer {
   @@unique([tenantId, phone])
   @@index([tenantId, phone])
   @@index([tenantId, name])
+  @@index([tenantId, groupId])
+}
+
+// Kurumsal grup — aynı büyük hesabın şubelerini bir arada gösteren çatı.
+//
+// Grubun kendi faturası, sözleşmesi ya da carisi YOKTUR ve olmamalıdır:
+// o üçü şubenin kendi kaydında durur. Grup silinince şubeler kalır, yalnız
+// çatı kalkar (onDelete: SetNull).
+model CustomerGroup {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customers Customer[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }
 
 // ============================================
