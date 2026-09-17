@@ -40,6 +40,16 @@ model Tenant {
   locale             String  @default("tr")  // tr | en
   currency           String  @default("TRY") // ISO 4217: TRY | EUR | USD | GBP
   country            String  @default("TR")  // ISO 3166-1 alpha-2
+
+  // ── ÇALIŞMA TAKVİMİ (SLA ölçümü) ──────────────────────────────────
+  // "Ne zaman çalışıyoruz" BAYİNİNDİR; "ne söz verdik" sözleşmenin.
+  // SLA duvar saatiyle ölçülürse cuma 17:30'da açılan fiş pazartesi
+  // 09:00'da 63 saat gecikmiş görünür ve rapor işe yaramaz.
+  workTimezone String  @default("Europe/Istanbul") // IANA — yaz saati bununla çözülür
+  workDays     String  @default("1,2,3,4,5")       // 0=Pazar … 6=Cumartesi
+  workStartMin Int     @default(540)               // 09:00
+  workEndMin   Int     @default(1080)              // 18:00
+  workHolidays String? // 'YYYY-MM-DD' listesi, virgülle — resmî tatil / bayi kapalı
   autoInvoiceEnabled Boolean @default(true) // Otomatik dönem faturalama açık mı
   invoiceDayOfMonth  Int     @default(1) // Cron kesim günü
   nextInvoiceSeq     Int     @default(1) // Fatura sıra sayacı (atomik artar)
@@ -703,6 +713,19 @@ model Contract {
   escalationMonths Int?
   escalationRate   Decimal?  @db.Decimal(5, 2)
   lastEscalationAt DateTime?
+
+  // ── SLA: SÖZLEŞMEDEKİ SÖZ ───────────────────────────────────────────
+  // "Arıza bildiriminden itibaren 4 saat içinde müdahale, 24 saat içinde
+  // çözüm." Büyük müşterinin denetlediği cümle budur. null = o kalem
+  // sözleşmede konuşulmamış; uydurulmuş bir hedefe göre uyum oranı
+  // üretmemek için ölçüm YAPILMAZ.
+  // Süreler ÇALIŞMA dakikasıdır, duvar saati değil (bkz. Tenant.work*).
+  slaResponseMins   Int?
+  slaResolutionMins Int?
+  // "Parça bekleniyor" sürerken saat dursun mu? Sözleşmeden sözleşmeye
+  // değişen, en çok tartışılan madde. Varsayılan KAPALI: katı olan dürüst
+  // olandır. Rapor her iki sayıyı da (ham + duraklamalı) taşır.
+  slaPauseOnPart    Boolean @default(false)
 
   fileUrl String? // taranmış nüshanın bağlantısı (Drive/Dropbox)
   notes   String?

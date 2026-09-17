@@ -118,7 +118,9 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   // 'Plan' iki dilde de ayni kelime.
   'superAdmin.eskiPanel.plan',
   // 'Toner' ve 'Drum' iki dilde de ayni yazilir.
-  'parcaGrubu.TONER', 'parcaGrubu.DRUM']);
+  'parcaGrubu.TONER', 'parcaGrubu.DRUM',
+  // Tatil ornegi saf tarih — cevrilecek kelime yok.
+  'ayarlar.takvimTatilYer']);
   const ayni = trY.filter(([p, v]) => !AYNI_OLABILIR.has(p) && String(v).length > 3 && oku(en, p) === v).map(([p]) => p);
   t('★ tr ile en birebir aynı metin yok (özel adlar dışında)', ayni.length === 0, ayni.slice(0, 8));
 }

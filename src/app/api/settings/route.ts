@@ -14,7 +14,12 @@ export async function GET() {
 
     const tenant = await prisma.tenant.findUnique({
         where: { id: user.tenantId },
-        select: { id: true, name: true, logo: true, phone: true, address: true, pricePerBlack: true, pricePerColor: true, portalShowFinancials: true, sayacEpostaKodu: true },
+        select: {
+            id: true, name: true, logo: true, phone: true, address: true,
+            pricePerBlack: true, pricePerColor: true, portalShowFinancials: true, sayacEpostaKodu: true,
+            // Çalışma takvimi — SLA ölçümü mesai saatine göre yapılır.
+            workTimezone: true, workDays: true, workStartMin: true, workEndMin: true, workHolidays: true,
+        },
     });
 
     // Adres sunucuda kurulur: alan adı ortam değişkeninden gelir ve kanal
@@ -32,7 +37,41 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { name, phone, address, pricePerBlack, pricePerColor, portalShowFinancials } = body;
+    const {
+        name, phone, address, pricePerBlack, pricePerColor, portalShowFinancials,
+        workTimezone, workDays, workStartMin, workEndMin, workHolidays,
+    } = body;
+
+    // ÇALIŞMA TAKVİMİ — SLA'nın ölçüldüğü zemin. Bozuk ayar sessizce
+    // kaydedilirse rapor "0 dakikada müdahale" der ve ihlali gizler; o yüzden
+    // burada reddediliyor.
+    const gunListesi = (v: unknown): string | null => {
+        if (v === undefined || v === null) return null;
+        const g = String(v).split(',').map((s) => Number(s.trim()))
+            .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
+        return g.length ? [...new Set(g)].sort((a, b) => a - b).join(',') : null;
+    };
+    const dakika = (v: unknown): number | null => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = Number(v);
+        return Number.isInteger(n) && n >= 0 && n <= 24 * 60 ? n : null;
+    };
+    const bas = dakika(workStartMin);
+    const bit = dakika(workEndMin);
+    if (workStartMin !== undefined && bas === null) return ucHatasi('GECERSIZ_ISTEK', 400);
+    if (workEndMin !== undefined && bit === null) return ucHatasi('GECERSIZ_ISTEK', 400);
+    if (bas !== null && bit !== null && bit <= bas) return ucHatasi('GECERSIZ_ISTEK', 400);
+    if (workDays !== undefined && gunListesi(workDays) === null) return ucHatasi('GECERSIZ_ISTEK', 400);
+    // Saat dilimi gerçekten var mı — yazım hatası ölçümü sessizce kaydırırdı.
+    if (workTimezone !== undefined && workTimezone !== null && workTimezone !== '') {
+        try { new Intl.DateTimeFormat('en-US', { timeZone: String(workTimezone) }); }
+        catch { return ucHatasi('GECERSIZ_ISTEK', 400); }
+    }
+    const tatilListesi = (v: unknown): string | null => {
+        if (v === undefined || v === null) return null;
+        const g = String(v).split(',').map((s) => s.trim()).filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s));
+        return g.join(',');
+    };
 
     const tenant = await prisma.tenant.update({
         where: { id: user.tenantId },
@@ -44,6 +83,11 @@ export async function PATCH(req: Request) {
             ...(pricePerColor !== undefined && { pricePerColor: parseFloat(pricePerColor) }),
             // Müşteri panelinde bakiye/fatura/tutar gösterilsin mi
             ...(portalShowFinancials !== undefined && { portalShowFinancials: Boolean(portalShowFinancials) }),
+            ...(workTimezone !== undefined && workTimezone !== '' && { workTimezone: String(workTimezone) }),
+            ...(workDays !== undefined && { workDays: gunListesi(workDays) ?? '1,2,3,4,5' }),
+            ...(bas !== null && { workStartMin: bas }),
+            ...(bit !== null && { workEndMin: bit }),
+            ...(workHolidays !== undefined && { workHolidays: tatilListesi(workHolidays) }),
         },
     });
 

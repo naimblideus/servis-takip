@@ -428,6 +428,7 @@ function YeniSozlesme({ kapat, bitti }: { kapat: () => void; bitti: () => void }
   const [f, setF] = useState<any>({
     customerId: '', contractNo: '', startDate: '', endDate: '',
     noticeDays: 30, autoRenew: true, escalationMonths: 12, escalationRate: '',
+    slaResponseHours: '', slaResolutionHours: '', slaPauseOnPart: false,
     fileUrl: '', notes: '',
   });
   const [mesgul, setMesgul] = useState(false);
@@ -514,6 +515,30 @@ function YeniSozlesme({ kapat, bitti }: { kapat: () => void; bitti: () => void }
           <input type="checkbox" checked={f.autoRenew} onChange={(e) => setF({ ...f, autoRenew: e.target.checked })} />
           {t.sozlesmeler.formOtoUzama}
         </label>
+
+        {/* SLA — büyük müşterinin yıl sonunda denetlediği söz. Boş bırakılırsa
+            o kalem ÖLÇÜLMEZ: uydurulmuş hedefe göre uyum oranı üretmiyoruz. */}
+        <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '0.8rem', marginBottom: '0.35rem' }}>
+          <label style={{ ...lbl, fontWeight: 700 }}>{t.sozlesmeler.slaBaslik}</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))', gap: '0.6rem' }}>
+            <div>
+              <label style={lbl}>{t.sozlesmeler.slaMudahale}</label>
+              <input type="number" min={0} step="0.5" style={inp} value={f.slaResponseHours}
+                onChange={(e) => setF({ ...f, slaResponseHours: e.target.value })} />
+            </div>
+            <div>
+              <label style={lbl}>{t.sozlesmeler.slaCozum}</label>
+              <input type="number" min={0} step="0.5" style={inp} value={f.slaResolutionHours}
+                onChange={(e) => setF({ ...f, slaResolutionHours: e.target.value })} />
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0 0.4rem', fontSize: '0.85rem' }}>
+            <input type="checkbox" checked={f.slaPauseOnPart}
+              onChange={(e) => setF({ ...f, slaPauseOnPart: e.target.checked })} />
+            {t.sozlesmeler.slaParcaDurdurur}
+          </label>
+          <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0 0 0.8rem' }}>{t.sozlesmeler.slaIpucu}</p>
+        </div>
 
         {cihazlar.length > 0 && (
           <div style={{ marginBottom: '0.8rem' }}>

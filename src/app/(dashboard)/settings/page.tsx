@@ -26,6 +26,14 @@ export default function SettingsPage() {
     const fileRef = useRef<HTMLInputElement>(null);
     const [tenant, setTenant] = useState<TenantInfo | null>(null);
     const [form, setForm] = useState({ name: '', phone: '', address: '', pricePerBlack: '0.40', pricePerColor: '1.50', portalShowFinancials: true });
+    // Çalışma takvimi ayrı state: fiyat formuyla birlikte kaydedilirse
+    // bayi fiyat düzeltirken farkında olmadan mesai saatini de değiştirir.
+    const [takvim, setTakvim] = useState({
+        workTimezone: 'Europe/Istanbul', workDays: '1,2,3,4,5',
+        workStartMin: 540, workEndMin: 1080, workHolidays: '',
+    });
+    const [takvimKayit, setTakvimKayit] = useState(false);
+    const [takvimMsg, setTakvimMsg] = useState('');
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [msg, setMsg] = useState('');
@@ -41,8 +49,28 @@ export default function SettingsPage() {
                 pricePerColor: String(data.pricePerColor ?? '1.50'),
                 portalShowFinancials: data.portalShowFinancials !== false,
             });
+            setTakvim({
+                workTimezone: data.workTimezone || 'Europe/Istanbul',
+                workDays: data.workDays || '1,2,3,4,5',
+                workStartMin: Number(data.workStartMin ?? 540),
+                workEndMin: Number(data.workEndMin ?? 1080),
+                workHolidays: data.workHolidays || '',
+            });
         });
     }, []);
+
+    const takvimKaydet = async () => {
+        setTakvimKayit(true);
+        setTakvimMsg('');
+        const res = await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(takvim),
+        });
+        setTakvimKayit(false);
+        setTakvimMsg(res.ok ? t.ayarlar.takvimKaydedildi : t.ayarlar.takvimHata);
+        setTimeout(() => setTakvimMsg(''), 4000);
+    };
 
     const save = async () => {
         setSaving(true);
@@ -192,6 +220,81 @@ export default function SettingsPage() {
                         </span>
                     </span>
                 </label>
+            </div>
+
+            {/* ── ÇALIŞMA TAKVİMİ ─────────────────────────────────────────
+                SLA'nın ölçüldüğü zemin. Ayrı kaydedilir: bayi fiyat
+                düzeltirken farkında olmadan mesai saatini değiştirmesin. */}
+            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>{t.ayarlar.takvimBaslik}</h2>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem', lineHeight: 1.6 }}>{t.ayarlar.takvimAlt}</p>
+
+                <div style={{ marginBottom: '0.9rem' }}>
+                    <label style={lbl}>{t.ayarlar.takvimGunler}</label>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {[1, 2, 3, 4, 5, 6, 0].map((g) => {
+                            const secili = takvim.workDays.split(',').includes(String(g));
+                            const ad = (b.dil === 'en'
+                                ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                                : ['Pz', 'Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct'])[g];
+                            return (
+                                <button key={g} type="button"
+                                    onClick={() => {
+                                        const set = new Set(takvim.workDays.split(',').filter(Boolean));
+                                        if (set.has(String(g))) set.delete(String(g)); else set.add(String(g));
+                                        setTakvim({ ...takvim, workDays: [...set].map(Number).sort((a, c) => a - c).join(',') });
+                                    }}
+                                    style={{
+                                        padding: '0.4rem 0.7rem', borderRadius: 8, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700,
+                                        border: secili ? '1px solid #4f46e5' : '1px solid #d1d5db',
+                                        background: secili ? '#eef2ff' : 'white', color: secili ? '#4338ca' : '#6b7280',
+                                    }}>
+                                    {ad}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))', gap: '1rem' }}>
+                    <div>
+                        <label style={lbl}>{t.ayarlar.takvimBaslangic}</label>
+                        <input type="time" style={inp}
+                            value={`${String(Math.floor(takvim.workStartMin / 60)).padStart(2, '0')}:${String(takvim.workStartMin % 60).padStart(2, '0')}`}
+                            onChange={e => {
+                                const [s, d] = e.target.value.split(':').map(Number);
+                                setTakvim({ ...takvim, workStartMin: (s || 0) * 60 + (d || 0) });
+                            }} />
+                    </div>
+                    <div>
+                        <label style={lbl}>{t.ayarlar.takvimBitis}</label>
+                        <input type="time" style={inp}
+                            value={`${String(Math.floor(takvim.workEndMin / 60)).padStart(2, '0')}:${String(takvim.workEndMin % 60).padStart(2, '0')}`}
+                            onChange={e => {
+                                const [s, d] = e.target.value.split(':').map(Number);
+                                setTakvim({ ...takvim, workEndMin: (s || 0) * 60 + (d || 0) });
+                            }} />
+                    </div>
+                    <div>
+                        <label style={lbl}>{t.ayarlar.takvimZamanDilimi}</label>
+                        <input style={inp} value={takvim.workTimezone}
+                            onChange={e => setTakvim({ ...takvim, workTimezone: e.target.value })} />
+                    </div>
+                </div>
+
+                <div style={{ marginTop: '0.9rem' }}>
+                    <label style={lbl}>{t.ayarlar.takvimTatiller}</label>
+                    <input style={inp} placeholder={t.ayarlar.takvimTatilYer} value={takvim.workHolidays}
+                        onChange={e => setTakvim({ ...takvim, workHolidays: e.target.value })} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginTop: '1rem' }}>
+                    <button onClick={takvimKaydet} disabled={takvimKayit}
+                        style={{ padding: '0.55rem 1.2rem', borderRadius: 8, border: 'none', background: '#4f46e5', color: 'white', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', opacity: takvimKayit ? 0.6 : 1 }}>
+                        {takvimKayit ? t.genel.kaydediliyor : t.genel.kaydet}
+                    </button>
+                    {takvimMsg && <span style={{ fontSize: '0.82rem', color: '#047857' }}>{takvimMsg}</span>}
+                </div>
             </div>
 
             {/* Sayaç Birim Fiyatları */}

@@ -22,6 +22,21 @@ import { sartFarklari, aylikNetEtki, sozlesmeTakvimi, zamDurumu } from '@/lib/so
  */
 
 const GUN = 86400000;
+
+/** SLA hedefi: formdan SAAT gelir, veritabanına DAKİKA yazılır. Boş = ölçülmez. */
+function slaDakika(v: unknown): number | null {
+  if (v === undefined || v === null || v === '') return null;
+  const s = Number(v);
+  if (!Number.isFinite(s) || s <= 0) return null;
+  return Math.round(s * 60);
+}
+
+/** Girilmiş ama anlamsız (0, eksi, sayı değil) bir hedef sessizce yutulmasın. */
+function slaGecersiz(v: unknown): boolean {
+  if (v === undefined || v === null || v === '') return false;
+  const s = Number(v);
+  return !Number.isFinite(s) || s <= 0;
+}
 /** Hız için bakılan geçmiş. Kısa tutmak mevsimsel dalgayı dışarıda bırakır. */
 const GECMIS_GUN = 180;
 
@@ -158,6 +173,10 @@ export async function GET(req: NextRequest) {
         escalationMonths: k.escalationMonths, escalationRate: s(k.escalationRate),
         lastEscalationAt: k.lastEscalationAt,
         fileUrl: k.fileUrl, notes: k.notes, status: k.status,
+        // SLA sözü listede de görünsün: hangi müşteriye ne söz verdiğimiz
+        // yalnız SLA ekranında değil, sözleşmenin kendi satırında da okunmalı.
+        slaResponseMins: k.slaResponseMins, slaResolutionMins: k.slaResolutionMins,
+        slaPauseOnPart: k.slaPauseOnPart,
         takvim, zam,
         cihazSayisi: k.devices.length,
         sozlesmeKira,
@@ -229,6 +248,11 @@ export async function POST(req: NextRequest) {
     if (!bit || isNaN(bit.getTime())) return ucHatasi('BITIS_TARIHI_GEREKLI', 400);
     if (bit <= bas) return ucHatasi('BITIS_TARIHI_BASLANGICTAN_SONRA_OLMALI', 400);
 
+    // SLA hedefi: 0 ya da negatif kabul edilmez — "0 saat içinde müdahale"
+    // ölçülemez bir sözdür ve raporda her fişi ihlal gösterirdi.
+    const slaHata = slaGecersiz(b.slaResponseHours) || slaGecersiz(b.slaResolutionHours);
+    if (slaHata) return ucHatasi('GECERSIZ_TUTAR', 400);
+
     const ihbar = Number(b.noticeDays ?? 0) || 0;
     // İhbar süresi sözleşmeden uzun olamaz: öyle olsaydı ihbar günü
     // sözleşme başlamadan önceye düşer ve ekran anlamsız bir şey söylerdi.
@@ -249,6 +273,12 @@ export async function POST(req: NextRequest) {
         escalationRate: b.escalationRate !== undefined && b.escalationRate !== null && b.escalationRate !== ''
           ? Number(b.escalationRate) : null,
         lastEscalationAt: yerelTarih(b.lastEscalationAt),
+        // SLA: formda SAAT girilir, veritabanına DAKİKA yazılır — ölçüm
+        // dakikayla çalışıyor ve iki birim arasında dolaşmak hata kaynağı.
+        // Boş bırakılan kalem null kalır: o kalem ölçülmez.
+        slaResponseMins: slaDakika(b.slaResponseHours),
+        slaResolutionMins: slaDakika(b.slaResolutionHours),
+        slaPauseOnPart: !!b.slaPauseOnPart,
         fileUrl: (b.fileUrl || '').trim() || null,
         notes: (b.notes || '').trim() || null,
         status: 'AKTIF',
