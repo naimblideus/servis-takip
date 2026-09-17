@@ -108,7 +108,7 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   'dokum.firmaVarsayilan',
   'barkodEtiket.seri',
   // Sutun basligi 'Model' — iki dilde de ayni kelime.
-  'teklif.sutunModel',
+  'teklif.sutunModel', 'topluAyar.model',
   // Veritabani terimi (upsert) — cevrilmez.
   'iceAktar.uyari2Son',
   // 'Disk' ve 'WhatsApp' iki dilde de ayni yazilir.

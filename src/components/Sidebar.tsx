@@ -94,6 +94,15 @@ const menuItems = [
     ),
   },
   {
+    href: '/toplu-ayar',
+    label: 'Toplu Cihaz Ayarı',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+      </svg>
+    ),
+  },
+  {
     href: '/cihaz-karlilik',
     label: 'Cihaz Kârlılığı',
     icon: (
@@ -452,7 +461,7 @@ const TR_OZEL = ['/e-fatura', '/kdv'];
 // basılır, Barkodla Satış ise tezgahtan parça satmayan bayide hiç açılmaz.
 // Sayaç Turu BİLEREK yukarıda kaldı — para döngüsünün merkezi; gizlenen iş
 // yapılmaz, yapılmayan sayaç faturalanmaz.
-const ADVANCED_SABIT = ['/rota', '/market', '/magaza', '/invoices', '/e-fatura', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/cihaz-karlilik', '/etiket', '/satis'];
+const ADVANCED_SABIT = ['/rota', '/market', '/magaza', '/invoices', '/e-fatura', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/toplu-ayar', '/cihaz-karlilik', '/etiket', '/satis'];
 
 export interface MenuDurum {
   whatsappKurulu: boolean;
