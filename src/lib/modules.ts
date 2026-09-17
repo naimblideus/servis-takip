@@ -22,7 +22,7 @@ export const MODULES: Record<ModuleKey, { hrefs: string[] }> = {
   // itibaren açılır.
   // SLA ve periyodik bakım aynı işin iki yüzü: bakımı planlayamayan bayi
   // müdahale süresini de tutturamaz. Aynı modül anahtarında duruyorlar.
-  SLA:          { hrefs: ['/sla', '/bakim'] },
+  SLA:          { hrefs: ['/sla', '/bakim', '/teknisyen'] },
   // Nextus Mağaza — bayinin kendi stoğundan beslenen e-ticaret vitrini.
   // Ayrı uygulamada çalışır (nextus-magaza); burada YALNIZ yetki anahtarı
   // tutulur: mağaza açılırken bayinin bu modülü var mı diye bakılır.

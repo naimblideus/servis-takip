@@ -243,7 +243,7 @@ const BOS: SlaOlcum = {
  * Parça gece beklendiyse zaten çalışılmıyordu; onu ayrıca düşmek süreyi iki
  * kez indirir ve ihlali gizler.
  */
-function duraklamaDakikasi(
+export function duraklamaDakikasi(
   duraklamalar: { bas: Date; son: Date | null }[],
   pencereBas: Date, pencereSon: Date, t: CalismaTakvimi,
 ): number {
