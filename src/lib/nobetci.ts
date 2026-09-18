@@ -17,6 +17,7 @@ import {
   type KontrolAdi, type MesajKod, type NedenKod,
 } from '@/lib/nobetci-metin';
 import { sozluk, VARSAYILAN_DIL } from '@/lib/i18n/sozluk';
+import { nabizDurumu, nabizOzeti, type BayiNabzi } from '@/lib/sayac-nabzi';
 
 export type Seviye = 'iyi' | 'uyari' | 'kritik';
 
@@ -185,6 +186,68 @@ async function kSayacEposta(): Promise<Kontrol> {
   return { ad: 'SAYAC_EPOSTA', seviye: 'iyi', mesajKod: bekleyen ? { kod: 'SE_BEKLEYEN', adet: bekleyen } : { kod: 'SE_TEMIZ' } };
 }
 
+/** Ritim ölçümü için geriye kaç güne bakılır. */
+const HAT_PENCERESI_GUN = 180;
+
+/**
+ * Sayaç hattı: HANGİ bayiden akış kesildi?
+ *
+ * Yukarıdaki kSayacEposta platform geneline ve sabit 14 güne bakıyor. Bu
+ * kontrol bayi bazında ve BAYİNİN KENDİ RİTMİNE göre bakar: saatte bir
+ * gönderen filoyla ayda bir gönderen filo aynı eşiğe tabi tutulamaz.
+ *
+ * Ölçülen şey "e-posta geldi" değil "e-posta geldi VE bir cihaza bağlandı":
+ * eşleşmeyen posta kuyrukta durur ve onu zaten kuyruk kontrolü yakalar.
+ */
+async function kSayacHatti(): Promise<Kontrol> {
+  const okumalar = await prisma.counterReading.findMany({
+    where: { source: 'CIHAZ_EPOSTA', createdAt: { gte: gunOnce(HAT_PENCERESI_GUN) } },
+    select: { tenantId: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+    take: 20000,
+  });
+  if (!okumalar.length) return { ad: 'SAYAC_HATTI', seviye: 'iyi', mesajKod: { kod: 'SH_KULLANILMIYOR' } };
+
+  const damga = new Map<string, Date[]>();
+  for (const o of okumalar) {
+    if (!damga.has(o.tenantId)) damga.set(o.tenantId, []);
+    damga.get(o.tenantId)!.push(o.createdAt);
+  }
+
+  const adlar = await prisma.tenant.findMany({
+    where: { id: { in: [...damga.keys()] } },
+    select: { id: true, name: true },
+  });
+  const ad = new Map(adlar.map((t) => [t.id, t.name]));
+
+  const girdi: BayiNabzi[] = [...damga.entries()].map(([bayiId, damgalar]) => ({
+    bayiId, bayiAd: ad.get(bayiId) ?? bayiId, damgalar,
+  }));
+  const sonuclar = girdi.map((b) => nabizDurumu(b, new Date()));
+  const ozet = nabizOzeti(sonuclar);
+
+  // Hepsi birden sustuysa arıza bayilerde değil ortak yolda.
+  if (ozet.kopruOlu) {
+    return {
+      ad: 'SAYAC_HATTI', seviye: 'kritik',
+      mesajKod: { kod: 'SH_KOPRU', bayi: ozet.sessiz, saat: ozet.enUzunSessizlikSaat ?? 0 },
+      nedenKod: 'SH_KOPRU',
+    };
+  }
+  if (ozet.sessiz > 0) {
+    return {
+      ad: 'SAYAC_HATTI', seviye: 'uyari',
+      mesajKod: { kod: 'SH_SESSIZ', bayi: ozet.sessiz, toplam: ozet.ritimli, saat: ozet.enUzunSessizlikSaat ?? 0 },
+      nedenKod: 'SH_BAYI',
+    };
+  }
+  // Hiç ritimli bayi yoksa hüküm verilmez — az veriden eşik uydurulmaz.
+  if (ozet.ritimli === 0) {
+    return { ad: 'SAYAC_HATTI', seviye: 'iyi', mesajKod: { kod: 'SH_RITIM_YOK', bayi: ozet.ritimsiz } };
+  }
+  return { ad: 'SAYAC_HATTI', seviye: 'iyi', mesajKod: { kod: 'SH_AKIYOR', bayi: ozet.akiyor } };
+}
+
 /**
  * Vadesi geçen hatırlatma cron'u: bekleyen bildirim kuyruğu tıkanmış mı?
  * Kuyrukta günlerdir PENDING duran kayıt varsa gönderici çalışmıyordur.
@@ -232,6 +295,7 @@ export async function nobetciCalistir(): Promise<NobetciSonuc> {
     ['FATURA_CRON', kFaturaCron],
     ['WHATSAPP', kWhatsapp],
     ['SAYAC_EPOSTA', kSayacEposta],
+    ['SAYAC_HATTI', kSayacHatti],
     ['BILDIRIM_KUYRUGU', kBildirimKuyrugu],
     ['DENETIM_KAYDI', kDenetimZinciri],
   ];

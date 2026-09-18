@@ -21,6 +21,7 @@ export type KontrolAdi =
   | 'FATURA_CRON'
   | 'WHATSAPP'
   | 'SAYAC_EPOSTA'
+  | 'SAYAC_HATTI'
   | 'BILDIRIM_KUYRUGU'
   | 'DENETIM_KAYDI';
 
@@ -56,6 +57,12 @@ export type MesajKod =
   | { kod: 'SE_KUYRUK'; adet: number }
   | { kod: 'SE_BEKLEYEN'; adet: number }
   | { kod: 'SE_TEMIZ' }
+  // — sayaç hattı (bayi bazında ritim) —
+  | { kod: 'SH_KULLANILMIYOR' }
+  | { kod: 'SH_RITIM_YOK'; bayi: number }
+  | { kod: 'SH_AKIYOR'; bayi: number }
+  | { kod: 'SH_SESSIZ'; bayi: number; toplam: number; saat: number }
+  | { kod: 'SH_KOPRU'; bayi: number; saat: number }
   // — bildirim kuyruğu —
   | { kod: 'BK_TAKILI'; adet: number }
   | { kod: 'BK_BEKLEYEN'; adet: number }
@@ -81,6 +88,8 @@ export type NedenKod =
   | 'WA_WEBHOOK'
   | 'SE_YONLENDIRME'
   | 'SE_KUYRUK'
+  | 'SH_BAYI'
+  | 'SH_KOPRU'
   | 'BK_ANAHTAR'
   | 'DZ_HASHSIZ';
 
@@ -125,6 +134,12 @@ export function kontrolMesaji(sz: Sozluk, m: MesajKod): string {
     case 'SE_KUYRUK': return doldur(n.seKuyruk, { n: m.adet });
     case 'SE_BEKLEYEN': return doldur(n.seBekleyen, { n: m.adet });
     case 'SE_TEMIZ': return n.seTemiz;
+
+    case 'SH_KULLANILMIYOR': return n.shKullanilmiyor;
+    case 'SH_RITIM_YOK': return doldur(n.shRitimYok, { n: m.bayi });
+    case 'SH_AKIYOR': return doldur(n.shAkiyor, { n: m.bayi });
+    case 'SH_SESSIZ': return doldur(n.shSessiz, { n: m.bayi, t: m.toplam, saat: m.saat });
+    case 'SH_KOPRU': return doldur(n.shKopru, { n: m.bayi, saat: m.saat });
 
     case 'BK_TAKILI': return doldur(n.bkTakili, { n: m.adet });
     case 'BK_BEKLEYEN': return doldur(n.bkBekleyen, { n: m.adet });
