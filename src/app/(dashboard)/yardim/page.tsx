@@ -29,6 +29,7 @@ const BOLUMLER: Bolum[] = [
   { id: 'fis', anahtar: 'fis', icon: '🧾' },
   { id: 'sayac', anahtar: 'sayac', icon: '🔢' },
   { id: 'cihazdan-sayac', anahtar: 'cihazdanSayac', icon: '📡' },
+  { id: 'ag-tarayici', anahtar: 'agTarayici', icon: '🛰️' },
   { id: 'sayac-uyarilari', anahtar: 'sayacUyarilari', icon: '🚨' },
   { id: 'portal', anahtar: 'portal', icon: '🔗' },
   { id: 'toner', anahtar: 'toner', icon: '🧴' },
@@ -44,6 +45,8 @@ const BOLUMLER: Bolum[] = [
   { id: 'patron', anahtar: 'patron', icon: '📊' },
   { id: 'saha', anahtar: 'saha', icon: '🗺️' },
   { id: 'pazar', anahtar: 'pazar', icon: '🤝' },
+  { id: 'buyuk-park', anahtar: 'buyukPark', icon: '🏢' },
+  { id: 'abonelik', anahtar: 'abonelik', icon: '💳' },
   { id: 'guvenlik', anahtar: 'guvenlik', icon: '🔐' },
 ];
 
@@ -68,7 +71,7 @@ const GRUPLAR = [
   {
     ad: 'grupGunluk', aciklama: 'grupGunlukAlt',
     cizgi: 'border-l-blue-500', etiket: 'text-blue-700', nokta: 'bg-blue-500',
-    idler: ['fis', 'sayac', 'cihazdan-sayac', 'sayac-uyarilari', 'portal', 'saha', 'toner'],
+    idler: ['fis', 'sayac', 'cihazdan-sayac', 'ag-tarayici', 'sayac-uyarilari', 'portal', 'saha', 'toner'],
   },
   {
     ad: 'grupPara', aciklama: 'grupParaAlt',
@@ -78,7 +81,7 @@ const GRUPLAR = [
   {
     ad: 'grupYonetim', aciklama: 'grupYonetimAlt',
     cizgi: 'border-l-violet-500', etiket: 'text-violet-700', nokta: 'bg-violet-500',
-    idler: ['ciktilar', 'patron', 'pazar', 'guvenlik'],
+    idler: ['ciktilar', 'patron', 'buyuk-park', 'pazar', 'guvenlik', 'abonelik'],
   },
 ] as const;
 
