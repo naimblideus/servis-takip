@@ -13,16 +13,21 @@ export const MODULES: Record<ModuleKey, { hrefs: string[] }> = {
   INVOICING:    { hrefs: ['/invoices', '/collections'] },
   ROUTE:        { hrefs: ['/rota'] },
   TRACKING:     { hrefs: ['/takip'] },
-  REVENUE_RISK: { hrefs: ['/kacan-gelir'] },
+  // KÂR ANALİZİ — anahtar adı tarihsel (veritabanındaki bayi listelerinde
+  // böyle duruyor), içeriği genişledi: kaçan gelir, cihaz kârlılığı, filo.
+  // Üçü de aynı soruya cevap veriyor: hangi makine para kaybettiriyor.
+  REVENUE_RISK: { hrefs: ['/kacan-gelir', '/cihaz-karlilik', '/filo'] },
   REPORTS:      { hrefs: ['/reports'] },
   MARKETPLACE:  { hrefs: ['/market'] },
-  PORTAL:       { hrefs: ['/musteri-bildirimleri'] },
-  // SLA — sözleşmedeki müdahale/çözüm süresinin ölçümü. Büyük müşterinin
-  // denetlediği rapor budur; küçük bayide karşılığı yok, Profesyonel'den
-  // itibaren açılır.
-  // SLA ve periyodik bakım aynı işin iki yüzü: bakımı planlayamayan bayi
-  // müdahale süresini de tutturamaz. Aynı modül anahtarında duruyorlar.
-  SLA:          { hrefs: ['/sla', '/bakim', '/teknisyen', '/kurumsal', '/filo'] },
+  // Eskiden yalnız gelen bildirimler kapılıydı, erişimi açan ekran değil:
+  // paketi olmayan bayi portalı açabiliyor ama gelenleri göremiyordu.
+  PORTAL:       { hrefs: ['/musteri-portali', '/musteri-bildirimleri'] },
+  // KURUMSAL PAKET — anahtar adı tarihsel ('SLA'), veritabanındaki bayi
+  // listelerinde böyle duruyor. Büyük müşterinin denetlediği dört ekran:
+  // SLA uyumu, periyodik bakım, teknisyen karnesi, kurumsal gruplar.
+  // SLA ve bakım aynı işin iki yüzü: bakımı planlayamayan bayi müdahale
+  // süresini de tutturamaz. Filo buradan Kâr analizine taşındı.
+  SLA:          { hrefs: ['/sla', '/bakim', '/teknisyen', '/kurumsal'] },
   // Nextus Mağaza — bayinin kendi stoğundan beslenen e-ticaret vitrini.
   // Ayrı uygulamada çalışır (nextus-magaza); burada YALNIZ yetki anahtarı
   // tutulur: mağaza açılırken bayinin bu modülü var mı diye bakılır.
@@ -35,15 +40,24 @@ export const ALL_MODULE_KEYS = Object.keys(MODULES) as ModuleKey[];
 export const PLAN_MODULES: Record<string, ModuleKey[]> = {
   trial:        ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP', 'SLA'], // denemede her şey görünsün
   // NOT: Bayi Pazarı BİLEREK her planda açık — pazar yeri ancak HERKES içindeyse likidite/ağ etkisi kazanır.
-  starter:      ['MARKETPLACE'],                                          // Başlangıç: çekirdek + Pazar
-  // Pro: Kaçan Gelir BİLEREK burada. Satışın ana kancası o panel; denemede görüp
-  // Pro alan bayi onu kaybederse güven kazası olur. Kurumsal'ın farkı Raporlar'da kalır.
-  // Müşteri Paneli Pro'dan itibaren: değeri müşteri sayısıyla büyür, Başlangıç
-  // paketindeki küçük bayide karşılığı yok. Satışta net bir yükseltme sebebi.
-  professional: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'MARKETPLACE', 'PORTAL', 'SLA'],
-  // Mağaza Kurumsal'dan itibaren: vitrin, alan adı ve yasal sorumluluk taşır;
-  // Başlangıç paketindeki bayide karşılığı yok. Satışta net bir yükseltme sebebi.
-  enterprise:   ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP', 'SLA'], // Premium
+  //
+  // PAKETLER İŞE GÖRE AYRILIR:
+  //   Başlangıç   = para döngüsünün tamamı (sayaç → fatura → tahsilat)
+  //   Profesyonel = + kârı görmek (kaçan gelir, cihaz kârı, filo), müşteri paneli, rota
+  //   Kurumsal    = + büyük müşterinin denetlediği ekranlar, model raporları, mağaza
+  //
+  // Eskiden Başlangıç'ta fatura YOKTU. Oysa paketin fiyatı kiralık cihaz
+  // sayısıyla belirleniyordu: bayi kiralık cihazları için para ödüyor ama
+  // onların faturasını kesemiyordu. Kurumsal'ın Profesyonel'den farkı da
+  // yalnız raporlar ve mağazaydı; büyük müşteri özelliklerinin hepsi
+  // Profesyonel'deydi ve Kurumsal her ölçekte ₺1.275 fazlaya hiçbir büyük
+  // müşteri ekranı eklemiyordu.
+  starter:      ['INVOICING', 'TRACKING', 'MARKETPLACE'],
+  // Kaçan Gelir BİLEREK Profesyonel'de: satışın ana kancası o panel; denemede
+  // görüp Pro alan bayi onu kaybederse güven kazası olur.
+  professional: ['INVOICING', 'TRACKING', 'MARKETPLACE', 'ROUTE', 'REVENUE_RISK', 'PORTAL'],
+  // Mağaza Kurumsal'dan itibaren: vitrin, alan adı ve yasal sorumluluk taşır.
+  enterprise:   ['INVOICING', 'TRACKING', 'MARKETPLACE', 'ROUTE', 'REVENUE_RISK', 'PORTAL', 'REPORTS', 'SLA', 'SHOP'],
 };
 
 // href → modül (CORE href'ler haritada yok = her zaman erişilebilir)

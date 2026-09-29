@@ -1284,14 +1284,15 @@ const BODY = `
           <li class="has"><strong>The first 20 rental devices included</strong> · ₺25 for each device beyond</li>
           <li class="has"><strong>3 users · 200 service tickets a month</strong></li>
           <li class="has">Customers · devices · service tickets · QR fault reports</li>
+          <li class="has">Meter reading and automatic rent invoicing</li>
+          <li class="has">Payment tracking · missing-reading tracking</li>
           <li class="has">Stock · barcode · Zebra labels · toner forecast</li>
           <li class="has">Accounting / ledger</li>
           <li class="has">Dealer market <span class="feat-note">(just opening)</span></li>
           <li class="has">Setup + Excel import + 2 hours of training</li>
-          <li class="no">Meter reading and automatic rent invoicing</li>
-          <li class="no">SLA compliance report</li>
-          <li class="no">Lost revenue panel · payments · routes</li>
-          <li class="no">Brand and model reliability reports</li>
+          <li class="no">Lost revenue panel · device profitability · routes</li>
+          <li class="no">Customer portal</li>
+          <li class="no">SLA compliance report · preventive maintenance · technician scorecard</li>
         </ul>
       </div>
 
@@ -1314,12 +1315,12 @@ const BODY = `
           <li class="has"><strong>The first 25 rental devices included</strong> · ₺25 for each device beyond</li>
           <li class="has"><strong>10 users · unlimited service tickets</strong></li>
           <li class="has"><strong>Everything in Starter</strong>, plus:</li>
-          <li class="has">Meter reading and automatic rent invoicing</li>
-          <li class="has">Payment tracking · route planning · late-meter tracking</li>
-          <li class="has">The lost revenue panel and device profitability</li>
-          <li class="has">SLA compliance report <span class="feat-note">(the response and resolution times in the contract, in working hours)</span></li>
+          <li class="has">Lost revenue panel · device profitability · fleet optimisation</li>
+          <li class="has">Customer portal <span class="feat-note">(customers see their own meters and invoices, and report faults)</span></li>
+          <li class="has">Route planning</li>
           <li class="has">WhatsApp updates <span class="feat-note">(a WhatsApp Business API account is required)</span> · bulk debt reminder SMS <span class="feat-note">(Netgsm credit is separate)</span></li>
           <li class="has">Setup + Excel import + 2 hours of training</li>
+          <li class="no">SLA compliance report · preventive maintenance · technician scorecard</li>
           <li class="no">Brand and model reliability reports</li>
         </ul>
       </div>
@@ -1342,6 +1343,8 @@ const BODY = `
           <li class="has"><strong>The first 100 rental devices included</strong> · ₺25 for each device beyond</li>
           <li class="has"><strong>50 users · unlimited service tickets</strong></li>
           <li class="has"><strong>Everything in Professional</strong>, plus:</li>
+          <li class="has">SLA compliance report <span class="feat-note">(the response and resolution times in the contract, in working hours)</span></li>
+          <li class="has">Preventive maintenance · technician scorecard · corporate groups</li>
           <li class="has">Brand and model reliability reports</li>
           <li class="has">Device renewal report</li>
           <li class="has">Setup + Excel import + 2 hours of training</li>
@@ -1355,7 +1358,7 @@ const BODY = `
       <span class="check-mini">✓</span> 2 months free when you pay yearly &nbsp;·&nbsp;
       <span class="check-mini">✓</span> Prices exclude VAT
       <div style="margin-top:16px;font-size:13px;color:var(--text-faint);max-width:720px;margin-left:auto;margin-right:auto;line-height:1.6">
-        The overage price is the same in all three plans (₺25); the base price and the number of included devices change from plan to plan. What really separates the plans is <strong>the features they unlock and the number of users</strong> : meter and rent invoicing, payments, routes and the lost revenue panel start with Professional, and the brand/model reliability reports are in Enterprise. So do not decide on device count alone — <strong>look at which plan unlocks the feature you actually need</strong>. Move the slider and the cards update to your own device count. If you are not sure which plan fits you,
+        The overage price is the same in all three plans (₺25); the base price and the number of included devices change from plan to plan. What really separates the plans is <strong>the features they unlock and the number of users</strong> : meter and rent invoicing and payments are in every plan; the lost revenue panel, the customer portal and routes start with Professional; SLA, preventive maintenance, the technician scorecard and the brand/model reliability reports are in Enterprise. So do not decide on device count alone — <strong>look at which plan unlocks the feature you actually need</strong>. Move the slider and the cards update to your own device count. If you are not sure which plan fits you,
         <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20know%20which%20plan%20fits%20my%20device%20count" target="_blank" rel="noopener" style="color:#5eead4;border-bottom:1px solid rgba(94,234,212,0.35)">Message us on WhatsApp</a>let us choose it together.
       </div>
     </div>
