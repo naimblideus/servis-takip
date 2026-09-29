@@ -876,7 +876,7 @@ const BODY = `
           <li>Optional <strong>two-factor authentication (2FA)</strong></li>
           <li><strong>Brand and model reliability reports</strong></li>
           <li>Device profitability and device list reports</li>
-          <li><strong>Export to Logo</strong> — a data export for your accounting software</li>
+          <li><strong>Export to your accounting program</strong> — invoices to Bizim Hesap, a data export to Logo</li>
           <li>Web + <strong>PWA</strong> — add it to the home screen on a phone</li>
         </ul>
       </div>
@@ -1083,7 +1083,7 @@ const BODY = `
         <div class="bento-content">
           <div class="bento-eyebrow">WHAT IT TALKS TO</div>
           <h3>The tools you already use</h3>
-          <p>It works with the Excel file you have, your barcode reader, your label printer, WhatsApp and Google Maps. On the accounting side there is an export to Logo; there is no Turkish e-invoice (GİB) integration.</p>
+          <p>It works with the Excel file you have, your barcode reader, your label printer, WhatsApp and Google Maps. Invoices go to Bizim Hesap and there is a data export to Logo; Turkish e-invoices are issued through Nilvera, or with a UBL file through your own integrator.</p>
           <p class="bento-foot-note">WhatsApp and SMS need third-party accounts: a WhatsApp Business API (Meta) account with an approved message template, and Netgsm credit for SMS. You pay those providers directly; we set them up with you.</p>
         </div>
         <div class="bento-integ-cloud">
@@ -1413,7 +1413,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-3" role="region" aria-labelledby="faq-q-3" aria-hidden="true">
-          <p><strong>No, there is no e-invoice / GİB integration at the moment.</strong> What there is today is an <strong>export to Logo</strong>. We will not call something “coming soon” when we cannot give a date — make your decision on the product as it is today.</p>
+          <p><strong>Yes, in two ways.</strong> If you have a Nilvera account, the invoice goes from here to the tax authority (GİB) and the accepted or rejected status comes back here. If you use another integrator, the system numbers the document and produces the <strong>UBL XML file</strong> ; you upload that file to your own portal. Test mode is on by default: we send the first invoices together, in test mode. If your accounting is in Bizim Hesap, the invoices go there too as sales invoices.</p>
         </div>
       </div>
 
@@ -1423,7 +1423,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-4" role="region" aria-labelledby="faq-q-4" aria-hidden="true">
-          <p><strong>There is no customer portal</strong> — your customer cannot sign in and look at their machines. What they can do instead is scan the <strong>QR code on the machine and report a fault without signing in</strong>, and you send the work done and the amount back over WhatsApp in one click.</p>
+          <p><strong>Yes, there is a customer panel.</strong> With a password-free link your customer sees their own devices and meters and, if you switch it on, their balance and how to pay; they enter their own meter reading and you approve it. They can also scan the <strong>QR code on the machine and report a fault without signing in</strong>. The customer panel starts with the Professional plan.</p>
         </div>
       </div>
 
@@ -1463,7 +1463,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-8" role="region" aria-labelledby="faq-q-8" aria-hidden="true">
-          <p>Yes. <strong>You download your backup in one click</strong> — a JSON file containing all of your data (with administrator rights). We import your customer and device lists <strong>from Excel or CSV</strong>; the file that comes out is JSON today, and there is no Excel export yet. On your account you can turn on <strong>optional two-factor authentication (2FA)</strong> .</p>
+          <p>Yes. You download your customer, device, service ticket and ledger lists as <strong>files that open in Excel (CSV)</strong> ; you take the <strong>full backup</strong> in one click, as a JSON file holding all your data (with administrator rights). We import your customer and device lists <strong>from Excel or CSV</strong>. On your account you can switch on <strong>optional two-factor authentication (2FA)</strong> .</p>
         </div>
       </div>
 

@@ -422,6 +422,7 @@ const KOD_ETIKETI: Record<string, string> = Object.fromEntries(menuItems.map((m)
 
 export interface MenuDurum {
   whatsappKurulu: boolean;
+  bizimHesapKurulu?: boolean;
 }
 
 const ROZET_STILI = { marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' } as const;
@@ -435,7 +436,7 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
   // Bekleyen iş rozetleri. Paylaşılan hook: kaç bileşen kullanırsa kullansın TEK yoklama.
   const rozet = useRozetler();
 
-  const bolumler = menuKur({ rol: role, ulke, moduller: modules, whatsappKurulu: durum?.whatsappKurulu ?? true });
+  const bolumler = menuKur({ rol: role, ulke, moduller: modules, whatsappKurulu: durum?.whatsappKurulu ?? true, bizimHesapKurulu: durum?.bizimHesapKurulu ?? false });
   const aktifAile = aileBul(pathname);
   // Teknisyenin menüsü kısa (işlerim, rota, sayaç, cihaz, stok); beş başlık
   // yedi öğeyi bölmek kalabalık ekler. Başlıksız düz liste.

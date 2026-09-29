@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useT, useBicim } from '@/lib/i18n/client';
+import Link from 'next/link';
+import { useT, useBicim, useDil } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import TwoFactorCard from '@/components/TwoFactorCard';
 
@@ -22,6 +23,7 @@ interface TenantInfo {
 export default function SettingsPage() {
     const router = useRouter();
     const t = useT();
+    const { ulke } = useDil();
     const b = useBicim();
     const fileRef = useRef<HTMLInputElement>(null);
     const [tenant, setTenant] = useState<TenantInfo | null>(null);
@@ -274,6 +276,19 @@ export default function SettingsPage() {
                     {odemeMsg && <span role={odemeMsg.ok ? 'status' : 'alert'} style={{ fontSize: '0.85rem', color: odemeMsg.ok ? '#166534' : '#b91c1c' }}>{odemeMsg.metin}</span>}
                 </div>
             </div>
+
+            {/* ── MUHASEBE PROGRAMI: BİZİM HESAP ──────────────────────────
+                Kurulum buradan başlar; bağlantı kurulunca Muhasebe'de sekme
+                olarak da görünür. Yalnız Türkiye (Bizim Hesap yerli program). */}
+            {ulke === 'TR' && (
+                <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+                    <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>{t.ayarlar.bizimHesapBaslik}</h2>
+                    <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.9rem', lineHeight: 1.6 }}>{t.ayarlar.bizimHesapAlt}</p>
+                    <Link href="/bizimhesap" style={{ display: 'inline-block', padding: '0.55rem 1.1rem', background: '#0f2253', color: 'white', borderRadius: '0.5rem', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}>
+                        {t.ayarlar.bizimHesapLink}
+                    </Link>
+                </div>
+            )}
 
             {/* ── ÇALIŞMA TAKVİMİ ─────────────────────────────────────────
                 SLA'nın ölçüldüğü zemin. Ayrı kaydedilir: bayi fiyat

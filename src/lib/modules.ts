@@ -10,7 +10,7 @@ export type ModuleKey = 'INVOICING' | 'ROUTE' | 'TRACKING' | 'REVENUE_RISK' | 'R
 // plan" gibi yarım cümleler çıkıyordu. Burada yalnız YOL eşlemesi kalır;
 // yollar çevrilmez, çünkü URL'dir.
 export const MODULES: Record<ModuleKey, { hrefs: string[] }> = {
-  INVOICING:    { hrefs: ['/invoices', '/collections'] },
+  INVOICING:    { hrefs: ['/invoices', '/collections', '/bizimhesap'] },
   ROUTE:        { hrefs: ['/rota'] },
   TRACKING:     { hrefs: ['/takip'] },
   // KÂR ANALİZİ — anahtar adı tarihsel (veritabanındaki bayi listelerinde

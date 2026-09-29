@@ -21,7 +21,7 @@ import { useT, useDil } from '@/lib/i18n/client';
 import { useRozetler } from '@/lib/use-rozetler';
 import { sekmeGosterilir, hrefRozeti } from '@/lib/menu-aileleri';
 
-export default function AileSekmeleri({ modules = [], whatsappKurulu = true }: { modules?: string[]; whatsappKurulu?: boolean }) {
+export default function AileSekmeleri({ modules = [], whatsappKurulu = true, bizimHesapKurulu = false }: { modules?: string[]; whatsappKurulu?: boolean; bizimHesapKurulu?: boolean }) {
   const yol = usePathname();
   const { data: session } = useSession();
   const rol = (session?.user as { role?: string } | undefined)?.role || '';
@@ -32,7 +32,7 @@ export default function AileSekmeleri({ modules = [], whatsappKurulu = true }: {
   // Oturum yüklenmeden rol bilinmez. Yanlış sekmeyi bir an gösterip geri
   // almaktansa çubuğu hiç çizmemek daha doğru.
   if (!rol) return null;
-  const s = sekmeGosterilir(yol, { rol, ulke, moduller: modules, whatsappKurulu });
+  const s = sekmeGosterilir(yol, { rol, ulke, moduller: modules, whatsappKurulu, bizimHesapKurulu });
   if (!s) return null;
 
   const ad = (href: string) => (t.menu as Record<string, string>)[href] ?? href;

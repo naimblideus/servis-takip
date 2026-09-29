@@ -575,5 +575,21 @@
   "Memnun kalmazsam ne olur?": "What if I am not happy?",
   "Önce 14 gün ücretsiz denersiniz. Ödemeye başladıktan sonraki ilk ay boyunca sayaçlarınızı sistemde okuttuğunuz halde işinize yaramadığını düşünürseniz,": "You first try it free for 14 days. If, after reading your meters in the system throughout your first paid month, you feel it has not worked for you,",
   "o ayın ücretini geri öderiz": "we refund that month",
-  ". Taahhüt yok; istediğiniz ay bırakabilirsiniz ve verinizi Excel olarak alırsınız.": ". No commitment: you can stop in any month and take your data with you as Excel."
+  ". Taahhüt yok; istediğiniz ay bırakabilirsiniz ve verinizi Excel olarak alırsınız.": ". No commitment: you can stop in any month and take your data with you as Excel.",
+  "Muhasebe programına aktarım": "Export to your accounting program",
+  "— Bizim Hesap'a fatura, Logo'ya veri aktarımı": "— invoices to Bizim Hesap, a data export to Logo",
+  "Elinizdeki Excel dosyası, barkod okuyucu, etiket yazıcısı, WhatsApp ve Google Maps ile çalışır. Faturalar Bizim Hesap'a gider, Logo'ya veri aktarımı var; e-Fatura Nilvera üzerinden ya da UBL dosyasıyla kendi entegratörünüzden kesilir.": "It works with the Excel file you have, your barcode reader, your label printer, WhatsApp and Google Maps. Invoices go to Bizim Hesap and there is a data export to Logo; Turkish e-invoices are issued through Nilvera, or with a UBL file through your own integrator.",
+  "Evet, iki yolla.": "Yes, in two ways.",
+  "Nilvera hesabınız varsa fatura buradan GİB'e gider, kabul/red durumu buraya döner. Başka bir entegratör kullanıyorsanız sistem belgeye numarasını verir ve": "If you have a Nilvera account, the invoice goes from here to the tax authority (GİB) and the accepted or rejected status comes back here. If you use another integrator, the system numbers the document and produces the",
+  "UBL XML dosyasını": "UBL XML file",
+  "üretir; dosyayı kendi portalınıza yüklersiniz. Test modu varsayılan olarak açıktır: ilk faturaları birlikte, test modunda göndeririz. Muhasebeniz Bizim Hesap'taysa faturalar oraya da satış faturası olarak gider.": "; you upload that file to your own portal. Test mode is on by default: we send the first invoices together, in test mode. If your accounting is in Bizim Hesap, the invoices go there too as sales invoices.",
+  "Evet, Müşteri Paneli var.": "Yes, there is a customer panel.",
+  "Müşteriniz şifresiz bir bağlantıyla kendi cihazlarını ve sayaçlarını, siz açarsanız bakiyesini ve nasıl ödeyeceğini görür; sayacını kendisi girer, siz onaylarsınız. Cihazdaki": "With a password-free link your customer sees their own devices and meters and, if you switch it on, their balance and how to pay; they enter their own meter reading and you approve it. They can also scan the",
+  ". Müşteri Paneli Profesyonel paketle başlar.": ". The customer panel starts with the Professional plan.",
+  "Evet. Müşteri, cihaz, servis fişi ve cari listelerinizi": "Yes. You download your customer, device, service ticket and ledger lists as",
+  "Excel'de açılan dosya (CSV)": "files that open in Excel (CSV)",
+  "olarak indirirsiniz;": "; you take the",
+  "tam yedeği": "full backup",
+  "tek tıkla, tüm verinizi içeren bir JSON dosyası olarak alırsınız (yönetici yetkisiyle). Müşteri ve cihaz listenizi": "in one click, as a JSON file holding all your data (with administrator rights). We import your customer and device lists",
+  ". Hesabınızda": ". On your account you can switch on"
 }

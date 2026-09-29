@@ -876,7 +876,7 @@ const BODY = `
           <li>İsteğe bağlı <strong>iki adımlı doğrulama (2FA)</strong></li>
           <li><strong>Marka/model güvenilirlik raporları</strong></li>
           <li>Cihaz kârlılığı ve cihaz dökümü raporları</li>
-          <li><strong>Logo'ya aktarım</strong> — muhasebe programına veri aktarımı</li>
+          <li><strong>Muhasebe programına aktarım</strong> — Bizim Hesap'a fatura, Logo'ya veri aktarımı</li>
           <li>Web + <strong>PWA</strong> — telefonda ana ekrana eklenir</li>
         </ul>
       </div>
@@ -1083,7 +1083,7 @@ const BODY = `
         <div class="bento-content">
           <div class="bento-eyebrow">NELERLE KONUŞUYOR</div>
           <h3>Zaten kullandığınız aletlerle</h3>
-          <p>Elinizdeki Excel dosyası, barkod okuyucu, etiket yazıcısı, WhatsApp ve Google Maps ile çalışır. Muhasebe tarafında Logo'ya aktarım mevcut; e-Fatura / GİB entegrasyonu yok.</p>
+          <p>Elinizdeki Excel dosyası, barkod okuyucu, etiket yazıcısı, WhatsApp ve Google Maps ile çalışır. Faturalar Bizim Hesap'a gider, Logo'ya veri aktarımı var; e-Fatura Nilvera üzerinden ya da UBL dosyasıyla kendi entegratörünüzden kesilir.</p>
           <p class="bento-foot-note">WhatsApp ve SMS için üçüncü taraf hesap gerekir: WhatsApp Business API (Meta) hesabı ve onaylı mesaj şablonu, SMS için Netgsm kontörü. Bu hesapların ücretini sağlayıcıya siz ödersiniz; kurulumu birlikte yaparız.</p>
         </div>
         <div class="bento-integ-cloud">
@@ -1413,7 +1413,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-3" role="region" aria-labelledby="faq-q-3" aria-hidden="true">
-          <p><strong>Hayır, şu an e-Fatura / GİB entegrasyonu yok.</strong> Bugün için <strong>Logo'ya aktarım mevcut</strong>. Tarih veremediğimiz bir şeye "yolda" demek istemiyoruz — kararınızı ürünün bugünkü haliyle verin.</p>
+          <p><strong>Evet, iki yolla.</strong> Nilvera hesabınız varsa fatura buradan GİB'e gider, kabul/red durumu buraya döner. Başka bir entegratör kullanıyorsanız sistem belgeye numarasını verir ve <strong>UBL XML dosyasını</strong> üretir; dosyayı kendi portalınıza yüklersiniz. Test modu varsayılan olarak açıktır: ilk faturaları birlikte, test modunda göndeririz. Muhasebeniz Bizim Hesap'taysa faturalar oraya da satış faturası olarak gider.</p>
         </div>
       </div>
 
@@ -1423,7 +1423,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-4" role="region" aria-labelledby="faq-q-4" aria-hidden="true">
-          <p><strong>Müşteri portalı yok</strong> — müşteriniz giriş yapıp cihazlarını göremez. Bunun yerine cihazdaki <strong>QR kodu okutup giriş yapmadan arıza bildirebilir</strong>, siz de yapılan işlem ve tutarı tek tıkla WhatsApp'tan gönderirsiniz.</p>
+          <p><strong>Evet, Müşteri Paneli var.</strong> Müşteriniz şifresiz bir bağlantıyla kendi cihazlarını ve sayaçlarını, siz açarsanız bakiyesini ve nasıl ödeyeceğini görür; sayacını kendisi girer, siz onaylarsınız. Cihazdaki <strong>QR kodu okutup giriş yapmadan arıza bildirebilir</strong>. Müşteri Paneli Profesyonel paketle başlar.</p>
         </div>
       </div>
 
@@ -1463,7 +1463,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-8" role="region" aria-labelledby="faq-q-8" aria-hidden="true">
-          <p>Evet. <strong>Yedeğinizi tek tıkla indirirsiniz</strong> — tüm verinizi içeren bir JSON dosyası olarak (yönetici yetkisiyle). Müşteri ve cihaz listenizi <strong>Excel/CSV ile içeri aktarıyoruz</strong>; dışarı çıkan dosya bugün JSON formatındadır, Excel dışa aktarımı henüz yok. Hesabınızda <strong>isteğe bağlı iki adımlı doğrulama (2FA)</strong> açabilirsiniz.</p>
+          <p>Evet. Müşteri, cihaz, servis fişi ve cari listelerinizi <strong>Excel'de açılan dosya (CSV)</strong> olarak indirirsiniz; <strong>tam yedeği</strong> tek tıkla, tüm verinizi içeren bir JSON dosyası olarak alırsınız (yönetici yetkisiyle). Müşteri ve cihaz listenizi <strong>Excel/CSV ile içeri aktarıyoruz</strong>. Hesabınızda <strong>isteğe bağlı iki adımlı doğrulama (2FA)</strong> açabilirsiniz.</p>
         </div>
       </div>
 

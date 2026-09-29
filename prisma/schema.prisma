@@ -76,6 +76,9 @@ model Tenant {
   eFaturaSaglayici String? // TEST | (sözleşme yapılınca gerçek sağlayıcı)
   eFaturaKullanici String?
   eFaturaParola    String? // AES-256-GCM ile şifreli
+  // Bizim Hesap B2B API — Bizim Hesap'ın bayiye verdiği FirmID. API anahtarı
+  // gibi çalışır (fatura yazdırır), bu yüzden AES-256-GCM ile şifreli.
+  bizimHesapFirmId String?
   // Test modunda gönderilen belge GİB'e ULAŞMAZ. Varsayılan true:
   // yanlışlıkla gerçek fatura göndermek geri alınamaz.
   eFaturaTestModu  Boolean  @default(true)
@@ -1688,6 +1691,16 @@ model CustomerInvoice {
   eBelgeDurum   String? // HAZIR | GONDERILDI | KABUL | RED | HATA
   eBelgeDurumAt DateTime?
   eBelgeNot     String? // entegratör/GİB mesajı, red gerekçesi
+
+  // ── BİZİM HESAP AKTARIMI ─────────────────────────────────────────────
+  // Fatura bayinin muhasebe programına (Bizim Hesap) satış faturası olarak
+  // bir kez gönderilir. Durum: GONDERILIYOR | GONDERILDI | HATA | IPTAL.
+  // GONDERILIYOR bir kilittir: iki tıklama aynı faturayı iki kez yazmasın.
+  bizimHesapDurum String?
+  bizimHesapGuid  String?
+  bizimHesapUrl   String?
+  bizimHesapAt    DateTime?
+  bizimHesapHata  String?
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())

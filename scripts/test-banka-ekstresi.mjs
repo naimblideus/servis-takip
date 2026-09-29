@@ -303,7 +303,7 @@ console.log('\nBanka ekstresi — bağlantılar\n');
     && /icerir\(m\.ad, ara\)/.test(oku('src/app/(dashboard)/collections/banka/page.tsx')));
   t('ekran sunucu motorunu değer olarak almıyor (node:crypto tarayıcıya gitmesin)', !/^import \{[^}]*\} from '@\/lib\/banka-ekstresi'/m.test(oku('src/app/(dashboard)/collections/banka/page.tsx')));
   t('tahsilat ekranından yeni ekrana yol var', /href="\/collections\/banka"/.test(oku('src/app/(dashboard)/collections/page.tsx')));
-  t('ekran INVOICING paketine bağlı (alt yol /collections altında)', /INVOICING:\s*\{ hrefs: \['\/invoices', '\/collections'\] \}/.test(oku('src/lib/modules.ts')));
+  t('ekran INVOICING paketine bağlı (alt yol /collections altında)', /INVOICING:\s*\{ hrefs: \[[^\]]*'\/collections'[^\]]*\] \}/.test(oku('src/lib/modules.ts')));
 }
 
 // ── VERİTABANI ───────────────────────────────────────────────────────────

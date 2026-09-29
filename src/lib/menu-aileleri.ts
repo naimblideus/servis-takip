@@ -52,7 +52,7 @@ export const AILELER: readonly Aile[] = [
   // Ay sonu zinciri: kes → e-fatura dosyası → tahsil et.
   { anahtar: 'faturalama', bolum: 'PARA',    uyeler: ['/invoices', '/e-fatura', '/collections'] },
   { anahtar: 'sozlesme',   bolum: 'PARA',    uyeler: ['/sozlesmeler', '/teklifler'] },
-  { anahtar: 'muhasebe',   bolum: 'PARA',    uyeler: ['/accounting', '/kdv'] },
+  { anahtar: 'muhasebe',   bolum: 'PARA',    uyeler: ['/accounting', '/kdv', '/bizimhesap'] },
 
   // Toner verimi sarfın ön koşulu: beklenen verim orada tanımlanır.
   { anahtar: 'stok',       bolum: 'STOK',    uyeler: ['/inventory', '/sarf', '/toner-verimi', '/satis', '/etiket'] },
@@ -89,13 +89,15 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/satis', '/toplu-ayar', '/toplu-zam',
   // Tarayıcı anahtarını üretmek bayi adına sayaç göndermeye yetki vermek demek.
   '/sayac-tarayici',
+  // Bizim Hesap anahtarı bayinin muhasebe programına fatura yazdırır.
+  '/bizimhesap',
 ];
 
 /**
  * TÜRKİYE'YE ÖZGÜ ekranlar: GİB e-Fatura ve KDV özeti. Avrupalı bayide
  * anlamsız (orada Peppol/XRechnung var, GİB yok).
  */
-export const YALNIZ_TR: readonly string[] = ['/e-fatura', '/kdv'];
+export const YALNIZ_TR: readonly string[] = ['/e-fatura', '/kdv', '/bizimhesap'];
 
 /**
  * TEKNİSYEN MENÜSÜ — sahadaki adamın telefonunda gördüğü şey.
@@ -117,6 +119,8 @@ export interface Erisim {
   ulke: string;
   moduller: readonly string[];
   whatsappKurulu: boolean;
+  /** Verilmezse kurulmamış sayılır: sekme yalnız bağlantı varken görünür. */
+  bizimHesapKurulu?: boolean;
 }
 
 export function yonetici(rol: string): boolean {
@@ -134,6 +138,7 @@ export function hrefErisilir(href: string, e: Erisim): boolean {
   if (mod && !e.moduller.includes(mod)) return false;
   // Kurulmamış kanal hiç gösterilmez: boş odayı kapatmak da hâlâ oda.
   if (href === '/whatsapp' && !e.whatsappKurulu) return false;
+  if (href === '/bizimhesap' && !e.bizimHesapKurulu) return false;
   return true;
 }
 

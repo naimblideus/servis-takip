@@ -109,6 +109,8 @@ console.log('\n★ SÖZLÜK BÜTÜNLÜĞÜ\n');
   'barkodEtiket.seri',
   // Sutun basligi 'Model' — iki dilde de ayni kelime.
   'teklif.sutunModel', 'topluAyar.model', 'tarayici.sutun[5]', 'portal.odemeIban', 'ayarlar.odemeIban', 'eFatura.nilveraVurgu', 'abonelik.iban', 'ortak.kilitIban', 'superAdmin.ayar.odemeIban',
+  // Ürün ve alan adı (Bizim Hesap, FirmID) — çevrilmez.
+  'bizimHesap.firmIdEtiket', 'bizimHesap.bagliMaske', 'bizimHesap.sutunDurum',
   // Veritabani terimi (upsert) — cevrilmez.
   'iceAktar.uyari2Son',
   // 'Disk' ve 'WhatsApp' iki dilde de ayni yazilir.

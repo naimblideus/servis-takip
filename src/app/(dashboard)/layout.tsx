@@ -32,7 +32,7 @@ export default async function DashboardLayout({
     tenantId
       ? prisma.tenant.findUnique({
           where: { id: tenantId },
-          select: { name: true, plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true, locale: true, currency: true, country: true },
+          select: { name: true, plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true, bizimHesapFirmId: true, locale: true, currency: true, country: true },
         })
       : Promise.resolve(null),
     prisma.platformSettings.findFirst({ select: { maintenanceMode: true, contactEmail: true, odemeIban: true, odemeHesapAdi: true, satisWhatsapp: true } }).catch(() => null),
@@ -117,6 +117,8 @@ export default async function DashboardLayout({
 
   const menuDurum = {
     whatsappKurulu: Boolean(tenant?.whatsappPhoneId),
+    // Bizim Hesap sekmesi yalnız bağlantı kurulunca. Kurulum yolu Ayarlar'da.
+    bizimHesapKurulu: Boolean(tenant?.bizimHesapFirmId),
   };
 
   return (
@@ -125,7 +127,7 @@ export default async function DashboardLayout({
       <Sidebar modules={modules} durum={menuDurum} />
       <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
         {denemeGun !== null && <DenemeSeridi kalanGun={denemeGun} />}
-        <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} />
+        <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} bizimHesapKurulu={menuDurum.bizimHesapKurulu} />
         <ModuleGuard modules={modules}>{children}</ModuleGuard>
       </main>
       <BottomNav modules={modules} />
