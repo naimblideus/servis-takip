@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma';
 import { effectiveModules } from '@/lib/modules';
 import Sidebar from '@/components/Sidebar';
 import AileSekmeleri from '@/components/AileSekmeleri';
+import DenemeSeridi from '@/components/DenemeSeridi';
+import { doldur } from '@/lib/i18n/sozluk';
+import { denemeKalanGun, platformOdeme, whatsappLinki } from '@/lib/abonelik';
 import BottomNav from '@/components/BottomNav';
 import ModuleGuard from '@/components/ModuleGuard';
 import AccessLock from '@/components/AccessLock';
@@ -29,10 +32,10 @@ export default async function DashboardLayout({
     tenantId
       ? prisma.tenant.findUnique({
           where: { id: tenantId },
-          select: { plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true, locale: true, currency: true, country: true },
+          select: { name: true, plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true, locale: true, currency: true, country: true },
         })
       : Promise.resolve(null),
-    prisma.platformSettings.findFirst({ select: { maintenanceMode: true, contactEmail: true } }).catch(() => null),
+    prisma.platformSettings.findFirst({ select: { maintenanceMode: true, contactEmail: true, odemeIban: true, odemeHesapAdi: true, satisWhatsapp: true } }).catch(() => null),
   ]);
 
   // 0) OTURUM BAYAT — çereze yazılı bayi artık yok.
@@ -69,7 +72,15 @@ export default async function DashboardLayout({
         : trialExpired ? kt.ortak.denemeBitti
           : planExpired ? kt.ortak.abonelikBitti
             : kt.ortak.hesapPasif;
-      return <AccessLock dil={kilitDili} title={kt.ortak.erisimKapali} message={`${reason} ${kt.ortak.erisimKapaliSon}`} contactEmail={settings?.contactEmail} />;
+      // Devam etmenin yolu kilit ekranında: IBAN + açıklama (bayinin adı) +
+      // WhatsApp. Askıya alınmış hesapta da gösterilir: askının en sık sebebi
+      // ödenmemiş abonelik.
+      const po = platformOdeme(settings);
+      const odeme = {
+        iban: po.iban, hesapAdi: po.hesapAdi, aciklama: tenant.name,
+        whatsappLink: whatsappLinki(po.whatsapp, doldur(kt.ortak.kilitWhatsappMesaj, { bayi: tenant.name })),
+      };
+      return <AccessLock dil={kilitDili} title={kt.ortak.erisimKapali} message={`${reason} ${kt.ortak.erisimKapaliSon}`} contactEmail={settings?.contactEmail} odeme={odeme} />;
     }
   }
 
@@ -99,6 +110,11 @@ export default async function DashboardLayout({
   // hiç kullanılmış mı): kullanılmayan kuyruk ekranı "Gelişmiş" klasörüne
   // iniyordu. Klasör kalktı; o ekranlar artık kendi ailelerinde SEKME ve
   // sekme menüyü kalabalıklaştırmıyor. Her gezinmede iki sorgu eksildi.
+  // Deneme şeridi yalnız yöneticiye: satın alma kararını o veriyor; teknisyene
+  // "süreniz doluyor" demek gürültü.
+  const rol = (session.user as { role?: string } | undefined)?.role;
+  const denemeGun = rol === 'ADMIN' || rol === 'SUPER_ADMIN' ? denemeKalanGun(tenant?.plan, tenant?.trialEndsAt, new Date()) : null;
+
   const menuDurum = {
     whatsappKurulu: Boolean(tenant?.whatsappPhoneId),
   };
@@ -108,6 +124,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar modules={modules} durum={menuDurum} />
       <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
+        {denemeGun !== null && <DenemeSeridi kalanGun={denemeGun} />}
         <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} />
         <ModuleGuard modules={modules}>{children}</ModuleGuard>
       </main>

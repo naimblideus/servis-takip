@@ -1398,6 +1398,11 @@ model PlatformSettings {
   announcementText    String?
   announcementActive  Boolean  @default(false)
   marketCommissionPct Decimal  @default(0) @db.Decimal(5, 2) // Bayi Pazarı komisyon % (Faz 3)
+  // Bayinin BİZE ödemesi: abonelik ekranında ve deneme bitince kilit
+  // ekranında gösterilir (lib/abonelik.ts). IBAN kaydedilmeden doğrulanır.
+  odemeIban           String?
+  odemeHesapAdi       String?
+  satisWhatsapp       String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { garantiDurumu, donemAraligi } from '@/lib/ilk-ay-garantisi';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         prisma.device.count({ where: { tenantId } }),
         prisma.tenant.findUnique({
             where: { id: tenantId },
-            select: { maxUsers: true, maxTicketsPerMonth: true, storageLimitMB: true, storageUsedMB: true } as any,
+            select: { maxUsers: true, maxTicketsPerMonth: true, storageLimitMB: true, storageUsedMB: true, plan: true } as any,
         }),
     ]);
 
@@ -24,7 +25,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         select: { updatedAt: true },
     });
 
+    // ── İLK AY GARANTİSİ ────────────────────────────────────────────────
+    // Tanıtım sayfasının sözü: ilk ödenen ay sayaç okutan bayi iade isteyebilir.
+    // Hak veriden türetiliyor; iadenin kendisi elle yapılır.
+    const ilkOdenen = await prisma.tenantInvoice.findFirst({
+        where: { tenantId, status: 'paid' },
+        orderBy: { period: 'asc' },
+        select: { period: true },
+    });
+    const aralik = ilkOdenen ? donemAraligi(ilkOdenen.period) : null;
+    const [okumaSayisi, okunan, kiralikCihaz] = aralik
+        ? await Promise.all([
+            prisma.counterReading.count({ where: { tenantId, readingDate: { gte: aralik.bas, lt: aralik.bit } } }),
+            prisma.counterReading.groupBy({ by: ['deviceId'], where: { tenantId, readingDate: { gte: aralik.bas, lt: aralik.bit } } }),
+            prisma.device.count({ where: { tenantId, isRental: true } }),
+        ])
+        : [0, [], 0];
+    const garanti = garantiDurumu({
+        plan: (tenant as any)?.plan ?? null,
+        ilkOdenenDonem: ilkOdenen?.period ?? null,
+        okuma: { okumaSayisi, okunanCihaz: okunan.length, kiralikCihaz },
+        simdi: now,
+    });
+
     return NextResponse.json({
+        garanti,
         userCount,
         maxUsers: (tenant as any)?.maxUsers ?? 0,
         totalTickets,

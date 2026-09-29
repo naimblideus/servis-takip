@@ -64,7 +64,7 @@ export const AILELER: readonly Aile[] = [
   // Büyük müşterinin denetlediği ekranlar.
   { anahtar: 'kurumsal',   bolum: 'ANALIZ',  uyeler: ['/bakim', '/sla', '/teknisyen', '/kurumsal'] },
 
-  { anahtar: 'ayarlar',    bolum: 'SISTEM',  uyeler: ['/settings', '/users', '/import'] },
+  { anahtar: 'ayarlar',    bolum: 'SISTEM',  uyeler: ['/settings', '/users', '/import', '/abonelik'] },
   { anahtar: 'yardim',     bolum: 'SISTEM',  uyeler: ['/yardim'] },
   { anahtar: 'admin',      bolum: 'SISTEM',  uyeler: ['/admin'] },
 ];
@@ -81,7 +81,7 @@ export const YALNIZ_SUPER: readonly string[] = ['/admin'];
  * açılınca 403 vermesi kötü deneyim.
  */
 export const YALNIZ_YONETICI: readonly string[] = [
-  '/users', '/settings', '/import',
+  '/users', '/settings', '/import', '/abonelik',
   '/accounting', '/kdv', '/sozlesmeler', '/teklifler',
   '/invoices', '/e-fatura', '/collections',
   '/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports',

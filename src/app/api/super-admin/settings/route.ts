@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ucHatasi } from '@/lib/uc-hata';
+import { ibanGecerli, ibanTemizle, hesapAdiTemizle } from '@/lib/odeme-bilgisi';
+import { whatsappNumarasi } from '@/lib/abonelik';
 
 // GET — platform ayarlarını getir
 export async function GET() {
@@ -29,6 +32,20 @@ export async function PUT(req: NextRequest) {
     if (body.announcementText !== undefined) data.announcementText = body.announcementText || null;
     if (body.announcementActive !== undefined) data.announcementActive = !!body.announcementActive;
     if (body.marketCommissionPct !== undefined) data.marketCommissionPct = Math.max(0, Math.min(100, Number(body.marketCommissionPct) || 0));
+    // Bayilerin BİZE ödemesi. Yanlış IBAN, bayinin parasını başka hesaba
+    // gönderir: kaydedilmeden doğrulanır, boş değer = kaldır.
+    if (body.odemeIban !== undefined) {
+        const v = String(body.odemeIban ?? '').trim();
+        if (v && !ibanGecerli(v)) return ucHatasi('IBAN_GECERSIZ', 400);
+        data.odemeIban = v ? ibanTemizle(v) : null;
+    }
+    if (body.odemeHesapAdi !== undefined) data.odemeHesapAdi = hesapAdiTemizle(body.odemeHesapAdi == null ? '' : String(body.odemeHesapAdi));
+    if (body.satisWhatsapp !== undefined) {
+        const v = String(body.satisWhatsapp ?? '').trim();
+        const n = v ? whatsappNumarasi(v) : null;
+        if (v && !n) return ucHatasi('GECERSIZ_ISTEK', 400);
+        data.satisWhatsapp = n;
+    }
 
     let settings = await (prisma as any).platformSettings.findFirst();
     if (settings) {

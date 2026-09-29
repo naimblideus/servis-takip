@@ -289,6 +289,22 @@ export default function TenantDetailPage() {
                                 )}
                             </div>
                         ))}
+                        {/* İlk ay garantisi: bayinin iade hakkı veriden. İade elle yapılır. */}
+                        {stats.garanti && stats.garanti.durum !== 'KAPSAM_DISI' && (() => {
+                            const g = stats.garanti;
+                            const renk = g.durum === 'HAK_VAR' ? 'border-amber-500/40 bg-amber-500/10' : g.durum === 'HAK_YOK' ? 'border-white/10 bg-white/3' : 'border-violet-500/30 bg-violet-500/5';
+                            return (
+                                <div className={`md:col-span-3 border rounded-xl p-4 ${renk}`}>
+                                    <div className="text-xs text-gray-400 mb-1">{d.garantiBaslik}</div>
+                                    <div className="text-base font-bold">{(d.garantiDurum as Record<string, string>)[g.durum] ?? g.durum}</div>
+                                    {g.donem && (
+                                        <div className="text-xs text-gray-400 mt-1">
+                                            {doldur(d.garantiAyrinti, { donem: g.donem, okunan: g.okunanCihaz, kiralik: g.kiralikCihaz, n: g.okumaSayisi })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                         {stats.lastActivity && (
                             <div className="md:col-span-3 text-xs text-gray-500 flex items-center gap-2">
                                 <Clock className="w-3 h-3" />

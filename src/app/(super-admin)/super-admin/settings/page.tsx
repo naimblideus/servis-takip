@@ -10,6 +10,7 @@ export default function PlatformSettingsPage() {
     const [settings, setSettings] = useState<any>(null);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [hata, setHata] = useState<string | null>(null);
 
     useEffect(() => {
         fetch('/api/super-admin/settings').then(r => r.json()).then(setSettings);
@@ -17,12 +18,15 @@ export default function PlatformSettingsPage() {
 
     const handleSave = async () => {
         setSaving(true);
-        await fetch('/api/super-admin/settings', {
+        setHata(null);
+        const res = await fetch('/api/super-admin/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settings),
         });
         setSaving(false);
+        // Eskiden cevap okunmuyordu: sunucu reddetse de "kaydedildi" yazıyordu.
+        if (!res.ok) { setHata((await res.json().catch(() => null))?.error ?? z.kaydedilemedi); return; }
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
     };
@@ -48,6 +52,22 @@ export default function PlatformSettingsPage() {
             </div>
 
             <div className="max-w-2xl mx-auto px-6 py-6 space-y-5">
+                {hata && <div role="alert" className="bg-red-500/10 border border-red-500/40 text-red-300 rounded-xl px-4 py-3 text-sm">{hata}</div>}
+                {/* Bayilerin bize ödemesi — abonelik ekranında ve kilit ekranında görünür */}
+                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-violet-300 mb-1">{z.odemeBaslik}</h3>
+                    <p className="text-xs text-gray-400 mb-4">{z.odemeAlt}</p>
+                    <div className="space-y-4">
+                        {([['odemeIban', z.odemeIban, 'TR00 0000 0000 0000 0000 0000 00'], ['odemeHesapAdi', z.odemeHesapAdi, ''], ['satisWhatsapp', z.satisWhatsapp, '90 5xx xxx xx xx']] as const).map(([k, etiket, yer]) => (
+                            <div key={k}>
+                                <label className="text-xs text-gray-400 mb-1 block">{etiket}</label>
+                                <input value={settings[k] || ''} placeholder={yer} onChange={e => set(k, e.target.value)}
+                                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Genel */}
                 <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
                     <h3 className="text-sm font-semibold text-violet-300 mb-4">{z.genel}</h3>
