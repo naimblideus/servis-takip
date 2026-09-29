@@ -55,7 +55,7 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'muhasebe',   bolum: 'PARA',    uyeler: ['/accounting', '/kdv', '/bizimhesap'] },
 
   // Toner verimi sarfın ön koşulu: beklenen verim orada tanımlanır.
-  { anahtar: 'stok',       bolum: 'STOK',    uyeler: ['/inventory', '/sarf', '/toner-verimi', '/satis', '/etiket'] },
+  { anahtar: 'stok',       bolum: 'STOK',    uyeler: ['/inventory', '/siparis', '/sarf', '/toner-verimi', '/satis', '/etiket'] },
   { anahtar: 'pazar',      bolum: 'STOK',    uyeler: ['/market'] },
   { anahtar: 'magaza',     bolum: 'STOK',    uyeler: ['/magaza'] },
 
@@ -91,6 +91,8 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/sayac-tarayici',
   // Bizim Hesap anahtarı bayinin muhasebe programına fatura yazdırır.
   '/bizimhesap',
+  // Alış fiyatı ve tedarikçi mali veridir.
+  '/siparis',
 ];
 
 /**

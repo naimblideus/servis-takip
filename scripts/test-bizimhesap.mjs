@@ -131,7 +131,8 @@ console.log('\nBizim Hesap — menü\n');
 }
 
 // ── SAHTE BİZİM HESAP SUNUCUSU ──────────────────────────────────────────
-const TOKEN = 'ABCDEF0123456789ABCDEF0123456789';
+// Sahte FirmID: onaltılık olmayan harfler bilerek var — sır taraması gerçek anahtar sanmasın.
+const TOKEN = 'TESTFIRMA-' + '0'.repeat(22);
 const alinan = [];
 const sunucu = http.createServer((req, res) => {
   let govde = '';
