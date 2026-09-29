@@ -145,8 +145,9 @@ console.log('\nMenü aileleri\n');
   t('bilinmeyen yol aile vermiyor', aileBul('/yok-boyle') === null);
 
   const s = sekmeGosterilir('/sayac-turu', erisim());
-  t('★ sayaç ailesinde üç sekme: gir → eksik → cihazdan gelen',
-    s && JSON.stringify(s.sekmeler) === JSON.stringify(['/sayac-turu', '/takip', '/sayac-eposta']), s);
+  t('★ sayaç ailesi: gir → eksik → cihazdan gelen → ağ tarayıcı',
+    s && JSON.stringify(s.sekmeler) === JSON.stringify(['/sayac-turu', '/takip', '/sayac-eposta', '/sayac-tarayici']), s);
+  t('teknisyen ağ tarayıcıyı görmüyor (anahtar üretimi yönetici işi)', !gorunen(erisim({ rol: 'TECHNICIAN' })).includes('/sayac-tarayici'));
   t('detay sayfasında sekme çizilmez', sekmeGosterilir('/devices/abc', erisim()) === null);
   t('tek ekranlı ailede sekme çizilmez', sekmeGosterilir('/tickets', erisim()) === null);
   t('görmemesi gereken sayfada sekme çizilmez',

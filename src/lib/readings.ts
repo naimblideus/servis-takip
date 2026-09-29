@@ -45,6 +45,7 @@ export interface CreateReadingInput {
 
 export type OkumaKaynagi =
   | 'CIHAZ_EPOSTA'   // cihazın kendi sayaç raporu — en güçlü kanıt
+  | 'AG_TARAMA'      // tarayıcı cihazın sayacını ağdan (SNMP) okudu — cihazın kendi değeri
   | 'FOTOGRAF'       // teknisyen fotoğraf çekti
   | 'WHATSAPP_FOTO'  // müşteri WhatsApp'tan fotoğraf gönderdi
   | 'PORTAL'         // müşteri portaldan kendi girdi

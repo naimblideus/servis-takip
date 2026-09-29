@@ -175,6 +175,7 @@ model Tenant {
   contractDevices     ContractDevice[]
   statusHistory       TicketStatusHistory[]
   customerGroups      CustomerGroup[]
+  sayacTaramalari     SayacTaramasi[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -197,6 +198,16 @@ model Tenant {
   // Bayi başına kurulum GEREKTİRMEZ: kod bayi açılırken üretilir, bayi
   // Ayarlar ekranında kendi adresini görür.
   sayacEpostaKodu String? @unique
+
+  // ── SAYAÇ TARAYICI (SNMP) ───────────────────────────────────────────
+  // Müşterinin ağında çalışan tarayıcı bu anahtarla kendini tanıtır.
+  // Anahtarın KENDİSİ saklanmaz, yalnız SHA-256 özeti: veritabanı sızsa
+  // bile kimse bayi adına sayaç gönderemez. Anahtar bir kez gösterilir.
+  tarayiciAnahtarHash String? @unique
+  // Tarama sonucu onaysız sayaç olarak yazılsın mı. Varsayılan HAYIR: SNMP
+  // sayacının bayinin fatura sayacıyla aynı şeyi saydığı cihazda görülmeden
+  // faturaya yazılmamalı. Bayi ilk taramaları panelde karşılaştırıp açar.
+  tarayiciOtomatikYaz Boolean @default(false)
 
   // ÜRETİCİ VERİ PAYLAŞIMI — bayinin AÇIK RIZASI. Varsayılan KAPALI.
   // Bu bayrak açık DEĞİLSE bayinin hiçbir verisi /api/oem/reliability kapsamına
@@ -503,6 +514,28 @@ model Customer {
 // Grubun kendi faturası, sözleşmesi ya da carisi YOKTUR ve olmamalıdır:
 // o üçü şubenin kendi kaydında durur. Grup silinince şubeler kalır, yalnız
 // çatı kalkar (onDelete: SetNull).
+// SAYAÇ TARAMASI — tarayıcının bir çalışması. Her cihaz için ne okundu,
+// sistemdeki hangi cihaza eşlendi ve neden yazılıp yazılmadığı `sonuc`
+// içinde durur (lib/sayac-tarama.ts). Onaylanana kadar sayaç YAZILMAZ
+// (bayi otomatik yazmayı açmadıysa).
+model SayacTaramasi {
+  id          String    @id @default(cuid())
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  bilgisayar  String?
+  taranan     Int       @default(0)
+  bulunan     Int       @default(0)
+  eslesen     Int       @default(0)
+  yazilabilir Int       @default(0)
+  yazilan     Int       @default(0)
+  sonuc       Json
+  onaylandiAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
 model CustomerGroup {
   id        String   @id @default(cuid())
   tenantId  String

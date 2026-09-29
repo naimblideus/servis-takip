@@ -47,7 +47,8 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'portal',     bolum: 'MUSTERI', uyeler: ['/musteri-portali', '/musteri-bildirimleri'] },
 
   // Paranın kaynağı. Sayaç okunmazsa fatura kesilmez; bu yüzden faturadan önce.
-  { anahtar: 'sayaclar',   bolum: 'PARA',    uyeler: ['/sayac-turu', '/takip', '/sayac-eposta'] },
+  // Ağ Tarayıcı sonda: kurulum ekranı, günlük iş değil.
+  { anahtar: 'sayaclar',   bolum: 'PARA',    uyeler: ['/sayac-turu', '/takip', '/sayac-eposta', '/sayac-tarayici'] },
   // Ay sonu zinciri: kes → e-fatura dosyası → tahsil et.
   { anahtar: 'faturalama', bolum: 'PARA',    uyeler: ['/invoices', '/e-fatura', '/collections'] },
   { anahtar: 'sozlesme',   bolum: 'PARA',    uyeler: ['/sozlesmeler', '/teklifler'] },
@@ -86,6 +87,8 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports',
   '/teknisyen', '/kurumsal',
   '/satis', '/toplu-ayar', '/toplu-zam',
+  // Tarayıcı anahtarını üretmek bayi adına sayaç göndermeye yetki vermek demek.
+  '/sayac-tarayici',
 ];
 
 /**
