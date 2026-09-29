@@ -1218,6 +1218,17 @@ h1.hero-title{
   content:"";position:absolute;left:5px;top:12px;
   width:4px;height:1.5px;background:rgba(255,255,255,0.25);
 }
+/* İLK AY GARANTİSİ — teklifin hemen altında (Hormozi: garanti düğmenin
+   yanında durur). Koşulu kısa ve ölçülebilir: sayaç sistemde okutulmuş mu. */
+.garanti{
+  display:flex;gap:16px;align-items:flex-start;text-align:left;
+  max-width:720px;margin:0 auto 28px;padding:20px 24px;border-radius:16px;
+  background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.35);
+}
+.garanti-ikon{font-size:28px;line-height:1;flex-shrink:0}
+.garanti-baslik{font-weight:700;font-size:16px;color:var(--text);margin-bottom:6px}
+.garanti p{margin:0;font-size:14px;line-height:1.6;color:var(--text-dim)}
+.garanti p + p{margin-top:6px;font-size:12.5px;color:var(--text-faint)}
 .pricing-foot{
   text-align:center;margin-top:48px;
   font-size:14px;color:var(--text-dim);
