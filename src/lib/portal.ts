@@ -14,6 +14,7 @@
  * Müşteri kendi cihazını, fişinin DURUMUNU ve kendi faturasının TOPLAMINI görür.
  */
 import crypto from 'crypto';
+import { odemeKarti } from '@/lib/odeme-bilgisi';
 import { prisma } from '@/lib/prisma';
 import { sonOkumalar } from '@/lib/readings';
 import { zamanCizelgesi } from '@/lib/ticket-asama';
@@ -92,6 +93,7 @@ export async function portalVerisi(m: PortalMusteri) {
       where: { id: m.tenantId },
       select: {
         name: true, phone: true, address: true, portalShowFinancials: true,
+        odemeIban: true, odemeHesapAdi: true, odemeLinki: true,
         // Portalı MÜŞTERİ okuyor: dil ve para birimi bayiden gelir.
         locale: true, currency: true,
       },
@@ -257,6 +259,8 @@ export async function portalVerisi(m: PortalMusteri) {
     // Bakiye faturalar üzerinden: "ne kadar borcum var" en sık gelen telefon.
     bakiye: mali ? Math.max(0, faturaToplam - odenen) : null,
     tahsilatToplam: mali ? TL(odemeler._sum.amount) : null,
+    // "Nasıl öderim": bakiyenin hemen altında. Mali bilgiler kapalıysa yok.
+    odeme: firma ? odemeKarti(firma, m.name, mali) : null,
     talepler: talepler.map((t) => ({
       id: t.id, tur: t.tur, durum: t.durum,
       tarih: t.createdAt.toISOString(),

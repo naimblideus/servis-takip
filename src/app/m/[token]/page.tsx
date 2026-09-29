@@ -7,6 +7,7 @@ import CihazListesi from './CihazListesi';
 import AsamaCizelgesi from './AsamaCizelgesi';
 import { sozluk, doldur } from '@/lib/i18n/sozluk';
 import { bicimYap } from '@/lib/bicim';
+import OdemeKarti from './OdemeKarti';
 
 /**
  * MÜŞTERİ PORTALI — /m/<jeton>
@@ -90,6 +91,20 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                 : sz.borcYok}
             </div>
           </section>
+        )}
+
+        {/* ── NASIL ÖDENİR: bakiyenin hemen altında. Yalnız ödenmemiş
+            bakiye varken ve bayi bir ödeme yolu tanımladıysa. Borcu olmayan
+            müşteriye IBAN göstermek "bir şey mi ödemem gerekiyor" dedirtir. ── */}
+        {v.odeme && v.bakiye != null && v.bakiye > 0.005 && (
+          <OdemeKarti
+            iban={v.odeme.iban} hesapAdi={v.odeme.hesapAdi} link={v.odeme.link} aciklama={v.odeme.aciklama}
+            metin={{
+              baslik: sz.odemeBaslik, iban: sz.odemeIban, hesapAdi: sz.odemeHesapAdi, aciklama: sz.odemeAciklama,
+              kopyala: sz.kopyala, kopyalandi: sz.kopyalandi, kartlaOde: sz.kartlaOde,
+              kartlaOdeNot: sz.kartlaOdeNot, havaleNot: sz.havaleNot,
+            }}
+          />
         )}
 
         {/* ── MAĞAZA GEÇİŞİ ────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
+import { ibanGecerli, ibanTemizle, odemeLinkiGecerli, hesapAdiTemizle } from '@/lib/odeme-bilgisi';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -17,6 +18,7 @@ export async function GET() {
         select: {
             id: true, name: true, logo: true, phone: true, address: true,
             pricePerBlack: true, pricePerColor: true, portalShowFinancials: true, sayacEpostaKodu: true,
+            odemeIban: true, odemeHesapAdi: true, odemeLinki: true,
             // Çalışma takvimi — SLA ölçümü mesai saatine göre yapılır.
             workTimezone: true, workDays: true, workStartMin: true, workEndMin: true, workHolidays: true,
         },
@@ -40,7 +42,14 @@ export async function PATCH(req: Request) {
     const {
         name, phone, address, pricePerBlack, pricePerColor, portalShowFinancials,
         workTimezone, workDays, workStartMin, workEndMin, workHolidays,
+        odemeIban, odemeHesapAdi, odemeLinki,
     } = body;
+
+    // MÜŞTERİDEN ÖDEME — yanlış IBAN parayı başka hesaba gönderir, bozuk
+    // bağlantı müşteri panelinde tuzak olur. Boş değer = kaldır.
+    const bos = (v: unknown) => v === null || (typeof v === 'string' && v.trim() === '');
+    if (odemeIban !== undefined && !bos(odemeIban) && !ibanGecerli(String(odemeIban))) return ucHatasi('IBAN_GECERSIZ', 400);
+    if (odemeLinki !== undefined && !bos(odemeLinki) && !odemeLinkiGecerli(String(odemeLinki))) return ucHatasi('ODEME_LINKI_GECERSIZ', 400);
 
     // ÇALIŞMA TAKVİMİ — SLA'nın ölçüldüğü zemin. Bozuk ayar sessizce
     // kaydedilirse rapor "0 dakikada müdahale" der ve ihlali gizler; o yüzden
@@ -88,6 +97,9 @@ export async function PATCH(req: Request) {
             ...(bas !== null && { workStartMin: bas }),
             ...(bit !== null && { workEndMin: bit }),
             ...(workHolidays !== undefined && { workHolidays: tatilListesi(workHolidays) }),
+            ...(odemeIban !== undefined && { odemeIban: bos(odemeIban) ? null : ibanTemizle(String(odemeIban)) }),
+            ...(odemeHesapAdi !== undefined && { odemeHesapAdi: hesapAdiTemizle(odemeHesapAdi == null ? '' : String(odemeHesapAdi)) }),
+            ...(odemeLinki !== undefined && { odemeLinki: bos(odemeLinki) ? null : String(odemeLinki).trim() }),
         },
     });
 

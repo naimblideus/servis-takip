@@ -32,6 +32,10 @@ export default function SettingsPage() {
         workTimezone: 'Europe/Istanbul', workDays: '1,2,3,4,5',
         workStartMin: 540, workEndMin: 1080, workHolidays: '',
     });
+    // Ödeme bilgisi ayrı kaydedilir: fiyat düzeltirken IBAN'a dokunulmasın.
+    const [odeme, setOdeme] = useState({ odemeIban: '', odemeHesapAdi: '', odemeLinki: '' });
+    const [odemeKayit, setOdemeKayit] = useState(false);
+    const [odemeMsg, setOdemeMsg] = useState<{ ok: boolean; metin: string } | null>(null);
     const [takvimKayit, setTakvimKayit] = useState(false);
     const [takvimMsg, setTakvimMsg] = useState('');
     const [saving, setSaving] = useState(false);
@@ -49,6 +53,11 @@ export default function SettingsPage() {
                 pricePerColor: String(data.pricePerColor ?? '1.50'),
                 portalShowFinancials: data.portalShowFinancials !== false,
             });
+            setOdeme({
+                odemeIban: data.odemeIban ? String(data.odemeIban).replace(/(.{4})/g, '$1 ').trim() : '',
+                odemeHesapAdi: data.odemeHesapAdi || '',
+                odemeLinki: data.odemeLinki || '',
+            });
             setTakvim({
                 workTimezone: data.workTimezone || 'Europe/Istanbul',
                 workDays: data.workDays || '1,2,3,4,5',
@@ -58,6 +67,21 @@ export default function SettingsPage() {
             });
         });
     }, []);
+
+    const odemeKaydet = async () => {
+        setOdemeKayit(true);
+        setOdemeMsg(null);
+        const res = await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(odeme),
+        });
+        setOdemeKayit(false);
+        // Hata metni sunucudan (kullanıcının dilinde): IBAN'da neyin
+        // yanlış olduğunu söylüyor, genel bir "kaydedilemedi" söylemiyor.
+        const j = res.ok ? null : await res.json().catch(() => null);
+        setOdemeMsg(res.ok ? { ok: true, metin: t.ayarlar.odemeKaydedildi } : { ok: false, metin: j?.error ?? t.ayarlar.takvimHata });
+    };
 
     const takvimKaydet = async () => {
         setTakvimKayit(true);
@@ -220,6 +244,35 @@ export default function SettingsPage() {
                         </span>
                     </span>
                 </label>
+            </div>
+
+            {/* ── MÜŞTERİDEN ÖDEME ───────────────────────────────────────
+                Müşteri panelinde bakiyenin altında görünür. Ayrı kaydedilir. */}
+            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>{t.ayarlar.odemeBaslik}</h2>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem', lineHeight: 1.6 }}>{t.ayarlar.odemeAlt}</p>
+                {!form.portalShowFinancials && (
+                    <p style={{ fontSize: '0.8rem', color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '0.5rem 0.75rem', marginBottom: '0.9rem' }}>{t.ayarlar.odemeMaliKapali}</p>
+                )}
+                {([
+                    ['odemeIban', t.ayarlar.odemeIban, 'TR00 0000 0000 0000 0000 0000 00', null],
+                    ['odemeHesapAdi', t.ayarlar.odemeHesapAdi, '', null],
+                    ['odemeLinki', t.ayarlar.odemeLinki, 'https://', t.ayarlar.odemeLinkiIpucu],
+                ] as const).map(([alan, etiket, yer, ipucu]) => (
+                    <label key={alan} style={{ display: 'block', marginBottom: '0.8rem' }}>
+                        <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.3rem' }}>{etiket}</span>
+                        <input value={odeme[alan]} placeholder={yer} onChange={(e) => setOdeme({ ...odeme, [alan]: e.target.value })}
+                            style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.9rem', fontFamily: alan === 'odemeIban' ? 'monospace' : undefined, boxSizing: 'border-box' }} />
+                        {ipucu && <span style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginTop: '0.3rem' }}>{ipucu}</span>}
+                    </label>
+                ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <button onClick={odemeKaydet} disabled={odemeKayit}
+                        style={{ padding: '0.55rem 1.1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', opacity: odemeKayit ? 0.6 : 1 }}>
+                        {t.ayarlar.odemeKaydet}
+                    </button>
+                    {odemeMsg && <span role={odemeMsg.ok ? 'status' : 'alert'} style={{ fontSize: '0.85rem', color: odemeMsg.ok ? '#166534' : '#b91c1c' }}>{odemeMsg.metin}</span>}
+                </div>
             </div>
 
             {/* ── ÇALIŞMA TAKVİMİ ─────────────────────────────────────────

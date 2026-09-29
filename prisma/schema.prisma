@@ -187,6 +187,15 @@ model Tenant {
   // tutarlarının HEPSİ gizlenir — biri kalırsa diğerini ele verir.
   portalShowFinancials Boolean @default(true)
 
+  // ── MÜŞTERİDEN ÖDEME ─────────────────────────────────────────────────
+  // Müşteri panelinde bakiyenin altında gösterilir (lib/odeme-bilgisi.ts).
+  // IBAN kaydedilmeden önce kontrol toplamıyla doğrulanır. Kartla ödeme
+  // bayinin KENDİ POS sağlayıcısının bağlantısıdır: kart verisi bu sisteme
+  // hiç girmez.
+  odemeIban     String?
+  odemeHesapAdi String?
+  odemeLinki    String?
+
   // ── SAYAÇ E-POSTASI: BAYİYE ÖZEL ADRES ──────────────────────────────
   // Cihazlar sayaç raporunu sayac+<kod>@alanadi adresine gönderir. Kod
   // bayiyi SÖYLER; böylece seri araması o bayinin cihazlarıyla sınırlanır.
