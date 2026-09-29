@@ -1284,12 +1284,11 @@ const BODY = `
           <li class="has"><strong>İlk 20 kiralık cihaz dahil</strong> · aşan her cihaz ₺25</li>
           <li class="has"><strong>3 kullanıcı · 200 servis fişi/ay</strong></li>
           <li class="has">Müşteri · cihaz · servis fişi · QR arıza bildirimi</li>
-          <li class="has">Sayaç okuma ve otomatik kira faturalaması</li>
-          <li class="has">Tahsilat takibi · eksik sayaç takibi</li>
           <li class="has">Stok · barkod · Zebra etiket · toner tahmini</li>
           <li class="has">Muhasebe / cari hesap</li>
           <li class="has">Bayi Pazarı <span class="feat-note">(yeni açılıyor)</span></li>
           <li class="has">Kurulum + Excel aktarımı + 2 saat eğitim</li>
+          <li class="no">Sayaç okuma ve otomatik kira faturalaması</li>
           <li class="no">Kaçan Gelir paneli · cihaz kârlılığı · rota</li>
           <li class="no">Müşteri paneli</li>
           <li class="no">SLA uyum raporu · periyodik bakım · teknisyen karnesi</li>
@@ -1315,6 +1314,8 @@ const BODY = `
           <li class="has"><strong>İlk 25 kiralık cihaz dahil</strong> · aşan her cihaz ₺25</li>
           <li class="has"><strong>10 kullanıcı · sınırsız servis fişi</strong></li>
           <li class="has"><strong>Başlangıç'taki her şey</strong>, ayrıca:</li>
+          <li class="has">Sayaç okuma ve otomatik kira faturalaması</li>
+          <li class="has">Tahsilat takibi · eksik sayaç takibi</li>
           <li class="has">Kaçan Gelir paneli · cihaz kârlılığı · filo optimizasyonu</li>
           <li class="has">Müşteri paneli <span class="feat-note">(müşteri sayacını ve faturasını görür, arıza bildirir)</span></li>
           <li class="has">Rota planlama</li>
@@ -1358,7 +1359,7 @@ const BODY = `
       <span class="check-mini">✓</span> Yıllık ödemede 2 ay bedava &nbsp;·&nbsp;
       <span class="check-mini">✓</span> Fiyatlar KDV hariçtir
       <div style="margin-top:16px;font-size:13px;color:var(--text-faint);max-width:720px;margin-left:auto;margin-right:auto;line-height:1.6">
-        Aşım bedeli üç pakette de aynıdır (₺25); taban fiyat ve dahil cihaz adedi paketten pakete değişir. Paketler asıl olarak <strong>açılan özellikler ve kullanıcı sayısıyla</strong> ayrışır: sayaç/kira faturalaması ve tahsilat her pakette var; Kaçan Gelir paneli, müşteri paneli ve rota Profesyonel ile başlar; SLA, periyodik bakım, teknisyen karnesi ve marka/model güvenilirlik raporları Kurumsal'dadır. Bu yüzden sadece cihaz sayısına bakıp karar vermeyin — <strong>ihtiyacınız olan özelliğin hangi pakette açık olduğuna bakın</strong>. Kaydırıcıyı oynattığınızda kartlar kendi cihaz sayınıza göre güncellenir. Hangi paketin size oturduğundan emin değilseniz
+        Aşım bedeli üç pakette de aynıdır (₺25); taban fiyat ve dahil cihaz adedi paketten pakete değişir. Paketler asıl olarak <strong>açılan özellikler ve kullanıcı sayısıyla</strong> ayrışır: sayaç/kira faturalaması, tahsilat, Kaçan Gelir paneli, müşteri paneli ve rota Profesyonel ile başlar; SLA, periyodik bakım, teknisyen karnesi ve marka/model güvenilirlik raporları Kurumsal'dadır. Bu yüzden sadece cihaz sayısına bakıp karar vermeyin — <strong>ihtiyacınız olan özelliğin hangi pakette açık olduğuna bakın</strong>. Kaydırıcıyı oynattığınızda kartlar kendi cihaz sayınıza göre güncellenir. Hangi paketin size oturduğundan emin değilseniz
         <a href="https://wa.me/905526961703?text=Merhaba%2C%20cihaz%20sayima%20gore%20hangi%20paket%20uygun%20ogrenmek%20istiyorum" target="_blank" rel="noopener" style="color:#5eead4;border-bottom:1px solid rgba(94,234,212,0.35)">WhatsApp'tan yazın</a>, birlikte seçelim.
       </div>
     </div>

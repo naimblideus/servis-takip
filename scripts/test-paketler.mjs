@@ -6,12 +6,12 @@
 // kartlarda ve satışçının ağzında. Kod ile kart ayrışırsa bayi aldığı pakette
 // olmayan bir özelliğe para öder ya da olan bir özelliği bilmez.
 //
-// Ölçülmüş iki kaza var, ikisi de burada kilitli:
-//   · Başlangıç paketinin fiyatı kiralık cihaz sayısıyla belirleniyordu ama
-//     pakette FATURA YOKTU: bayi kiralık cihazları için ödeyip onların
-//     faturasını kesemiyordu.
-//   · Kurumsal paket her ölçekte Profesyonel'den ₺1.275 pahalıydı ve büyük
-//     müşteri ekranlarının hiçbirini eklemiyordu; hepsi Profesyonel'deydi.
+// Merdiven YEM → HEDEF → ÇAPA ve iki karar burada kilitli:
+//   · Başlangıç BİLEREK faturasız (2026-07-17). Kiralık bayi Profesyonel'den
+//     girer ve satışın kancası Kaçan Gelir'i görür. Başlangıç'a fatura
+//     eklemek denendi ve geri alındı: bayi ₺350 ucuz diye kancayı atlıyordu.
+//   · Kurumsal her ölçekte Profesyonel'den ₺1.275 pahalı; o fark boş
+//     kalmasın diye büyük müşteri ekranları yalnız Kurumsal'da.
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -62,13 +62,15 @@ console.log('\nPaketler\n');
   t('Kurumsal her modülü içeriyor', ALL_MODULE_KEYS.every((k) => e.has(k)));
 }
 
-// ── PARA DÖNGÜSÜ HER PAKETTE ─────────────────────────────────────────────
+// ── BAŞLANGIÇ YEM, PARA DÖNGÜSÜ PROFESYONEL'DE ──────────────────────────
 {
-  for (const p of ['starter', 'professional', 'enterprise']) {
+  const s = kume('starter');
+  t('★ Başlangıç BİLEREK faturasız (yem): kiralık bayi Profesyonel\'den girer', !s.has('INVOICING') && !s.has('TRACKING'));
+  t('★ Başlangıç\'ta kanca (Kaçan Gelir) yok', !s.has('REVENUE_RISK'));
+  t('Başlangıç\'ta bayi pazarı açık (ağ etkisi)', s.has('MARKETPLACE'));
+  for (const p of ['professional', 'enterprise']) {
     const k = kume(p);
-    t(`★ ${p}: fatura + tahsilat açık`, k.has('INVOICING'));
-    t(`${p}: eksik sayaç takibi açık`, k.has('TRACKING'));
-    t(`${p}: bayi pazarı açık (ağ etkisi)`, k.has('MARKETPLACE'));
+    t(`★ ${p}: fatura + tahsilat + eksik sayaç + Kaçan Gelir BİRLİKTE`, ['INVOICING', 'TRACKING', 'REVENUE_RISK'].every((x) => k.has(x)));
   }
   t('fatura ve tahsilat aynı modülde', moduleForHref('/invoices') === 'INVOICING' && moduleForHref('/collections') === 'INVOICING');
   t('sayaç girişi hiçbir pakete bağlı değil (çekirdek)', moduleForHref('/sayac-turu') === null);
@@ -126,7 +128,8 @@ t('modül adı içeriği anlatıyor (Kâr Analizi, Kurumsal Paket)', tr.modul.ad
   };
   const b = kart('baslangic'), p = kart('profesyonel'), k = kart('kurumsal');
   const icerir = (liste, kelime) => liste.some((s) => s.includes(kelime));
-  t('★ Başlangıç kartı sayaç faturasını VAR diye gösteriyor', icerir(b.var, 'Sayaç okuma ve otomatik kira') && !icerir(b.yok, 'Sayaç okuma'), b);
+  t('★ Başlangıç kartı sayaç faturasını YOK diye gösteriyor (kod ile aynı)', icerir(b.yok, 'Sayaç okuma ve otomatik kira') && !icerir(b.var, 'Sayaç okuma'), b);
+  t('★ Profesyonel kartı sayaç faturasını VAR diye gösteriyor', icerir(p.var, 'Sayaç okuma ve otomatik kira'), p);
   t('Başlangıç kartı Kâr analizini YOK diye gösteriyor', icerir(b.yok, 'Kaçan Gelir'));
   t('Profesyonel kartı Kaçan Gelir\'i VAR diye gösteriyor', icerir(p.var, 'Kaçan Gelir'));
   t('★ Profesyonel kartı SLA\'yı YOK diye gösteriyor', icerir(p.yok, 'SLA') && !icerir(p.var, 'SLA'), p);
@@ -135,7 +138,7 @@ t('modül adı içeriği anlatıyor (Kâr Analizi, Kurumsal Paket)', tr.modul.ad
   t('eski "Profesyonel ile başlar: sayaç/kira faturalaması" cümlesi kalmadı', !/sayaç\/kira faturalaması, tahsilat, rota ve Kaçan Gelir paneli Profesyonel ile başlar/.test(html));
 
   const uretilmis = readFileSync(join(KOK, 'src/app/_landing/Landing.tsx'), 'utf8');
-  t('★ üretilmiş sayfa kaynakla güncel (build-landing koşturulmuş)', uretilmis.includes('Tahsilat takibi · eksik sayaç takibi'));
+  t('★ üretilmiş sayfa kaynakla güncel (build-landing koşturulmuş)', uretilmis.includes('Tahsilat takibi · eksik sayaç takibi') && uretilmis.includes('ve rota Profesyonel ile başlar'));
   const ing = readFileSync(join(KOK, 'src/app/_landing/LandingEn.tsx'), 'utf8');
   t('İngilizce sayfa da güncel', ing.includes('missing-reading tracking') && ing.includes('Preventive maintenance'));
 }

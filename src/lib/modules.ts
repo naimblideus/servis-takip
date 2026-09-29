@@ -41,18 +41,18 @@ export const PLAN_MODULES: Record<string, ModuleKey[]> = {
   trial:        ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP', 'SLA'], // denemede her şey görünsün
   // NOT: Bayi Pazarı BİLEREK her planda açık — pazar yeri ancak HERKES içindeyse likidite/ağ etkisi kazanır.
   //
-  // PAKETLER İŞE GÖRE AYRILIR:
-  //   Başlangıç   = para döngüsünün tamamı (sayaç → fatura → tahsilat)
-  //   Profesyonel = + kârı görmek (kaçan gelir, cihaz kârı, filo), müşteri paneli, rota
-  //   Kurumsal    = + büyük müşterinin denetlediği ekranlar, model raporları, mağaza
+  // ── MERDİVEN: YEM → HEDEF → ÇAPA ──────────────────────────────────────
+  // Başlangıç BİLEREK zayıf (2026-07-17 kararı). Kiralık bayinin asıl işi
+  // sayaç faturası; fatura Başlangıç'ta olmadığı için her kiralık bayi
+  // Profesyonel'den girer ve orada KAÇAN GELİR'i görür — ürünün değerini
+  // kanıtlayan ekran. Başlangıç'a fatura eklemek denendi (2026-09-29):
+  // bayi ₺350 ucuz diye Başlangıç'ı seçip kancayı hiç görmüyordu. Geri
+  // alındı. Başlangıç'ın gerçek alıcısı kiralaması olmayan tamirci.
   //
-  // Eskiden Başlangıç'ta fatura YOKTU. Oysa paketin fiyatı kiralık cihaz
-  // sayısıyla belirleniyordu: bayi kiralık cihazları için para ödüyor ama
-  // onların faturasını kesemiyordu. Kurumsal'ın Profesyonel'den farkı da
-  // yalnız raporlar ve mağazaydı; büyük müşteri özelliklerinin hepsi
-  // Profesyonel'deydi ve Kurumsal her ölçekte ₺1.275 fazlaya hiçbir büyük
-  // müşteri ekranı eklemiyordu.
-  starter:      ['INVOICING', 'TRACKING', 'MARKETPLACE'],
+  // Kurumsal = çapa. Farkı (her ölçekte +₺1.275) boş kalmasın diye büyük
+  // müşterinin denetlediği ekranlar yalnız burada: SLA, periyodik bakım,
+  // teknisyen karnesi, kurumsal gruplar (SLA anahtarı) + model raporları.
+  starter:      ['MARKETPLACE'],
   // Kaçan Gelir BİLEREK Profesyonel'de: satışın ana kancası o panel; denemede
   // görüp Pro alan bayi onu kaybederse güven kazası olur.
   professional: ['INVOICING', 'TRACKING', 'MARKETPLACE', 'ROUTE', 'REVENUE_RISK', 'PORTAL'],
