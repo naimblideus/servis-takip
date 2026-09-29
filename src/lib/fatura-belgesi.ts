@@ -199,6 +199,12 @@ export type EBelge = {
     vergiDairesi: string;
     adres: string; il: string; ilce: string;
     eposta: string;
+    /**
+     * GİB alıcı etiketi (urn:mail:...pk@...). UBL'in içinde YOK; e-Fatura
+     * zarfının adresi. Entegratör sistem üzerinden gönderirken bunu ister,
+     * elden gönderimde kullanılmaz. Boş olabilir (e-Arşiv, sorgulanmamış).
+     */
+    etiket: string;
   };
   satirlar: {
     sira: number; aciklama: string; miktar: number; birim: 'C62';
@@ -299,6 +305,7 @@ export function eBelgeUret(args: {
       il: (alici.city ?? '').trim(),
       ilce: (alici.district ?? '').trim(),
       eposta: (alici.email ?? '').trim(),
+      etiket: (alici.eInvoiceAlias ?? '').trim(),
     },
     satirlar: satirlar.map((s, i) => {
       const oran = s.kdvOrani === null || s.kdvOrani === undefined ? genelOran : Number(s.kdvOrani);

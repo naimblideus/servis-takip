@@ -3,7 +3,7 @@ import {
   eBelgeUret, belgeEksikleri, ettnUret, gibNumarasiUret, saticiEksikleri,
   type BelgeSaticisi, type BelgeDurumu, type BelgeEksigi,
 } from '@/lib/fatura-belgesi';
-import { entegratorBul } from '@/lib/entegrator';
+import { entegratorBul, type Entegrator } from '@/lib/entegrator';
 import { sirCoz } from '@/lib/sir';
 import { ublUret, ublDosyaAdi } from '@/lib/ubl';
 
@@ -49,8 +49,19 @@ const SATICI_ALANLARI = {
 
 const ALICI_ALANLARI = {
   name: true, legalName: true, taxNo: true, taxOffice: true,
-  address: true, city: true, district: true, email: true, eInvoiceUser: true,
+  address: true, city: true, district: true, email: true, eInvoiceUser: true, eInvoiceAlias: true,
 } as const;
+
+/**
+ * Sağlayıcının istediği kimlik bilgisi eksik mi?
+ * API anahtarıyla çalışan sağlayıcı (Nilvera) kullanıcı adı istemez;
+ * anahtar parola alanında aynı şifrelemeyle saklanır.
+ */
+function kimlikEksik(e: Entegrator, kullanici: string | null, parola: string | null): boolean {
+  if (!e.kimlikGerekir) return false;
+  if (parola === null) return true;
+  return e.kimlikTuru !== 'API_ANAHTARI' && !kullanici;
+}
 
 function saticiyaCevir(t: any): BelgeSaticisi {
   return { ...t, eFaturaEtiket: t.eFaturaEtiket || t.eFaturaOnEk };
@@ -80,7 +91,7 @@ export async function eBelgeGonder(tenantId: string, invoiceId: string): Promise
     };
   }
   const parola = sirCoz(tenant.eFaturaParola);
-  if (entegrator.kimlikGerekir && (!tenant.eFaturaKullanici || parola === null)) {
+  if (kimlikEksik(entegrator, tenant.eFaturaKullanici, parola)) {
     return {
       ok: false, durum: null, gibNo: null, ettn: null,
       hata: 'Sağlayıcı kullanıcı adı/parolası okunamadı. Ayarlar → e-Fatura\'dan yeniden girin.',
@@ -254,7 +265,7 @@ export async function eBelgeDurumGuncelle(tenantId: string, invoiceId: string): 
 
   const f = await prisma.customerInvoice.findFirst({
     where: { id: invoiceId, tenantId, deletedAt: null },
-    select: { ettn: true, gibNo: true, eBelgeDurum: true },
+    select: { ettn: true, gibNo: true, eBelgeDurum: true, senaryo: true },
   });
   if (!f) return { ok: false, durum: null, gibNo: null, ettn: null, hata: 'Fatura bulunamadı' };
   if (!f.ettn || f.eBelgeDurum !== 'GONDERILDI') {
@@ -268,15 +279,16 @@ export async function eBelgeDurumGuncelle(tenantId: string, invoiceId: string): 
   const parola = sirCoz(tenant.eFaturaParola);
   // Kimlik yalnız GEREKİYORSA aranıyor: elden gönderimde hiçbir servise
   // bağlanılmıyor ve olmayan bir hesabın bilgisi istenemez.
-  if (!entegrator || (entegrator.kimlikGerekir && (!tenant.eFaturaKullanici || parola === null))) {
+  if (!entegrator || kimlikEksik(entegrator, tenant.eFaturaKullanici, parola)) {
     return { ok: false, durum: f.eBelgeDurum as BelgeDurumu, gibNo: f.gibNo, ettn: f.ettn, hata: 'Sağlayıcı ayarları eksik' };
   }
 
   let cevap;
   try {
+    // Senaryo geçiliyor: e-Fatura ile e-Arşiv'in durumu farklı uçlardan sorulur.
     cevap = await entegrator.durumSor(f.ettn, {
       kullanici: tenant.eFaturaKullanici ?? '', parola: parola ?? '', test: tenant.eFaturaTestModu,
-    });
+    }, f.senaryo === 'TEMELFATURA' || f.senaryo === 'EARSIVFATURA' ? f.senaryo : null);
   } catch (e) {
     return { ok: false, durum: 'GONDERILDI', gibNo: f.gibNo, ettn: f.ettn, hata: e instanceof Error ? e.message : String(e) };
   }

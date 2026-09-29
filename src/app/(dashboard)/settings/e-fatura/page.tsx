@@ -23,6 +23,7 @@ import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 const saglayiciAdi = (t: Sozluk): Record<string, string> => ({
   ELDEN: t.eFatura.saglayiciElden,
   TEST: t.eFatura.saglayiciTest,
+  NILVERA: t.eFatura.saglayiciNilvera,
 });
 
 export default function EFaturaAyarPage() {
@@ -94,22 +95,30 @@ export default function EFaturaAyarPage() {
           <div style={{ fontSize: '0.73rem', color: '#6b7280', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
             <div><b>{t.eFatura.eldenVurgu}</b> {t.eFatura.eldenSon}</div>
             <div style={{ marginTop: '0.2rem' }}><b>{t.eFatura.testVurgu}</b> {t.eFatura.testSon}</div>
+            <div style={{ marginTop: '0.2rem' }}><b>{t.eFatura.nilveraVurgu}</b> {t.eFatura.nilveraSon}</div>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))', gap: '0.7rem', marginBottom: '0.9rem' }}>
+          {/* API anahtarıyla çalışan sağlayıcıda kullanıcı adı yok: boş bir
+              alan "bir şeyi eksik girdim" diye düşündürür. */}
+          {f.saglayici !== 'NILVERA' && (
           <div>
             <label style={lbl}>{t.eFatura.kullaniciAdi}</label>
             <input style={inp} value={f.kullanici} onChange={(e) => setF({ ...f, kullanici: e.target.value })} />
           </div>
+          )}
           <div>
-            <label style={lbl}>{t.eFatura.parola}</label>
+            <label style={lbl}>{f.saglayici === 'NILVERA' ? t.eFatura.apiAnahtari : t.eFatura.parola}</label>
             <input type="password" style={inp} value={f.parola}
               placeholder={d.parolaMaske || t.eFatura.parolaGirilmemis}
               onChange={(e) => setF({ ...f, parola: e.target.value })} />
             <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '0.25rem 0 0' }}>
               {d.parolaOkunamiyor ? t.eFatura.parolaOkunamiyorKisa : t.eFatura.parolaKorunur}
             </p>
+            {f.saglayici === 'NILVERA' && (
+              <p style={{ fontSize: '0.72rem', color: '#6b7280', margin: '0.25rem 0 0' }}>{t.eFatura.apiAnahtariIpucu}</p>
+            )}
           </div>
         </div>
 

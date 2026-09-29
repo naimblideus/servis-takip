@@ -26,6 +26,8 @@ export type FaturaMusterisi = {
   district?: string | null;
   email?: string | null;
   eInvoiceUser?: boolean | null;
+  /** GİB alıcı etiketi (posta kutusu). e-Faturanın ZARFI buna gider. */
+  eInvoiceAlias?: string | null;
 };
 
 export type VergiKimligi = 'VKN' | 'TCKN' | null;
