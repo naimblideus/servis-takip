@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { icerir } from '@/lib/tr-katla';
 import { useSession } from 'next-auth/react';
 import { openWhatsApp, paymentMessage } from '@/lib/share';
 import { openPrintable } from '@/lib/print';
@@ -77,12 +79,20 @@ export default function CollectionsPage() {
     setSaving(false);
   };
 
-  const filtered = customers.filter((c) => c.name.toLowerCase().includes(custSearch.toLowerCase()) || c.phone.includes(custSearch)).slice(0, 8);
+  // Türkçe katlanarak: düz toLowerCase "ADLİYE"yi "adliye" aramasıyla bulamıyordu.
+  const filtered = customers.filter((c) => icerir(c.name, custSearch) || c.phone.includes(custSearch)).slice(0, 8);
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">{t.tahsilat.baslik}</h1>
-      <p className="text-sm text-gray-500 mb-6">{t.tahsilat.alt}</p>
+      <p className="text-sm text-gray-500 mb-4">{t.tahsilat.alt}</p>
+      <Link href="/collections/banka" className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 hover:bg-blue-100">
+        <span>
+          <b className="block text-sm text-blue-900">{t.tahsilat.bankaLink}</b>
+          <span className="block text-xs text-blue-800">{t.tahsilat.bankaLinkAlt}</span>
+        </span>
+        <span aria-hidden className="text-lg text-blue-800">&rarr;</span>
+      </Link>
 
       <div className="bg-white rounded-xl border p-5 space-y-4">
         {/* Müşteri seçimi */}

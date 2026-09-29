@@ -403,22 +403,46 @@ export async function createInvoiceForTicket(ticketId: string) {
  * Mevcut bir Payment kaydı verilebilir (paymentId), yoksa yeni oluşturulur.
  * Artan tutar (avans) unallocated olarak döner — sonraki faturaya mahsup edilebilir.
  */
-export async function allocatePayment(params: {
+/** Müşteri satırını işlem sonuna kadar kilitler (SELECT … FOR UPDATE). */
+export async function musteriyiKilitle(tx: Tx, tenantId: string, customerId: string) {
+  await tx.$queryRaw`SELECT "id" FROM "Customer" WHERE "id" = ${customerId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+}
+
+type TahsilatGirdisi = {
   tenantId: string;
   customerId: string;
   amount: number;
   method?: string;
   referenceNo?: string | null;
+  notes?: string | null;
   date?: Date;
   paymentId?: string;
   ticketId?: string | null;
-}) {
+};
+
+export async function allocatePayment(params: TahsilatGirdisi) {
+  return prisma.$transaction((tx) => allocatePaymentTx(tx, params));
+}
+
+/**
+ * Aynı mahsup, çağıranın işleminin İÇİNDE. Banka ekstresinden tahsilat
+ * satırı kendi kaydını, faturaya giden kısmı ve servis carisine giden kısmı
+ * tek işlemde yazmak zorunda: biri yazılıp diğeri yazılmazsa para ya kaybolur
+ * ya ikiye katlanır. Tek yazma yolu korunuyor — mantık burada, bir kez.
+ */
+export async function allocatePaymentTx(tx: Tx, params: TahsilatGirdisi) {
   const { tenantId, customerId } = params;
   const amount = round2(params.amount);
 
   const pmethod = PaymentMethod[(params.method ?? '') as keyof typeof PaymentMethod] ?? PaymentMethod.TRANSFER;
 
-  return prisma.$transaction(async (tx) => {
+  // MÜŞTERİ KİLİDİ: aynı müşteriye iki tahsilat aynı anda girerse ikisi de
+  // faturanın ESKİ ödenen tutarını okuyup üstüne yazıyordu — biri kayboluyor,
+  // fatura ödendiği hâlde açık görünüyordu. Kilit işlem bitene kadar ikinciyi
+  // bekletir. Aynı işlemde ikinci kez almak serbesttir.
+  await musteriyiKilitle(tx, tenantId, customerId);
+
+  {
     // IDEMPOTENCY: verilen paymentId zaten dağıtıldıysa (invoicePayment var) TEKRAR dağıtma → çift INCOME/kredi engeli.
     if (params.paymentId) {
       const already = await tx.invoicePayment.count({ where: { tenantId, paymentId: params.paymentId } });
@@ -435,6 +459,7 @@ export async function allocatePayment(params: {
           method: pmethod,
           paymentDate: params.date ?? new Date(),
           referenceNo: params.referenceNo ?? null,
+          notes: params.notes ?? null,
         },
       });
       paymentId = p.id;
@@ -505,7 +530,7 @@ export async function allocatePayment(params: {
     });
 
     return { paymentId, allocations, allocated: round2(amount - remaining), unallocated: round2(remaining) };
-  });
+  }
 }
 
 /** Vadesi geçen OPEN/PARTIAL faturaları OVERDUE'ya çevirir (cron). Etkilenen sayıyı döner. */

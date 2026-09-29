@@ -709,7 +709,7 @@ const BODY = `
           <div class="pd-feature">
             <div class="pd-feature-icon">🧾</div>
             <h3>Accounting, ledger and payments</h3>
-            <p>Ledger accounts, payment tracking, bulk price rises, bulk debt reminders (SMS/WhatsApp — the provider account is separate) and a bulk summary that fits 100 tickets on one page.</p>
+            <p>Ledger accounts, payment tracking, bulk payments from your bank’s account activity file (transfers are matched to customers, you approve), bulk price rises, bulk debt reminders (SMS/WhatsApp — the provider account is separate) and a bulk summary that fits 100 tickets on one page.</p>
           </div>
           <div class="pd-feature">
             <div class="pd-feature-icon">💬</div>

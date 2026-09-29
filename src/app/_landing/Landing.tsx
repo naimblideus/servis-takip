@@ -709,7 +709,7 @@ const BODY = `
           <div class="pd-feature">
             <div class="pd-feature-icon">🧾</div>
             <h3>Muhasebe, cari ve tahsilat</h3>
-            <p>Cari hesap, tahsilat takibi, toplu zam, toplu borç hatırlatma (SMS/WhatsApp — sağlayıcı hesabı ayrıca) ve 100 fişi tek sayfaya sığdıran toplu icmal yazdırma.</p>
+            <p>Cari hesap, tahsilat takibi, bankanın hesap hareketleri dosyasından toplu tahsilat (havaleler müşterilere eşleşir, siz onaylarsınız), toplu zam, toplu borç hatırlatma (SMS/WhatsApp — sağlayıcı hesabı ayrıca) ve 100 fişi tek sayfaya sığdıran toplu icmal yazdırma.</p>
           </div>
           <div class="pd-feature">
             <div class="pd-feature-icon">💬</div>

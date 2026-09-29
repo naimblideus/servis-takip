@@ -45,7 +45,7 @@ export type EkSonucu = {
 };
 
 /** ZIP merkez dizininden dosyaları çıkarır. Bozuk ZIP'te boş döner. */
-function zipAc(buf: Buffer): { ad: string; icerik: Buffer }[] {
+export function zipAc(buf: Buffer): { ad: string; icerik: Buffer }[] {
   const cikan: { ad: string; icerik: Buffer }[] = [];
 
   // End of Central Directory: PK\x05\x06. Sondan geriye aranır (yorum olabilir).

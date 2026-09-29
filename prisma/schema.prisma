@@ -176,6 +176,7 @@ model Tenant {
   statusHistory       TicketStatusHistory[]
   customerGroups      CustomerGroup[]
   sayacTaramalari     SayacTaramasi[]
+  bankaHareketleri    BankaHareketi[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -542,6 +543,34 @@ model SayacTaramasi {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, createdAt])
+}
+
+// BANKA EKSTRESİNDEN İŞLENEN HER SATIR.
+// Bayi bankasının hesap hareketleri dosyasını yükler; gelen havale müşteriye
+// eşlenip onaylanınca buraya yazılır, sonra para havuzlara dağıtılır.
+// (tenantId, iz) TEKİL: aynı dosya iki kez yüklense, iki sekmeden aynı anda
+// onaylansa bile aynı banka satırı ikinci kez tahsilat olamaz. Bunu kod
+// değil veritabanı tutuyor.
+model BankaHareketi {
+  id         String   @id @default(cuid())
+  tenantId   String
+  iz         String   // satırın özeti (tarih|tutar|açıklama|gönderen|referans|sıra) — SHA-256
+  tarih      DateTime // bankadaki işlem tarihi
+  tutar      Decimal  @db.Decimal(12, 2)
+  aciklama   String?
+  customerId String?  // müşteri sonradan silinse de kayıt kalır
+  musteriAd  String?
+  paymentId  String?  // faturaya + avansa giden kısım bu tahsilatta
+  faturaya   Decimal  @default(0) @db.Decimal(12, 2)
+  servise    Decimal  @default(0) @db.Decimal(12, 2)
+  avans      Decimal  @default(0) @db.Decimal(12, 2)
+  isleyen    String?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, iz])
   @@index([tenantId, createdAt])
 }
 
