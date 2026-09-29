@@ -26,8 +26,18 @@ export default async function TicketsPage({
   const where: any = { tenantId: user.tenantId, deletedAt: null };
   if (sp.status) where.status = sp.status;
   if (sp.priority) where.priority = sp.priority;
-  if (sp.assignedUserId) {
-    where.assignedUserId = sp.assignedUserId === 'unassigned' ? null : sp.assignedUserId;
+  // TEKNİSYEN AÇILIŞTA KENDİ İŞLERİNİ GÖRÜR.
+  // Süzgeç seçilmemişse teknisyene yalnız ona atanmış fişler gelir; menüde
+  // bu ekranın adı "İşlerim". Eskiden teknisyen bayinin bütün fişlerini
+  // görüyor, kendi işini süzgeçten elle seçiyordu. Herkesin işini görmek
+  // isteyen "Tümü"nü seçer; seçim adreste `all` olarak durur, çünkü boş
+  // değer varsayılana, yani yine kendi işlerine döner.
+  const teknisyen = user.role === 'TECHNICIAN';
+  const atanan = sp.assignedUserId ?? (teknisyen ? user.id : undefined);
+  const atananSuzgeci = Boolean(atanan) && atanan !== 'all';
+  const kendiIsleri = teknisyen && atanan === user.id;
+  if (atanan && atananSuzgeci) {
+    where.assignedUserId = atanan === 'unassigned' ? null : atanan;
   }
 
   // Tarih aralığı filtresi (UTC olarak ayarla - timezone sorununu önle)
@@ -94,13 +104,13 @@ export default async function TicketsPage({
   const ready = allCounts.find(c => c.status === 'READY')?._count || 0;
   const total = allCounts.reduce((s, c) => s + c._count, 0);
 
-  const hasFilter = !!(sp.status || sp.priority || sp.assignedUserId || sp.dateFrom || sp.dateTo || sp.customer);
+  const hasFilter = !!(sp.status || sp.priority || atananSuzgeci || sp.dateFrom || sp.dateTo || sp.customer);
 
   // Mevcut filtreleri toplu-yazdır sayfasına aynen taşı
   const printParams = new URLSearchParams();
   if (sp.status) printParams.set('status', sp.status);
   if (sp.priority) printParams.set('priority', sp.priority);
-  if (sp.assignedUserId) printParams.set('assignedUserId', sp.assignedUserId);
+  if (atanan && atananSuzgeci) printParams.set('assignedUserId', atanan);
   if (sp.dateFrom) printParams.set('dateFrom', sp.dateFrom);
   if (sp.dateTo) printParams.set('dateTo', sp.dateTo);
   if (sp.customer) printParams.set('customer', sp.customer);
@@ -110,9 +120,11 @@ export default async function TicketsPage({
     <div style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{sz.fisler.baslik}</h1>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{kendiIsleri ? sz.menuAile.islerim : sz.fisler.baslik}</h1>
           <p style={{ color: '#6b7280' }}>
-            {hasFilter ? doldur(sz.fisler.filtreli, { n: tickets.length }) : doldur(sz.fisler.toplam, { n: total })}
+            {kendiIsleri
+              ? doldur(sz.fisler.sanaAtanan, { n: tickets.length })
+              : hasFilter ? doldur(sz.fisler.filtreli, { n: tickets.length }) : doldur(sz.fisler.toplam, { n: total })}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -159,7 +171,8 @@ export default async function TicketsPage({
       <TicketFilters
         currentStatus={sp.status}
         currentPriority={sp.priority}
-        currentAssigned={sp.assignedUserId}
+        currentAssigned={atanan}
+        varsayilanAtanan={teknisyen ? user.id : undefined}
         currentDateFrom={sp.dateFrom}
         currentDateTo={sp.dateTo}
         currentCustomer={sp.customer}
@@ -174,7 +187,7 @@ export default async function TicketsPage({
         ready={ready}
         /* Boş tabloda ne yazacağını belirler: filtre sonucu boş olmakla
            bayinin hiç fişi olmaması aynı şey değil. */
-        filtreliMi={Boolean(sp.status || sp.priority || sp.assignedUserId || sp.dateFrom || sp.dateTo || sp.customer)}
+        filtreliMi={hasFilter}
       />
     </div>
   );

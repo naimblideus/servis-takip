@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { mapsUrl } from '@/lib/share';
 import ContactActions from '@/components/ContactActions';
@@ -10,22 +11,33 @@ import { doldur } from '@/lib/i18n/sozluk';
 // Aktif durum listesi artık SUNUCUDA (api/tickets · AKTIF_DURUMLAR).
 // İki yerde durursa sessizce ayrışır: biri güncellenir, öteki eski listeyle
 // süzmeye devam eder ve rota yanlış fiş gösterir.
-const ST: Record<string, { label: string; bg: string; color: string }> = {
-  NEW: { label: 'Yeni', bg: '#fef3c7', color: '#92400e' },
-  IN_SERVICE: { label: 'Serviste', bg: '#dbeafe', color: '#1e40af' },
-  WAITING_FOR_PART: { label: 'Parça Bkl.', bg: '#fce7f3', color: '#9d174d' },
-  READY: { label: 'Hazır', bg: '#d1fae5', color: '#065f46' },
+// Etiketler sözlükte (durum.fisKisa); burada yalnız renk. Eskiden etiket de
+// buradaydı ve İngilizce panelde "Serviste" yazıyordu.
+const ST: Record<string, { bg: string; color: string }> = {
+  NEW: { bg: '#fef3c7', color: '#92400e' },
+  IN_SERVICE: { bg: '#dbeafe', color: '#1e40af' },
+  WAITING_FOR_PART: { bg: '#fce7f3', color: '#9d174d' },
+  READY: { bg: '#d1fae5', color: '#065f46' },
 };
 
 interface Customer { id: string; name: string; phone: string; address: string | null }
 interface ActiveT { id: string; ticketNumber: string; status: string }
+interface RotaFisi extends ActiveT { musteriId: string; atananId: string | null; atananAd: string | null }
 
 const LS_KEY = 'rota_selected_v1';
 
 export default function RotaPage() {
   const t = useT();
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [activeByCust, setActiveByCust] = useState<Record<string, ActiveT[]>>({});
+  const [fisler, setFisler] = useState<RotaFisi[]>([]);
+  // KİMİN ROTASI. '' = herkes, 'unassigned' = atanmamış, yoksa kullanıcı.
+  // Eskiden rota bayinin bütün aktif fişlerini tek listede topluyordu; iki
+  // teknisyenli bayide ikisi de aynı durakları görüyordu. Teknisyen açılışta
+  // kendi duraklarını görür, yönetici süzgeçten istediği kişiyi seçer.
+  const [kimin, setKimin] = useState('');
+  const kiminAyarlandi = useRef(false);
+  const { data: session } = useSession();
+  const ben = session?.user as { id?: string; role?: string; name?: string | null } | undefined;
   const [selected, setSelected] = useState<string[]>([]); // sıralı müşteri id listesi
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -40,16 +52,41 @@ export default function RotaPage() {
       fetch('/api/tickets?durum=aktif&sade=1').then((r) => r.json()).catch(() => []),
     ]).then(([cs, ts]) => {
       setCustomers(Array.isArray(cs) ? cs : []);
-      const map: Record<string, ActiveT[]> = {};
-      (Array.isArray(ts) ? ts : []).forEach((t: any) => {
-        const cid = t.device?.customer?.id;
-        if (!cid) return;
-        (map[cid] ||= []).push({ id: t.id, ticketNumber: t.ticketNumber, status: t.status });
-      });
-      setActiveByCust(map);
+      setFisler((Array.isArray(ts) ? ts : []).flatMap((f: any): RotaFisi[] => {
+        const cid = f.device?.customer?.id;
+        return cid ? [{ id: f.id, ticketNumber: f.ticketNumber, status: f.status, musteriId: cid, atananId: f.assignedUser?.id ?? null, atananAd: f.assignedUser?.name ?? null }] : [];
+      }));
       setLoading(false);
     });
   }, []);
+
+  // Teknisyen açılışta kendi duraklarını görür. Bir kez: sonra süzgeci
+  // değiştirirse oturum yenilenince seçimi ezilmesin.
+  useEffect(() => {
+    if (kiminAyarlandi.current || !ben?.role) return;
+    kiminAyarlandi.current = true;
+    if (ben.role === 'TECHNICIAN' && ben.id) setKimin(ben.id);
+  }, [ben?.role, ben?.id]);
+
+  const activeByCust = useMemo(() => {
+    const map: Record<string, ActiveT[]> = {};
+    for (const f of fisler) {
+      if (kimin === 'unassigned' ? f.atananId !== null : kimin !== '' && f.atananId !== kimin) continue;
+      (map[f.musteriId] ||= []).push({ id: f.id, ticketNumber: f.ticketNumber, status: f.status });
+    }
+    return map;
+  }, [fisler, kimin]);
+
+  // Süzgeç seçenekleri: aktif işi olan kişiler. Seçili kişinin hiç işi
+  // yoksa (teknisyenin boş günü) listede yine görünsün; yoksa kutu
+  // seçili değeri gösteremez ve "Herkes" seçiliymiş gibi durur.
+  const secenekler = useMemo(() => {
+    const s = new Map<string, string>();
+    for (const f of fisler) if (f.atananId && f.atananAd) s.set(f.atananId, f.atananAd);
+    if (kimin && kimin !== 'unassigned' && !s.has(kimin)) s.set(kimin, kimin === ben?.id ? (ben?.name || '—') : '—');
+    return [...s.entries()].sort((a, b) => a[1].localeCompare(b[1], 'tr'));
+  }, [fisler, kimin, ben?.id, ben?.name]);
+  const atanmamisVar = fisler.some((f) => !f.atananId);
 
   // Kayıtlı rota seçimini geri yükle (sayfa değişse de kaybolmasın)
   useEffect(() => {
@@ -137,6 +174,19 @@ export default function RotaPage() {
         )}
       </div>
 
+      {/* Kimin rotası */}
+      {(secenekler.length > 0 || atanmamisVar) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 0.75rem', flexWrap: 'wrap' }}>
+          <label htmlFor="rota-kimin" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>{t.rota.kimin}</label>
+          <select id="rota-kimin" value={kimin} onChange={(e) => setKimin(e.target.value)}
+            style={{ padding: '0.45rem 0.7rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.85rem', background: 'white' }}>
+            <option value="">{t.rota.herkes}</option>
+            {atanmamisVar && <option value="unassigned">{t.fisler.filtre.atanmamis}</option>}
+            {secenekler.map(([id, ad]) => <option key={id} value={id}>{ad}</option>)}
+          </select>
+        </div>
+      )}
+
       {/* Aktif fişli müşteriler — hızlı ekle */}
       {activeCustomers.length > 0 && (
         <div style={{ background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '0.75rem 1rem', marginBottom: '0.75rem' }}>
@@ -155,8 +205,8 @@ export default function RotaPage() {
 
       {/* Rota durakları */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
-        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Rotam ({route.length} durak{withAddr.length < route.length ? `, ${route.length - withAddr.length} adressiz` : ''})</span>
-        {route.length > 0 && <button onClick={clearRoute} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Temizle</button>}
+        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{doldur(t.rota.rotam, { n: route.length })}{withAddr.length < route.length ? doldur(t.rota.adressizEk, { n: route.length - withAddr.length }) : ''}</span>
+        {route.length > 0 && <button onClick={clearRoute} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>{t.rota.temizle}</button>}
       </div>
 
       {loading ? (
@@ -180,11 +230,12 @@ export default function RotaPage() {
                     </div>
                     {ts.length > 0 && (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                        {ts.map((t) => {
-                          const st = ST[t.status] || { label: t.status, bg: '#f3f4f6', color: '#374151' };
+                        {ts.map((f) => {
+                          const st = ST[f.status] || { bg: '#f3f4f6', color: '#374151' };
+                          const etiket = (t.durum.fisKisa as Record<string, string>)[f.status] ?? f.status;
                           return (
-                            <Link key={t.id} href={`/tickets/${t.id}`} style={{ fontSize: '0.72rem', fontWeight: 700, background: st.bg, color: st.color, padding: '0.15rem 0.55rem', borderRadius: 9999, textDecoration: 'none' }}>
-                              {t.ticketNumber} · {st.label}
+                            <Link key={f.id} href={`/tickets/${f.id}`} style={{ fontSize: '0.72rem', fontWeight: 700, background: st.bg, color: st.color, padding: '0.15rem 0.55rem', borderRadius: 9999, textDecoration: 'none' }}>
+                              {f.ticketNumber} · {etiket}
                             </Link>
                           );
                         })}

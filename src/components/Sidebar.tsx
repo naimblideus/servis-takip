@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import GlobalSearch from '@/components/GlobalSearch';
-import { moduleForHref } from '@/lib/modules';
+import { menuKur, aileBul, aileRozeti, type MenuAilesi } from '@/lib/menu-aileleri';
 import { useRozetler } from '@/lib/use-rozetler';
 import { useT, useDil } from '@/lib/i18n/client';
 import DilSecici from '@/components/DilSecici';
@@ -409,65 +409,22 @@ const menuItems = [
   },
 ];
 
-const ADMIN_ONLY_ITEMS = ['/users', '/settings', '/accounting', '/kdv', '/sozlesmeler', '/teklifler', '/invoices', '/e-fatura', '/collections', '/kacan-gelir', '/satis', '/import'];
-const SUPER_ADMIN_ONLY = ['/admin'];
-
-// Menü gösterim sırası (en çok kullanılan günlük işler üstte). Önceliği değiştirmek için
-// sadece bu listenin sırasını düzenle — listede olmayanlar otomatik en alta düşer.
-const MENU_ORDER = [
-  '/dashboard',
-  '/tickets',      // Servis Fişleri — işin kalbi
-  '/customers',
-  '/whatsapp',     // WhatsApp'tan gelenler — müşteri oradan yazıyor, üstte dursun
-  '/devices',
-  '/sayac-turu',   // Sayaç Turu — müşteri bazlı toplu sayaç girişi (sahanın can damarı)
-  '/sayac-eposta', // Cihazdan gelen sayaç e-postaları — elle işlenmesi gerekenler
-  '/musteri-portali',      // Müşteri Paneli — erişimi açmak ve bağlantıyı göndermek
-  '/musteri-bildirimleri', // Müşteri panelinden gelen arıza/sayaç bildirimleri
-  '/market',       // Bayi Pazarı (B2B ağ)
-  '/magaza',       // Nextus Mağaza — bayinin kendi e-ticaret vitrini
-  '/inventory',    // Stok — üstte
-  '/satis',        // Barkodla Satış
-  '/etiket',       // Zebra Etiket — üstte
-  '/accounting',   // Muhasebe — üstte
-  '/collections',  // Tahsilat
-  '/kdv',          // KDV Özeti — Muhasebe'nin hemen yanında
-  '/sozlesmeler',  // Sözleşmeler — kira fiyatının kaynağı, Faturalar'dan önce
-  '/teklifler',    // Teklifler — yeni müşteri fiyatı, Sözleşmeler'in yanında
-  '/invoices',     // Faturalar
-  '/e-fatura',     // e-Fatura Hazırlığı — Faturalar'ın hemen yanında
-  '/rota',
-  '/takip',
-  '/toner-verimi', // Toner Verimi — Sarf Takibi'nin ön koşulu
-  '/sarf',         // Sarf Takibi
-  '/kacan-gelir',
-  '/reports',
-  '/yardim',       // Nasıl Kullanılır?
-  '/users',
-  '/settings',
-  '/import',
-  '/admin',
-];
-const orderOf = (href: string) => { const i = MENU_ORDER.indexOf(href); return i === -1 ? 999 : i; };
-
-// TÜRKİYE'YE ÖZGÜ modüller: GİB e-Fatura ve KDV özeti. Avrupalı bayide bu
-// ekranlar anlamsız (orada Peppol/XRechnung var, GİB yok). Ülkeye göre
-// gizleniyor; Türk bayi hiçbir şey kaybetmiyor.
-const TR_OZEL = ['/e-fatura', '/kdv'];
-
-// Az kullanılan / ileri özellikler — tek "Gelişmiş" başlığı altında toplanır (menü kalabalığını azaltır).
-// Az kullanılan / kurulum işleri — tek "Gelişmiş" başlığı altında toplanır.
-// /etiket ve /satis buraya taşındı: etiket cihaz-parça kurulumunda BİR KEZ
-// basılır, Barkodla Satış ise tezgahtan parça satmayan bayide hiç açılmaz.
-// Sayaç Turu BİLEREK yukarıda kaldı — para döngüsünün merkezi; gizlenen iş
-// yapılmaz, yapılmayan sayaç faturalanmaz.
-const ADVANCED_SABIT = ['/rota', '/market', '/magaza', '/invoices', '/e-fatura', '/takip', '/sarf', '/kacan-gelir', '/reports', '/yardim', '/users', '/settings', '/import', '/toplu-zam', '/toplu-ayar', '/cihaz-karlilik', '/etiket', '/satis'];
+// Menünün YAPISI (aileler, bölümler, kim neyi görür) src/lib/menu-aileleri.ts'te.
+// Burada yalnız çizim var: ikon, etiket, rozet. Sayfa üstündeki sekme çubuğu
+// da aynı kaynaktan beslendiği için menüde gizli bir ekran sekmede görünemez.
+//
+// "Gelişmiş" klasörü kaldırıldı. İçinde Faturalar ve Kaçan Gelir vardı ve
+// varsayılan KAPALIYDI: ayın en önemli ekranı ile satışın ana kancası
+// tıklanmadan görünmüyordu. Artık menü 40 öğe değil, başlıklar altında
+// ~18 aile; kalabalığı gizleyerek değil birleştirerek azaltıyoruz.
+const IKON: Record<string, ReactNode> = Object.fromEntries(menuItems.map((m) => [m.href, m.icon]));
+const KOD_ETIKETI: Record<string, string> = Object.fromEntries(menuItems.map((m) => [m.href, m.label]));
 
 export interface MenuDurum {
   whatsappKurulu: boolean;
-  sayacEpostaKullaniliyor: boolean;
-  portalKullaniliyor: boolean;
 }
+
+const ROZET_STILI = { marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' } as const;
 
 export default function Sidebar({ modules = [], durum }: { modules?: string[]; durum?: MenuDurum }) {
   const pathname = usePathname();
@@ -475,62 +432,26 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
   const role = (session?.user as any)?.role || '';
   const t = useT();
   const { ulke } = useDil();
-  // Menü etiketi sözlükten; sözlükte yoksa koddaki Türkçe kalır (yeni
-  // eklenen bir sayfa çevirisiz de olsa menüden düşmesin).
-  const etiket = (item: { href: string; label: string }) =>
-    (t.menu as Record<string, string>)[item.href] ?? item.label;
+  // Bekleyen iş rozetleri. Paylaşılan hook: kaç bileşen kullanırsa kullansın TEK yoklama.
+  const rozet = useRozetler();
 
-  const whatsappKurulu = durum?.whatsappKurulu ?? true;
-  const sayacEpostaKullaniliyor = durum?.sayacEpostaKullaniliyor ?? true;
-  const portalKullaniliyor = durum?.portalKullaniliyor ?? true;
+  const bolumler = menuKur({ rol: role, ulke, moduller: modules, whatsappKurulu: durum?.whatsappKurulu ?? true });
+  const aktifAile = aileBul(pathname);
+  // Teknisyenin menüsü kısa (işlerim, rota, sayaç, cihaz, stok); beş başlık
+  // yedi öğeyi bölmek kalabalık ekler. Başlıksız düz liste.
+  const teknisyen = role === 'TECHNICIAN';
 
-  const visibleMenuItems = menuItems.filter(item => {
-    if (SUPER_ADMIN_ONLY.includes(item.href) && role !== 'SUPER_ADMIN') return false;
-    if (TR_OZEL.includes(item.href) && ulke !== 'TR') return false;
-    if (ADMIN_ONLY_ITEMS.includes(item.href) && role !== 'ADMIN' && role !== 'SUPER_ADMIN') return false;
-    // Modül kapısı: eklenti modüle ait link, bayide kapalıysa gizle (CORE → her zaman görünür)
-    const mod = moduleForHref(item.href);
-    if (mod && !modules.includes(mod)) return false;
-    // WhatsApp: Meta numarası bağlı değilse kanal YOK — menüde de olmasın.
-    // Süper-admin bayiye numarayı tanımlayınca kendiliğinden görünür.
-    if (item.href === '/whatsapp' && !whatsappKurulu) return false;
-    return true;
-  }).sort((a, b) => orderOf(a.href) - orderOf(b.href));
-
-  // Hiç kullanılmamış kuyruk ekranları Gelişmiş'e iner; kullanılmaya
-  // başlandığı an yukarı çıkar ve rozetiyle görünür.
-  const advancedSet = new Set(ADVANCED_SABIT);
-  if (!sayacEpostaKullaniliyor) advancedSet.add('/sayac-eposta');
-  if (!portalKullaniliyor) advancedSet.add('/musteri-bildirimleri');
-  /**
-   * Müşteri Paneli ekranı, portal HİÇ kullanılmamışken bile üstte kalıyor.
-   * Diğer kuyruk ekranlarının tersi bir karar ve bilerek: bu ekranın işi
-   * portalı kullanılır HÂLE GETİRMEK. Gelişmiş'e indirilirse, kullanılmadığı
-   * için gizlenir ve gizlendiği için kullanılmaz — ölçüldü, 305 müşterinin
-   * hiçbirinde erişim yoktu.
-   */
-
-  const mainItems = visibleMenuItems.filter((i) => !advancedSet.has(i.href));
-  const advItems = visibleMenuItems.filter((i) => advancedSet.has(i.href));
+  const ekranAdi = (href: string) => (t.menu as Record<string, string>)[href] ?? KOD_ETIKETI[href] ?? href;
+  // Çok üyeli ailenin kendi adı var (Sayaçlar, Faturalama...); tek üyelide
+  // ekranın adı kullanılır. Teknisyen için fiş listesi "İşlerim": açılışta
+  // zaten ona atanmış işler süzülü geliyor.
+  const aileAdi = (m: MenuAilesi) => {
+    if (teknisyen && m.aile.anahtar === 'fisler') return t.menuAile.islerim;
+    if (m.aile.uyeler.length > 1) return (t.menuAile as Record<string, string>)[m.aile.anahtar] ?? ekranAdi(m.giris);
+    return ekranAdi(m.giris);
+  };
 
   const [open, setOpen] = useState(false);
-  const [advOpen, setAdvOpen] = useState(false);
-  // Bekleyen iş rozetleri — üçü de KUYRUK, görünmeyen kuyruk birikir.
-  // Paylaşılan hook: kaç bileşen kullanırsa kullansın TEK yoklama.
-  const rozet = useRozetler();
-  const rozetSayisi = (href: string) =>
-    href === '/market' ? rozet.market
-      : href === '/sayac-eposta' ? rozet.sayacEposta
-        : href === '/musteri-bildirimleri' ? rozet.musteriBildirim
-          : href === '/magaza' ? rozet.magaza
-          : 0;
-  // Gelişmiş grubu VARSAYILAN KAPALI; içindeki bekleyen işin rozeti hiç
-  // görünmezse rozetin anlamı kalmaz — toplamı başlıkta gösteriyoruz.
-  const gizliRozet = advItems.reduce((a, i) => a + rozetSayisi(i.href), 0);
-  // Aktif sayfa "Gelişmiş" grubundaysa grubu otomatik aç (kullanıcı kaybolmasın)
-  useEffect(() => {
-    if (advItems.some((i) => pathname === i.href || pathname.startsWith(i.href + '/'))) setAdvOpen(true);
-  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   const close = () => setOpen(false);
   // Sayfa değişince (link tıklanınca) mobil menüyü kapat
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -592,61 +513,33 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
         </div>
 
         {/* Menu */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {mainItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={close}
-              className={`sidebar-link ${pathname === item.href || pathname.startsWith(item.href + '/') ? 'active' : ''}`}
-            >
-              {item.icon}
-              {etiket(item)}
-              {rozetSayisi(item.href) > 0 && (
-                <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{rozetSayisi(item.href)}</span>
+        <nav className="flex-1 p-4 overflow-y-auto">
+          {bolumler.map((b, i) => (
+            <div key={b.bolum} style={{ marginTop: i === 0 || teknisyen ? 0 : '1rem' }}>
+              {!teknisyen && (
+                <p style={{ color: '#6b7280', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', padding: '0 0.75rem', margin: '0 0 0.35rem' }}>
+                  {t.menuBolum[b.bolum]}
+                </p>
               )}
-            </Link>
+              <div className="space-y-1">
+                {b.aileler.map((m) => {
+                  const sayi = aileRozeti(m.sekmeler, rozet);
+                  return (
+                    <Link
+                      key={m.aile.anahtar}
+                      href={m.giris}
+                      onClick={close}
+                      className={`sidebar-link ${aktifAile?.anahtar === m.aile.anahtar ? 'active' : ''}`}
+                    >
+                      {IKON[m.aile.uyeler[0]] ?? IKON[m.giris]}
+                      {aileAdi(m)}
+                      {sayi > 0 && <span style={ROZET_STILI}>{sayi}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           ))}
-
-          {advItems.length > 0 && (
-            <>
-              <button
-                type="button"
-                onClick={() => setAdvOpen((o) => !o)}
-                aria-expanded={advOpen}
-                className="sidebar-link"
-                style={{ width: '100%', justifyContent: 'space-between', cursor: 'pointer' }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-                  </svg>
-                  {t.menu.gelismis}
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  {!advOpen && gizliRozet > 0 && (
-                    <span style={{ background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{gizliRozet}</span>
-                  )}
-                  <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>{advOpen ? '▾' : '▸'}</span>
-                </span>
-              </button>
-              {advOpen && advItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={close}
-                  className={`sidebar-link ${pathname === item.href || pathname.startsWith(item.href + '/') ? 'active' : ''}`}
-                  style={{ paddingLeft: '2.25rem' }}
-                >
-                  {item.icon}
-                  {etiket(item)}
-                  {rozetSayisi(item.href) > 0 && (
-                    <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{rozetSayisi(item.href)}</span>
-                  )}
-                </Link>
-              ))}
-            </>
-          )}
         </nav>
 
         {/* User Info + Logout */}

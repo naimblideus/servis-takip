@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
+import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
+// YALNIZ YÖNETİCİ: bu uç para gösteriyor (kâr, marj, borç, karne).
+// Menüde gizlemek yetmez; adresi bilen teknisyen ya da ön büro yine açardı.
 
 // CİHAZ KÂRLILIĞI — kiralık cihaz başına gelir vs. maliyet (son N ay).
 // GELİR  : o cihaza ait fatura satırları (kira + sayaç aşımı)
@@ -8,7 +10,7 @@ import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 // NOT: ziyaret/işçilik maliyeti için uydurma sabit KOYULMAZ — veri yoksa gösterilmez.
 export async function GET(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { tenantId } = await requireAdminUser();
     const months = Math.min(24, Math.max(1, Number(new URL(req.url).searchParams.get('months')) || 6));
 
     const now = new Date();

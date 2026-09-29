@@ -56,6 +56,9 @@ export async function GET(req: Request) {
         id: true, ticketNumber: true, status: true, priority: true, createdAt: true,
         device: { select: { id: true, brand: true, model: true, serialNo: true,
           customer: { select: { id: true, name: true, phone: true } } } },
+        // Rota teknisyen bazında süzülüyor: kimin durağı olduğu bilinmeden
+        // "bugünkü rotam" kurulamaz.
+        assignedUser: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

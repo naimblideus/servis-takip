@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { effectiveModules } from '@/lib/modules';
 import Sidebar from '@/components/Sidebar';
+import AileSekmeleri from '@/components/AileSekmeleri';
 import BottomNav from '@/components/BottomNav';
 import ModuleGuard from '@/components/ModuleGuard';
 import AccessLock from '@/components/AccessLock';
@@ -90,26 +91,16 @@ export default async function DashboardLayout({
   const modules = tenant ? Array.from(effectiveModules(tenant)) : [];
 
   // ── MENÜDE NE GÖRÜNSÜN ───────────────────────────────────────────────
-  // Kural: KULLANILMAYAN ŞEY HİÇ GÖSTERİLMEZ. Kurulmamış bir kanalı
-  // "Gelişmiş" altında saklamak boş odayı kapatmak gibi — hâlâ orada.
+  // Kural: KURULMAMIŞ KANAL HİÇ GÖSTERİLMEZ. WhatsApp numarası bağlı değilse
+  // menüde WhatsApp yok. Bu SUNUCUDA belirleniyor, istemci yoklamasıyla
+  // değil: yoklamayla yapılsaydı menü öğesi sayfa açıldıktan sonra belirirdi.
   //
-  // Bu bilgiler SUNUCUDA belirleniyor, istemci yoklamasıyla değil: yoklamayla
-  // yapılsaydı menü öğesi sayfa açıldıktan sonra belirip kaybolurdu.
-  //
-  // Varlık kontrolü (findFirst + select:{id}) sayım yapmaktan ucuz ve
-  // KARARLI: "hiç kullanılmış mı" cevabı bekleyen iş bitince değişmez, yani
-  // menü öğesi grup değiştirip zıplamaz. Bekleyen SAYISI rozetten gelir.
-  const [sayacEpostaVar, portalVar] = tenantId
-    ? await Promise.all([
-        prisma.counterEmail.findFirst({ where: { tenantId }, select: { id: true } }),
-        prisma.customer.findFirst({ where: { tenantId, portalEnabled: true }, select: { id: true } }),
-      ])
-    : [null, null];
-
+  // Eskiden burada iki sorgu daha vardı (sayaç e-postası ve müşteri paneli
+  // hiç kullanılmış mı): kullanılmayan kuyruk ekranı "Gelişmiş" klasörüne
+  // iniyordu. Klasör kalktı; o ekranlar artık kendi ailelerinde SEKME ve
+  // sekme menüyü kalabalıklaştırmıyor. Her gezinmede iki sorgu eksildi.
   const menuDurum = {
     whatsappKurulu: Boolean(tenant?.whatsappPhoneId),
-    sayacEpostaKullaniliyor: Boolean(sayacEpostaVar),
-    portalKullaniliyor: Boolean(portalVar),
   };
 
   return (
@@ -117,6 +108,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar modules={modules} durum={menuDurum} />
       <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
+        <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} />
         <ModuleGuard modules={modules}>{children}</ModuleGuard>
       </main>
       <BottomNav modules={modules} />

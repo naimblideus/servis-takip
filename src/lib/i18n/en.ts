@@ -82,7 +82,7 @@ export const en: Sozluk = {
     '/whatsapp': 'WhatsApp',
     '/musteri-portali': 'Customer Portal',
     '/musteri-bildirimleri': 'Customer Requests',
-    '/takip': 'Follow-up',
+    '/takip': 'Missing readings',
     '/inventory': 'Inventory',
     '/toner-verimi': 'Toner Yield',
     '/kdv': 'VAT Summary',
@@ -107,9 +107,35 @@ export const en: Sozluk = {
     '/collections': 'Collections',
     '/kacan-gelir': 'Missed Revenue',
     '/admin': 'Super Admin',
-    gelismis: 'Advanced',
     cikis: 'Sign out',
     menuAc: 'Menu',
+  },
+
+  menuAile: {
+    cihazlar: 'Devices',
+    portal: 'Customer portal',
+    sayaclar: 'Meters',
+    faturalama: 'Billing',
+    sozlesme: 'Contracts & quotes',
+    muhasebe: 'Accounting',
+    stok: 'Stock',
+    kar: 'Profit',
+    kurumsal: 'Enterprise',
+    ayarlar: 'Settings',
+    islerim: 'My jobs',
+  },
+
+  menuBolum: {
+    GUNLUK: 'DAILY',
+    MUSTERI: 'CUSTOMERS',
+    PARA: 'MONEY',
+    STOK: 'STOCK',
+    ANALIZ: 'INSIGHT',
+    SISTEM: 'SYSTEM',
+  },
+
+  menuSekme: {
+    aria: 'Screens in this section',
   },
 
   giris: {
@@ -249,7 +275,7 @@ export const en: Sozluk = {
         desc: 'If you have an Excel list, import it in one go; otherwise add them one by one.',
         cta: 'Import from Excel',
         how: [
-          'FAST PATH — if you have an Excel list: Advanced → Data Import → "Excel / CSV list".',
+          'FAST PATH — if you have an Excel list: Settings → Data Import → "Excel / CSV list".',
           'In Excel: File → Save As → "CSV UTF-8". Pick the file; the system recognises the columns itself.',
           'Check the first rows in the preview → "Import". Customers and devices come in together.',
           'ONE BY ONE: Customers → "＋ New Customer" → name and phone required → Save.',
@@ -292,7 +318,7 @@ export const en: Sozluk = {
         cta: 'Meter Round',
         how: [
           'METERS FIRST: Left menu → Meter Round → pick the customer → all devices appear in one list, type only the new reading → Save.',
-          'THEN INVOICE: Advanced → Invoices → "⚡ Invoice This Period".',
+          'THEN INVOICE: Billing → Invoices → "⚡ Invoice This Period".',
           'The system warns "these devices have no meter reading" — so no invoice goes out incomplete.',
           'Meter + rent + service are combined into one invoice; the meter breakdown is attached automatically.',
           'Click the invoice → send it to the customer with "🖨 Print" or "📱 WhatsApp".',
@@ -304,7 +330,7 @@ export const en: Sozluk = {
         cta: 'Accounting',
         how: [
           'Accounting → pick the customer → enter the payment. The balance updates itself, no manual maths.',
-          'If you need a receipt: Advanced → Collections → "🧾 Print Receipt".',
+          'If you need a receipt: Billing → Collections → "🧾 Print Receipt".',
           'DEBT REMINDERS: Accounting → "📩 Bulk Reminder" → select the debtors → send by SMS in one go.',
           'Customer statement: "Print" on the customer details — all transactions + balance on one page.',
         ],
@@ -361,6 +387,7 @@ export const en: Sozluk = {
   fisler: {
     baslik: 'Service tickets',
     filtreli: 'Filtered: {n} tickets',
+    sanaAtanan: 'Assigned to you: {n} tickets',
     toplam: '{n} tickets in total',
     excelIpucu: 'Download the ticket list as Excel',
     icmalYazdir: '🖨️ Print summary',
@@ -1765,10 +1792,15 @@ export const en: Sozluk = {
     yukari: 'Up',
     asagi: 'Down',
     cikar: 'Remove',
+    kimin: 'Whose route:',
+    herkes: 'Everyone',
+    rotam: 'My route: {n} stops',
+    adressizEk: ' · {n} without an address',
+    temizle: 'Clear',
   },
 
   takip: {
-    baslik: '🔔 Follow-up — overdue meter readings',
+    baslik: '🔔 Missing readings — late and never-read devices',
     alt: 'A late meter reading on a rental device is billing you are not doing. Go and read them.',
     esik: 'Threshold:',
     esikGun: '{n}+ days',
@@ -3993,10 +4025,11 @@ export const en: Sozluk = {
     nerede: [
       ['Dashboard', 'everything that needs attention (stalled jobs, debt, contracts)'],
       ['Service tickets', 'jobs + printing a summary'],
-      ['Meter round', 'bulk meter entry'],
-      ['Accounting', 'ledger, payments, debt reminders'],
-      ['Stock / Barcode sales', 'parts and over-the-counter sales'],
-      ['Advanced', 'invoicing, routes, reports, price rises, profitability'],
+      ['Meters', 'meter entry, missing readings, readings sent by devices'],
+      ['Billing', 'invoicing, e-invoice readiness, collections'],
+      ['Accounting', 'ledger, debt reminders, VAT summary'],
+      ['Stock', 'parts, consumables, over-the-counter sales, labels'],
+      ['Profit', 'lost revenue, device profitability, fleet, reports'],
     ],
     verimiAktar: 'Import your data from Excel →',
     ilkMusteri: 'Add your first customer',
@@ -4017,7 +4050,7 @@ export const en: Sozluk = {
         baslik: 'Adding customers (and importing in bulk from Excel)',
         adimlar: [
           'One at a time: side menu → Customers → “＋ New customer”. Name and phone are required.',
-          'IN BULK: if you already have a customer/device list → Advanced → Data import → “Excel / CSV list”.',
+          'IN BULK: if you already have a customer/device list → Settings → Data import → “Excel / CSV list”.',
           'In Excel: File → Save As → “CSV UTF-8”. Then pick the file — the system recognises the columns itself.',
           'Check the first rows in the preview; correct any wrongly matched column from the dropdown → Import.',
           'If the same phone or serial number already exists it is updated, never duplicated — running it again is safe.',
@@ -4028,7 +4061,7 @@ export const en: Sozluk = {
         baslik: 'Moving from another program (meter history included)',
         adimlar: [
           'ORDER MATTERS: customers/devices first, meter history SECOND. With no device the serial number does not match and the meter rows are skipped.',
-          '1) Advanced → Data import → “Excel / CSV list” to bring across customers and devices.',
+          '1) Settings → Data import → “Excel / CSV list” to bring across customers and devices.',
           '2) On the same screen, the “Meter history” tab → upload the readings file you exported from the old program.',
           '3) The “Opening balances” tab → what each customer owed at the moment of the move. Without it everyone looks debt-free on day one and you cannot trust the Accounting screen.',
           'There are TWO ways to bring balances across: balance only (one figure per customer) or invoice by invoice. Use only ONE of them per customer — both describe the same debt, and loading both makes it look twice as large.',
@@ -4179,7 +4212,7 @@ export const en: Sozluk = {
       fatura: {
         baslik: 'Invoicing (month end)',
         adimlar: [
-          'Advanced → Invoices → “⚡ Invoice this period”.',
+          'Billing → Invoices → “⚡ Invoice this period”.',
           'CHECK FIRST: the system warns you that “5 devices have no meter reading” — so no overage invoice goes out short.',
           'You can either go to the Meter round with “Read the meters first”, or say “Invoice anyway”.',
           'Meter, rent and unpaid service are combined into ONE invoice.',
@@ -4192,7 +4225,7 @@ export const en: Sozluk = {
           'First Settings → e-Invoice: the provider and the 3-letter document prefix. Pick “By hand” and no username or password is needed; the system assigns the document number, produces the UBL XML file, and you upload that file to your own integrator portal and raise the invoice. It works without waiting for an integrator contract.',
           'If you enter a password it is stored encrypted and never shown again.',
           'TEST MODE is ON by default: what you send does not reach the tax authority and no invoice reaches the customer. Try it freely.',
-          'Advanced → e-Invoice readiness: whether each invoice is ready, and if not, exactly what is missing.',
+          'Billing → e-Invoice readiness: whether each invoice is ready, and if not, exactly what is missing.',
           'The screen tells you whether each invoice is ready; if it is not, it writes exactly what is missing.',
           'Your own details first (the red box) — tax office, province/district, e-invoice prefix. No invoice can be ready until those are closed.',
           'Then the “gaps that repeat most” list: fixing one customer usually makes several invoices ready at once.',
@@ -4241,9 +4274,9 @@ export const en: Sozluk = {
         adimlar: [
           'DASHBOARD: “Stalled jobs” (tickets that have not moved for 3+ days), “Contract warning” (rental contracts ending or ended), customers in debt. When there is nothing wrong, those blocks do not appear.',
           'To enter a contract date: the customer → Edit → “Contract end date”.',
-          'Advanced → Device profitability: which rental machine earns and which loses (revenue − parts cost).',
-          'Advanced → Bulk price change: filter by customer/device → +X% → preview → apply → print the list.',
-          'Advanced → Lost revenue: uninvoiced meter and rent charges pile up here.',
+          'Profit → Device profitability: which rental machine earns and which loses (revenue − parts cost).',
+          'Devices → Bulk price change: filter by customer/device → +X% → preview → apply → print the list.',
+          'Profit → Lost revenue: uninvoiced meter and rent charges pile up here.',
         ],
       },
       saha: {
@@ -4251,7 +4284,7 @@ export const en: Sozluk = {
         adimlar: [
           'PHONE: open the site on a phone → from the browser menu, “Add to Home Screen” → it opens full screen like an app.',
           'A tab bar at the bottom: Home · Tickets · ＋ (quick actions) · Market · Accounting.',
-          'Route (Advanced): customers with open tickets are listed stop by stop, and you get ordered directions on a map.',
+          'Route: customers with open tickets are listed stop by stop, and you get ordered directions on a map.',
           'QR FAULT: the customer scans the QR on the machine → reports a fault without signing in → a ticket appears in your system automatically.',
           'Every customer has 📞 Call · 💬 WhatsApp · 🗺️ Directions buttons ready.',
         ],
@@ -4273,7 +4306,7 @@ export const en: Sozluk = {
           'TWO-STEP VERIFICATION (optional): Settings → “🔐 Two-step verification” → “Set up and switch on” → scan the QR with Google Authenticator on your phone → enter the 6-digit code it shows.',
           'With it on, sign-in asks for a code as well as your password; even a stolen password does not get into your account.',
           'Keep the RECOVERY CODES you are given during setup — if you lose your phone they are your way back in.',
-          'Users (Advanced → Users): give every member of staff their own account, so the records show who did what.',
+          'Users (Settings → Users): give every member of staff their own account, so the records show who did what.',
         ],
       },
     },

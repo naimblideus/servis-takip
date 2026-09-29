@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { ucHatasi } from '@/lib/uc-hata';
 import { csvMetni, csvSayi, csvBasliklari, csvDosyaAdi } from '@/lib/csv';
 import { doldur } from '@/lib/i18n/sozluk';
 import { raporOzeti } from '@/lib/rapor-ozeti';
@@ -12,6 +13,8 @@ export async function GET(req: Request) {
 
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // YALNIZ YÖNETİCİ: rapor ciroyu ve tahsilatı gösteriyor.
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') return ucHatasi('BU_EKRAN_ICIN_YONETICI_YETKISI', 403);
 
     // Hesap TEK YERDE: ekran, CSV ve yazdırma sayfası aynı fonksiyondan
     // besleniyor. Ayrı sorgu yazmak, aynı raporun ekranda başka kâğıtta başka

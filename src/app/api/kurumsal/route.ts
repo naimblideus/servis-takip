@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
-import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
+import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
+// YALNIZ YÖNETİCİ: bu uç para gösteriyor (kâr, marj, borç, karne).
+// Menüde gizlemek yetmez; adresi bilen teknisyen ya da ön büro yine açardı.
 import {
   grupListesi, grupRaporu, bostakiMusteriler,
   grupOlustur, grupGuncelle, grupSil, subeEkle, subeCikar,
@@ -16,7 +18,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { tenantId } = await requireAdminUser();
     const sp = new URL(req.url).searchParams;
     const grupId = sp.get('grup');
 
@@ -50,7 +52,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { tenantId } = await requireTenantUser();
+    const { tenantId } = await requireAdminUser();
     const b = await req.json().catch(() => ({}));
     const islem = String(b?.islem || '');
 

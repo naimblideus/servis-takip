@@ -8,6 +8,8 @@ interface Props {
     currentStatus?: string;
     currentPriority?: string;
     currentAssigned?: string;
+    /** Teknisyenin kendi kimliği: sayfa açılışta bununla süzüyor. */
+    varsayilanAtanan?: string;
     currentDateFrom?: string;
     currentDateTo?: string;
     currentCustomer?: string;
@@ -17,7 +19,7 @@ interface Props {
 const DURUMLAR = ['NEW', 'IN_SERVICE', 'WAITING_FOR_PART', 'READY', 'DELIVERED', 'CANCELLED'] as const;
 const ONCELIKLER = [['URGENT', '🔴'], ['HIGH', '🟠'], ['NORMAL', '🔵'], ['LOW', '⚪']] as const;
 
-export default function TicketFilters({ currentStatus, currentPriority, currentAssigned, currentDateFrom, currentDateTo, currentCustomer, users }: Props) {
+export default function TicketFilters({ currentStatus, currentPriority, currentAssigned, varsayilanAtanan, currentDateFrom, currentDateTo, currentCustomer, users }: Props) {
     const router = useRouter();
     const t = useT();
     const STATUSES = [
@@ -71,7 +73,12 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
         router.push('/tickets');
     };
 
-    const hasFilter = !!(currentStatus || currentPriority || currentAssigned || currentDateFrom || currentDateTo || currentCustomer);
+    // Teknisyende "Tümü" boş değer olamaz: boş, varsayılana (kendi işleri)
+    // döner. Açıkça `all` yazılır. Kendi işleri de süzgeç sayılmaz: açılış
+    // görünümü o, "Temizle" düğmesi aynı ekrana dönerdi.
+    const tumuDegeri = varsayilanAtanan ? 'all' : '';
+    const atananSuzgeci = !!currentAssigned && currentAssigned !== 'all' && currentAssigned !== varsayilanAtanan;
+    const hasFilter = !!(currentStatus || currentPriority || atananSuzgeci || currentDateFrom || currentDateTo || currentCustomer);
 
     const sel: React.CSSProperties = {
         padding: '0.5rem 0.75rem',
@@ -116,8 +123,8 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                     {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
 
-                <select style={sel} value={currentAssigned || ''} onChange={e => updateParam('assignedUserId', e.target.value)}>
-                    <option value="">{t.fisler.filtre.tumTeknisyenler}</option>
+                <select style={sel} value={currentAssigned || tumuDegeri} onChange={e => updateParam('assignedUserId', e.target.value)}>
+                    <option value={tumuDegeri}>{t.fisler.filtre.tumTeknisyenler}</option>
                     <option value="unassigned">{t.fisler.filtre.atanmamis}</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>

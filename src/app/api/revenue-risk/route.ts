@@ -14,6 +14,8 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const user = await oturumKullanicisi(session);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  // YALNIZ YÖNETİCİ: faturalanmamış geliri tutarıyla gösteriyor.
+  if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') return ucHatasi('BU_EKRAN_ICIN_YONETICI_YETKISI', 403);
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: user.tenantId },

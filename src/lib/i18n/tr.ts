@@ -72,7 +72,7 @@ export const tr = {
   },
 
   menu: {
-    '/dashboard': 'Dashboard',
+    '/dashboard': 'Ana Panel',
     '/yardim': 'Nasıl Kullanılır?',
     '/market': 'Bayi Pazarı',
     '/magaza': 'Nextus Mağaza',
@@ -87,7 +87,7 @@ export const tr = {
     '/whatsapp': 'WhatsApp',
     '/musteri-portali': 'Müşteri Paneli',
     '/musteri-bildirimleri': 'Müşteri Bildirimleri',
-    '/takip': 'Takip',
+    '/takip': 'Eksik Sayaçlar',
     '/inventory': 'Stok',
     '/toner-verimi': 'Toner Verimi',
     '/kdv': 'KDV Özeti',
@@ -112,9 +112,39 @@ export const tr = {
     '/collections': 'Tahsilat',
     '/kacan-gelir': 'Kaçan Gelir',
     '/admin': 'Süper Admin',
-    gelismis: 'Gelişmiş',
     cikis: 'Çıkış Yap',
     menuAc: 'Menü',
+  },
+
+  // Yan menüde birden çok ekranı toplayan ailelerin adı. Tek ekranlı aile
+  // ekranın kendi adıyla (menu) görünür.
+  menuAile: {
+    cihazlar: 'Cihazlar',
+    portal: 'Müşteri Paneli',
+    sayaclar: 'Sayaçlar',
+    faturalama: 'Faturalama',
+    sozlesme: 'Sözleşme & Teklif',
+    muhasebe: 'Muhasebe',
+    stok: 'Stok',
+    kar: 'Kâr',
+    kurumsal: 'Kurumsal',
+    ayarlar: 'Ayarlar',
+    islerim: 'İşlerim',
+  },
+
+  // Bölüm başlıkları büyük harfle YAZILIYOR, CSS ile büyütülmüyor:
+  // text-transform sayfa dili tr değilse 'i'yi 'I' yapar (MÜŞTERI).
+  menuBolum: {
+    GUNLUK: 'GÜNLÜK',
+    MUSTERI: 'MÜŞTERİ',
+    PARA: 'PARA',
+    STOK: 'STOK',
+    ANALIZ: 'ANALİZ',
+    SISTEM: 'SİSTEM',
+  },
+
+  menuSekme: {
+    aria: 'Bu bölümün ekranları',
   },
 
   giris: {
@@ -258,7 +288,7 @@ export const tr = {
         desc: 'Elinde Excel listesi varsa tek seferde aktar; yoksa tek tek ekle.',
         cta: 'Excel’den aktar',
         how: [
-          'HIZLI YOL — Excel listen varsa: Gelişmiş → Veri Aktarma → "Excel / CSV listesi".',
+          'HIZLI YOL — Excel listen varsa: Ayarlar → Veri Aktarma → "Excel / CSV listesi".',
           'Excel’de: Dosya → Farklı Kaydet → "CSV UTF-8". Dosyayı seç; kolonları sistem kendi tanır.',
           'Önizlemede ilk satırları kontrol et → "Aktar". Müşteri + cihaz birlikte gelir.',
           'TEK TEK: Müşteriler → "＋ Yeni Müşteri" → ad ve telefon zorunlu → Kaydet.',
@@ -301,7 +331,7 @@ export const tr = {
         cta: 'Sayaç Turu',
         how: [
           'ÖNCE SAYAÇ: Sol menü → Sayaç Turu → müşteriyi seç → tüm cihazlar tek listede çıkar, sadece yeni rakamı yaz → Kaydet.',
-          'SONRA FATURA: Gelişmiş → Faturalar → "⚡ Bu Dönemi Faturala".',
+          'SONRA FATURA: Faturalama → Faturalar → "⚡ Bu Dönemi Faturala".',
           'Sistem "şu cihazların sayacı okunmadı" diye uyarır — eksik fatura gitmesin diye.',
           'Sayaç + kira + servis tek faturada birleşir; arkasına sayaç dökümü otomatik eklenir.',
           'Faturaya tıkla → "🖨 Yazdır" veya "📱 WhatsApp" ile müşteriye gönder.',
@@ -313,7 +343,7 @@ export const tr = {
         cta: 'Muhasebe',
         how: [
           'Muhasebe → müşteri seç → tahsilatı gir. Borç kendiliğinden düşer, elle hesap yok.',
-          'Makbuz gerekiyorsa Gelişmiş → Tahsilat ekranından "🧾 Makbuz Yazdır".',
+          'Makbuz gerekiyorsa Faturalama → Tahsilat ekranından "🧾 Makbuz Yazdır".',
           'BORÇ HATIRLATMA: Muhasebe → "📩 Toplu Hatırlatma" → borçluları seç → SMS ile topluca gönder.',
           'Müşteri ekstresi: müşteri detayında "Yazdır" — tüm hareketler + bakiye tek sayfada.',
         ],
@@ -372,6 +402,7 @@ export const tr = {
   fisler: {
     baslik: 'Servis Fişleri',
     filtreli: 'Filtreli: {n} fiş',
+    sanaAtanan: 'Size atanmış {n} fiş',
     toplam: 'Toplam {n} fiş',
     excelIpucu: 'Fiş listesini Excel olarak indir',
     icmalYazdir: '🖨️ İcmal Yazdır',
@@ -1816,11 +1847,16 @@ export const tr = {
     yukari: 'Yukarı',
     asagi: 'Aşağı',
     cikar: 'Çıkar',
+    kimin: 'Kimin rotası:',
+    herkes: 'Herkes',
+    rotam: 'Rotam: {n} durak',
+    adressizEk: ' · {n} adressiz',
+    temizle: 'Temizle',
   },
 
   // Takip — sayacı geç okunan cihazlar.
   takip: {
-    baslik: '🔔 Takip — Sayacı Geç Okunanlar',
+    baslik: '🔔 Eksik Sayaçlar — geç okunan ve hiç okunmayan cihazlar',
     alt: 'Kiralık cihazlarda geç kalan sayaç okumaları = kaçan faturalama. Bunları okutmaya git.',
     esik: 'Eşik:',
     esikGun: '{n}+ gün',
@@ -4133,12 +4169,13 @@ export const tr = {
     ],
     neredeBaslik: 'Nerede ne var',
     nerede: [
-      ['Ana Sayfa', 'dikkat gereken her şey (duran iş, borç, sözleşme)'],
+      ['Ana Panel', 'dikkat gereken her şey (duran iş, borç, sözleşme)'],
       ['Servis Fişleri', 'işler + icmal yazdırma'],
-      ['Sayaç Turu', 'toplu sayaç girişi'],
-      ['Muhasebe', 'cari, tahsilat, borç hatırlatma'],
-      ['Stok / Barkodla Satış', 'parça ve tezgâh satışı'],
-      ['Gelişmiş', 'fatura, rota, rapor, zam, kârlılık'],
+      ['Sayaçlar', 'sayaç girişi, eksik sayaçlar, cihazdan gelenler'],
+      ['Faturalama', 'fatura kesme, e-fatura hazırlığı, tahsilat'],
+      ['Muhasebe', 'cari, borç hatırlatma, KDV özeti'],
+      ['Stok', 'parça, sarf, tezgâh satışı, etiket'],
+      ['Kâr', 'kaçan gelir, cihaz kârlılığı, filo, raporlar'],
     ],
     verimiAktar: 'Excel’den verimi aktar →',
     ilkMusteri: 'İlk müşteriyi ekle',
@@ -4159,7 +4196,7 @@ export const tr = {
         baslik: 'Müşteri ekleme (ve Excel’den toplu aktarma)',
         adimlar: [
           'Tek tek: Sol menü → Müşteriler → “＋ Yeni Müşteri”. Ad ve telefon zorunlu.',
-          'TOPLU: Elinde müşteri/cihaz listesi varsa → Gelişmiş → Veri Aktarma → “Excel / CSV listesi”.',
+          'TOPLU: Elinde müşteri/cihaz listesi varsa → Ayarlar → Veri Aktarma → “Excel / CSV listesi”.',
           'Excel’de: Dosya → Farklı Kaydet → “CSV UTF-8”. Sonra dosyayı seç — kolonları sistem kendi tanır.',
           'Önizlemede ilk satırları kontrol et, yanlış eşleşen kolon varsa açılır menüden düzelt → Aktar.',
           'Aynı telefon/seri no zaten varsa güncellenir, kopyası oluşmaz — tekrar çalıştırmak güvenlidir.',
@@ -4170,7 +4207,7 @@ export const tr = {
         baslik: 'Başka programdan taşınma (sayaç geçmişi dahil)',
         adimlar: [
           'SIRA ÖNEMLİ: önce müşteri/cihaz listesi, SONRA sayaç geçmişi. Cihaz yoksa seri no eşleşmez, sayaç satırları atlanır.',
-          '1) Gelişmiş → Veri Aktarma → “Excel / CSV listesi” ile müşteri ve cihazları aktar.',
+          '1) Ayarlar → Veri Aktarma → “Excel / CSV listesi” ile müşteri ve cihazları aktar.',
           '2) Aynı ekranda “Sayaç geçmişi” sekmesi → eski programdan çıkardığın okuma dosyasını yükle.',
           '3) “Açılış / borç devri” sekmesi → müşterilerin göç anındaki borcu. Bu olmadan ilk gün herkes ₺0 borçlu görünür ve Muhasebe ekranına güvenemezsin.',
           'Borç devrinde İKİ yol var: sadece bakiye (müşteri başına tek rakam) ya da fatura fatura. Bir müşteri için yalnız BİRİNİ kullan — ikisi de aynı borcu anlatır, ikisi birden yüklenirse borç iki katı görünür.',
@@ -4321,7 +4358,7 @@ export const tr = {
       fatura: {
         baslik: 'Faturalama (ay sonu)',
         adimlar: [
-          'Gelişmiş → Faturalar → “⚡ Bu Dönemi Faturala”.',
+          'Faturalama → Faturalar → “⚡ Bu Dönemi Faturala”.',
           'ÖNCE KONTROL: Sistem “şu 5 cihazın sayacı okunmadı” diye uyarır — eksik aşım faturası gitmesin.',
           'İstersen “Önce sayaçları oku” ile Sayaç Turu’na gidersin, ya da “Yine de faturala” dersin.',
           'Sayaç + kira + ödenmemiş servis TEK faturada birleşir.',
@@ -4334,7 +4371,7 @@ export const tr = {
           'Önce Ayarlar → e-Fatura: sağlayıcı ve 3 harfli belge ön eki. “Elden gönderim”i seçersen kullanıcı adı/parola gerekmez; sistem belgeye numarasını verir, UBL XML dosyasını üretir, sen o dosyayı kendi entegratör portalına yükleyip faturayı kesersin. Entegratör sözleşmesi beklemeden çalışır.',
           'Parola girersen şifreli saklanır ve bir daha gösterilmez.',
           'TEST MODU varsayılan AÇIK: gönderdiğin belge GİB\'e ulaşmaz, müşteriye fatura gitmez. Rahatça dene.',
-          'Gelişmiş → e-Fatura Hazırlığı: her faturanın hazır olup olmadığı, hazır değilse tam olarak neyin eksik olduğu yazar.',
+          'Faturalama → e-Fatura Hazırlığı: her faturanın hazır olup olmadığı, hazır değilse tam olarak neyin eksik olduğu yazar.',
           'Ekran her faturanın hazır olup olmadığını söyler; hazır değilse tam olarak neyin eksik olduğunu yazar.',
           'Önce kendi bilgilerin (kırmızı kutu) — vergi dairesi, il/ilçe, e-Fatura ön eki. Bunlar kapanmadan hiçbir fatura hazır olamaz.',
           'Sonra "en çok tekrar eden eksikler" listesi: bir müşteriyi düzeltmek genelde birkaç faturayı birden hazır eder.',
@@ -4383,9 +4420,9 @@ export const tr = {
         adimlar: [
           'ANA SAYFA: “Duran İşler” (3+ gündür kımıldamayan fişler), “Sözleşme Uyarısı” (biten/bitmek üzere olan kiralama sözleşmeleri), borçlu müşteriler. Sorun yoksa bu bölümler görünmez.',
           'Sözleşme tarihini girmek için: müşteri → Düzenle → “Sözleşme Bitiş Tarihi”.',
-          'Gelişmiş → Cihaz Kârlılığı: hangi kiralık makine kazandırıyor, hangisi zarar ediyor (gelir − parça maliyeti).',
-          'Gelişmiş → Toplu Zam: müşteri/cihaz süz → %X zam → önizleme → uygula → zam listesini yazdır.',
-          'Gelişmiş → Kaçan Gelir: faturalanmamış sayaç/kira burada birikir.',
+          'Kâr → Cihaz Kârlılığı: hangi kiralık makine kazandırıyor, hangisi zarar ediyor (gelir − parça maliyeti).',
+          'Cihazlar → Toplu Zam: müşteri/cihaz süz → %X zam → önizleme → uygula → zam listesini yazdır.',
+          'Kâr → Kaçan Gelir: faturalanmamış sayaç/kira burada birikir.',
         ],
       },
       saha: {
@@ -4393,7 +4430,7 @@ export const tr = {
         adimlar: [
           'TELEFON: Siteyi telefonda aç → tarayıcı menüsünden “Ana Ekrana Ekle” → uygulama gibi tam ekran açılır.',
           'Altta sekme çubuğu: Ana · Fişler · ＋ (hızlı işlem) · Pazar · Muhasebe.',
-          'Rota (Gelişmiş): açık fişli müşteriler durak durak listelenir, haritada sıralı yol tarifi alırsın.',
+          'Rota: açık fişli müşteriler durak durak listelenir, haritada sıralı yol tarifi alırsın.',
           'QR ARIZA: cihazdaki QR’ı müşteri okutur → giriş gerekmeden arıza bildirir → sisteminde otomatik fiş oluşur.',
           'Her müşteride 📞 Ara · 💬 WhatsApp · 🗺️ Yol Tarifi butonları hazırdır.',
         ],
@@ -4415,7 +4452,7 @@ export const tr = {
           'İKİ ADIMLI DOĞRULAMA (isteğe bağlı): Ayarlar → “🔐 İki Adımlı Doğrulama” → “Kur ve Aç” → telefonundaki Google Authenticator ile QR’ı okut → çıkan 6 haneli kodu gir.',
           'Açarsan girişte şifrenin yanında kod da istenir; şifren çalınsa bile hesabına girilemez.',
           'Kurulumda verilen KURTARMA KODLARINI sakla — telefonunu kaybedersen giriş yolun onlardır.',
-          'Kullanıcılar (Gelişmiş → Kullanıcılar): her çalışana ayrı hesap aç, kimin ne yaptığı kayıtlarda görünür.',
+          'Kullanıcılar (Ayarlar → Kullanıcılar): her çalışana ayrı hesap aç, kimin ne yaptığı kayıtlarda görünür.',
         ],
       },
     },
