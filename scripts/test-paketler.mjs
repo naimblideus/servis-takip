@@ -137,6 +137,14 @@ t('modül adı içeriği anlatıyor (Kâr Analizi, Kurumsal Paket)', tr.modul.ad
   t('Kurumsal kartında YOK satırı yok (her şey açık)', k.yok.length === 0, k.yok);
   t('eski "Profesyonel ile başlar: sayaç/kira faturalaması" cümlesi kalmadı', !/sayaç\/kira faturalaması, tahsilat, rota ve Kaçan Gelir paneli Profesyonel ile başlar/.test(html));
 
+  // İLK AY GARANTİSİ: yalnız Profesyonel ve Kurumsal'da; koşulu ölçülebilir
+  // (sayaç sistemde okunmuş mu). Kaçan Gelir'e bağlanmadı: aktarım sonrası
+  // kesilmemiş kira da "kaçan" sayıldığı için şart her bayide kendiliğinden
+  // sağlanır, garanti içi boş bir söz olurdu.
+  t("★ garanti Profesyonel ve Kurumsal kartında var, Başlangıç'ta yok",
+    icerir(p.var, 'İlk ay para iade garantisi') && icerir(k.var, 'İlk ay para iade garantisi') && !icerir(b.var, 'garanti'), { p: p.var, k: k.var });
+  t('★ garanti metni koşulu söylüyor (sayaç sistemde okunmuş olmalı)', /İlk Ay Garantisi[\s\S]{0,600}sayaçlarınızın sistemde okunmuş olması/.test(html));
+  t('garanti Kaçan Gelir tutarına bağlanmamış (her bayide kendiliğinden sağlanırdı)', !/Garantisi[\s\S]{0,400}faturalanmamış tutar/.test(html));
   const uretilmis = readFileSync(join(KOK, 'src/app/_landing/Landing.tsx'), 'utf8');
   t('★ üretilmiş sayfa kaynakla güncel (build-landing koşturulmuş)', uretilmis.includes('Tahsilat takibi · eksik sayaç takibi') && uretilmis.includes('ve rota Profesyonel ile başlar'));
   const ing = readFileSync(join(KOK, 'src/app/_landing/LandingEn.tsx'), 'utf8');

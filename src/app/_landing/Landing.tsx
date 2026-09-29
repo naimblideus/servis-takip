@@ -104,6 +104,7 @@ const BODY = `
       <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> Kredi kartı istenmez</span>
       <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> Kurulum + Excel aktarımı + 2 saat eğitim ücretsiz</span>
       <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> Taahhüt yok</span>
+      <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> İlk ay para iade garantisi</span>
     </div>
   </div>
 
@@ -1319,6 +1320,7 @@ const BODY = `
           <li class="has">Kaçan Gelir paneli · cihaz kârlılığı · filo optimizasyonu</li>
           <li class="has">Müşteri paneli <span class="feat-note">(müşteri sayacını ve faturasını görür, arıza bildirir)</span></li>
           <li class="has">Rota planlama</li>
+          <li class="has"><strong>İlk ay para iade garantisi</strong></li>
           <li class="has">WhatsApp bildirim <span class="feat-note">(WhatsApp Business API hesabı gerekir)</span> · toplu borç hatırlatma SMS <span class="feat-note">(Netgsm kontörü ayrıca)</span></li>
           <li class="has">Kurulum + Excel aktarımı + 2 saat eğitim</li>
           <li class="no">SLA uyum raporu · periyodik bakım · teknisyen karnesi</li>
@@ -1348,12 +1350,21 @@ const BODY = `
           <li class="has">Periyodik bakım · teknisyen karnesi · kurumsal gruplar</li>
           <li class="has">Marka/model güvenilirlik raporları</li>
           <li class="has">Cihaz yenileme raporu</li>
+          <li class="has"><strong>İlk ay para iade garantisi</strong></li>
           <li class="has">Kurulum + Excel aktarımı + 2 saat eğitim</li>
         </ul>
       </div>
     </div>
 
     <div class="pricing-foot reveal">
+      <div class="garanti">
+        <div class="garanti-ikon" aria-hidden="true">🛡️</div>
+        <div>
+          <div class="garanti-baslik">İlk Ay Garantisi</div>
+          <p>İlk ödediğiniz ay boyunca sayaçlarınızı Nextus Servis'te okuttuğunuz halde <strong>işinize yaramadığını düşünürseniz, o ayın ücretini geri öderiz.</strong></p>
+          <p>Profesyonel ve Kurumsal paketlerde geçerlidir. Tek şart, o ay sayaçlarınızın sistemde okunmuş olması; programı denemeden karar verilmesin diye.</p>
+        </div>
+      </div>
       <span class="check-mini">✓</span> 14 gün ücretsiz deneme <span class="trial-limit">(deneme: 2 kullanıcı · 50 fiş)</span> &nbsp;·&nbsp;
       <span class="check-mini">✓</span> Kredi kartı istenmez &nbsp;·&nbsp;
       <span class="check-mini">✓</span> Yıllık ödemede 2 ay bedava &nbsp;·&nbsp;
@@ -1473,6 +1484,16 @@ const BODY = `
         </button>
         <div class="faq-a" id="faq-a-10" role="region" aria-labelledby="faq-q-10" aria-hidden="true">
           <p><strong>Hayır.</strong> Toner tükenme tahmini gibi hesaplar yapay zekâ değil, <strong>sayaç hızına dayalı düz aritmetik</strong>. Programın işi tahmin etmek değil, kaydı doğru tutup faturayı doğru kesmek.</p>
+        </div>
+      </div>
+
+      <div class="faq-item reveal reveal-left">
+        <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-11" id="faq-q-11">
+          <span>Memnun kalmazsam ne olur?</span>
+          <span class="plus">+</span>
+        </button>
+        <div class="faq-a" id="faq-a-11" role="region" aria-labelledby="faq-q-11" aria-hidden="true">
+          <p>Önce 14 gün ücretsiz denersiniz. Ödemeye başladıktan sonraki ilk ay boyunca sayaçlarınızı sistemde okuttuğunuz halde işinize yaramadığını düşünürseniz, <strong>o ayın ücretini geri öderiz</strong>. Taahhüt yok; istediğiniz ay bırakabilirsiniz ve verinizi Excel olarak alırsınız.</p>
         </div>
       </div>
     </div>

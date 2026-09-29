@@ -104,6 +104,7 @@ const BODY = `
       <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> No card needed</span>
       <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> Setup + Excel import + 2 hours of training, free</span>
       <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> No commitment</span>
+      <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" focusable="false"><polyline points="3,8 7,12 13,4"/></svg> First-month money-back guarantee</span>
     </div>
   </div>
 
@@ -1319,6 +1320,7 @@ const BODY = `
           <li class="has">Lost revenue panel · device profitability · fleet optimisation</li>
           <li class="has">Customer portal <span class="feat-note">(customers see their own meters and invoices, and report faults)</span></li>
           <li class="has">Route planning</li>
+          <li class="has"><strong>First-month money-back guarantee</strong></li>
           <li class="has">WhatsApp updates <span class="feat-note">(a WhatsApp Business API account is required)</span> · bulk debt reminder SMS <span class="feat-note">(Netgsm credit is separate)</span></li>
           <li class="has">Setup + Excel import + 2 hours of training</li>
           <li class="no">SLA compliance report · preventive maintenance · technician scorecard</li>
@@ -1348,12 +1350,21 @@ const BODY = `
           <li class="has">Preventive maintenance · technician scorecard · corporate groups</li>
           <li class="has">Brand and model reliability reports</li>
           <li class="has">Device renewal report</li>
+          <li class="has"><strong>First-month money-back guarantee</strong></li>
           <li class="has">Setup + Excel import + 2 hours of training</li>
         </ul>
       </div>
     </div>
 
     <div class="pricing-foot reveal">
+      <div class="garanti">
+        <div class="garanti-ikon" aria-hidden="true">🛡️</div>
+        <div>
+          <div class="garanti-baslik">First-Month Guarantee</div>
+          <p>If, after reading your meters in Nextus Servis throughout your first paid month, <strong>you feel it has not worked for you, we refund that month.</strong></p>
+          <p>Applies to the Professional and Enterprise plans. The only condition is that your meters were read in the system that month, so the decision is not made without actually trying it.</p>
+        </div>
+      </div>
       <span class="check-mini">✓</span> 14 days free <span class="trial-limit">(trial: 2 users · 50 tickets)</span> &nbsp;·&nbsp;
       <span class="check-mini">✓</span> No card needed &nbsp;·&nbsp;
       <span class="check-mini">✓</span> 2 months free when you pay yearly &nbsp;·&nbsp;
@@ -1473,6 +1484,16 @@ const BODY = `
         </button>
         <div class="faq-a" id="faq-a-10" role="region" aria-labelledby="faq-q-10" aria-hidden="true">
           <p><strong>No.</strong> Calculations like the toner run-out forecast are not AI, they are <strong>plain arithmetic on the meter pace</strong>. The program’s job is not to guess; it is to keep the record right and raise the invoice right.</p>
+        </div>
+      </div>
+
+      <div class="faq-item reveal reveal-left">
+        <button class="faq-q" type="button" aria-expanded="false" aria-controls="faq-a-11" id="faq-q-11">
+          <span>What if I am not happy?</span>
+          <span class="plus">+</span>
+        </button>
+        <div class="faq-a" id="faq-a-11" role="region" aria-labelledby="faq-q-11" aria-hidden="true">
+          <p>You first try it free for 14 days. If, after reading your meters in the system throughout your first paid month, you feel it has not worked for you, <strong>we refund that month</strong>. No commitment: you can stop in any month and take your data with you as Excel.</p>
         </div>
       </div>
     </div>

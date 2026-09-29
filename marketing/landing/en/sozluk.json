@@ -566,5 +566,14 @@
   "Kaçan Gelir paneli · cihaz kârlılığı · filo optimizasyonu": "Lost revenue panel · device profitability · fleet optimisation",
   "(müşteri sayacını ve faturasını görür, arıza bildirir)": "(customers see their own meters and invoices, and report faults)",
   "Periyodik bakım · teknisyen karnesi · kurumsal gruplar": "Preventive maintenance · technician scorecard · corporate groups",
-  "ayrışır: sayaç/kira faturalaması, tahsilat, Kaçan Gelir paneli, müşteri paneli ve rota Profesyonel ile başlar; SLA, periyodik bakım, teknisyen karnesi ve marka/model güvenilirlik raporları Kurumsal'dadır. Bu yüzden sadece cihaz sayısına bakıp karar vermeyin —": ": meter and rent invoicing, payments, the lost revenue panel, the customer portal and routes start with Professional; SLA, preventive maintenance, the technician scorecard and the brand/model reliability reports are in Enterprise. So do not decide on device count alone —"
+  "ayrışır: sayaç/kira faturalaması, tahsilat, Kaçan Gelir paneli, müşteri paneli ve rota Profesyonel ile başlar; SLA, periyodik bakım, teknisyen karnesi ve marka/model güvenilirlik raporları Kurumsal'dadır. Bu yüzden sadece cihaz sayısına bakıp karar vermeyin —": ": meter and rent invoicing, payments, the lost revenue panel, the customer portal and routes start with Professional; SLA, preventive maintenance, the technician scorecard and the brand/model reliability reports are in Enterprise. So do not decide on device count alone —",
+  "İlk ay para iade garantisi": "First-month money-back guarantee",
+  "İlk Ay Garantisi": "First-Month Guarantee",
+  "İlk ödediğiniz ay boyunca sayaçlarınızı Nextus Servis'te okuttuğunuz halde": "If, after reading your meters in Nextus Servis throughout your first paid month,",
+  "işinize yaramadığını düşünürseniz, o ayın ücretini geri öderiz.": "you feel it has not worked for you, we refund that month.",
+  "Profesyonel ve Kurumsal paketlerde geçerlidir. Tek şart, o ay sayaçlarınızın sistemde okunmuş olması; programı denemeden karar verilmesin diye.": "Applies to the Professional and Enterprise plans. The only condition is that your meters were read in the system that month, so the decision is not made without actually trying it.",
+  "Memnun kalmazsam ne olur?": "What if I am not happy?",
+  "Önce 14 gün ücretsiz denersiniz. Ödemeye başladıktan sonraki ilk ay boyunca sayaçlarınızı sistemde okuttuğunuz halde işinize yaramadığını düşünürseniz,": "You first try it free for 14 days. If, after reading your meters in the system throughout your first paid month, you feel it has not worked for you,",
+  "o ayın ücretini geri öderiz": "we refund that month",
+  ". Taahhüt yok; istediğiniz ay bırakabilirsiniz ve verinizi Excel olarak alırsınız.": ". No commitment: you can stop in any month and take your data with you as Excel."
 }
