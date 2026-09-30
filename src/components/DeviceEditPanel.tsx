@@ -38,6 +38,8 @@ export default function DeviceEditPanel({ device }: Props) {
         barcode: device.barcode || '',
         location: device.location || '',
         isRental: device.isRental || false,
+        // Kiralık değil ama kendi sayfa fiyatı var → kopya başı anlaşmalı müşteri makinesi.
+        kopyaBasi: !device.isRental && (device.pricePerBlack != null || device.pricePerColor != null),
         monthlyRent: String(device.monthlyRent || 0),
         pricePerBlack: device.pricePerBlack != null ? String(device.pricePerBlack) : '',
         pricePerColor: device.pricePerColor != null ? String(device.pricePerColor) : '',
@@ -202,6 +204,31 @@ export default function DeviceEditPanel({ device }: Props) {
                                     </div>
                                     <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: 0 }}>{t.cihaz.dahilPaketOn} <b>{t.cihaz.dahilPaketVurgu}</b> {t.cihaz.dahilPaketSon}</p>
                                 </div>
+                            )}
+                            {!form.isRental && (
+                              <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #e5e7eb' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                                  <input type="checkbox" checked={form.kopyaBasi} onChange={e => setForm({ ...form, kopyaBasi: e.target.checked })} />
+                                  <span style={{ fontWeight: '600', fontSize: '0.875rem' }}>{t.cihaz.kopyaBasi}</span>
+                                </label>
+                                {form.kopyaBasi && (
+                                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                      <div>
+                                        <label style={lbl}>{doldur(t.cihaz.sayfaSiyah, { birim: b.simge })}</label>
+                                        <input type="number" step="0.01" min="0" style={inp} value={form.pricePerBlack}
+                                          onChange={e => setForm({ ...form, pricePerBlack: e.target.value })} />
+                                      </div>
+                                      <div>
+                                        <label style={lbl}>{doldur(t.cihaz.sayfaRenkli, { birim: b.simge })}</label>
+                                        <input type="number" step="0.01" min="0" style={inp} value={form.pricePerColor}
+                                          onChange={e => setForm({ ...form, pricePerColor: e.target.value })} />
+                                      </div>
+                                    </div>
+                                    <p style={{ fontSize: '0.72rem', color: '#6b7280', margin: 0 }}>{t.cihaz.kopyaBasiNot}</p>
+                                  </div>
+                                )}
+                              </div>
                             )}
                         </div>
 

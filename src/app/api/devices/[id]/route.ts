@@ -67,11 +67,14 @@ export async function PATCH(
         if (body.overagePriceBlack !== undefined) updateData.overagePriceBlack = body.overagePriceBlack === '' || body.overagePriceBlack === null ? null : parseFloat(body.overagePriceBlack);
         if (body.overagePriceColor !== undefined) updateData.overagePriceColor = body.overagePriceColor === '' || body.overagePriceColor === null ? null : parseFloat(body.overagePriceColor);
 
-        // Kiralık değilse fiyatları sıfırla
+        // Kiralık değilse kira/paket/aşım sıfırlanır. Sayfa fiyatı YALNIZ kopya
+        // başı anlaşma işaretliyse kalır (müşteri makinesi, sayfa başı ücretli).
         if (body.isRental === false) {
             updateData.monthlyRent = 0;
-            updateData.pricePerBlack = null;
-            updateData.pricePerColor = null;
+            if (body.kopyaBasi !== true) {
+                updateData.pricePerBlack = null;
+                updateData.pricePerColor = null;
+            }
             updateData.includedBlack = 0;
             updateData.includedColor = 0;
             updateData.overagePriceBlack = null;

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { counterOverage } from '@/lib/invoicing';
+import { counterOverage, fiyatTabani } from '@/lib/invoicing';
 import { oturumKullanicisi } from '@/lib/api-auth';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -28,8 +28,10 @@ export async function GET() {
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+  // Kiralık cihazlar + kendi sayfa fiyatı olan müşteri makineleri (kopya
+  // başı anlaşma). Faturalamayla aynı kural: lib/invoicing sayfaUcretliMi.
   const devices = await prisma.device.findMany({
-    where: { tenantId: user.tenantId, isRental: true },
+    where: { tenantId: user.tenantId, OR: [{ isRental: true }, { pricePerBlack: { not: null } }, { pricePerColor: { not: null } }] },
     include: { customer: { select: { id: true, name: true, phone: true, address: true } } },
   });
   const ids = devices.map((d) => d.id);
@@ -107,9 +109,9 @@ export async function GET() {
   for (const d of devices) {
     const s = sums.get(d.id) || { b: 0, c: 0 };
     const prev = prevSums.get(d.id) || { b: 0, c: 0 };
-    const ch = counterOverage(d, s.b, s.c, tenant, prev.b, prev.c);
+    const ch = counterOverage(d, s.b, s.c, fiyatTabani(d, tenant), prev.b, prev.c);
     const counterAmount = ch.total; // aşım tutarı (dahil paket düşülmüş)
-    const rentUncut = Number(d.monthlyRent) > 0 && d.lastInvoicedPeriod !== period;
+    const rentUncut = d.isRental && Number(d.monthlyRent) > 0 && d.lastInvoicedPeriod !== period;
     const rentAmount = rentUncut ? round2(Number(d.monthlyRent)) : 0;
     if (counterAmount <= 0 && rentAmount <= 0) continue;
 

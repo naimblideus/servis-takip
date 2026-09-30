@@ -78,6 +78,34 @@ export function counterOverage(
   };
 }
 
+/**
+ * ── SAYFA BAŞI ÜCRETLİ Mİ ─────────────────────────────────────────────────
+ * İki durumda sayfa faturalanır:
+ *   • kiralık cihaz (kira + dahil paket + aşım), ya da
+ *   • cihaz kartında KENDİ sayfa fiyatı girilmiş müşteri makinesi — kopya
+ *     başı servis anlaşması (makine müşterinin, toner+servis sayfa başına).
+ *
+ * SESSİZ SAYAÇ YANMASI (kapatıldı): aylık fatura müşterinin BÜTÜN
+ * cihazlarının okumalarını "faturalandı" diye kapatıyor ama ücreti yalnız
+ * kiralık cihaz için hesaplıyordu. Karma parkta (aynı müşteride kiralık +
+ * anlaşmalı müşteri makinesi) anlaşmalı makinenin sayfaları hiç
+ * faturalanmadan kapanıyor, sonraki ay da geri gelmiyordu — iz bırakmadan.
+ * Artık ücretli olmayan cihazın okuması kapatılmıyor, anlaşmalı müşteri
+ * makinesi kendi fiyatıyla faturalanıyor.
+ *
+ * Bayinin GENEL varsayılan sayfa fiyatı müşteri makinesine UYGULANMAZ:
+ * uygulansaydı tamire gelen her makine sayfa başı faturalanırdı. Anlaşma
+ * cihaz kartına fiyat yazılınca başlar.
+ */
+export function sayfaUcretliMi(d: { isRental: boolean; pricePerBlack: unknown; pricePerColor: unknown }): boolean {
+  return d.isRental || d.pricePerBlack != null || d.pricePerColor != null;
+}
+
+/** Fiyat tabanı: kiralıkta bayi varsayılanı; müşteri makinesinde varsayılan yok (girilmeyen kanal ücretsiz). */
+export function fiyatTabani(d: { isRental: boolean }, tenant: PriceTenant): PriceTenant {
+  return d.isRental ? tenant : { pricePerBlack: 0, pricePerColor: 0 };
+}
+
 /** Bugünün dönemi: "YYYY-MM" */
 export function periodOf(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -223,27 +251,32 @@ export async function buildInvoiceForCustomerPeriod(
     const devices = await tx.device.findMany({ where: { tenantId, customerId } });
 
     for (const device of devices) {
-      // a) Faturalanmamış sayaç okumaları (bu dönem)
-      const readings = await tx.counterReading.findMany({
-        where: { tenantId, deviceId: device.id, billed: false, readingDate: { gte: start, lt: end } },
-      });
-      let sumBlack = 0;
-      let sumColor = 0;
-      for (const r of readings) {
-        sumBlack += r.deltaBlack;
-        sumColor += r.deltaColor;
-        readingIdsToBill.push(r.id);
-      }
-      if (device.isRental) {
+      // a) Faturalanmamış sayaç okumaları (bu dönem) — YALNIZ sayfa başı
+      // ücretli cihazda. Ücretsiz cihazın okuması "faturalandı" diye
+      // kapatılmaz (bkz. sayfaUcretliMi: sessiz sayaç yanması).
+      if (sayfaUcretliMi(device)) {
+        const readings = await tx.counterReading.findMany({
+          where: { tenantId, deviceId: device.id, billed: false, readingDate: { gte: start, lt: end } },
+        });
+        let sumBlack = 0;
+        let sumColor = 0;
+        for (const r of readings) {
+          sumBlack += r.deltaBlack;
+          sumColor += r.deltaColor;
+          readingIdsToBill.push(r.id);
+        }
         // Dahil paketi dönem boyunca KÜMÜLATİF uygula: bu dönemde daha önce faturalanmış sayfaları çek
         const prevAgg = await tx.counterReading.aggregate({
           where: { tenantId, deviceId: device.id, billed: true, readingDate: { gte: start, lt: end } },
           _sum: { deltaBlack: true, deltaColor: true },
         });
         // Kademeli: dahil sayfa kira içinde; yalnız aşım faturalanır (included=0 ise düz fiyat)
-        const ch = counterOverage(device, sumBlack, sumColor, tenant, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+        const ch = counterOverage(device, sumBlack, sumColor, fiyatTabani(device, tenant), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
         const fmtN = (n: number) => n.toLocaleString('tr-TR');
-        if (ch.billB > 0)
+        // Müşteri makinesinde fiyatı girilmemiş kanal (yalnız S/B anlaşması
+        // yapılmış renkli makine gibi) ₺0'lık satır olarak faturaya düşmesin.
+        const kanalVar = (tutar: number) => device.isRental || tutar > 0;
+        if (ch.billB > 0 && kanalVar(ch.blackTotal))
           lines.push({
             tenantId,
             kind: 'COUNTER',
@@ -253,7 +286,7 @@ export async function buildInvoiceForCustomerPeriod(
             unitPrice: ch.overBlack,
             lineTotal: ch.blackTotal,
           });
-        if (ch.billC > 0)
+        if (ch.billC > 0 && kanalVar(ch.colorTotal))
           lines.push({
             tenantId,
             kind: 'COUNTER',

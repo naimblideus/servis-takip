@@ -71,6 +71,8 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
     select: { pricePerBlack: true, pricePerColor: true },
   });
 
+  // Kiralık değil ama kendi sayfa fiyatı var: kopya başı anlaşmalı müşteri makinesi (lib/invoicing sayfaUcretliMi).
+  const kopyaBasi = !device.isRental && ((device as any).pricePerBlack !== null || (device as any).pricePerColor !== null);
   const effectiveBlackPrice = (device as any).pricePerBlack !== null ? Number((device as any).pricePerBlack) : Number(tenant?.pricePerBlack ?? 0);
   const effectiveColorPrice = (device as any).pricePerColor !== null ? Number((device as any).pricePerColor) : Number(tenant?.pricePerColor ?? 0);
   const inclBlack = Number((device as any).includedBlack ?? 0);
@@ -93,6 +95,9 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{device.brand} {device.model}</h1>
             {device.isRental && (
               <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dbeafe', color: '#1e40af', padding: '0.25rem 0.75rem', borderRadius: '9999px' }}>{sz.cihazlar.kiralik}</span>
+            )}
+            {kopyaBasi && (
+              <span style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '9999px' }}>{sz.cihaz.kopyaBasiRozet}</span>
             )}
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -180,6 +185,23 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
           </div>
         )}
       </div>
+
+      {/* Kopya başı anlaşma: müşteri makinesi, sayfa başı ücretli */}
+      {kopyaBasi && (
+        <div style={{ backgroundColor: '#f0fdf4', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', border: '1px solid #bbf7d0', marginTop: '1rem' }}>
+          <h2 style={{ fontWeight: '600', marginBottom: '0.75rem', color: '#166534' }}>{sz.cihaz.kopyaBasiBaslik}</h2>
+          {([
+            [doldur(sz.cihaz.sayfaSiyah, { birim: b.simge }), (device as any).pricePerBlack !== null ? b.para(Number((device as any).pricePerBlack)) : '—'],
+            [doldur(sz.cihaz.sayfaRenkli, { birim: b.simge }), (device as any).pricePerColor !== null ? b.para(Number((device as any).pricePerColor)) : '—'],
+          ] as [string, string][]).map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #bbf7d0', fontSize: '0.875rem' }}>
+              <span style={{ color: '#166534' }}>{k}</span>
+              <span style={{ fontWeight: '600', color: '#14532d' }}>{v}</span>
+            </div>
+          ))}
+          <p style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#166534' }}>{sz.cihaz.kopyaBasiNot}</p>
+        </div>
+      )}
 
       {/* Toner Takibi */}
       <TonerPanel

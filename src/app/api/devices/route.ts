@@ -52,8 +52,9 @@ export async function POST(req: Request) {
         manufacturedAt: body.manufacturedAt ? new Date(body.manufacturedAt) : null,
         isRental: body.isRental || false,
         monthlyRent: body.isRental ? (parseFloat(body.monthlyRent) || 0) : 0,
-        pricePerBlack: body.isRental && body.pricePerBlack ? parseFloat(body.pricePerBlack) : null,
-        pricePerColor: body.isRental && body.pricePerColor ? parseFloat(body.pricePerColor) : null,
+        // Sayfa fiyatı: kiralıkta ya da kopya başı anlaşmalı müşteri makinesinde.
+        pricePerBlack: (body.isRental || body.kopyaBasi === true) && body.pricePerBlack ? parseFloat(body.pricePerBlack) : null,
+        pricePerColor: (body.isRental || body.kopyaBasi === true) && body.pricePerColor ? parseFloat(body.pricePerColor) : null,
         includedBlack: body.isRental ? (parseInt(body.includedBlack) || 0) : 0,
         includedColor: body.isRental ? (parseInt(body.includedColor) || 0) : 0,
         overagePriceBlack: body.isRental && body.overagePriceBlack ? parseFloat(body.overagePriceBlack) : null,

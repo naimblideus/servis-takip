@@ -3,7 +3,7 @@
 // Mükerrer engeli faturalama ile AYNI bayraklar: CounterReading.billed + Device.lastInvoicedPeriod.
 // Böylece bu yol ile "Bu Dönemi Faturala" yolu birbirini çift saymaz.
 import { prisma } from '@/lib/prisma';
-import { counterOverage, periodOf } from '@/lib/invoicing';
+import { counterOverage, periodOf, sayfaUcretliMi, fiyatTabani } from '@/lib/invoicing';
 import type { Prisma } from '@prisma/client';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -48,7 +48,9 @@ async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: s
   const rentDeviceIds: string[] = [];
 
   for (const d of devices) {
-    if (!d.isRental) continue;
+    // Faturalama ile AYNI kural: kiralık ya da kendi sayfa fiyatı olan
+    // müşteri makinesi (kopya başı anlaşma). Ücretsiz cihaz hiç işlenmez.
+    if (!sayfaUcretliMi(d)) continue;
     const label = `${d.brand} ${d.model}`;
 
     // Sayaç: bu dönem faturalanmamış okumalar
@@ -57,12 +59,12 @@ async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: s
     for (const r of readings) { sb += r.deltaBlack; sc += r.deltaColor; readingIds.push(r.id); }
     if (sb > 0 || sc > 0) {
       const prevAgg = await tx.counterReading.aggregate({ where: { tenantId, deviceId: d.id, billed: true, readingDate: { gte: start, lt: end } }, _sum: { deltaBlack: true, deltaColor: true } });
-      const ch = counterOverage(d as any, sb, sc, tenant as any, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+      const ch = counterOverage(d as any, sb, sc, fiyatTabani(d, tenant as any), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
       if (ch.total > 0) { counter += ch.total; counterDetail.push({ device: label, amount: ch.total }); }
     }
 
-    // Kira: dönem başına 1 kez (lastInvoicedPeriod ile mükerrer engeli)
-    if (Number(d.monthlyRent) > 0 && d.lastInvoicedPeriod !== period) {
+    // Kira: dönem başına 1 kez (lastInvoicedPeriod ile mükerrer engeli). Yalnız kiralık.
+    if (d.isRental && Number(d.monthlyRent) > 0 && d.lastInvoicedPeriod !== period) {
       rent += Number(d.monthlyRent);
       rentDetail.push({ device: label, amount: Number(d.monthlyRent) });
       rentDeviceIds.push(d.id);
