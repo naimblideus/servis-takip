@@ -2033,10 +2033,11 @@ export const en: Sozluk = {
     tutarBaslik: 'Your amount this month',
     tutarDenemede: 'Your monthly amount on the {paket} plan once the trial ends',
     kdvHaric: '+ VAT',
-    dokumTaban: 'Base {taban} (first {dahil} rental devices included)',
+    dokumTaban: 'Base {taban} (first {dahil} devices included)',
     dokumAsim: '+ {n} devices × {birim} = {tutar}',
-    cihazSayisi: 'You have {n} rental devices right now.',
-    paketlerBaslik: 'Plans — monthly amount for your {n} rental devices',
+    dokumTavan: 'Monthly ceiling {tavan}: you are never charged more.',
+    cihazSayisi: 'You have {n} billed devices right now (rental + cost-per-copy).',
+    paketlerBaslik: 'Plans — monthly amount for your {n} devices',
     paketDegis: 'I want to change plan →',
     ayda: '/month',
     paketFark: {
@@ -2044,7 +2045,7 @@ export const en: Sozluk = {
       professional: '+ Meter and rent invoicing, payments, lost revenue, customer portal, routes.',
       enterprise: '+ SLA, preventive maintenance, technician scorecard, corporate groups, model reports.',
     },
-    yillikNot: 'Pay a year upfront and get 2 months free. First-month money-back guarantee on Professional and Enterprise.',
+    yillikNot: 'Pay a year upfront and get 2 months free. Every plan has a monthly ceiling; however many devices you have, the amount never goes above it. First-month money-back guarantee on Professional and Enterprise.',
     faturalar: 'Your subscription invoices',
     faturaYok: 'No subscription invoices yet.',
     faturaYokDeneme: 'No invoices are issued during the trial.',
@@ -4679,7 +4680,7 @@ export const en: Sozluk = {
       abonelik: {
         baslik: 'Subscription — your plan, your amount and paying',
         adimlar: [
-          'Settings → Subscription (administrators only): your plan, this month’s amount and how it is worked out — base plus each rental device not included in the base × unit price.',
+          'Settings → Subscription (administrators only): your plan, this month’s amount and how it is worked out — base plus each billed device (rental or cost-per-copy) not included in the base × unit price. The amount never goes above the plan’s monthly ceiling: ₺9,999 on Professional, ₺19,999 on Enterprise.',
           'On a trial, the days left are shown at the top of the screen. When it ends, sign-in is locked; your data is NOT deleted. To carry on, message us on WhatsApp from the same screen.',
           'Payment is by bank transfer: IBAN and payee on screen, with copy buttons. Put the invoice number in the transfer reference so your payment is matched to that invoice.',
           'The plans are shown side by side with the monthly amount for your number of rental devices. To switch, use “I want to change plan”.',

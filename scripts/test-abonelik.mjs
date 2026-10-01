@@ -73,7 +73,9 @@ t('ödeyen bayiye kendi paketi', gosterilecekPaket('enterprise') === 'enterprise
 // ── BAĞLANTILAR ──────────────────────────────────────────────────────────
 {
   const uc = readFileSync(join(KOK, 'src/app/api/abonelik/route.ts'), 'utf8');
-  t('★ ekrandaki tutar faturayı kesen fonksiyondan (monthlyAmount)', /monthlyAmount\(paket, kiralik\)/.test(uc));
+  t('★ ekrandaki tutar faturayı kesen fonksiyondan (monthlyAmount)', /monthlyAmount\(paket, faturali\)/.test(uc));
+  t('★ sayılan cihaz faturalamayla aynı kural (kiralık + kopya başı)', /SAYFA_UCRETLI_CIHAZ/.test(uc)
+    && /SAYFA_UCRETLI_CIHAZ/.test(readFileSync(join(KOK, 'src/app/api/super-admin/billing/generate-monthly/route.ts'), 'utf8')));
   t('abonelik ucu yalnız yönetici', /requireAdminUser\(\)/.test(uc));
   const lay = readFileSync(join(KOK, 'src/app/(dashboard)/layout.tsx'), 'utf8');
   t('★ kilit ekranında devam yolu (IBAN + WhatsApp) var', /odeme=\{odeme\}/.test(lay) && /platformOdeme\(settings\)/.test(lay));

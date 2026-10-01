@@ -2092,10 +2092,11 @@ export const tr = {
     tutarBaslik: 'Bu ayki tutarınız',
     tutarDenemede: 'Deneme bitince {paket} paketiyle aylık tutarınız',
     kdvHaric: '+ KDV',
-    dokumTaban: 'Taban {taban} (ilk {dahil} kiralık cihaz dahil)',
+    dokumTaban: 'Taban {taban} (ilk {dahil} cihaz dahil)',
     dokumAsim: '+ {n} cihaz × {birim} = {tutar}',
-    cihazSayisi: 'Şu an {n} kiralık cihazınız var.',
-    paketlerBaslik: 'Paketler — {n} kiralık cihazınıza göre aylık tutar',
+    dokumTavan: 'Aylık tavan {tavan}: bundan fazlası alınmaz.',
+    cihazSayisi: 'Şu an faturası kesilen {n} cihazınız var (kiralık + kopya başı anlaşmalı).',
+    paketlerBaslik: 'Paketler — {n} cihazınıza göre aylık tutar',
     paketDegis: 'Paket değiştirmek istiyorum →',
     ayda: '/ay',
     paketFark: {
@@ -2103,7 +2104,7 @@ export const tr = {
       professional: '+ Sayaç ve kira faturası, tahsilat, Kaçan Gelir, müşteri paneli, rota.',
       enterprise: '+ SLA, periyodik bakım, teknisyen karnesi, kurumsal gruplar, model raporları.',
     },
-    yillikNot: 'Yıllık peşin ödemede 2 ay bedava. Profesyonel ve Kurumsal paketlerde ilk ay para iade garantisi.',
+    yillikNot: 'Yıllık peşin ödemede 2 ay bedava. Her paketin aylık tavanı var; cihaz sayınız ne olursa olsun tutar onu geçmez. Profesyonel ve Kurumsal paketlerde ilk ay para iade garantisi.',
     faturalar: 'Abonelik faturalarınız',
     faturaYok: 'Henüz abonelik faturanız yok.',
     faturaYokDeneme: 'Deneme süresince fatura kesilmez.',
@@ -4830,7 +4831,7 @@ export const tr = {
       abonelik: {
         baslik: 'Abonelik — paketin, tutarın ve ödemen',
         adimlar: [
-          'Ayarlar → Abonelik (yalnız yönetici görür): paketin, bu ayki tutarın ve nasıl hesaplandığı yazar — taban + tabana dahil olmayan her kiralık cihaz × birim fiyat.',
+          'Ayarlar → Abonelik (yalnız yönetici görür): paketin, bu ayki tutarın ve nasıl hesaplandığı yazar — taban + tabana dahil olmayan her faturalı cihaz (kiralık ya da kopya başı anlaşmalı) × birim fiyat. Tutar paketin aylık tavanını geçmez: Profesyonel ₺9.999, Kurumsal ₺19.999.',
           'Denemedeysen ekranın üstünde kaç gün kaldığı görünür. Süre dolunca giriş kilitlenir; verilerin SİLİNMEZ. Devam etmek için aynı ekrandan bize WhatsApp’tan yazarsın.',
           'Ödeme havaleyle: IBAN ve alıcı ekranda, kopyala düğmesiyle. Havale açıklamasına fatura numarasını yaz; ödemen o faturaya işlenir.',
           'Paketler, senin kiralık cihaz sayına göre aylık tutarlarıyla yan yana gösterilir. Değiştirmek için “Paket değiştirmek istiyorum”.',

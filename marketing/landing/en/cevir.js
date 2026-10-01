@@ -54,6 +54,8 @@ const SAYI = {
   '₺35.688': '₺35,688',
   '₺39.912': '₺39,912',
   '₺108.000': '₺108,000',
+  '₺9.999': '₺9,999',
+  '₺19.999': '₺19,999',
 };
 // Türkçe biçimli sayı: binlik "1.500" · ondalık "2,1" · önde yüzde "%10".
 // Virgülden sonra iki basamak daha gelirse bu zaten İngilizce binliktir ("1,500").
@@ -141,6 +143,8 @@ const JS_DEGISIM = [
   ["tl(recovered) + ' geri kazanım'", "tl(recovered) + ' recovered'", 1],
   ["devices + ' cihaz: '", "devices + ' devices: '", 1],
   ["' (dahil adedin içinde)'", "' (within the included count)'", 1],
+  ["' → aylık tavan ₺'", "' → monthly ceiling ₺'", 1],
+  ["' → tavan'", "' → ceiling'", 1],
   ["' / 5 yıl'", "' / 5 years'", 1],
 
   // — talep formu —

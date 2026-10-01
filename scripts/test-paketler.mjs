@@ -100,10 +100,26 @@ console.log('\nPaketler\n');
 
 // ── FİYAT ────────────────────────────────────────────────────────────────
 {
-  // Kurumsal'ın Profesyonel'e farkı cihaz sayısı arttıkça kapanmıyor (aşım
-  // bedeli aynı). Fark bu yüzden ÖZELLİKLE gerekçelendirilmeli.
+  // TAVAN (2026-09-30, kurucu kararı): büyük bayi daha çok öder ama
+  // "10-20 bin TL/ay civarı"nı geçmez. Tavan merdiveni BOZMAMALI: hiçbir
+  // cihaz sayısında alt paket üst paketten pahalı olamaz.
+  const ters = [];
+  for (let n = 0; n <= 3000; n += 7) {
+    const s = monthlyAmount('starter', n).amount, p = monthlyAmount('professional', n).amount, k = monthlyAmount('enterprise', n).amount;
+    if (!(s < p && p <= k)) ters.push([n, s, p, k]);
+  }
+  t('★ merdiven her ölçekte korunuyor: Başlangıç < Profesyonel ≤ Kurumsal (0–3000 cihaz)', ters.length === 0, ters.slice(0, 3));
+  t('★ tavan: Profesyonel ₺9.999, Kurumsal ₺19.999 — 5.000 cihazda bile', monthlyAmount('professional', 5000).amount === 9999
+    && monthlyAmount('enterprise', 5000).amount === 19999 && monthlyAmount('professional', 5000).capped);
+  t('tavanın altında fiyat değişmedi (150 cihaz Profesyonel = ₺5.224, tanıtım SSS örneği)', monthlyAmount('professional', 150).amount === 5224 && !monthlyAmount('professional', 150).capped);
+  t('Profesyonel tavana 341 cihazda ulaşıyor', monthlyAmount('professional', 340).amount < 9999 && monthlyAmount('professional', 341).amount === 9999);
   const fark = monthlyAmount('enterprise', 150).amount - monthlyAmount('professional', 150).amount;
-  t('Kurumsal−Profesyonel farkı 100+ cihazda sabit', fark === monthlyAmount('enterprise', 400).amount - monthlyAmount('professional', 400).amount, fark);
+  t('Kurumsal−Profesyonel farkı Profesyonel tavanına kadar sabit (₺1.275)', fark === 1275 && monthlyAmount('enterprise', 300).amount - monthlyAmount('professional', 300).amount === 1275, fark);
+  {
+    const html = readFileSync(join(KOK, 'marketing/landing/nextus-servis.html'), 'utf8');
+    const tanitim = ['baslangic:', 'profesyonel:', 'kurumsal:'].map((k) => (html.match(new RegExp(k + "\\s*\\{[^}]*tavan:\\s*(\\d+)")) ?? [])[1]);
+    t('★ tanıtım sayfasının hesaplayıcısı aynı tavanları kullanıyor', tanitim.join() === [PLAN_PRICING.starter.ceiling, PLAN_PRICING.professional.ceiling, PLAN_PRICING.enterprise.ceiling].join(), tanitim);
+  }
   t('★ o farkın karşılığında büyük müşteri ekranları var', kume('enterprise').has('SLA') && !kume('professional').has('SLA'));
   t('üç paket fiyat tablosunda', ['starter', 'professional', 'enterprise'].every((p) => PLAN_PRICING[p]));
 }

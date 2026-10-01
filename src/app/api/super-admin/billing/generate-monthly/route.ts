@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateInvoiceNumber } from '@/lib/tenant-manager';
 import { monthlyAmount, amountNote } from '@/lib/plan-pricing';
+import { SAYFA_UCRETLI_CIHAZ } from '@/lib/invoicing';
 
 // POST — tüm aktif abonelikler için aylık fatura üret
 export async function POST(req: NextRequest) {
@@ -21,11 +22,11 @@ export async function POST(req: NextRequest) {
 
     const results: { tenantId: string; invoiceNumber: string; status: string; note?: string }[] = [];
 
-    // Kiralık cihaz sayıları — tek sorguda (bayi başına ayrı sorgu atma)
+    // Faturalı cihaz sayıları (kiralık + kopya başı) — tek sorguda (bayi başına ayrı sorgu atma)
     const rentalCounts = new Map<string, number>();
     const grouped = await (prisma as any).device.groupBy({
         by: ['tenantId'],
-        where: { isRental: true, tenantId: { in: tenants.map((t: any) => t.id) } },
+        where: { ...SAYFA_UCRETLI_CIHAZ, tenantId: { in: tenants.map((t: any) => t.id) } },
         _count: { _all: true },
     });
     for (const g of grouped) rentalCounts.set(g.tenantId, g._count._all);

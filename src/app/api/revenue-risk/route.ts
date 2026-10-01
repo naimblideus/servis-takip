@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { counterOverage, fiyatTabani } from '@/lib/invoicing';
+import { counterOverage, fiyatTabani, SAYFA_UCRETLI_CIHAZ } from '@/lib/invoicing';
 import { oturumKullanicisi } from '@/lib/api-auth';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -31,7 +31,7 @@ export async function GET() {
   // Kiralık cihazlar + kendi sayfa fiyatı olan müşteri makineleri (kopya
   // başı anlaşma). Faturalamayla aynı kural: lib/invoicing sayfaUcretliMi.
   const devices = await prisma.device.findMany({
-    where: { tenantId: user.tenantId, OR: [{ isRental: true }, { pricePerBlack: { not: null } }, { pricePerColor: { not: null } }] },
+    where: { tenantId: user.tenantId, ...SAYFA_UCRETLI_CIHAZ },
     include: { customer: { select: { id: true, name: true, phone: true, address: true } } },
   });
   const ids = devices.map((d) => d.id);

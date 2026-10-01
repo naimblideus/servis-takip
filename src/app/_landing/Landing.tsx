@@ -1278,11 +1278,11 @@ const BODY = `
           <span class="period">/ ay</span>
           <span class="price-vat">+KDV</span>
         </div>
-        <div class="price-note">İlk <strong>20</strong> kiralık cihaz dahil · sonrası cihaz başına ₺25</div>
+        <div class="price-note">İlk <strong>20</strong> cihaz dahil · sonrası cihaz başına ₺25 · aylık en fazla ₺7.499</div>
         <div class="price-calc" hidden></div>
         <a href="https://wa.me/905526961703?text=Merhaba%2C%20Baslangic%20paketi%20icin%2014%20gunluk%20denemeyi%20baslatmak%20istiyorum" target="_blank" rel="noopener" class="btn btn-ghost btn-block">14 Gün Ücretsiz Dene</a>
         <ul class="price-features">
-          <li class="has"><strong>İlk 20 kiralık cihaz dahil</strong> · aşan her cihaz ₺25</li>
+          <li class="has"><strong>İlk 20 cihaz dahil</strong> · aşan her cihaz ₺25</li>
           <li class="has"><strong>3 kullanıcı · 200 servis fişi/ay</strong></li>
           <li class="has">Müşteri · cihaz · servis fişi · QR arıza bildirimi</li>
           <li class="has">Stok · barkod · Zebra etiket · toner tahmini</li>
@@ -1308,11 +1308,11 @@ const BODY = `
           <span class="period">/ ay</span>
           <span class="price-vat">+KDV</span>
         </div>
-        <div class="price-note">İlk <strong>25</strong> kiralık cihaz dahil · sonrası cihaz başına ₺25</div>
+        <div class="price-note">İlk <strong>25</strong> cihaz dahil · sonrası cihaz başına ₺25 · aylık en fazla ₺9.999</div>
         <div class="price-calc" hidden></div>
         <a href="https://wa.me/905526961703?text=Merhaba%2C%20Profesyonel%20paket%20icin%2014%20gunluk%20denemeyi%20baslatmak%20istiyorum" target="_blank" rel="noopener" class="btn btn-grad btn-block">14 Gün Ücretsiz Dene</a>
         <ul class="price-features">
-          <li class="has"><strong>İlk 25 kiralık cihaz dahil</strong> · aşan her cihaz ₺25</li>
+          <li class="has"><strong>İlk 25 cihaz dahil</strong> · aşan her cihaz ₺25</li>
           <li class="has"><strong>10 kullanıcı · sınırsız servis fişi</strong></li>
           <li class="has"><strong>Başlangıç'taki her şey</strong>, ayrıca:</li>
           <li class="has">Sayaç okuma ve otomatik kira faturalaması</li>
@@ -1339,11 +1339,11 @@ const BODY = `
           <span class="period">/ ay</span>
           <span class="price-vat">+KDV</span>
         </div>
-        <div class="price-note">İlk <strong>100</strong> kiralık cihaz dahil · sonrası cihaz başına ₺25</div>
+        <div class="price-note">İlk <strong>100</strong> cihaz dahil · sonrası cihaz başına ₺25 · aylık en fazla ₺19.999</div>
         <div class="price-calc" hidden></div>
         <a href="https://wa.me/905526961703?text=Merhaba%2C%20Kurumsal%20paket%20icin%20gorusmek%20istiyorum" target="_blank" rel="noopener" class="btn btn-ghost btn-block">Görüşelim</a>
         <ul class="price-features">
-          <li class="has"><strong>İlk 100 kiralık cihaz dahil</strong> · aşan her cihaz ₺25</li>
+          <li class="has"><strong>İlk 100 cihaz dahil</strong> · aşan her cihaz ₺25</li>
           <li class="has"><strong>50 kullanıcı · sınırsız servis fişi</strong></li>
           <li class="has"><strong>Profesyonel'deki her şey</strong>, ayrıca:</li>
           <li class="has">SLA uyum raporu <span class="feat-note">(sözleşmedeki müdahale/çözüm süresi, mesai saatine göre)</span></li>
@@ -1370,7 +1370,7 @@ const BODY = `
       <span class="check-mini">✓</span> Yıllık ödemede 2 ay bedava &nbsp;·&nbsp;
       <span class="check-mini">✓</span> Fiyatlar KDV hariçtir
       <div style="margin-top:16px;font-size:13px;color:var(--text-faint);max-width:720px;margin-left:auto;margin-right:auto;line-height:1.6">
-        Aşım bedeli üç pakette de aynıdır (₺25); taban fiyat ve dahil cihaz adedi paketten pakete değişir. Paketler asıl olarak <strong>açılan özellikler ve kullanıcı sayısıyla</strong> ayrışır: sayaç/kira faturalaması, tahsilat, Kaçan Gelir paneli, müşteri paneli ve rota Profesyonel ile başlar; SLA, periyodik bakım, teknisyen karnesi ve marka/model güvenilirlik raporları Kurumsal'dadır. Bu yüzden sadece cihaz sayısına bakıp karar vermeyin — <strong>ihtiyacınız olan özelliğin hangi pakette açık olduğuna bakın</strong>. Kaydırıcıyı oynattığınızda kartlar kendi cihaz sayınıza göre güncellenir. Hangi paketin size oturduğundan emin değilseniz
+        Aşım bedeli üç pakette de aynıdır (₺25) ve her paketin <strong>aylık tavanı</strong> var: cihazınız ne kadar çok olursa olsun tutar tavanı geçmez. Sayılan cihaz, faturasını kestiğiniz makinedir — kiralık ya da kopya başı anlaşmalı; yalnız tamire gelen makine sayılmaz. Taban fiyat ve dahil cihaz adedi paketten pakete değişir. Paketler asıl olarak <strong>açılan özellikler ve kullanıcı sayısıyla</strong> ayrışır: sayaç/kira faturalaması, tahsilat, Kaçan Gelir paneli, müşteri paneli ve rota Profesyonel ile başlar; SLA, periyodik bakım, teknisyen karnesi ve marka/model güvenilirlik raporları Kurumsal'dadır. Bu yüzden sadece cihaz sayısına bakıp karar vermeyin — <strong>ihtiyacınız olan özelliğin hangi pakette açık olduğuna bakın</strong>. Kaydırıcıyı oynattığınızda kartlar kendi cihaz sayınıza göre güncellenir. Hangi paketin size oturduğundan emin değilseniz
         <a href="https://wa.me/905526961703?text=Merhaba%2C%20cihaz%20sayima%20gore%20hangi%20paket%20uygun%20ogrenmek%20istiyorum" target="_blank" rel="noopener" style="color:#5eead4;border-bottom:1px solid rgba(94,234,212,0.35)">WhatsApp'tan yazın</a>, birlikte seçelim.
       </div>
     </div>
@@ -1393,7 +1393,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-1" role="region" aria-labelledby="faq-q-1" aria-hidden="true">
-          <p>Taban fiyat + dahil cihaz adedi + aşım. Örnek: <strong>150 kiralık cihazınız varsa Profesyonel pakette</strong> ₺2.099 taban + (150 − 25) × ₺25 = <strong>₺5.224/ay + KDV</strong>. Aşım bedeli üç pakette de ₺25'tir. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani <strong>2 ay bedava</strong>.</p>
+          <p>Taban fiyat + dahil cihaz adedi + aşım. Örnek: <strong>150 kiralık cihazınız varsa Profesyonel pakette</strong> ₺2.099 taban + (150 − 25) × ₺25 = <strong>₺5.224/ay + KDV</strong>. Aşım bedeli üç pakette de ₺25'tir; aylık tutar Profesyonel'de <strong>₺9.999</strong>, Kurumsal'da <strong>₺19.999</strong> tavanını geçmez. Kiralık ve kopya başı anlaşmalı makineler sayılır, yalnız tamire gelen makine sayılmaz. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani <strong>2 ay bedava</strong>.</p>
         </div>
       </div>
 
@@ -1686,13 +1686,14 @@ document.documentElement.classList.add('js');
   var PER_DEVICE = 25;                 // dahil sayinin ustundeki her cihaz — UC PAKETTE DE AYNI
   var YEARLY_MONTHS = 10;              // yillik odeme = aylik x10 (2 ay bedava)
   var RECOVERY = 0.70;                 // kacan gelirin geri kazanildigi varsayilan oran
+  // tavan: aylik tutar bunu gecmez — src/lib/plan-pricing.ts ceiling ile AYNI (test-paketler kilitli)
   var PLANS = {
-    baslangic:   { name: 'Başlangıç',   base: 1749, included: 20 },
-    profesyonel: { name: 'Profesyonel', base: 2099, included: 25 },
-    kurumsal:    { name: 'Kurumsal',    base: 5249, included: 100 }
+    baslangic:   { name: 'Başlangıç',   base: 1749, included: 20,  tavan: 7499 },
+    profesyonel: { name: 'Profesyonel', base: 2099, included: 25,  tavan: 9999 },
+    kurumsal:    { name: 'Kurumsal',    base: 5249, included: 100, tavan: 19999 }
   };
   function planMonthly(plan, devices) {
-    return plan.base + Math.max(0, devices - plan.included) * PER_DEVICE;
+    return Math.min(plan.tavan, plan.base + Math.max(0, devices - plan.included) * PER_DEVICE);
   }
   // ROI hesabinin dayandigi paket: Profesyonel.
   // Sebep: Kacan Gelir paneli, sayac/kira faturalamasi ve tahsilat bu paketle acilir;
@@ -1838,10 +1839,12 @@ document.documentElement.classList.add('js');
     Array.prototype.forEach.call(priceCards, function (card) {
       var base = +card.dataset.base;
       var inc = +card.dataset.included;
+      var plan = PLANS[card.dataset.plan];
       // Slider'a dokunulmadiysa "dahil" adet kullanilir -> ekranda TABAN fiyat gorunur
       var dev = deviceTouched ? deviceCount : inc;
       var over = Math.max(0, dev - inc);
-      var monthly = base + over * PER_DEVICE;
+      var monthly = plan ? planMonthly(plan, dev) : base + over * PER_DEVICE;
+      var tavanda = plan && monthly === plan.tavan && base + over * PER_DEVICE > plan.tavan;
       var yearly = monthly * YEARLY_MONTHS;
 
       var amt = card.querySelector('.price-amount');
@@ -1862,7 +1865,7 @@ document.documentElement.classList.add('js');
       var calc = card.querySelector('.price-calc');
       if (calc) {
         if (deviceTouched) {
-          var overTxt = over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : '';
+          var overTxt = (over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : '') + (tavanda ? ' → tavan' : '');
           calc.innerHTML = billing === 'yearly'
             ? '<strong>' + dev + ' cihaz</strong> · ₺' + formatTL(base) + ' taban' + overTxt +
               ' = <strong>₺' + formatTL(monthly) + '/ay</strong> → yıllık <strong>₺' + formatTL(yearly) + '</strong> + KDV (2 ay bedava)'
@@ -2143,7 +2146,8 @@ document.documentElement.classList.add('js');
     if (recName) recName.textContent = plan.name;
     if (recDetail) {
       recDetail.textContent = devices + ' cihaz: ' + tl(plan.base) + ' taban' +
-        (over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : ' (dahil adedin içinde)');
+        (over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : ' (dahil adedin içinde)') +
+        (planMonthly(plan, devices) === plan.tavan && plan.base + over * PER_DEVICE > plan.tavan ? ' → aylık tavan ₺' + formatTL(plan.tavan) : '');
     }
     if (recPrice) recPrice.textContent = tl(monthlyCost);
     if (recPayback) recPayback.textContent = paybackTxt;

@@ -591,5 +591,17 @@
   "olarak indirirsiniz;": "; you take the",
   "tam yedeği": "full backup",
   "tek tıkla, tüm verinizi içeren bir JSON dosyası olarak alırsınız (yönetici yetkisiyle). Müşteri ve cihaz listenizi": "in one click, as a JSON file holding all your data (with administrator rights). We import your customer and device lists",
-  ". Hesabınızda": ". On your account you can switch on"
+  ". Hesabınızda": ". On your account you can switch on",
+  "cihaz dahil · sonrası cihaz başına ₺25 · aylık en fazla ₺7.499": "devices included · then ₺25 per device · at most ₺7,499 a month",
+  "İlk 20 cihaz dahil": "First 20 devices included",
+  "cihaz dahil · sonrası cihaz başına ₺25 · aylık en fazla ₺9.999": "devices included · then ₺25 per device · at most ₺9,999 a month",
+  "İlk 25 cihaz dahil": "First 25 devices included",
+  "cihaz dahil · sonrası cihaz başına ₺25 · aylık en fazla ₺19.999": "devices included · then ₺25 per device · at most ₺19,999 a month",
+  "İlk 100 cihaz dahil": "First 100 devices included",
+  "Aşım bedeli üç pakette de aynıdır (₺25) ve her paketin": "The per-device charge is the same on all three plans (₺25) and every plan has a",
+  "aylık tavanı": "monthly ceiling",
+  "var: cihazınız ne kadar çok olursa olsun tutar tavanı geçmez. Sayılan cihaz, faturasını kestiğiniz makinedir — kiralık ya da kopya başı anlaşmalı; yalnız tamire gelen makine sayılmaz. Taban fiyat ve dahil cihaz adedi paketten pakete değişir. Paketler asıl olarak": ": however many devices you have, the amount never goes above it. A counted device is a machine you invoice — rental or on a cost-per-copy agreement; a machine that only comes in for repair is not counted. The base price and the included device count differ from plan to plan. The plans really differ by",
+  ". Aşım bedeli üç pakette de ₺25'tir; aylık tutar Profesyonel'de": ". The per-device charge is ₺25 on all three plans; the monthly amount never goes above",
+  ", Kurumsal'da": "on Professional or",
+  "tavanını geçmez. Kiralık ve kopya başı anlaşmalı makineler sayılır, yalnız tamire gelen makine sayılmaz. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani": "on Enterprise. Rental and cost-per-copy machines are counted; a machine that only comes in for repair is not. Paying yearly, you pay 10 times the monthly total — that is"
 }

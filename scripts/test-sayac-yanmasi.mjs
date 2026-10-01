@@ -136,7 +136,8 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
 console.log('\nSayaç yanması — bağlantılar\n');
 {
   const oku = (p2) => readFileSync(join(KOK, p2), 'utf8');
-  t('Kaçan Gelir aynı kuralla (kopya başı makineler de dahil, varsayılan fiyat yok)', /pricePerBlack: \{ not: null \}/.test(oku('src/app/api/revenue-risk/route.ts')) && /fiyatTabani\(d, tenant\)/.test(oku('src/app/api/revenue-risk/route.ts')));
+  t('Kaçan Gelir aynı kuralla (kopya başı makineler de dahil, varsayılan fiyat yok)', /\.\.\.SAYFA_UCRETLI_CIHAZ/.test(oku('src/app/api/revenue-risk/route.ts')) && /fiyatTabani\(d, tenant\)/.test(oku('src/app/api/revenue-risk/route.ts'))
+    && /SAYFA_UCRETLI_CIHAZ = \{\s*OR: \[\{ isRental: true \}, \{ pricePerBlack: \{ not: null \} \}, \{ pricePerColor: \{ not: null \} \}\]/.test(oku('src/lib/invoicing.ts')));
   t('cihaz ekleme ve düzenlemede "kopya başı" seçeneği var', /kopyaBasi/.test(oku('src/app/(dashboard)/devices/new/page.tsx')) && /kopyaBasi/.test(oku('src/components/DeviceEditPanel.tsx')));
   t('uçlar kopya başı fiyatı siliyor değil, koruyor', /body\.kopyaBasi === true/.test(oku('src/app/api/devices/route.ts')) && /body\.kopyaBasi !== true/.test(oku('src/app/api/devices/[id]/route.ts')));
 }

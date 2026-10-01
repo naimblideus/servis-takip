@@ -9,17 +9,19 @@
  *
  * Tutarlar sunucudan (faturayı kesen fonksiyondan); cümleler burada.
  */
+import type { AmountBreakdown } from '@/lib/plan-pricing';
 import { useEffect, useState } from 'react';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
-interface Tutar { base: number; includedDevices: number; deviceCount: number; billableDevices: number; perDevice: number; overage: number; amount: number; vatAmount: number; totalAmount: number }
+// Tutar tipi fiyatın tek kaynağından: ekran hesapla ayrışmasın.
+type Tutar = AmountBreakdown;
 interface Fatura { id: string; invoiceNumber: string; period: string; totalAmount: number; status: string; dueDate: string; paidDate: string | null }
 interface Veri {
   bayi: string; plan: string | null; denemeKalanGun: number | null;
-  trialEndsAt: string | null; planEndDate: string | null; kiralikCihaz: number;
+  trialEndsAt: string | null; planEndDate: string | null; faturaliCihaz: number;
   tutarPaketi: string; aylik: Tutar;
-  paketler: Record<string, { base: number; includedDevices: number; perDevice: number; aylik: number }>;
+  paketler: Record<string, { base: number; includedDevices: number; perDevice: number; ceiling: number; aylik: number }>;
   faturalar: Fatura[];
   odeme: { iban: string | null; hesapAdi: string | null; whatsapp: string | null };
 }
@@ -110,14 +112,15 @@ export default function AbonelikPage() {
         <div style={{ fontSize: '0.87rem', color: '#4b5563', lineHeight: 1.6 }}>
           {doldur(a.dokumTaban, { taban: b.para(v.aylik.base), dahil: v.aylik.includedDevices })}
           {v.aylik.billableDevices > 0 && <><br />{doldur(a.dokumAsim, { n: v.aylik.billableDevices, birim: b.para(v.aylik.perDevice), tutar: b.para(v.aylik.overage) })}</>}
-          <br />{doldur(a.cihazSayisi, { n: v.kiralikCihaz })}
+          {v.aylik.capped && <><br /><b>{doldur(a.dokumTavan, { tavan: b.para(v.aylik.ceiling) })}</b></>}
+          <br />{doldur(a.cihazSayisi, { n: v.faturaliCihaz })}
         </div>
       </section>
 
       {/* ── Paketler ── */}
       <section style={kart}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', flexWrap: 'wrap' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{doldur(a.paketlerBaslik, { n: v.kiralikCihaz })}</h2>
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{doldur(a.paketlerBaslik, { n: v.faturaliCihaz })}</h2>
           {degisLinki && <a href={degisLinki} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', color: '#1d4ed8', fontWeight: 600 }}>{a.paketDegis}</a>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>

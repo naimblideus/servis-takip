@@ -101,6 +101,14 @@ export function sayfaUcretliMi(d: { isRental: boolean; pricePerBlack: unknown; p
   return d.isRental || d.pricePerBlack != null || d.pricePerColor != null;
 }
 
+/**
+ * Veritabanı süzgeci olarak aynı kural: sayfa başı ücretli (faturalı) cihaz.
+ * Kaçan Gelir ve abonelik cihaz sayımı buradan okur — kural tek yerde.
+ */
+export const SAYFA_UCRETLI_CIHAZ = {
+  OR: [{ isRental: true }, { pricePerBlack: { not: null } }, { pricePerColor: { not: null } }],
+} satisfies Prisma.DeviceWhereInput;
+
 /** Fiyat tabanı: kiralıkta bayi varsayılanı; müşteri makinesinde varsayılan yok (girilmeyen kanal ücretsiz). */
 export function fiyatTabani(d: { isRental: boolean }, tenant: PriceTenant): PriceTenant {
   return d.isRental ? tenant : { pricePerBlack: 0, pricePerColor: 0 };

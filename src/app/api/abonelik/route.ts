@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { ucHatasi } from '@/lib/uc-hata';
 import { monthlyAmount, PLAN_PRICING } from '@/lib/plan-pricing';
+import { SAYFA_UCRETLI_CIHAZ } from '@/lib/invoicing';
 import { denemeKalanGun, gosterilecekPaket, platformOdeme } from '@/lib/abonelik';
 
 export const dynamic = 'force-dynamic';
@@ -17,12 +18,13 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const { tenantId } = await requireAdminUser();
-    const [tenant, kiralik, faturalar, ayar] = await Promise.all([
+    const [tenant, faturali, faturalar, ayar] = await Promise.all([
       prisma.tenant.findUnique({
         where: { id: tenantId },
         select: { name: true, plan: true, trialEndsAt: true, planEndDate: true },
       }),
-      prisma.device.count({ where: { tenantId, isRental: true } }),
+      // Fiyatın saydığı cihaz: kiralık + kopya başı anlaşmalı (faturası kesilen). Tek tanım lib/invoicing.
+      prisma.device.count({ where: { tenantId, ...SAYFA_UCRETLI_CIHAZ } }),
       prisma.tenantInvoice.findMany({
         where: { tenantId, status: { not: 'cancelled' } },
         orderBy: { period: 'desc' },
@@ -40,11 +42,11 @@ export async function GET() {
       denemeKalanGun: denemeKalanGun(tenant.plan, tenant.trialEndsAt, new Date()),
       trialEndsAt: tenant.trialEndsAt,
       planEndDate: tenant.planEndDate,
-      kiralikCihaz: kiralik,
+      faturaliCihaz: faturali,
       // Denemedeki bayiye Profesyonel'in tutarı: "deneme bitince ne öderim".
       tutarPaketi: paket,
-      aylik: monthlyAmount(paket, kiralik),
-      paketler: Object.fromEntries(Object.entries(PLAN_PRICING).map(([k, v]) => [k, { ...v, aylik: monthlyAmount(k, kiralik).amount }])),
+      aylik: monthlyAmount(paket, faturali),
+      paketler: Object.fromEntries(Object.entries(PLAN_PRICING).map(([k, v]) => [k, { ...v, aylik: monthlyAmount(k, faturali).amount }])),
       faturalar,
       odeme: platformOdeme(ayar),
     });

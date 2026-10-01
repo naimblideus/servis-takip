@@ -1278,11 +1278,11 @@ const BODY = `
           <span class="period">/ month</span>
           <span class="price-vat">+VAT</span>
         </div>
-        <div class="price-note">The first <strong>20</strong> rental devices included · ₺25 per device after that</div>
+        <div class="price-note">The first <strong>20</strong> devices included · then ₺25 per device · at most ₺7,499 a month</div>
         <div class="price-calc" hidden></div>
         <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20on%20the%20Starter%20plan" target="_blank" rel="noopener" class="btn btn-ghost btn-block">Try it free for 14 days</a>
         <ul class="price-features">
-          <li class="has"><strong>The first 20 rental devices included</strong> · ₺25 for each device beyond</li>
+          <li class="has"><strong>First 20 devices included</strong> · ₺25 for each device beyond</li>
           <li class="has"><strong>3 users · 200 service tickets a month</strong></li>
           <li class="has">Customers · devices · service tickets · QR fault reports</li>
           <li class="has">Stock · barcode · Zebra labels · toner forecast</li>
@@ -1308,11 +1308,11 @@ const BODY = `
           <span class="period">/ month</span>
           <span class="price-vat">+VAT</span>
         </div>
-        <div class="price-note">The first <strong>25</strong> rental devices included · ₺25 per device after that</div>
+        <div class="price-note">The first <strong>25</strong> devices included · then ₺25 per device · at most ₺9,999 a month</div>
         <div class="price-calc" hidden></div>
         <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20on%20the%20Professional%20plan" target="_blank" rel="noopener" class="btn btn-grad btn-block">Try it free for 14 days</a>
         <ul class="price-features">
-          <li class="has"><strong>The first 25 rental devices included</strong> · ₺25 for each device beyond</li>
+          <li class="has"><strong>First 25 devices included</strong> · ₺25 for each device beyond</li>
           <li class="has"><strong>10 users · unlimited service tickets</strong></li>
           <li class="has"><strong>Everything in Starter</strong>, plus:</li>
           <li class="has">Meter reading and automatic rent invoicing</li>
@@ -1339,11 +1339,11 @@ const BODY = `
           <span class="period">/ month</span>
           <span class="price-vat">+VAT</span>
         </div>
-        <div class="price-note">The first <strong>100</strong> rental devices included · ₺25 per device after that</div>
+        <div class="price-note">The first <strong>100</strong> devices included · then ₺25 per device · at most ₺19,999 a month</div>
         <div class="price-calc" hidden></div>
         <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20talk%20about%20the%20Enterprise%20plan" target="_blank" rel="noopener" class="btn btn-ghost btn-block">Let’s talk</a>
         <ul class="price-features">
-          <li class="has"><strong>The first 100 rental devices included</strong> · ₺25 for each device beyond</li>
+          <li class="has"><strong>First 100 devices included</strong> · ₺25 for each device beyond</li>
           <li class="has"><strong>50 users · unlimited service tickets</strong></li>
           <li class="has"><strong>Everything in Professional</strong>, plus:</li>
           <li class="has">SLA compliance report <span class="feat-note">(the response and resolution times in the contract, in working hours)</span></li>
@@ -1370,7 +1370,7 @@ const BODY = `
       <span class="check-mini">✓</span> 2 months free when you pay yearly &nbsp;·&nbsp;
       <span class="check-mini">✓</span> Prices exclude VAT
       <div style="margin-top:16px;font-size:13px;color:var(--text-faint);max-width:720px;margin-left:auto;margin-right:auto;line-height:1.6">
-        The overage price is the same in all three plans (₺25); the base price and the number of included devices change from plan to plan. What really separates the plans is <strong>the features they unlock and the number of users</strong> : meter and rent invoicing, payments, the lost revenue panel, the customer portal and routes start with Professional; SLA, preventive maintenance, the technician scorecard and the brand/model reliability reports are in Enterprise. So do not decide on device count alone — <strong>look at which plan unlocks the feature you actually need</strong>. Move the slider and the cards update to your own device count. If you are not sure which plan fits you,
+        The per-device charge is the same on all three plans (₺25) and every plan has a <strong>monthly ceiling</strong> : however many devices you have, the amount never goes above it. A counted device is a machine you invoice — rental or on a cost-per-copy agreement; a machine that only comes in for repair is not counted. The base price and the included device count differ from plan to plan. The plans really differ by <strong>the features they unlock and the number of users</strong> : meter and rent invoicing, payments, the lost revenue panel, the customer portal and routes start with Professional; SLA, preventive maintenance, the technician scorecard and the brand/model reliability reports are in Enterprise. So do not decide on device count alone — <strong>look at which plan unlocks the feature you actually need</strong>. Move the slider and the cards update to your own device count. If you are not sure which plan fits you,
         <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20know%20which%20plan%20fits%20my%20device%20count" target="_blank" rel="noopener" style="color:#5eead4;border-bottom:1px solid rgba(94,234,212,0.35)">Message us on WhatsApp</a>let us choose it together.
       </div>
     </div>
@@ -1393,7 +1393,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-1" role="region" aria-labelledby="faq-q-1" aria-hidden="true">
-          <p>Base price + included devices + overage. For example: <strong>with 150 rental devices, on the Professional plan</strong> ₺2,099 base + (150 − 25) × ₺25 = <strong>₺5,224/month + VAT</strong>. The overage price is ₺25 in all three plans. Paid yearly you pay ten times the monthly total — that is <strong>2 months free</strong>.</p>
+          <p>Base price + included devices + overage. For example: <strong>with 150 rental devices, on the Professional plan</strong> ₺2,099 base + (150 − 25) × ₺25 = <strong>₺5,224/month + VAT</strong>. The per-device charge is ₺25 on all three plans; the monthly amount never goes above <strong>₺9,999</strong>on Professional or <strong>₺19,999</strong> on Enterprise. Rental and cost-per-copy machines are counted; a machine that only comes in for repair is not. Paying yearly, you pay 10 times the monthly total — that is <strong>2 months free</strong>.</p>
         </div>
       </div>
 
@@ -1685,13 +1685,14 @@ document.documentElement.classList.add('js');
   var PER_DEVICE = 25;                 // dahil sayinin ustundeki her cihaz — UC PAKETTE DE AYNI
   var YEARLY_MONTHS = 10;              // yillik odeme = aylik x10 (2 ay bedava)
   var RECOVERY = 0.70;                 // kacan gelirin geri kazanildigi varsayilan oran
+  // tavan: aylik tutar bunu gecmez — src/lib/plan-pricing.ts ceiling ile AYNI (test-paketler kilitli)
   var PLANS = {
-    baslangic:   { name: 'Starter',      base: 1749, included: 20 },
-    profesyonel: { name: 'Professional', base: 2099, included: 25 },
-    kurumsal:    { name: 'Enterprise',   base: 5249, included: 100 }
+    baslangic:   { name: 'Starter',      base: 1749, included: 20,  tavan: 7499 },
+    profesyonel: { name: 'Professional', base: 2099, included: 25,  tavan: 9999 },
+    kurumsal:    { name: 'Enterprise',   base: 5249, included: 100, tavan: 19999 }
   };
   function planMonthly(plan, devices) {
-    return plan.base + Math.max(0, devices - plan.included) * PER_DEVICE;
+    return Math.min(plan.tavan, plan.base + Math.max(0, devices - plan.included) * PER_DEVICE);
   }
   // ROI hesabinin dayandigi paket: Profesyonel.
   // Sebep: Kacan Gelir paneli, sayac/kira faturalamasi ve tahsilat bu paketle acilir;
@@ -1837,10 +1838,12 @@ document.documentElement.classList.add('js');
     Array.prototype.forEach.call(priceCards, function (card) {
       var base = +card.dataset.base;
       var inc = +card.dataset.included;
+      var plan = PLANS[card.dataset.plan];
       // Slider'a dokunulmadiysa "dahil" adet kullanilir -> ekranda TABAN fiyat gorunur
       var dev = deviceTouched ? deviceCount : inc;
       var over = Math.max(0, dev - inc);
-      var monthly = base + over * PER_DEVICE;
+      var monthly = plan ? planMonthly(plan, dev) : base + over * PER_DEVICE;
+      var tavanda = plan && monthly === plan.tavan && base + over * PER_DEVICE > plan.tavan;
       var yearly = monthly * YEARLY_MONTHS;
 
       var amt = card.querySelector('.price-amount');
@@ -1861,7 +1864,7 @@ document.documentElement.classList.add('js');
       var calc = card.querySelector('.price-calc');
       if (calc) {
         if (deviceTouched) {
-          var overTxt = over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : '';
+          var overTxt = (over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : '') + (tavanda ? ' → ceiling' : '');
           calc.innerHTML = billing === 'yearly'
             ? '<strong>' + dev + ' devices</strong> · ₺' + formatTL(base) + ' base' + overTxt +
               ' = <strong>₺' + formatTL(monthly) + '/month</strong> → <strong>₺' + formatTL(yearly) + '</strong> a year + VAT (2 months free)'
@@ -2142,7 +2145,8 @@ document.documentElement.classList.add('js');
     if (recName) recName.textContent = plan.name;
     if (recDetail) {
       recDetail.textContent = devices + ' devices: ' + tl(plan.base) + ' base' +
-        (over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : ' (within the included count)');
+        (over > 0 ? ' + ' + over + ' × ₺' + PER_DEVICE : ' (within the included count)') +
+        (planMonthly(plan, devices) === plan.tavan && plan.base + over * PER_DEVICE > plan.tavan ? ' → monthly ceiling ₺' + formatTL(plan.tavan) : '');
     }
     if (recPrice) recPrice.textContent = tl(monthlyCost);
     if (recPayback) recPayback.textContent = paybackTxt;
