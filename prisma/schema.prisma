@@ -536,6 +536,7 @@ model SayacTaramasi {
   tenantId    String
   createdAt   DateTime  @default(now())
   bilgisayar  String?
+  surum       Int? // tarayıcı betiğinin sürümü (lib/sayac-tarama TARAYICI_SURUMU)
   taranan     Int       @default(0)
   bulunan     Int       @default(0)
   eslesen     Int       @default(0)
@@ -660,6 +661,14 @@ model Device {
   tonerResetBlack      Int? // Son S/B toner değişiminde sayaç değeri (referans)
   tonerResetColor      Int? // Son renkli toner değişiminde sayaç değeri
   tonerChangedAt       DateTime? // Son toner değişim tarihi
+  // ── CİHAZDAN ÖLÇÜLEN DURUM (ağ tarayıcısı, lib/sayac-tarama.ts) ────────
+  // Sayaçtan TAHMİN edilen tükenmeden farklı: yazıcının kendi söylediği.
+  // Yalnız taramada tek bir cihaza eşleşen yazıcı yazar.
+  olcumAt              DateTime? // tarayıcının cihazı son gördüğü an
+  olcumSiyah           Int? // siyah toner %
+  olcumRenkli          Int? // renkli tonerlerin en düşüğü %
+  cihazUyarilari       String[]       @default([]) // UyariKodu: SIKISMA, SERVIS_GEREKLI...
+  uyariAt              DateTime? // şu anki uyarıların ilk görüldüğü an
   lastInvoicedPeriod   String? // Çift kira faturalamayı önlemek için son faturalanan dönem (YYYY-MM)
   publicCode           String         @unique // e.g., DEV-8F3A12 (for QR URL)
   qrTokenHash          String // Hashed version of QR token

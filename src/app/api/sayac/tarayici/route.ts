@@ -4,7 +4,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { dilMi } from '@/lib/i18n/sozluk';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { taramaGovdesiAyikla } from '@/lib/sayac-tarama';
-import { anahtarlaBayi, taramaKaydet, sonTaramalar } from '@/lib/sayac-tarama-veri';
+import { anahtarlaBayi, taramaKaydet, sonTaramalar, cihazDurumlari, tarayanBilgisayarlar } from '@/lib/sayac-tarama-veri';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,11 +61,14 @@ export async function POST(req: Request) {
   });
 }
 
-/** GET /api/sayac/tarayici — panel: son taramalar (yalnız yönetici). */
+/** GET /api/sayac/tarayici — panel: cihaz durumu, tarayan bilgisayarlar, son taramalar (yalnız yönetici). */
 export async function GET() {
   try {
     const { tenantId } = await requireAdminUser();
-    return NextResponse.json(await sonTaramalar(tenantId));
+    const [liste, durum, bilgisayarlar] = await Promise.all([
+      sonTaramalar(tenantId), cihazDurumlari(tenantId), tarayanBilgisayarlar(tenantId),
+    ]);
+    return NextResponse.json({ ...liste, durum, bilgisayarlar });
   } catch (e) {
     return authErrorResponse(e);
   }

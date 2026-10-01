@@ -603,5 +603,9 @@
   "var: cihazınız ne kadar çok olursa olsun tutar tavanı geçmez. Sayılan cihaz, faturasını kestiğiniz makinedir — kiralık ya da kopya başı anlaşmalı; yalnız tamire gelen makine sayılmaz. Taban fiyat ve dahil cihaz adedi paketten pakete değişir. Paketler asıl olarak": ": however many devices you have, the amount never goes above it. A counted device is a machine you invoice — rental or on a cost-per-copy agreement; a machine that only comes in for repair is not counted. The base price and the included device count differ from plan to plan. The plans really differ by",
   ". Aşım bedeli üç pakette de ₺25'tir; aylık tutar Profesyonel'de": ". The per-device charge is ₺25 on all three plans; the monthly amount never goes above",
   ", Kurumsal'da": "on Professional or",
-  "tavanını geçmez. Kiralık ve kopya başı anlaşmalı makineler sayılır, yalnız tamire gelen makine sayılmaz. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani": "on Enterprise. Rental and cost-per-copy machines are counted; a machine that only comes in for repair is not. Paying yearly, you pay 10 times the monthly total — that is"
+  "tavanını geçmez. Kiralık ve kopya başı anlaşmalı makineler sayılır, yalnız tamire gelen makine sayılmaz. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani": "on Enterprise. Rental and cost-per-copy machines are counted; a machine that only comes in for repair is not. Paying yearly, you pay 10 times the monthly total — that is",
+  "Ağ Tarayıcı": "Network scanner",
+  "— sayaç, toner yüzdesi ve arıza durumu (sıkışma, servis isteği) yazıcının kendisinden, her sabah; toner değişimi kendiliğinden kaydedilir —": "— meter, toner percentage and fault status (jam, service request) read from the printer itself every morning; toner changes are recorded automatically —",
+  "müşteri ağında bir Windows bilgisayar gerekir": "needs one Windows computer on the customer network",
+  "Sıkışan, servis isteyen, toneri biten makine ana panelde — müşteri aramadan": "Jammed machines, service requests and empty toner show on the dashboard — before the customer calls"
 }

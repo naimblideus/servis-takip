@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { dailyRate, forecastChannel, soonestDaysLeft, type TonerReadingPoint } from '@/lib/toner';
+import { dailyRate, forecastChannel, olcumleBirlestir, soonestDaysLeft, type TonerReadingPoint } from '@/lib/toner';
+import { TONER_KRITIK } from '@/lib/sayac-tarama';
+
+/** Cihazdan okunan toner yüzdesi bu kadar eskiyse artık kullanılmaz. */
+const OLCUM_GECERLI_MS = 7 * 86_400_000;
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { bayiMagazasi, musteriMagazaLinki } from '@/lib/magaza-baglanti';
 import { verimleriOgren, populasyonVerimleri, verimSec } from '@/lib/verim-ogrenme';
@@ -57,8 +61,11 @@ export async function GET() {
     byDevice.set(r.deviceId, arr);
   }
 
+  const olcumSiniri = Date.now() - OLCUM_GECERLI_MS;
   const items = devices.map((d) => {
     const pts = byDevice.get(d.id) || [];
+    // Ağ tarayıcısının cihazdan okuduğu yüzde (taze ise).
+    const olcumTaze = d.olcumAt !== null && d.olcumAt.getTime() >= olcumSiniri;
     const mAnahtar = modelAnahtari(d.brand, d.model);
     // Verim SORULMUYOR, ÖLÇÜLÜYOR. Sıra: elle girilen → bu cihazın
     // kendi geçmişi → aynı modelin diğer cihazları → popülasyon.
@@ -74,19 +81,29 @@ export async function GET() {
       model: ogrenilen.model.get(`${mAnahtar}|COLOR`),
       populasyon: populasyon.get(`${mAnahtar}|COLOR`),
     });
-    const black = forecastChannel({
-      yieldPages: verimSb.deger,
-      reset: d.tonerResetBlack ?? null,
-      current: d.counterBlack ?? null,
-      rate: dailyRate(pts, 'black'),
-      channel: 'black',
+    const hizSb = dailyRate(pts, 'black');
+    const hizRenkli = dailyRate(pts, 'color');
+    const black = olcumleBirlestir({
+      tahmin: forecastChannel({
+        yieldPages: verimSb.deger,
+        reset: d.tonerResetBlack ?? null,
+        current: d.counterBlack ?? null,
+        rate: hizSb,
+        channel: 'black',
+      }),
+      olcum: olcumTaze ? d.olcumSiyah : null,
+      yieldPages: verimSb.deger, current: d.counterBlack ?? null, rate: hizSb, channel: 'black',
     });
-    const color = forecastChannel({
-      yieldPages: verimRenkli.deger,
-      reset: d.tonerResetColor ?? null,
-      current: d.counterColor ?? null,
-      rate: dailyRate(pts, 'color'),
-      channel: 'color',
+    const color = olcumleBirlestir({
+      tahmin: forecastChannel({
+        yieldPages: verimRenkli.deger,
+        reset: d.tonerResetColor ?? null,
+        current: d.counterColor ?? null,
+        rate: hizRenkli,
+        channel: 'color',
+      }),
+      olcum: olcumTaze ? d.olcumRenkli : null,
+      yieldPages: verimRenkli.deger, current: d.counterColor ?? null, rate: hizRenkli, channel: 'color',
     });
     const soonest = soonestDaysLeft([black, color]);
     const needsSetup = (black?.needsSetup || color?.needsSetup) ?? false;
@@ -108,6 +125,9 @@ export async function GET() {
       magazaLink,
       tonerChangedAt: d.tonerChangedAt ? d.tonerChangedAt.toISOString() : null,
       black, color, soonestDaysLeft: soonest, needsSetup,
+      olcumAt: olcumTaze ? d.olcumAt!.toISOString() : null,
+      // Cihazın kendi söylediği en düşük yüzde — gün tahmini olmasa da aciliyet.
+      enAzYuzde: [black, color].filter((f) => f?.olculdu).reduce<number | null>((m, f) => (m === null ? f!.remainingPct : Math.min(m, f!.remainingPct ?? 100)), null),
       // Verimin NEREDEN geldiği ekranda yazıyor: ölçülmüş bir sayıyla
       // elle girilmiş bir sayı aynı güvende değil ve bayi hangisine
       // baktığını bilmeli.
@@ -115,10 +135,14 @@ export async function GET() {
     };
   });
 
-  // Sıralama: gün sayısı olanlar (en acil önce) → veri bekleyenler → kurulum bekleyenler
+  // Sıralama: cihazın "bitmek üzere" dediği → gün sayısı olanlar (en acil önce) → veri bekleyenler → kurulum bekleyenler
+  const kritik = (i: (typeof items)[number]) => i.enAzYuzde !== null && i.enAzYuzde <= TONER_KRITIK;
   items.sort((a, b) => {
+    if (kritik(a) !== kritik(b)) return kritik(a) ? -1 : 1;
+    if (kritik(a) && kritik(b)) return (a.enAzYuzde as number) - (b.enAzYuzde as number);
     const ax = a.soonestDaysLeft, bx = b.soonestDaysLeft;
-    if (ax == null && bx == null) return 0;
+    // Gün tahmini yoksa cihazın ölçtüğü yüzde sıralar (ölçümü olmayan en sonda).
+    if (ax == null && bx == null) return (a.enAzYuzde ?? 101) - (b.enAzYuzde ?? 101);
     if (ax == null) return 1;
     if (bx == null) return -1;
     return ax - bx;
@@ -132,7 +156,9 @@ export async function GET() {
     (i) => i.verimSb.kaynak && i.verimSb.kaynak !== 'ELLE'
       || i.verimRenkli.kaynak && i.verimRenkli.kaynak !== 'ELLE',
   ).length;
-  const urgent = takipli.filter((i) => i.soonestDaysLeft != null && (i.soonestDaysLeft as number) <= 14).length;
+  const urgent = takipli.filter((i) => (i.soonestDaysLeft != null && (i.soonestDaysLeft as number) <= 14) || kritik(i)).length;
+  // Toner yüzdesi cihazın kendisinden okunan cihaz sayısı (ağ tarayıcısı).
+  const canli = takipli.filter((i) => i.olcumAt !== null).length;
   return NextResponse.json({
     items: takipli,
     trackedCount: takipli.length,
@@ -141,5 +167,6 @@ export async function GET() {
     bilinmeyen: items.length - takipli.length,
     olculen,
     urgent,
+    canli,
   });
 }

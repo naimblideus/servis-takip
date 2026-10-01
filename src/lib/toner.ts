@@ -18,6 +18,8 @@ export interface TonerForecast {
   dailyRate: number | null;
   daysLeft: number | null;
   needsSetup: boolean; // yield tanımlı ama "toner değişti" referansı yok
+  /** Kalan yüzde cihazın KENDİSİNDEN okundu (ağ tarayıcısı), sayaçtan hesaplanmadı. */
+  olculdu?: boolean;
 }
 
 /** Son okumalardan günlük ortalama baskı hızı (sayfa/gün). Yetersiz veri → null. */
@@ -68,4 +70,41 @@ export function forecastChannel(opts: {
 export function soonestDaysLeft(forecasts: (TonerForecast | null)[]): number | null {
   const days = forecasts.filter((f): f is TonerForecast => !!f && f.daysLeft != null).map((f) => f.daysLeft as number);
   return days.length ? Math.min(...days) : null;
+}
+
+/**
+ * Cihazın kendi söylediği toner yüzdesi, sayaçtan hesaplanan tahminin
+ * ÖNÜNE geçer: tahmin "son değişimden bu yana basılan ÷ verim" diye
+ * çalışır ve değişim girilmemişse, toner yarıda değiştirilmişse ya da
+ * müşteri yoğun kapsamlı basıyorsa yanılır. Cihazın ölçümü bunların
+ * hiçbirinden etkilenmez.
+ *
+ * Verim biliniyorsa kalan sayfa ve gün de ölçümden çıkar; bilinmiyorsa
+ * yalnız yüzde gösterilir (gün UYDURULMAZ).
+ */
+export function olcumleBirlestir(opts: {
+  tahmin: TonerForecast | null;
+  olcum: number | null;
+  yieldPages: number | null;
+  current: number | null;
+  rate: number | null;
+  channel: 'black' | 'color';
+}): TonerForecast | null {
+  const { tahmin, olcum, rate, channel } = opts;
+  if (olcum == null || olcum < 0 || olcum > 100) return tahmin;
+  const verim = opts.yieldPages && opts.yieldPages > 0 ? opts.yieldPages : null;
+  const remaining = verim ? Math.round((verim * olcum) / 100) : null;
+  return {
+    channel,
+    yield: verim ?? 0,
+    reset: tahmin?.reset ?? null,
+    current: tahmin?.current ?? opts.current ?? 0,
+    pagesUsed: verim && remaining !== null ? verim - remaining : null,
+    remaining,
+    remainingPct: olcum,
+    dailyRate: rate,
+    daysLeft: remaining !== null && rate && rate > 0 ? Math.max(0, Math.floor(remaining / rate)) : null,
+    needsSetup: false,
+    olculdu: true,
+  };
 }

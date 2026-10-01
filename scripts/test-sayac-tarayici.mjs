@@ -43,6 +43,9 @@ try {
       join(KOK, 'node_modules/typescript/bin/tsc'),
       join(KOK, 'src/lib/sayac-tarama.ts'), join(KOK, 'src/lib/sayac-tarama-veri.ts'),
       join(KOK, 'src/lib/readings.ts'), join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/sayac-anomali.ts'),
+      join(KOK, 'src/lib/verim-ogrenme.ts'), join(KOK, 'src/lib/toner-verimi.ts'), join(KOK, 'src/lib/reliability.ts'),
+      join(KOK, 'src/lib/fault-categories.ts'), join(KOK, 'src/lib/stok-maliyet.ts'), join(KOK, 'src/lib/device-brands.ts'),
+      join(KOK, 'src/lib/toner.ts'),
       '--outDir', g, '--module', 'esnext', '--target', 'es2022',
       '--moduleResolution', 'bundler', '--skipLibCheck',
     ], { stdio: 'pipe' });
@@ -55,6 +58,7 @@ try {
 const {
   renkAyrimi, renkliMi, seriNormal, seriEsle, cihazSonucu, tekrarlariAyikla, taramaOzeti,
   taramaGovdesiAyikla, taranmisCihazAyikla, sarfYuzdesi, marka, KYOCERA_DAL, ilerlemeDurumu,
+  cihazUyarilari, sarfOlcumu, tonerDegistiMi, UYARI_TURU,
 } = saf;
 
 console.log('\nSayaç tarayıcı — saf karar\n');
@@ -160,6 +164,72 @@ const kyoOzel = (bs = 90000, renk = 30000, orta = 0) => ({
   t('ip yoksa cihaz yok', taranmisCihazAyikla({ seri: 'X' }) === null);
 }
 
+console.log('\nCihaz durumu — arıza bitleri ve toner ölçümü\n');
+{
+  const u = (hata, durumKodu = null) => cihazUyarilari({ hata, durumKodu });
+  t('boş maske → uyarı yok', u('0000').length === 0 && u(null).length === 0 && u('').length === 0);
+  t('★ bit 0 = ilk baytın EN SOLDAKİ biti (kâğıt az)', JSON.stringify(u('80')) === '["KAGIT_AZ"]', u('80'));
+  t('★ servis istendi (0x01)', JSON.stringify(u('01')) === '["SERVIS_GEREKLI"]', u('01'));
+  t('ikinci bayt: bakım gecikti (0x02)', JSON.stringify(u('0002')) === '["BAKIM_GECIKTI"]', u('0002'));
+  const sirali = u('f404');
+  t('★ servis önce, sarf sonra, bilgi en sonda', sirali[0] === 'SIKISMA' && sirali.slice(1, 3).every((k) => UYARI_TURU[k] === 'SARF') && sirali.slice(3).every((k) => UYARI_TURU[k] === 'BILGI'), sirali);
+  t('★ hrDeviceStatus 5 → cihaz arızalı', u(null, 5).join() === 'CIHAZ_ARIZALI');
+  t('hrDeviceStatus 3 (uyarı) tek başına uyarı üretmiyor', u(null, 3).length === 0);
+  t('tek baytlık maske (bazı cihazlar ikinci baytı yollamaz) okunuyor', u('04').join() === 'SIKISMA');
+  t('her kodun bir türü var', Object.values(UYARI_TURU).every((x) => ['SERVIS', 'SARF', 'BILGI'].includes(x)) && Object.keys(UYARI_TURU).length === 16);
+  const ay = (h) => taranmisCihazAyikla({ ip: '1.1.1.1', ...h });
+  t('★ biçimsiz maske (onaltılık değil) atılıyor', ay({ hata: 'zz' }).hata === null && ay({ hata: "0'; drop" }).hata === null);
+  t('maske küçük harfe indiriliyor', ay({ hata: 'AB01' }).hata === 'ab01');
+  t('geçersiz durum kodu atılıyor', ay({ durumKodu: 9 }).durumKodu === null && ay({ durumKodu: 5 }).durumKodu === 5);
+  t('eski betik (alan yok) → null', ay({}).hata === null && ay({}).durumKodu === null);
+
+  const s = (ad, seviye, max = 100) => ({ ad, max, seviye });
+  const o = (sarf) => sarfOlcumu({ sarf });
+  t('★ renkli makine: siyah ve en düşük renk', JSON.stringify(o([s('Black Toner', 60), s('Cyan Toner', 30), s('Magenta Toner', 8), s('Yellow Toner', 50)])) === '{"siyah":60,"renkli":8}');
+  t('★ atık toner kutusu ve drum toner sanılmıyor', JSON.stringify(o([s('Black Toner', 60), s('Waste Toner Box', 3), s('Black Drum Unit', 5), s('Fuser Kit', 1)])) === '{"siyah":60,"renkli":null}');
+  t('★ tek tonerli makine ("Toner Cartridge") siyah sayılıyor', o([s('Toner Cartridge', 22), s('Imaging Drum', 70)]).siyah === 22);
+  t('Türkçe adlar', JSON.stringify(o([s('Siyah Toner', 15), s('Sarı Toner', 44), s('Atık Toner Kutusu', 2)])) === '{"siyah":15,"renkli":44}');
+  t('"biraz var" (−3) ölçüm sayılmıyor', o([s('Black Toner', -3)]).siyah === null);
+  t('max 255 ölçeği yüzdeye çevriliyor', o([s('Black Toner', 51, 255)]).siyah === 20);
+  t('sarf yoksa ölçüm yok', JSON.stringify(o([])) === '{"siyah":null,"renkli":null}');
+
+  t('★ değişim: %8 → %98 evet', tonerDegistiMi(8, 98));
+  t('★ ölçüm gürültüsü (%42 → %45) değişim değil', !tonerDegistiMi(42, 45));
+  t('yarıda değiştirme (%50 → %100) yazılmıyor (emin değiliz)', !tonerDegistiMi(50, 100));
+  t('yeni toner tam dolu görünmüyorsa (%25 → %70) yazılmıyor', !tonerDegistiMi(25, 70));
+  t('önceki ölçüm yoksa değişim yok', !tonerDegistiMi(null, 100) && !tonerDegistiMi(5, null));
+
+  // Panel sırası ve fiş kategorisi
+  const { dikkatSirasi, UYARI_KATEGORISI, SERVIS_UYARILARI, TONER_KRITIK } = saf;
+  const sira = [
+    { ad: 'bilgi', uyarilar: ['KAGIT_YOK'], olcumSiyah: 80, olcumRenkli: null },
+    { ad: 'toner12', uyarilar: [], olcumSiyah: 12, olcumRenkli: null },
+    { ad: 'servis', uyarilar: ['KAGIT_YOK', 'SIKISMA'], olcumSiyah: 90, olcumRenkli: null },
+    { ad: 'toner3', uyarilar: ['TONER_AZ'], olcumSiyah: 60, olcumRenkli: 3 },
+  ].sort((a, b) => dikkatSirasi(a) - dikkatSirasi(b)).map((x) => x.ad).join();
+  t('★ panel sırası: servis → en düşük toner → bilgi', sira === 'servis,toner3,toner12,bilgi', sira);
+  t('sıkışma fişi kâğıt sıkışması kategorisiyle açılır; "servis istiyor" kategori uydurmaz',
+    UYARI_KATEGORISI.SIKISMA === 'PAPER_JAM' && UYARI_KATEGORISI.SERVIS_GEREKLI === undefined && UYARI_KATEGORISI.CIHAZ_ARIZALI === undefined);
+  t('servis uyarı listesi beş kod', SERVIS_UYARILARI.length === 5 && SERVIS_UYARILARI.includes('BAKIM_GECIKTI'));
+  t('kritik eşik %15', TONER_KRITIK === 15);
+}
+
+console.log('\nSarf — cihazın ölçtüğü yüzde tahminin önüne geçer\n');
+{
+  const { forecastChannel, olcumleBirlestir } = await import(pathToFileURL(join(g, 'toner.js')).href);
+  const tahmin = forecastChannel({ yieldPages: 10000, reset: 50000, current: 52000, rate: 100, channel: 'black' });
+  t('sayaçtan tahmin: %80 kaldı, 80 gün', tahmin.remainingPct === 80 && tahmin.daysLeft === 80, tahmin);
+  const b1 = olcumleBirlestir({ tahmin, olcum: 12, yieldPages: 10000, current: 52000, rate: 100, channel: 'black' });
+  t('★ cihaz %12 diyor: yüzde ve gün ölçümden (1.200 sf ÷ 100/gün = 12 gün)', b1.olculdu && b1.remainingPct === 12 && b1.remaining === 1200 && b1.daysLeft === 12, b1);
+  const b2 = olcumleBirlestir({ tahmin: null, olcum: 30, yieldPages: null, current: 1000, rate: 100, channel: 'black' });
+  t('★ verim bilinmiyorsa yalnız yüzde; gün UYDURULMUYOR', b2.olculdu && b2.remainingPct === 30 && b2.daysLeft === null && b2.remaining === null && !b2.needsSetup, b2);
+  const kur = forecastChannel({ yieldPages: 10000, reset: null, current: 52000, rate: 100, channel: 'black' });
+  t('"toner değişimi bekliyor" kurulumu ölçüm gelince gerekmiyor', kur.needsSetup && olcumleBirlestir({ tahmin: kur, olcum: 50, yieldPages: 10000, current: 52000, rate: 100, channel: 'black' }).needsSetup === false);
+  t('ölçüm yoksa tahmin aynen kalıyor', olcumleBirlestir({ tahmin, olcum: null, yieldPages: 10000, current: 52000, rate: 100, channel: 'black' }) === tahmin);
+  t('aralık dışı ölçüm (−3, 140) yok sayılıyor', olcumleBirlestir({ tahmin, olcum: -3, yieldPages: 1, current: 0, rate: 1, channel: 'black' }) === tahmin
+    && olcumleBirlestir({ tahmin, olcum: 140, yieldPages: 1, current: 0, rate: 1, channel: 'black' }) === tahmin);
+}
+
 // ── SAHTE SNMP CİHAZLARI + GERÇEK POWERSHELL ─────────────────────────────
 const tlv = (tag, deger) => {
   const u = deger.length;
@@ -173,6 +243,7 @@ const oidB = (oid) => {
   return out;
 };
 const deger = (d) => d.t === 'str' ? tlv(0x04, [...Buffer.from(d.v, 'utf8')])
+  : d.t === 'hex' ? tlv(0x04, [...Buffer.from(d.v, 'hex')])
   : d.t === 'oid' ? tlv(0x06, oidB(d.v))
   : d.t === 'cnt' ? tlv(0x41, intB(d.v))
   : tlv(0x02, d.v < 0 ? [0xff, ...Buffer.from([(d.v + 256) & 0xff])] : intB(d.v));
@@ -222,6 +293,10 @@ const KYOCERA_MIB = {
   [`${PRT}.12.1.1.4.1.2`]: { t: 'str', v: 'cyan' },
   [`${PRT}.12.1.1.4.1.3`]: { t: 'str', v: 'magenta' },
   [`${PRT}.12.1.1.4.1.4`]: { t: 'str', v: 'yellow' },
+  // Durum: uyarı (3); sıkışma (0x04) + bakım gecikti (ikinci bayt 0x02).
+  // 0x00 baytı metin gibi okunsaydı kırpılırdı — ham bayt yollanmalı.
+  '1.3.6.1.2.1.25.3.2.1.5.1': { t: 'int', v: 3 },
+  '1.3.6.1.2.1.25.3.5.1.2.1': { t: 'hex', v: '0402' },
   ...Object.fromEntries(Object.entries(kyoOzel()).map(([k, v]) => [k, { t: 'int', v }])),
   // Dalın hemen dışındaki bir değer: gezinti burada durmalı.
   '1.3.6.1.4.1.1347.42.3.1.3.1': { t: 'int', v: 777 },
@@ -236,6 +311,8 @@ const HP_MIB = {
   [`${PRT}.11.1.1.8.1.1`]: { t: 'int', v: 100 },
   [`${PRT}.11.1.1.9.1.1`]: { t: 'int', v: 12 },
   [`${PRT}.12.1.1.4.1.1`]: { t: 'str', v: 'black' },
+  // Yalnız durum var, hata tablosu yok (bazı modeller): hata null kalmalı.
+  '1.3.6.1.2.1.25.3.2.1.5.1': { t: 'int', v: 2 },
 };
 // Yazıcı olmayan SNMP cihazı (ağ anahtarı): listeye GİRMEMELİ.
 const ANAHTAR_MIB = {
@@ -297,6 +374,9 @@ if (process.platform !== 'win32') {
       const hp = js.cihazlar.find((c) => c.ip === '127.0.0.2');
       t(`[${kabuk}] ★ tek elemanlı dizi dizi olarak kaldı (PowerShell açmadı)`, Array.isArray(hp?.renkler) && hp.renkler.length === 1 && Array.isArray(hp?.sarf), hp);
       t(`[${kabuk}] markaya özel dal yalnız o markada okunuyor`, Object.keys(hp?.ozel ?? {}).length === 0, hp?.ozel);
+      t(`[${kabuk}] ★ arıza bit maskesi ham bayt olarak geldi ("0402")`, ky?.hata === '0402' && ky?.durumKodu === 3, { hata: ky?.hata, durumKodu: ky?.durumKodu });
+      t(`[${kabuk}] hata tablosu olmayan cihazda hata boş, durum geliyor`, hp?.hata == null && hp?.durumKodu === 2, { hata: hp?.hata, durumKodu: hp?.durumKodu });
+      t(`[${kabuk}] ★ betik sürümü sunucunun beklediği sürüm (TARAYICI_SURUMU)`, js.surum === saf.TARAYICI_SURUMU, { betik: js.surum, sunucu: saf.TARAYICI_SURUMU });
     }
   }
 }
@@ -312,6 +392,9 @@ if (psJson) {
   const ky = s.find((x) => x.deviceId === 'k'), hp = s.find((x) => x.deviceId === 'h');
   t('★ betik → sunucu: Kyocera ayrımı doğrulandı ve yazılabilir', ky?.ayrim === 'DOGRULANDI' && ky?.durum === 'YAZILABILIR' && ky?.siyah === 90000 && ky?.renkli === 30000, ky);
   t('★ betik → sunucu: tek renkli HP yazılabilir', hp?.ayrim === 'TEK_RENK' && hp?.durum === 'YAZILABILIR' && hp?.siyah === 45678, hp);
+  t('★ betik → sunucu: Kyocera sıkışma + bakım gecikti servis uyarısı', JSON.stringify(ky?.uyarilar) === JSON.stringify(['SIKISMA', 'BAKIM_GECIKTI']), ky?.uyarilar);
+  t('betik → sunucu: Kyocera siyah %40 ölçüldü, renkli "biraz var" sayılmadı', ky?.olcum?.siyah === 40 && ky?.olcum?.renkli === null, ky?.olcum);
+  t('betik → sunucu: HP kartuşu %12', hp?.olcum?.siyah === 12 && hp?.uyarilar?.length === 0, { olcum: hp?.olcum, uyarilar: hp?.uyarilar });
 }
 
 // ── VERİTABANI ───────────────────────────────────────────────────────────
@@ -337,7 +420,12 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
       writeFileSync(yol, s, 'utf8');
     };
     const ortak = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(istemci)]];
-    duzelt('sayac-tarama-veri.js', [...ortak, ["'@/lib/readings'", "'./readings.js'"], ["'@/lib/sayac-tarama'", "'./sayac-tarama.js'"]]);
+    duzelt('sayac-tarama-veri.js', [...ortak, ["'@/lib/readings'", "'./readings.js'"], ["'@/lib/sayac-tarama'", "'./sayac-tarama.js'"], ["'@/lib/verim-ogrenme'", "'./verim-ogrenme.js'"]]);
+    duzelt('verim-ogrenme.js', [...ortak, ["'@/lib/toner-verimi'", "'./toner-verimi.js'"], ["'@/lib/reliability'", "'./reliability.js'"]]);
+    duzelt('toner-verimi.js', [...ortak, ["'@/lib/device-brands'", "'./device-brands.js'"]]);
+    duzelt('reliability.js', [...ortak, ["'@/lib/fault-categories'", "'./fault-categories.js'"], ["'@/lib/stok-maliyet'", "'./stok-maliyet.js'"]]);
+    duzelt('stok-maliyet.js', ortak);
+    duzelt('fault-categories.js', ortak);
     duzelt('readings.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"]]);
     duzelt('invoicing.js', ortak);
     veri = await import(pathToFileURL(join(g, 'sayac-tarama-veri.js')).href);
@@ -446,6 +534,83 @@ if (veri) {
     t('eşleşen cihazların etiketi ve müşterisi geliyor', liste.cihazlar[kyId]?.musteri === 'Tarama Müşterisi', liste.cihazlar[kyId]);
     t('canon cihazına hiç okuma yazılmadı', (await p.counterReading.count({ where: { deviceId: canonId } })) === 0);
 
+    // ── cihazdan ölçülen durum
+    // Kyocera taramalarında Black Toner %40, uyarı yok; HP'de kartuş yok (sarf boş).
+    const kart = (id) => p.device.findUnique({ where: { id }, select: { olcumAt: true, olcumSiyah: true, olcumRenkli: true, cihazUyarilari: true, uyariAt: true, tonerResetBlack: true } });
+    const ky0 = await kart(kyId);
+    t('★ onay beklese de toner yüzdesi kartta (durum fatura değil)', ky0.olcumAt !== null && ky0.olcumSiyah === null, ky0);
+    const sarfli = (siyah, hata, ek = {}) => cihaz({ ozel: kyoOzel(99500, 34500), toplam: 134000, hata, durumKodu: hata ? 3 : 2,
+      sarf: [{ ad: 'Black Toner', max: 100, seviye: siyah }, { ad: 'Cyan Toner', max: 100, seviye: 60 }, { ad: 'Waste Toner Box', max: 100, seviye: 2 }], ...ek });
+    const tara = (c, ek = []) => taramaKaydet(bayiId, taramaGovdesiAyikla({ bilgisayar: 'OFIS-PC', taranan: 1, cihazlar: [c, ...ek] }), false);
+    await tara(sarfli(9, '0402'));
+    const ky1 = await kart(kyId);
+    t('★ toner %9 ve renkli %60 kartta; atık kutusu (%2) toner sanılmadı', ky1.olcumSiyah === 9 && ky1.olcumRenkli === 60, ky1);
+    t('★ uyarılar kartta: sıkışma + bakım gecikti', JSON.stringify(ky1.cihazUyarilari) === '["SIKISMA","BAKIM_GECIKTI"]' && ky1.uyariAt !== null, ky1);
+    await new Promise((r) => setTimeout(r, 20));
+    await tara(sarfli(8, '0400'));
+    const ky2 = await kart(kyId);
+    t('★ uyarı sürüyorsa ilk görüldüğü an korunuyor', ky2.uyariAt?.getTime() === ky1.uyariAt?.getTime() && JSON.stringify(ky2.cihazUyarilari) === '["SIKISMA"]', { once: ky1.uyariAt, sonra: ky2.uyariAt });
+    const degisimSay = () => p.tonerChange.count({ where: { deviceId: kyId, channel: 'BLACK' } });
+    t('henüz toner değişimi yok', (await degisimSay()) === 0);
+    const r5 = await tara(sarfli(97, '0000'));
+    const ky3 = await kart(kyId);
+    const dg = await p.tonerChange.findFirst({ where: { deviceId: kyId, channel: 'BLACK' }, orderBy: { changedAt: 'desc' } });
+    t('★ %8 → %97: toner değişimi KENDİLİĞİNDEN kaydedildi (kaynak TARAYICI)', (await degisimSay()) === 1 && dg?.source === 'TARAYICI' && dg?.note === '%8 → %97', dg);
+    t('değişim taramadaki sayaçla kaydedildi, cihaz kartının referansı güncellendi', dg?.counterValue === 99500 && ky3.tonerResetBlack === 99500, { dg: dg?.counterValue, kart: ky3.tonerResetBlack });
+    t('tarama sonucunda "toner değişti" işareti', r5.sonuclar[0].tonerDegisti === true);
+    t('★ uyarılar temizlenince başlangıç anı da siliniyor', ky3.cihazUyarilari.length === 0 && ky3.uyariAt === null, ky3);
+    await tara(sarfli(96, null));
+    t('★ dolu toner ikinci taramada tekrar değişim sayılmıyor', (await degisimSay()) === 1);
+
+    // Teknisyen aynı toneri fişe sonradan yazıyor: ikinci kayıt OLMAMALI.
+    const { degisimKaydet } = await import(pathToFileURL(join(g, 'verim-ogrenme.js')).href);
+    const fis = await degisimKaydet({ tenantId: bayiId, deviceId: kyId, channel: 'BLACK', counterValue: 99600, source: 'FIS', note: 'TK-5240K' });
+    const dg2 = await p.tonerChange.findUnique({ where: { id: dg.id } });
+    t('★ fişteki toner tarayıcının kaydına eklendi, ikinci değişim yazılmadı', (await degisimSay()) === 1 && fis.id === dg.id && dg2.note === 'TK-5240K', { sayi: await degisimSay(), dg2 });
+
+    // Arada fişle değişim girilmişse tarayıcı ikinci kez yazmıyor.
+    await tara(sarfli(10, null));
+    await p.tonerChange.create({ data: { tenantId: bayiId, deviceId: kyId, channel: 'BLACK', counterValue: 99550, changedAt: new Date(), source: 'ELLE' } });
+    await tara(sarfli(99, null));
+    t('★ arada elle girilmiş değişim varsa tarayıcı tekrar kaydetmiyor', (await p.tonerChange.count({ where: { deviceId: kyId, source: 'TARAYICI' } })) === 1);
+
+    // İki ölçüm arası uzunsa (tarayıcı haftalarca kapalı) değişim anı belirsiz.
+    await tara(sarfli(5, null));
+    await p.device.update({ where: { id: kyId }, data: { olcumAt: new Date(Date.now() - 10 * 86400000) } });
+    await tara(sarfli(100, null));
+    t('★ 10 gün ölçüm yoksa değişim kaydedilmiyor (hangi sayaçta olduğu belli değil)', (await p.tonerChange.count({ where: { deviceId: kyId, source: 'TARAYICI' } })) === 1);
+
+    // Aynı makine iki IP'den görünürse ikincisi kartı ezmiyor.
+    await tara(sarfli(70, null), [sarfli(3, '01', { ip: '10.0.0.99' })]);
+    const ky4 = await kart(kyId);
+    t('★ yinelenen görünüm (BIRDEN_FAZLA) kartı ezmiyor', ky4.olcumSiyah === 70 && ky4.cihazUyarilari.length === 0, ky4);
+    t('sayacı yazılamayan (ayrım yok) ama eşleşen cihazın durumu yine kartta', (await kart(canonId)).olcumAt !== null);
+
+    // ── panel: dikkat isteyen cihazlar ve tarayan bilgisayarlar
+    const { cihazDurumlari, tarayanBilgisayarlar } = veri;
+    await tara(sarfli(5, '04'));
+    let dur = await cihazDurumlari(bayiId);
+    const kyD = dur.cihazlar.find((c) => c.id === kyId);
+    t('★ sıkışan + toneri %5 olan cihaz listede, açık fiş yok', kyD && kyD.uyarilar.join() === 'SIKISMA' && kyD.olcumSiyah === 5 && kyD.acikFis === null, kyD);
+    t('izlenen cihaz sayısı (güncel ölçümü olan)', dur.izlenen >= 2, dur.izlenen);
+    t('uyarısı ve kritik toneri olmayan cihaz listede değil', !dur.cihazlar.some((c) => c.id === hpId));
+    const kullanici = await p.user.create({ data: { tenantId: bayiId, email: 'tarayici-test@ornek.local', passwordHash: 'x', name: 'Test' }, select: { id: true } });
+    await p.serviceTicket.create({ data: { tenantId: bayiId, deviceId: kyId, customerId: musteri.id, ticketNumber: 'TRY-1', createdByUserId: kullanici.id, issueText: 'Sıkışma' } });
+    dur = await cihazDurumlari(bayiId);
+    t('★ açık fiş varsa yanında geliyor (ikinci fiş açtırılmaz)', dur.cihazlar.find((c) => c.id === kyId)?.acikFis?.ticketNumber === 'TRY-1');
+    await p.device.update({ where: { id: kyId }, data: { olcumAt: new Date(Date.now() - 4 * 86400000) } });
+    t('★ 3 günden eski ölçüm panelde "güncel" sayılmıyor', !(await cihazDurumlari(bayiId)).cihazlar.some((c) => c.id === kyId));
+
+    let pcs = await tarayanBilgisayarlar(bayiId);
+    const ofis = pcs.find((x) => x.bilgisayar === 'OFIS-PC');
+    t('tarayan bilgisayar: son tarama ve 7 günlük sayı', ofis && ofis.haftalik >= 8 && !ofis.sessiz, ofis);
+    t('★ sürüm göndermeyen betik "eski" sayılıyor', ofis?.eski === true && ofis?.surum === null);
+    await taramaKaydet(bayiId, taramaGovdesiAyikla({ surum: saf.TARAYICI_SURUMU, bilgisayar: 'YENI-PC', taranan: 1, cihazlar: [] }), false);
+    await p.sayacTaramasi.updateMany({ where: { tenantId: bayiId, bilgisayar: 'OFIS-PC' }, data: { createdAt: new Date(Date.now() - 5 * 86400000) } });
+    pcs = await tarayanBilgisayarlar(bayiId);
+    t('★ güncel sürüm "eski" değil; sürüm taramada saklanıyor', pcs.find((x) => x.bilgisayar === 'YENI-PC')?.eski === false && pcs.find((x) => x.bilgisayar === 'YENI-PC')?.surum === saf.TARAYICI_SURUMU);
+    t('★ 5 gündür tarama göndermeyen bilgisayar SESSİZ', pcs.find((x) => x.bilgisayar === 'OFIS-PC')?.sessiz === true);
+
     // ── HTTP
     const SUNUCU = process.env.TEST_SUNUCU || 'http://localhost:3002';
     const acik = await fetch(`${SUNUCU}/api/sayac/tarayici`, { method: 'POST', signal: AbortSignal.timeout(4000) }).then(() => true).catch(() => false);
@@ -489,6 +654,25 @@ if (veri) {
         const ky = (son?.sonuc ?? []).find((s) => s.seri === 'LJD1Z12345');
         t('uçtan uca: Kyocera ayrımı sunucuda doğrulandı', ky?.ayrim === 'DOGRULANDI' && ky?.siyah === 90000, ky);
         t('uçtan uca: betik sonucu kendi dilinde yazdı', /Bulunan yazıcı: 2/.test(cikti.o) && /Sistemde yok|eşleşen/i.test(cikti.o), cikti.o.slice(-400));
+
+        // Elle çalıştırma (sağ tık → PowerShell ile çalıştır): -Sessiz YOK.
+        // Sonda günlük çalışma sorulur; "H" denir, Enter ile kapanır. Windows
+        // PowerShell 5.1'de görev sorgusu stderr yüzünden betiği çökertiyordu.
+        const elle = await new Promise((ok) => {
+          const c = spawn(psKabuk, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', betik,
+            '-Sunucu', SUNUCU, '-Anahtar', yeni, '-Dil', 'tr',
+            '-Hedef', '127.0.0.1', '-Port', String(ajanPort), '-ZamanAsimi', '700']);
+          let o = '', e = '';
+          const sure = setTimeout(() => c.kill(), 60000);
+          c.stdout.on('data', (d) => { o += d; });
+          c.stderr.on('data', (d) => { e += d; });
+          c.on('close', (kod) => { clearTimeout(sure); ok({ kod, o, e }); });
+          c.stdin.write('H\r\n\r\n');
+          c.stdin.end();
+        });
+        t(`★ elle çalıştırma (${psKabuk}) çökmeden sona kadar gidiyor; günlük çalışma görevi sorgusu hata fırlatmıyor`,
+          elle.kod === 0 && /Kapatmak için Enter/.test(elle.o) && !/schtasks|ERROR:/i.test(elle.e + elle.o),
+          { kod: elle.kod, hata: elle.e.slice(0, 300), son: elle.o.slice(-400) });
       }
     }
   } catch (e) {

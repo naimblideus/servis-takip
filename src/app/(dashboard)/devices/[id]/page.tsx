@@ -9,6 +9,7 @@ import TonerPanel from '@/components/TonerPanel';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
+import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, DURUM_TAZE_MS, type UyariKodu } from '@/lib/sayac-tarama';
 
 // statusLabel and priorityLabel removed — replaced with counter columns
 
@@ -80,6 +81,22 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
   // Aşım birim fiyatı = cihaz birim fiyatı (pricePerBlack/Color); billing ile tutarlı (tek kaynak)
   const overageBlack = effectiveBlackPrice;
   const overageColor = effectiveColorPrice;
+
+  // ── CİHAZDAN ÖLÇÜLEN DURUM (Ağ Tarayıcı) ─────────────────────────────────
+  const olcumAt = device.olcumAt;
+  const olcumGun = olcumAt ? Math.floor((Date.now() - olcumAt.getTime()) / 86_400_000) : null;
+  const olcumTaze = olcumAt !== null && Date.now() - olcumAt.getTime() <= DURUM_TAZE_MS;
+  const uyarilar = (device.cihazUyarilari ?? []) as UyariKodu[];
+  const uyariAdi = (u: UyariKodu) => (sz.tarayici.uyari as Record<string, string>)[u] ?? u;
+  const servisUyarilari = uyarilar.filter((u) => UYARI_TURU[u] === 'SERVIS');
+  const acikFis = device.serviceTickets.find((t) => t.status !== 'DELIVERED' && t.status !== 'CANCELLED');
+  const fisQ = new URLSearchParams({ cihaz: device.publicCode });
+  if (servisUyarilari.length) {
+    fisQ.set('sorun', doldur(sz.tarayici.fisSorun, { uyarilar: servisUyarilari.map(uyariAdi).join(', ') }));
+    const k = servisUyarilari.map((u) => UYARI_KATEGORISI[u]).find(Boolean);
+    if (k) fisQ.set('kategori', k);
+  }
+  const rozetRengi = (u: UyariKodu) => UYARI_TURU[u] === 'SERVIS' ? ['#fee2e2', '#991b1b'] : UYARI_TURU[u] === 'SARF' ? ['#fef3c7', '#92400e'] : ['#f3f4f6', '#4b5563'];
 
   return (
     <div style={{ padding: '2rem', maxWidth: '900px' }}>
@@ -203,6 +220,48 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
         </div>
       )}
 
+      {/* Cihazdan ölçülen durum — yazıcının kendi söylediği (Ağ Tarayıcı) */}
+      {olcumAt && (
+        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.25rem 1.5rem', marginTop: '1rem', border: '1px solid #bae6fd' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'baseline' }}>
+            <h2 style={{ fontWeight: '600', margin: 0 }}>{sz.cihaz.olcumBaslik}</h2>
+            <span style={{ fontSize: '0.8rem', color: olcumTaze ? '#6b7280' : '#b45309', fontWeight: olcumTaze ? 400 : 600 }}>
+              {olcumTaze ? doldur(sz.cihaz.olcumSon, { zaman: b.tarihSaat(olcumAt) }) : doldur(sz.cihaz.olcumEski, { n: olcumGun ?? 0 })}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+            {([[sz.tarayici.sb, device.olcumSiyah], [sz.tarayici.renkli, device.olcumRenkli]] as [string, number | null][])
+              .filter(([, v]) => v !== null)
+              .map(([ad, v]) => {
+                const kritik = (v as number) <= TONER_KRITIK;
+                return (
+                  <div key={ad} style={{ minWidth: 140 }}>
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{doldur(sz.cihaz.olcumToner, { ad })}</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: kritik ? '#b91c1c' : '#111827' }}>{b.yuzde(v)}</div>
+                    <div style={{ height: 6, background: '#f3f4f6', borderRadius: 999, marginTop: 4, overflow: 'hidden' }}>
+                      <div style={{ width: `${v}%`, height: '100%', background: kritik ? '#dc2626' : (v as number) <= 30 ? '#d97706' : '#059669' }} />
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.85rem', alignItems: 'center' }}>
+            {uyarilar.length === 0 ? (
+              <span style={{ fontSize: '0.85rem', color: '#166534' }}>✓ {sz.cihaz.uyariYok}</span>
+            ) : uyarilar.map((u) => {
+              const [bg, fg] = rozetRengi(u);
+              return <span key={u} style={{ background: bg, color: fg, padding: '0.12rem 0.55rem', borderRadius: 999, fontWeight: 700, fontSize: '0.76rem' }}>{uyariAdi(u)}</span>;
+            })}
+            {servisUyarilari.length > 0 && !acikFis && (
+              <Link href={`/tickets/new?${fisQ.toString()}`} style={{ marginLeft: 'auto', padding: '0.35rem 0.75rem', background: '#dc2626', color: 'white', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none' }}>
+                {sz.tarayici.fisAc}
+              </Link>
+            )}
+          </div>
+          <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0.7rem 0 0' }}>{sz.cihaz.olcumNot}</p>
+        </div>
+      )}
+
       {/* Toner Takibi */}
       <TonerPanel
         deviceId={device.id}
@@ -219,7 +278,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginTop: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ fontWeight: '600' }}>{doldur(sz.cihaz.fisler, { n: device.serviceTickets.length })}</h2>
-          <Link href={`/tickets/new`} style={{
+          <Link href={`/tickets/new?${fisQ.toString()}`} style={{
             backgroundColor: '#3b82f6', color: 'white', padding: '0.5rem 1rem',
             borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.875rem', fontWeight: '500'
           }}>{sz.fisler.yeni}</Link>

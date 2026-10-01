@@ -10,6 +10,8 @@ import type { Bicimleyici } from '@/lib/bicim';
 interface Forecast {
   channel: string; yield: number; remaining: number | null; remainingPct: number | null;
   daysLeft: number | null; dailyRate: number | null; needsSetup: boolean;
+  /** Yüzde cihazın kendisinden okundu (ağ tarayıcısı). */
+  olculdu?: boolean;
 }
 interface Item {
   id: string; brand: string; model: string; serialNo: string; location: string | null;
@@ -17,12 +19,20 @@ interface Item {
   tonerChangedAt: string | null;
   black: Forecast | null; color: Forecast | null;
   soonestDaysLeft: number | null; needsSetup: boolean;
+  olcumAt?: string | null;
+  enAzYuzde?: number | null;
   // Verimin nereden geldiği — ölçülmüş bir sayıyla elle girilmiş bir
   // sayı aynı güvende değil ve bayi hangisine baktığını bilmeli.
   verimSb?: { deger: number | null; kaynak: string | null; gozlem: number; aciklama: string };
   verimRenkli?: { deger: number | null; kaynak: string | null; gozlem: number; aciklama: string };
   /** Nextus Mağaza sipariş bağlantısı — mağaza kurulu ve müşteri paneli açıksa dolu. */
   magazaLink?: string | null;
+}
+
+/** Cihazın ölçtüğü yüzdeden aciliyet: gün tahmini olmasa da %8 kırmızıdır. */
+function yuzdeGunu(pct: number | null | undefined): number | null {
+  if (pct == null) return null;
+  return pct <= 10 ? 0 : pct <= 20 ? 10 : 30;
 }
 
 function sev(days: number | null): { border: string; bar: string; text: string } {
@@ -36,12 +46,14 @@ function ChannelLine({ f, name, t, b }: { f: Forecast | null; name: string; t: S
   if (!f) return null;
   let txt: string;
   if (f.needsSetup) txt = t.sarf.bekliyor;
+  else if (f.olculdu && f.daysLeft == null) txt = doldur(t.sarf.olculenYuzde, { yuzde: f.remainingPct ?? 0 });
   else if (f.daysLeft == null) txt = doldur(t.sarf.gunTahminiYok, { yuzde: f.remainingPct ?? 0 });
-  else txt = doldur(t.sarf.gunSonra, { gun: f.daysLeft, yuzde: f.remainingPct ?? 0, kalan: b.sayi(f.remaining ?? 0) });
-  const s = sev(f.needsSetup ? null : f.daysLeft);
+  else txt = doldur(f.olculdu ? t.sarf.gunSonraOlcum : t.sarf.gunSonra, { gun: f.daysLeft, yuzde: f.remainingPct ?? 0, kalan: b.sayi(f.remaining ?? 0) });
+  const s = sev(f.needsSetup ? null : f.daysLeft ?? (f.olculdu ? yuzdeGunu(f.remainingPct) : null));
   return (
     <div style={{ fontSize: '0.83rem', color: s.text, fontWeight: 600, marginTop: 3 }}>
       {name}: {txt}
+      {f.olculdu && <span title={t.sarf.olculduIpucu} style={{ marginLeft: 6, fontSize: '0.7rem', fontWeight: 700, color: '#0369a1', background: '#e0f2fe', borderRadius: 999, padding: '0.05rem 0.45rem' }}>{t.sarf.olculdu}</span>}
     </div>
   );
 }
@@ -58,7 +70,9 @@ function siparisMesaji(i: Item, mt: Sozluk): string {
   const gun =
     i.soonestDaysLeft != null && !i.needsSetup
       ? doldur(mt.sarf.mesajGun, { cihaz, gun: i.soonestDaysLeft })
-      : doldur(mt.sarf.mesajYakinda, { cihaz });
+      : i.enAzYuzde != null
+        ? doldur(mt.sarf.mesajYuzde, { cihaz, yuzde: i.enAzYuzde })
+        : doldur(mt.sarf.mesajYakinda, { cihaz });
   const link = i.magazaLink ? doldur(mt.sarf.mesajLink, { link: i.magazaLink }) : '';
   return gun + link;
 }
@@ -96,6 +110,7 @@ export default function SarfPage() {
   const [urgent, setUrgent] = useState(0);
   const [olculen, setOlculen] = useState(0);
   const [bilinmeyen, setBilinmeyen] = useState(0);
+  const [canli, setCanli] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -105,6 +120,7 @@ export default function SarfPage() {
       setUrgent(d.urgent || 0);
       setOlculen(d.olculen || 0);
       setBilinmeyen(d.bilinmeyen || 0);
+      setCanli(d.canli || 0);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -124,6 +140,11 @@ export default function SarfPage() {
       {olculen > 0 && (
         <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857', borderRadius: 10, padding: '0.6rem 0.9rem', marginTop: '0.9rem', fontSize: '0.84rem' }}>
           <b>{doldur(t.sarf.olculenVurgu, { n: olculen })}</b> {t.sarf.olculenSon}
+        </div>
+      )}
+      {canli > 0 && (
+        <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1', borderRadius: 10, padding: '0.6rem 0.9rem', marginTop: '0.6rem', fontSize: '0.84rem' }}>
+          <b>{doldur(t.sarf.canliVurgu, { n: canli })}</b> {t.sarf.canliSon}
         </div>
       )}
 
@@ -172,7 +193,7 @@ export default function SarfPage() {
       ) : (
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           {items.map((i) => {
-            const s = sev(i.needsSetup ? null : i.soonestDaysLeft);
+            const s = sev(i.needsSetup ? null : i.soonestDaysLeft ?? yuzdeGunu(i.enAzYuzde));
             return (
               <div key={i.id} style={{ background: 'white', border: `1px solid ${s.border}`, borderLeft: `4px solid ${s.bar}`, borderRadius: 12, padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>

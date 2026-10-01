@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useT, useBicim, useDil } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, type UyariKodu, type UyariTuru } from '@/lib/sayac-tarama';
 
 type Durum = 'YAZILABILIR' | 'YAZILDI' | 'DEGISMEDI' | 'GERILEDI' | 'ESLESMEDI' | 'BIRDEN_FAZLA' | 'AYRIM_YOK' | 'SAYAC_YOK' | 'HATA';
 
@@ -24,13 +25,45 @@ interface Sonuc {
   sonSiyah: number | null; sonRenkli: number | null;
   durum: Durum; hataKodu?: string | null;
   sarf: { ad: string; yuzde: number | null }[];
+  // Eski taramalarda yok.
+  uyarilar?: UyariKodu[];
+  olcum?: { siyah: number | null; renkli: number | null };
+  tonerDegisti?: boolean;
 }
 interface Tarama {
   id: string; createdAt: string; bilgisayar: string | null; taranan: number;
   bulunan: number; eslesen: number; yazilabilir: number; yazilan: number;
   sonuc: Sonuc[]; onaylandiAt: string | null;
 }
-interface Liste { taramalar: Tarama[]; cihazlar: Record<string, { etiket: string; seri: string; musteri: string | null }> }
+interface DikkatCihazi {
+  id: string; etiket: string; seri: string; kod: string; konum: string | null;
+  musteri: { id: string; ad: string } | null;
+  olcumAt: string; olcumSiyah: number | null; olcumRenkli: number | null;
+  uyarilar: UyariKodu[]; uyariAt: string | null;
+  acikFis: { id: string; ticketNumber: string } | null;
+}
+interface Bilgisayar {
+  bilgisayar: string | null; sonTarama: string; sonBulunan: number; haftalik: number;
+  surum: number | null; sessiz: boolean; eski: boolean;
+}
+interface Liste {
+  taramalar: Tarama[];
+  cihazlar: Record<string, { etiket: string; seri: string; musteri: string | null }>;
+  durum?: { izlenen: number; cihazlar: DikkatCihazi[] };
+  bilgisayarlar?: Bilgisayar[];
+}
+
+const TUR_RENGI: Record<UyariTuru, { bg: string; fg: string }> = {
+  SERVIS: { bg: '#fee2e2', fg: '#991b1b' },
+  SARF: { bg: '#fef3c7', fg: '#92400e' },
+  BILGI: { bg: '#f3f4f6', fg: '#4b5563' },
+};
+
+const rozet = (r: { bg: string; fg: string }): React.CSSProperties => ({
+  background: r.bg, color: r.fg, padding: '0.12rem 0.5rem', borderRadius: 999, fontWeight: 700, fontSize: '0.74rem', whiteSpace: 'nowrap',
+});
+
+const GUN_MS = 86_400_000;
 
 const RENK: Record<Durum, { bg: string; fg: string }> = {
   YAZILABILIR: { bg: '#dbeafe', fg: '#1e40af' },
@@ -121,6 +154,25 @@ export default function SayacTarayiciPage() {
   const fark = (yeni: number | null, eski: number | null) =>
     yeni === null ? '—' : eski === null ? tt.ilkOkuma : `${yeni - eski >= 0 ? '+' : ''}${b.sayi(yeni - eski)}`;
 
+  const uyariAdi = (u: UyariKodu) => (tt.uyari as Record<string, string>)[u] ?? u;
+  const tonerMetni = (siyah: number | null | undefined, renkli: number | null | undefined) =>
+    [siyah != null ? `${tt.sb} ${b.yuzde(siyah)}` : null, renkli != null ? `${tt.renkli} ${b.yuzde(renkli)}` : null].filter(Boolean).join(' · ');
+  const sure = (iso: string | null) => {
+    if (!iso) return null;
+    const n = Math.floor((Date.now() - new Date(iso).getTime()) / GUN_MS);
+    return n < 1 ? tt.bugun : doldur(tt.gundur, { n });
+  };
+  // Uyarıdan fiş: cihaz, sorun metni ve (cihaz söylüyorsa) arıza kategorisi dolu gelir.
+  const fisLinki = (c: DikkatCihazi) => {
+    const servis = c.uyarilar.filter((u) => UYARI_TURU[u] === 'SERVIS');
+    const kategori = servis.map((u) => UYARI_KATEGORISI[u]).find(Boolean);
+    const q = new URLSearchParams({ cihaz: c.kod, sorun: doldur(tt.fisSorun, { uyarilar: servis.map(uyariAdi).join(', ') }) });
+    if (kategori) q.set('kategori', kategori);
+    return `/tickets/new?${q.toString()}`;
+  };
+  const durum = liste?.durum;
+  const bilgisayarlar = liste?.bilgisayarlar ?? [];
+
   return (
     <div style={{ padding: '1.5rem', maxWidth: 1100 }}>
       <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{tt.baslik}</h1>
@@ -128,6 +180,67 @@ export default function SayacTarayiciPage() {
 
       {hata && <div role="alert" style={{ ...kart, background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>{hata}</div>}
       {bilgi && <div role="status" style={{ ...kart, background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>{bilgi}</div>}
+
+      {/* ── Cihaz durumu ── Bayinin her sabah bakacağı yer: hangi makine
+          servis istiyor, hangisinin toneri bitiyor. Cihazın kendi söylediği;
+          tahmin değil. */}
+      {durum && durum.izlenen > 0 && (
+        <section id="durum" style={kart}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{tt.durumBaslik}</h2>
+            <span style={{ fontSize: '0.82rem', color: '#0369a1', fontWeight: 600 }}>📡 {doldur(tt.izleniyor, { n: durum.izlenen })}</span>
+          </div>
+          {durum.cihazlar.length === 0 ? (
+            <p style={{ margin: '0.7rem 0 0', color: '#166534', fontSize: '0.9rem' }}>✓ {tt.durumTemiz}</p>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: '0.8rem 0 0', padding: 0, display: 'grid', gap: '0.55rem' }}>
+              {durum.cihazlar.map((c) => {
+                const servis = c.uyarilar.some((u) => UYARI_TURU[u] === 'SERVIS');
+                const sarf = c.uyarilar.some((u) => UYARI_TURU[u] === 'SARF')
+                  || Math.min(c.olcumSiyah ?? 101, c.olcumRenkli ?? 101) <= TONER_KRITIK;
+                const toner = tonerMetni(c.olcumSiyah, c.olcumRenkli);
+                const kenar = servis ? '#dc2626' : sarf ? '#d97706' : '#cbd5e1';
+                return (
+                  <li key={c.id} style={{ border: '1px solid #e5e7eb', borderLeft: `4px solid ${kenar}`, borderRadius: 10, padding: '0.65rem 0.8rem', display: 'flex', justifyContent: 'space-between', gap: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ minWidth: 0, flex: '1 1 320px' }}>
+                      <div>
+                        <Link href={`/devices/${c.id}`} style={{ color: '#111827', fontWeight: 700, textDecoration: 'none' }}>{c.etiket}</Link>
+                        <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}> · {c.seri}</span>
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: '0.82rem' }}>
+                        {c.musteri ? <Link href={`/customers/${c.musteri.id}`} style={{ color: '#1d4ed8', textDecoration: 'none' }}>{c.musteri.ad}</Link> : '—'}
+                        {c.konum ? ` · ${c.konum}` : ''}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.35rem', alignItems: 'center' }}>
+                        {c.uyarilar.map((u) => <span key={u} style={rozet(TUR_RENGI[UYARI_TURU[u]] ?? TUR_RENGI.BILGI)}>{uyariAdi(u)}</span>)}
+                        {c.uyarilar.length > 0 && c.uyariAt && <span style={{ fontSize: '0.76rem', color: '#6b7280' }}>{sure(c.uyariAt)}</span>}
+                        {toner && <span style={{ fontSize: '0.78rem', color: sarf ? '#92400e' : '#4b5563', fontWeight: sarf ? 700 : 400 }}>{doldur(tt.tonerOlcum, { deger: toner })}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {servis && (c.acikFis ? (
+                        <Link href={`/tickets/${c.acikFis.id}`} style={{ padding: '0.4rem 0.75rem', border: '1px solid #bfdbfe', color: '#1d4ed8', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          {doldur(tt.fisAcik, { no: c.acikFis.ticketNumber })}
+                        </Link>
+                      ) : (
+                        <Link href={fisLinki(c)} style={{ padding: '0.4rem 0.75rem', background: '#dc2626', color: 'white', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          {tt.fisAc}
+                        </Link>
+                      ))}
+                      {sarf && (
+                        <Link href="/sarf" style={{ padding: '0.4rem 0.75rem', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          {tt.tonerGonder}
+                        </Link>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '0.7rem 0 0' }}>{tt.durumNot}</p>
+        </section>
+      )}
 
       {/* ── İndir ── */}
       <section style={kart}>
@@ -153,6 +266,44 @@ export default function SayacTarayiciPage() {
           </span>
         </label>
       </section>
+
+      {/* ── Tarayan bilgisayarlar ── Susan tarayıcı = duran sayaç; bayi bunu
+          fatura günü değil ilk sessiz günde görmeli. */}
+      {bilgisayarlar.length > 0 && (
+        <section style={kart}>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 0.6rem' }}>{tt.bilgisayarBaslik}</h2>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem', minWidth: 560 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>
+                  {tt.bilgisayarSutun.map((s: string) => <th key={s} style={{ padding: '0.4rem 0.5rem', fontWeight: 600 }}>{s}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {bilgisayarlar.map((g) => {
+                  const gun = Math.floor((Date.now() - new Date(g.sonTarama).getTime()) / GUN_MS);
+                  return (
+                    <tr key={g.bilgisayar ?? '—'} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '0.45rem 0.5rem', fontWeight: 600 }}>{g.bilgisayar ?? '—'}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', whiteSpace: 'nowrap' }}>{b.tarihSaat(g.sonTarama)}</td>
+                      <td style={{ padding: '0.45rem 0.5rem' }}>{doldur(tt.yaziciSayisi, { n: g.sonBulunan })}</td>
+                      <td style={{ padding: '0.45rem 0.5rem' }}>{doldur(tt.haftalik, { n: g.haftalik })}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <span style={rozet(g.sessiz ? TUR_RENGI.SERVIS : { bg: '#d1fae5', fg: '#065f46' })}>
+                          {g.sessiz ? doldur(tt.sessiz, { n: gun }) : tt.calisiyor}
+                        </span>
+                        {g.eski && <span style={rozet(TUR_RENGI.SARF)}>{tt.eskiSurum}</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {bilgisayarlar.some((g) => g.sessiz) && <p style={{ fontSize: '0.8rem', color: '#991b1b', margin: '0.6rem 0 0' }}>{tt.sessizNot}</p>}
+          {bilgisayarlar.some((g) => g.eski) && <p style={{ fontSize: '0.8rem', color: '#92400e', margin: '0.4rem 0 0' }}>{tt.eskiNot}</p>}
+        </section>
+      )}
 
       {/* ── Taramalar ── */}
       <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '1.5rem 0 0.6rem' }}>{tt.taramalar}</h2>
@@ -237,9 +388,17 @@ export default function SayacTarayiciPage() {
                                   : s.durum === 'GERILEDI' ? tt.gerilediNot : s.hataKodu}
                               </div>
                             )}
+                            {(s.uyarilar?.length ?? 0) > 0 && (
+                              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: 5 }}>
+                                {s.uyarilar!.map((u) => <span key={u} style={rozet(TUR_RENGI[UYARI_TURU[u]] ?? TUR_RENGI.BILGI)}>{uyariAdi(u)}</span>)}
+                              </div>
+                            )}
+                            {s.tonerDegisti && <div style={{ color: '#065f46', marginTop: 4, fontWeight: 600 }}>✓ {tt.tonerDegisti}</div>}
                           </td>
                           <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>
-                            {toner.length ? b.yuzde(Math.min(...toner)) : '—'}
+                            {s.olcum && (s.olcum.siyah != null || s.olcum.renkli != null)
+                              ? tonerMetni(s.olcum.siyah, s.olcum.renkli)
+                              : toner.length ? b.yuzde(Math.min(...toner)) : '—'}
                           </td>
                         </tr>
                       );

@@ -270,9 +270,13 @@ export type DegisimGirdisi = {
   counterValue: number;
   changedAt?: Date;
   partId?: string | null;
-  source: 'ELLE' | 'FIS' | 'GOC';
+  /** TARAYICI: ağ tarayıcısı toner yüzdesinin bitmeye yakından doluya sıçradığını gördü. */
+  source: 'ELLE' | 'FIS' | 'GOC' | 'TARAYICI';
   note?: string | null;
 };
+
+/** Tarayıcının kaydettiği değişimle aynı değişim sayılan süre. */
+const AYNI_DEGISIM_MS = 7 * 86_400_000;
 
 export type DegisimSonucu = {
   id: string;
@@ -292,6 +296,25 @@ export type DegisimSonucu = {
 export async function degisimKaydet(girdi: DegisimGirdisi): Promise<DegisimSonucu> {
   const { tenantId, deviceId, channel, counterValue, partId, source, note } = girdi;
   const changedAt = girdi.changedAt ?? new Date();
+
+  // AYNI DEĞİŞİM İKİ KAYNAKTAN. Tarayıcı yeni toneri cihazdan görüp
+  // kaydetmişse teknisyenin fişe sonradan yazdığı toner ikinci bir değişim
+  // değildir: ayrı kayıt, öncekine ~0 sayfalık bir "verim" ekler ve bir
+  // sonraki gerçek ölçümü kaydırırdı. Parça bilgisi tarayıcının kaydına eklenir.
+  if (source === 'FIS' || source === 'ELLE') {
+    const tarayici = await prisma.tonerChange.findFirst({
+      where: { tenantId, deviceId, channel, source: 'TARAYICI', changedAt: { gte: new Date(changedAt.getTime() - AYNI_DEGISIM_MS), lte: changedAt } },
+      orderBy: { changedAt: 'desc' },
+      select: { id: true, observedYield: true, partId: true },
+    });
+    if (tarayici) {
+      await prisma.tonerChange.update({
+        where: { id: tarayici.id },
+        data: { partId: tarayici.partId ?? partId ?? null, ...(note ? { note } : {}) },
+      });
+      return { id: tarayici.id, observedYield: tarayici.observedYield, elenmeSebebi: null };
+    }
+  }
 
   const onceki = await prisma.tonerChange.findFirst({
     where: { tenantId, deviceId, channel, changedAt: { lt: changedAt } },

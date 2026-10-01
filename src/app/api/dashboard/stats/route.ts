@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
 import { gunFarki } from '@/lib/sozlesme';
+import { DURUM_TAZE_MS, SERVIS_UYARILARI, TONER_KRITIK } from '@/lib/sayac-tarama';
 
 // Duran iş eşiği: durumu bu kadar gündür değişmemiş açık fişler "duruyor" sayılır.
 const STUCK_DAYS = 3;
@@ -199,8 +200,19 @@ export async function GET() {
     sayaciEksikCihaz = kiralikIdler.filter((id) => !guncel.has(id)).length;
   }
 
+  // Ağ Tarayıcı: cihazın KENDİ bildirdiği arıza ve bitmek üzere toner (güncel ölçüm).
+  const taze = { gte: new Date(Date.now() - DURUM_TAZE_MS) };
+  const [izlenenCihaz, arizaBildiren, tonerBitiyor] = await Promise.all([
+    prisma.device.count({ where: { tenantId, olcumAt: taze } }),
+    prisma.device.count({ where: { tenantId, olcumAt: taze, cihazUyarilari: { hasSome: SERVIS_UYARILARI } } }),
+    prisma.device.count({ where: { tenantId, olcumAt: taze, OR: [{ olcumSiyah: { lte: TONER_KRITIK } }, { olcumRenkli: { lte: TONER_KRITIK } }] } }),
+  ]);
+
   return NextResponse.json({
     sayaciEksikCihaz,
+    izlenenCihaz,
+    arizaBildiren,
+    tonerBitiyor,
     openTickets,
     todayTickets,
     waitingParts,

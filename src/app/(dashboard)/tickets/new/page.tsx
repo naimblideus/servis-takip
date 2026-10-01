@@ -11,6 +11,7 @@ import CihazUyarilari from '@/components/CihazUyarilari';
 import SaveSuccess from '@/components/SaveSuccess';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import { parseFaultCategory } from '@/lib/fault-categories';
 
 interface Customer { id: string; name: string; phone: string; address: string | null; }
 interface Device {
@@ -236,8 +237,8 @@ export default function NewTicketPage() {
     return () => clearTimeout(t);
   }, [scanMsg]);
 
-  // 📷 Cihaz barkodunu okut → müşteri + cihaz otomatik seçilsin (makine gelince fiş aç)
-  useBarcodeWedge(async (code) => {
+  // Cihaz kodundan (barkod, seri, panel kodu) müşteri + cihaz seçimi.
+  const cihazKoduylaSec = useCallback(async (code: string) => {
     setScanMsg({ text: doldur(sz.fisYeni.cihazAraniyor, { n: code }), ok: true });
     try {
       const r = await fetch(`/api/devices/lookup?code=${encodeURIComponent(code)}`);
@@ -252,7 +253,25 @@ export default function NewTicketPage() {
       setPendingDeviceId(d.id); // cihazlar yüklenince seçilecek
       setScanMsg({ text: doldur(sz.fisYeni.secildi, { n: `${d.brand} ${d.model} (${d.customer.name})` }), ok: true });
     } catch { setScanMsg({ text: sz.genel.baglantiHatasi, ok: false }); }
-  }, { enabled: !showAddDevice });
+  }, [sz]);
+
+  // 📷 Cihaz barkodunu okut → müşteri + cihaz otomatik seçilsin (makine gelince fiş aç)
+  useBarcodeWedge(cihazKoduylaSec, { enabled: !showAddDevice });
+
+  // Ağ Tarayıcı'daki uyarıdan gelindi: /tickets/new?cihaz=KOD&sorun=…&kategori=PAPER_JAM.
+  // Cihaz, cihazın bildirdiği sorun ve (cihaz söylüyorsa) kategori dolu gelir;
+  // teknisyen yalnız kontrol edip kaydeder.
+  const onDoldurma = useRef(false);
+  useEffect(() => {
+    if (onDoldurma.current) return;
+    onDoldurma.current = true;
+    const q = new URLSearchParams(window.location.search);
+    const kod = q.get('cihaz');
+    const sorun = (q.get('sorun') ?? '').slice(0, 500);
+    const kategori = parseFaultCategory(q.get('kategori'));
+    if (sorun || kategori) setForm(f => ({ ...f, issueText: sorun || f.issueText, faultCategory: kategori ?? f.faultCategory }));
+    if (kod) cihazKoduylaSec(kod);
+  }, [cihazKoduylaSec]);
 
   // Cihazlar (müşteriye göre) yüklenince, okutulan cihazı seç
   useEffect(() => {

@@ -854,6 +854,7 @@ const BODY = `
           <li>Müşteri, cihaz ve <strong>servis fişi</strong> yönetimi</li>
           <li><strong>Stok + barkod</strong> (LS2208) ve <strong>Zebra etiket</strong></li>
           <li>Sarf takibi ve <strong>toner tükenme tahmini</strong> — sayaç hızından "kaç gün sonra biter"</li>
+          <li><strong>Ağ Tarayıcı</strong> — sayaç, toner yüzdesi ve arıza durumu (sıkışma, servis isteği) yazıcının kendisinden, her sabah; toner değişimi kendiliğinden kaydedilir — <span class="cap-cond">müşteri ağında bir Windows bilgisayar gerekir</span></li>
           <li><strong>Rota planlama</strong> — Google Maps çok duraklı bağlantı</li>
           <li><strong>QR ile müşteri arıza bildirimi</strong> (giriş gerektirmez)</li>
           <li>Müşteriye <strong>tek tıkla WhatsApp durum bildirimi</strong> (yapılan işlem + tutar) — <span class="cap-cond">WhatsApp Business API hesabı gerekir</span></li>
@@ -1156,6 +1157,7 @@ const BODY = `
           <li>Dahil hacim + aşım fiyatı otomatik hesaplanır</li>
           <li>Servis fişi, kira faturası, sarf çıkışı aynı cihaz kartında</li>
           <li>Toner tükenme tahmini sayaç hızından "kaç gün sonra biter" der</li>
+          <li>Sıkışan, servis isteyen, toneri biten makine ana panelde — müşteri aramadan</li>
           <li>Cihaz kârlılık raporu ve marka/model güvenilirliği elinizde</li>
           <li>Toplu borç hatırlatma SMS/WhatsApp ile tek seferde gider</li>
         </ul>

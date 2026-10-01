@@ -854,6 +854,7 @@ const BODY = `
           <li>Customer, device and <strong>service ticket</strong> management</li>
           <li><strong>Stock + barcode</strong> (LS2208) and <strong>Zebra labels</strong></li>
           <li>Consumable tracking and <strong>toner run-out forecasting</strong> — “how many days left” from the meter pace</li>
+          <li><strong>Network scanner</strong> — meter, toner percentage and fault status (jam, service request) read from the printer itself every morning; toner changes are recorded automatically — <span class="cap-cond">needs one Windows computer on the customer network</span></li>
           <li><strong>Route planning</strong> — a multi-stop Google Maps link</li>
           <li><strong>Customers report faults by QR</strong> (no sign-in needed)</li>
           <li>A one-click <strong>WhatsApp status update to the customer</strong> (work done + amount) — <span class="cap-cond">a WhatsApp Business API account is required</span></li>
@@ -1156,6 +1157,7 @@ const BODY = `
           <li>Included volume and overage price are worked out automatically</li>
           <li>The service ticket, the rent invoice and the consumables sit on the same device card</li>
           <li>The toner forecast reads the meter pace and says how many days are left</li>
+          <li>Jammed machines, service requests and empty toner show on the dashboard — before the customer calls</li>
           <li>The device profitability report and brand/model reliability are in your hands</li>
           <li>Bulk debt reminders go out by SMS or WhatsApp in one pass</li>
         </ul>

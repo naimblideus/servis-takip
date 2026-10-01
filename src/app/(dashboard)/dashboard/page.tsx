@@ -22,6 +22,9 @@ interface StuckTicket {
 
 interface Stats {
   sayaciEksikCihaz?: number; // 35+ gundur okumasi olmayan kiralik cihaz
+  izlenenCihaz?: number;  // Ağ Tarayıcı'nın güncel ölçtüğü cihaz
+  arizaBildiren?: number; // kendi arızasını bildiren (servis isteyen) cihaz
+  tonerBitiyor?: number;  // cihazın kendi ölçtüğü toner ≤ %15
   openTickets: number;
   todayTickets: number;
   waitingParts: number;
@@ -114,12 +117,22 @@ export default function DashboardPage() {
     cihaz:  { yz: '#E6F4F5', ik: '#0B757D' },
   };
   const k = t.pano.kart;
+  // Arıza kartı yalnız Ağ Tarayıcı çalışan bayide: izlenmeyen parkta "0 arıza"
+  // yazmak, "her şey yolunda" demek olurdu — bilmiyoruz.
+  const izlenen = stats?.izlenenCihaz || 0;
+  const ariza = stats?.arizaBildiren || 0;
   const statCards = [
     {
       label: k.sayaciGelmeyen, value: sayaciEksik,
       ton: sayaciEksik > 0 ? ton.uyari : ton.sakin, icon: '📟',
       href: '/sayac-turu', hint: k.sayaciGelmeyenIpucu, vurgu: sayaciEksik > 0,
     },
+    ...(izlenen > 0 ? [{
+      label: k.arizaBildiren, value: ariza,
+      ton: ariza > 0 ? ton.uyari : ton.sakin, icon: '📡',
+      href: '/sayac-tarayici#durum', vurgu: ariza > 0,
+      hint: doldur(k.arizaIpucu, { toner: stats?.tonerBitiyor || 0, n: izlenen }),
+    }] : []),
     { label: k.acikFisler, value: stats?.openTickets || 0, ton: ton.marka, icon: '📋' },
     { label: k.bugunkuFisler, value: stats?.todayTickets || 0, ton: ton.para, icon: '📅' },
     { label: k.parcaBekliyor, value: stats?.waitingParts || 0, ton: ton.bekle, icon: '⏳' },

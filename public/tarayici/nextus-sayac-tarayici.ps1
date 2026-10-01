@@ -12,7 +12,8 @@
     · Bu bilgisayara hiçbir şey kurmaz (-GunlukKur seçilmedikçe).
     · Ağdaki dosyalara, belgelere, baskı içeriklerine dokunmaz.
     · Gönderdiği tek şey: cihazların IP adresi, marka/model, seri numarası,
-      sayaç ve toner seviyesi.
+      sayaç, toner seviyesi ve cihazın kendi bildirdiği durum (kâğıt
+      sıkışması, servis uyarısı gibi).
 
   NASIL ÇALIŞTIRILIR
     Dosyaya sağ tıklayın > "PowerShell ile çalıştır".
@@ -42,7 +43,7 @@ $ErrorActionPreference = 'Stop'
 # Çıktı UTF-8: yönlendirilen ya da eski kod sayfalı konsolda Türkçe harfler
 # bozuluyordu. Konsol izin vermezse (bazı uzak oturumlar) sessizce geçilir.
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
-$SURUM = 1
+$SURUM = 2
 
 $TR = ($Dil -ne 'en')
 function Yaz([string]$tr, [string]$en) { if ($TR) { Write-Host $tr } else { Write-Host $en } }
@@ -186,7 +187,8 @@ function Snmp-Coz([byte[]]$paket) {
   foreach ($vb in (Ber-Cocuklar $p[3].Deger)) {
     $ic = Ber-Cocuklar $vb.Deger
     if ($ic.Count -lt 2) { continue }
-    $sonuc.Degerler[(Oid-Coz $ic[0].Deger)] = @{ Tag = $ic[1].Tag; Deger = (Ber-Deger $ic[1]) }
+    # Ham: bit maskesi gibi metin olmayan OCTET STRING'ler için çözülmemiş baytlar.
+    $sonuc.Degerler[(Oid-Coz $ic[0].Deger)] = @{ Tag = $ic[1].Tag; Deger = (Ber-Deger $ic[1]); Ham = $ic[1].Deger }
   }
   return $sonuc
 }
@@ -292,22 +294,47 @@ $PRT_RENK    = '1.3.6.1.2.1.43.12.1.1.4.1'
 $SARF_AD     = '1.3.6.1.2.1.43.11.1.1.6.1'
 $SARF_MAX    = '1.3.6.1.2.1.43.11.1.1.8.1'
 $SARF_SEVIYE = '1.3.6.1.2.1.43.11.1.1.9.1'
+# Cihaz durumu (RFC 2790): hrDeviceStatus ve hrPrinterDetectedErrorState.
+# Bit maskesinin anlamına SUNUCU karar verir; tarayıcı baytları onaltılık yollar.
+$HR_DURUM    = '1.3.6.1.2.1.25.3.2.1.5.1'
+$HR_HATA     = '1.3.6.1.2.1.25.3.5.1.2.1'
 # Markaya özel sayaç dalları. Ne anlama geldiklerine SUNUCU karar verir;
 # tarayıcı yalnız değerleri getirir.
 $OZEL_DALLAR = @{ '1347' = '1.3.6.1.4.1.1347.42.3.1.2.1.1' }
 
 # ── ÇALIŞMA ───────────────────────────────────────────────────────────────
 
-if ($GunlukKur) {
-  $hedefKlasor = Join-Path $env:ProgramData 'NextusSayacTarayici'
+$GOREV = 'Nextus Sayac Tarayici'
+
+# schtasks hata durumunda stderr'e yazar. Windows PowerShell 5.1'de yerel
+# komutun stderr'i yönlendirilince $ErrorActionPreference = 'Stop' bunu
+# ölümcül hataya çeviriyor ve betik son adımda çöküyordu ("görev yok" bile
+# bir hata sayılıyordu). Bu iki fonksiyonda tercih yereldir.
+function Gunluk-Kur {
+  $ErrorActionPreference = 'SilentlyContinue'
+  # Kopya ProgramData yerine kullanıcının kendi klasörüne: yönetici izni
+  # istemeden yazılabilir ve görev de bu kullanıcı adına çalışır.
+  $hedefKlasor = Join-Path $env:LOCALAPPDATA 'NextusSayacTarayici'
   New-Item -ItemType Directory -Force -Path $hedefKlasor | Out-Null
   $kopya = Join-Path $hedefKlasor 'nextus-sayac-tarayici.ps1'
   Copy-Item -LiteralPath $PSCommandPath -Destination $kopya -Force
   $komut = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$kopya`" -Sessiz"
-  schtasks.exe /Create /SC DAILY /ST 09:00 /TN 'Nextus Sayac Tarayici' /TR $komut /F | Out-Null
-  Yaz "Her gün 09:00'da çalışacak şekilde kuruldu. Kaldırmak için: schtasks /Delete /TN `"Nextus Sayac Tarayici`" /F" `
-      "Scheduled to run every day at 09:00. To remove it: schtasks /Delete /TN `"Nextus Sayac Tarayici`" /F"
+  try { schtasks.exe /Create /SC DAILY /ST 09:00 /TN $GOREV /TR $komut /F 2>$null | Out-Null } catch { }
+  if ($LASTEXITCODE -eq 0) {
+    Yaz "Her gün 09:00'da çalışacak şekilde kuruldu. Kaldırmak için: schtasks /Delete /TN `"$GOREV`" /F" `
+        "Scheduled to run every day at 09:00. To remove it: schtasks /Delete /TN `"$GOREV`" /F"
+  } else {
+    Yaz 'Günlük çalışma kurulamadı (Görev Zamanlayıcı izin vermedi).' 'Could not schedule the daily run (Task Scheduler refused).'
+  }
 }
+
+function Gunluk-Kurulu {
+  $ErrorActionPreference = 'SilentlyContinue'
+  try { schtasks.exe /Query /TN $GOREV 2>$null | Out-Null } catch { return $false }
+  return ($LASTEXITCODE -eq 0)
+}
+
+if ($GunlukKur) { Gunluk-Kur }
 
 if (-not $Kuru -and ($Anahtar -like '__*' -or $Sunucu -like '__*')) {
   Yaz 'Bu dosya panelden indirilmemiş (anahtar yok). Nextus Servis > Sayaçlar > Ağ Tarayıcı ekranından indirin.' `
@@ -359,6 +386,14 @@ foreach ($ip in $kesif.Keys) {
     $mx = $maxlar["$SARF_MAX.$idx"]; $sv = $seviyeler["$SARF_SEVIYE.$idx"]
     if ($null -ne $mx -and $null -ne $sv) { [void]$sarf.Add([ordered]@{ ad = [string]$a.Value; max = [long]$mx; seviye = [long]$sv }) }
   }
+  # Durum ayrı soruluyor: bu tabloyu bilmeyen eski cihaz (SNMPv1 gibi) bütün
+  # isteği hatayla geri çevirir; sayaç sorusunu onunla birlikte kaybetmeyelim.
+  $durumKodu = $null; $hata = $null
+  $dr = Sor $ip 0xA0 @($HR_DURUM, $HR_HATA)
+  if ($dr -and $dr.Hata -eq 0) {
+    $v = $dr.Degerler[$HR_DURUM]; if ($v -and $v.Tag -eq 0x02) { $durumKodu = $v.Deger }
+    $v = $dr.Degerler[$HR_HATA]; if ($v -and $v.Tag -eq 0x04) { $hata = (@($v.Ham) | ForEach-Object { ([byte]$_).ToString('x2') }) -join '' }
+  }
   $ozel = [ordered]@{}
   if ($sysOid -match '^1\.3\.6\.1\.4\.1\.(\d+)') {
     $dal = $OZEL_DALLAR[$Matches[1]]
@@ -374,6 +409,8 @@ foreach ($ip in $kesif.Keys) {
     renkler = [object[]]$renkler
     sarf = [object[]]$sarf.ToArray()
     ozel = $ozel
+    durumKodu = $durumKodu
+    hata = $hata
   })
 }
 $udp.Close()
@@ -407,6 +444,15 @@ if ($cevap.otomatik) {
 }
 foreach ($c in @($cevap.cihazlar | Where-Object { $_.durum -eq 'ESLESMEDI' })) {
   Yaz "  Sistemde yok: $($c.marka) $($c.model) · seri $($c.seri) · $($c.ip)" "  Not in the system: $($c.marka) $($c.model) · serial $($c.seri) · $($c.ip)"
+}
+# İlk elle çalıştırmada günlük çalışmayı teklif et: sayaç, toner ve arıza
+# durumu ancak tarayıcı her gün çalışırsa güncel kalır. Komut yazdırmıyoruz.
+if (-not $Sessiz -and -not $GunlukKur -and -not (Gunluk-Kurulu)) {
+  Yaz '' ''
+  Yaz 'Bu bilgisayarda her gün 09:00''da kendiliğinden çalışsın mı? Toner ve arıza durumu her gün güncellenir. (E/H)' `
+      'Run automatically on this computer every day at 09:00? Toner and fault status stay up to date. (Y/N)'
+  $c = [string](Read-Host)
+  if ($c.Trim() -match '^(e|evet|y|yes)$') { Gunluk-Kur }
 }
 if (-not $Sessiz) { Yaz 'Kapatmak için Enter.' 'Press Enter to close.'; [void](Read-Host) }
 exit 0

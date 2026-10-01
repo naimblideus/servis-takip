@@ -55,13 +55,22 @@ export interface TaranmisCihaz {
   sarf: SarfHam[];
   /** Markaya özel dal: OID → sayı. */
   ozel: Record<string, number>;
+  /** hrDeviceStatus: 1 bilinmiyor · 2 çalışıyor · 3 uyarı · 4 test · 5 arızalı. */
+  durumKodu: number | null;
+  /** hrPrinterDetectedErrorState — ham bit maskesi, onaltılık ("0140"). */
+  hata: string | null;
 }
 
 export interface TaramaGovdesi {
   bilgisayar: string | null;
   taranan: number;
   cihazlar: TaranmisCihaz[];
+  /** Tarayıcı betiğinin sürümü ($SURUM). Eski betik arıza durumunu okumaz. */
+  surum: number | null;
 }
+
+/** Panelden indirilen güncel tarayıcının sürümü (public/tarayici/*.ps1 $SURUM). */
+export const TARAYICI_SURUMU = 2;
 
 const metin = (v: unknown, azami: number): string | null => {
   if (typeof v !== 'string') return null;
@@ -101,6 +110,8 @@ export function taranmisCihazAyikla(ham: unknown): TaranmisCihaz | null {
     }
   }
   const oid = metin(h.sysObjectID, 128);
+  const durumKodu = tamsayi(h.durumKodu);
+  const hata = typeof h.hata === 'string' && /^[0-9a-f]{0,16}$/i.test(h.hata) ? h.hata.toLowerCase() : null;
   return {
     ip,
     sysObjectID: oid && OID_DESENI.test(oid) ? oid : null,
@@ -111,6 +122,8 @@ export function taranmisCihazAyikla(ham: unknown): TaranmisCihaz | null {
     renkler,
     sarf,
     ozel,
+    durumKodu: durumKodu !== null && durumKodu >= 1 && durumKodu <= 5 ? durumKodu : null,
+    hata: hata || null,
   };
 }
 
@@ -121,10 +134,12 @@ export function taramaGovdesiAyikla(ham: unknown): TaramaGovdesi | null {
   if (!Array.isArray(h.cihazlar) || h.cihazlar.length > EN_FAZLA_CIHAZ) return null;
   const cihazlar = h.cihazlar.map(taranmisCihazAyikla).filter((c): c is TaranmisCihaz => c !== null);
   const taranan = tamsayi(h.taranan);
+  const surum = tamsayi(h.surum);
   return {
     bilgisayar: metin(h.bilgisayar, 64),
     taranan: taranan !== null && taranan >= 0 ? Math.min(taranan, 1_000_000) : 0,
     cihazlar,
+    surum: surum !== null && surum >= 1 && surum <= 1000 ? surum : null,
   };
 }
 
@@ -294,6 +309,12 @@ export interface CihazSonucu {
   /** Yazma sırasında okuma katmanının döndürdüğü hata kodu. */
   hataKodu?: string | null;
   sarf: { ad: string; yuzde: number | null }[];
+  /** Cihazın kendi bildirdiği durum (sıkışma, servis gerekli...). */
+  uyarilar: UyariKodu[];
+  /** Sarf adlarından çıkarılan toner seviyeleri. */
+  olcum: SarfOlcumu;
+  /** Bu taramada siyah toner değişimi görüldü ve kaydedildi. */
+  tonerDegisti?: boolean;
 }
 
 /** Sarf seviyesi yüzdesi. -1/-2/-3 (sınırsız / bilinmiyor / biraz var) sayı değildir. */
@@ -339,6 +360,8 @@ export function cihazSonucu(c: TaranmisCihaz, cihazlar: readonly SistemCihazi[])
     sonSiyah, sonRenkli,
     durum,
     sarf: c.sarf.map((s) => ({ ad: s.ad, yuzde: sarfYuzdesi(s) })),
+    uyarilar: cihazUyarilari(c),
+    olcum: sarfOlcumu(c),
   };
 }
 
@@ -385,4 +408,127 @@ export function taramaOzeti(sonuclar: readonly CihazSonucu[]): TaramaOzeti {
     yazilan: durumlar.YAZILDI ?? 0,
     durumlar,
   };
+}
+
+// ── CİHAZ DURUMU (ARIZA) ─────────────────────────────────────────────────
+//
+// Yönetilen baskı hizmeti veren büyük firmaların vaadi: "makinenin arıza
+// durumunu online izliyoruz". Bunun standart kaynağı RFC 3805 / RFC 2790'daki
+// hrPrinterDetectedErrorState: BÜTÜN markalarda aynı yerde duran bir bit
+// maskesi. Bit 0 ilk baytın EN SOLDAKİ bitidir.
+//
+// Sınıflama bayinin işine göre:
+//   SERVIS — teknisyen gerektirir (servis istendi, bakım gecikti, sıkışma,
+//            sarf takılı değil, cihaz arızalı)
+//   SARF   — toner gönderilmeli
+//   BILGI  — müşterinin kendi çözdüğü (kâğıt, kapak, tepsi, kapalı)
+
+export type UyariKodu =
+  | 'SERVIS_GEREKLI' | 'BAKIM_GECIKTI' | 'SIKISMA' | 'SARF_TAKILI_DEGIL' | 'CIHAZ_ARIZALI'
+  | 'TONER_YOK' | 'TONER_AZ'
+  | 'KAGIT_YOK' | 'KAGIT_AZ' | 'KAPAK_ACIK' | 'CEVRIMDISI' | 'KASET_YOK' | 'KASET_BOS'
+  | 'CIKIS_TEPSISI_YOK' | 'CIKIS_DOLU' | 'CIKIS_DOLMAK_UZERE';
+
+export type UyariTuru = 'SERVIS' | 'SARF' | 'BILGI';
+
+export const UYARI_TURU: Readonly<Record<UyariKodu, UyariTuru>> = {
+  SERVIS_GEREKLI: 'SERVIS', BAKIM_GECIKTI: 'SERVIS', SIKISMA: 'SERVIS', SARF_TAKILI_DEGIL: 'SERVIS', CIHAZ_ARIZALI: 'SERVIS',
+  TONER_YOK: 'SARF', TONER_AZ: 'SARF',
+  KAGIT_YOK: 'BILGI', KAGIT_AZ: 'BILGI', KAPAK_ACIK: 'BILGI', CEVRIMDISI: 'BILGI', KASET_YOK: 'BILGI', KASET_BOS: 'BILGI',
+  CIKIS_TEPSISI_YOK: 'BILGI', CIKIS_DOLU: 'BILGI', CIKIS_DOLMAK_UZERE: 'BILGI',
+};
+
+// [bayt, maske, kod] — RFC 2790 hrPrinterDetectedErrorState
+const HATA_BITLERI: readonly [number, number, UyariKodu][] = [
+  [0, 0x80, 'KAGIT_AZ'], [0, 0x40, 'KAGIT_YOK'], [0, 0x20, 'TONER_AZ'], [0, 0x10, 'TONER_YOK'],
+  [0, 0x08, 'KAPAK_ACIK'], [0, 0x04, 'SIKISMA'], [0, 0x02, 'CEVRIMDISI'], [0, 0x01, 'SERVIS_GEREKLI'],
+  [1, 0x80, 'KASET_YOK'], [1, 0x40, 'CIKIS_TEPSISI_YOK'], [1, 0x20, 'SARF_TAKILI_DEGIL'], [1, 0x10, 'CIKIS_DOLMAK_UZERE'],
+  [1, 0x08, 'CIKIS_DOLU'], [1, 0x04, 'KASET_BOS'], [1, 0x02, 'BAKIM_GECIKTI'],
+];
+
+const TUR_SIRASI: Record<UyariTuru, number> = { SERVIS: 0, SARF: 1, BILGI: 2 };
+
+/** Cihazın bildirdiği uyarılar — servis önce, sarf sonra, bilgi en sonda. */
+export function cihazUyarilari(c: Pick<TaranmisCihaz, 'hata' | 'durumKodu'>): UyariKodu[] {
+  const kodlar = new Set<UyariKodu>();
+  const hex = c.hata ?? '';
+  const bayt = (i: number) => (hex.length >= (i + 1) * 2 ? parseInt(hex.slice(i * 2, i * 2 + 2), 16) : 0);
+  for (const [i, maske, kod] of HATA_BITLERI) if (bayt(i) & maske) kodlar.add(kod);
+  if (c.durumKodu === 5) kodlar.add('CIHAZ_ARIZALI');
+  return [...kodlar].sort((a, b) => TUR_SIRASI[UYARI_TURU[a]] - TUR_SIRASI[UYARI_TURU[b]]);
+}
+
+// ── TONER SEVİYESİ ───────────────────────────────────────────────────────
+//
+// Sarf tablosunda toner dışında atık toner kutusu, drum, fırın, bakım kiti
+// de var; onlar toner yüzdesi sanılırsa "toner %3" uyarısı atık kutusundan
+// gelir. Toner adayı: toner olmayanlar elendikten sonra adında toner/kartuş
+// ya da renk geçen kalem.
+const TONER_DISI = /drum|imaging|waste|at[ıi]k|fuser|f[ıi]r[ıi]n|belt|kay[ıi][sş]|maintenance|bak[ıi]m|developer|geli[sş]tirici|staple|z[ıi]mba|transfer|roller|merdane/i;
+const TONER_ADI = /toner|cartridge|kartu[sş]|ink|m[üu]rekkep/i;
+
+export interface SarfOlcumu {
+  /** Siyah toner yüzdesi. */
+  siyah: number | null;
+  /** Renkli tonerlerin en düşüğü — ilk biten renk. */
+  renkli: number | null;
+}
+
+export function sarfOlcumu(c: Pick<TaranmisCihaz, 'sarf'>): SarfOlcumu {
+  const adaylar = c.sarf
+    .filter((s) => !TONER_DISI.test(s.ad) && (TONER_ADI.test(s.ad) || SIYAH_ADI.test(s.ad) || RENKLI_ADI.test(s.ad)))
+    .map((s) => ({ ad: s.ad, yuzde: sarfYuzdesi(s) }))
+    .filter((s): s is { ad: string; yuzde: number } => s.yuzde !== null);
+  const enAz = (l: number[]) => (l.length ? Math.min(...l) : null);
+  const siyahlar = adaylar.filter((s) => SIYAH_ADI.test(s.ad)).map((s) => s.yuzde);
+  const renkliler = adaylar.filter((s) => RENKLI_ADI.test(s.ad)).map((s) => s.yuzde);
+  // Tek tonerli makine ("Toner Cartridge") renk söylemez: renkli kalem yoksa o tek kalem siyahtır.
+  const siyah = siyahlar.length ? enAz(siyahlar) : !renkliler.length && adaylar.length === 1 ? adaylar[0].yuzde : null;
+  return { siyah, renkli: enAz(renkliler) };
+}
+
+/**
+ * Toner değişti mi? Önceki ölçüm bitmeye yakın, yeni ölçüm dolu ve arada
+ * büyük bir sıçrama varsa evet. Ölçüm gürültüsü (%42 → %45) ya da toneri
+ * yarıda değiştirme bu eşiklere takılmaz: emin olmadığımız değişim yazılmaz,
+ * çünkü yanlış bir değişim kaydı toner verimini bozar.
+ */
+export const DEGISIM_ESIGI = { onceEnFazla: 30, sonraEnAz: 80, sicramaEnAz: 50 } as const;
+
+export function tonerDegistiMi(onceki: number | null | undefined, simdi: number | null | undefined): boolean {
+  if (onceki == null || simdi == null) return false;
+  return onceki <= DEGISIM_ESIGI.onceEnFazla && simdi >= DEGISIM_ESIGI.sonraEnAz && simdi - onceki >= DEGISIM_ESIGI.sicramaEnAz;
+}
+
+// ── PANEL ────────────────────────────────────────────────────────────────
+
+/** Bu yüzde ve altındaki toner "bitmek üzere" sayılır. */
+export const TONER_KRITIK = 15;
+/** Bundan eski ölçüm ekranda "güncel" sayılmaz (tarayıcı her gün çalışır). */
+export const DURUM_TAZE_MS = 3 * 86_400_000;
+/** Bu kadar süre tarama göndermeyen bilgisayar "sessiz" sayılır. */
+export const SESSIZ_MS = 3 * 86_400_000;
+
+/**
+ * Uyarıdan fiş açılırken önerilen arıza kategorisi. Teknisyenin teşhis
+ * edeceği uyarılarda (servis gerekli, cihaz arızalı) öneri YOK: cihaz
+ * "bir şey bozuk" diyor, neyin bozuk olduğunu söylemiyor.
+ */
+export const UYARI_KATEGORISI: Partial<Record<UyariKodu, string>> = {
+  SIKISMA: 'PAPER_JAM',
+  BAKIM_GECIKTI: 'PERIODIC_MAINTENANCE',
+  SARF_TAKILI_DEGIL: 'CONSUMABLE',
+  TONER_YOK: 'CONSUMABLE',
+  TONER_AZ: 'CONSUMABLE',
+};
+
+/** Teknisyen gerektiren uyarı kodları (veritabanı sorgusu için). */
+export const SERVIS_UYARILARI = (Object.keys(UYARI_TURU) as UyariKodu[]).filter((k) => UYARI_TURU[k] === 'SERVIS');
+
+/** Ekrandaki sıra: servis isteyenler → toneri bitenler → bilgi. Aynı türde en düşük toner önce. */
+export function dikkatSirasi(c: { uyarilar: readonly UyariKodu[]; olcumSiyah: number | null; olcumRenkli: number | null }): number {
+  const enAz = Math.min(c.olcumSiyah ?? 101, c.olcumRenkli ?? 101);
+  if (c.uyarilar.some((u) => UYARI_TURU[u] === 'SERVIS')) return 0;
+  if (c.uyarilar.some((u) => UYARI_TURU[u] === 'SARF') || enAz <= TONER_KRITIK) return 1000 + enAz;
+  return 2000;
 }
