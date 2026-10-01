@@ -313,8 +313,20 @@ export interface CihazSonucu {
   uyarilar: UyariKodu[];
   /** Sarf adlarından çıkarılan toner seviyeleri. */
   olcum: SarfOlcumu;
+  /**
+   * Cihaz durum tablosunu verdi mi. Vermediyse (eski betik ya da bu tabloyu
+   * bilmeyen cihaz) "uyarı yok" DEĞİL "bilinmiyor"dur: karttaki uyarılar ve
+   * açık olaylar silinmez.
+   */
+  durumOkundu?: boolean;
+  /** Bütün sarf kalemleri (toner + parça ömrü), yüzdesi okunabilenler. */
+  kalemler?: SarfKalemi[];
+  /** Parça ömrünün en düşüğü (drum, fırın, bakım kiti, atık kutusu). */
+  parca?: number | null;
   /** Bu taramada siyah toner değişimi görüldü ve kaydedildi. */
   tonerDegisti?: boolean;
+  /** Bu taramada kendiliğinden açılan fişin numarası. */
+  fisAcildi?: string | null;
 }
 
 /** Sarf seviyesi yüzdesi. -1/-2/-3 (sınırsız / bilinmiyor / biraz var) sayı değildir. */
@@ -362,6 +374,9 @@ export function cihazSonucu(c: TaranmisCihaz, cihazlar: readonly SistemCihazi[])
     sarf: c.sarf.map((s) => ({ ad: s.ad, yuzde: sarfYuzdesi(s) })),
     uyarilar: cihazUyarilari(c),
     olcum: sarfOlcumu(c),
+    durumOkundu: c.hata !== null || c.durumKodu !== null,
+    kalemler: sarfKalemleri(c),
+    parca: parcaEnAz(sarfKalemleri(c)),
   };
 }
 
@@ -474,9 +489,11 @@ export interface SarfOlcumu {
   renkli: number | null;
 }
 
+const tonerAdayi = (ad: string) => !TONER_DISI.test(ad) && (TONER_ADI.test(ad) || SIYAH_ADI.test(ad) || RENKLI_ADI.test(ad));
+
 export function sarfOlcumu(c: Pick<TaranmisCihaz, 'sarf'>): SarfOlcumu {
   const adaylar = c.sarf
-    .filter((s) => !TONER_DISI.test(s.ad) && (TONER_ADI.test(s.ad) || SIYAH_ADI.test(s.ad) || RENKLI_ADI.test(s.ad)))
+    .filter((s) => tonerAdayi(s.ad))
     .map((s) => ({ ad: s.ad, yuzde: sarfYuzdesi(s) }))
     .filter((s): s is { ad: string; yuzde: number } => s.yuzde !== null);
   const enAz = (l: number[]) => (l.length ? Math.min(...l) : null);
@@ -525,10 +542,73 @@ export const UYARI_KATEGORISI: Partial<Record<UyariKodu, string>> = {
 /** Teknisyen gerektiren uyarı kodları (veritabanı sorgusu için). */
 export const SERVIS_UYARILARI = (Object.keys(UYARI_TURU) as UyariKodu[]).filter((k) => UYARI_TURU[k] === 'SERVIS');
 
-/** Ekrandaki sıra: servis isteyenler → toneri bitenler → bilgi. Aynı türde en düşük toner önce. */
-export function dikkatSirasi(c: { uyarilar: readonly UyariKodu[]; olcumSiyah: number | null; olcumRenkli: number | null }): number {
+/** Ekrandaki sıra: servis isteyenler → toneri bitenler → parça ömrü → bilgi. Aynı türde en düşük yüzde önce. */
+export function dikkatSirasi(c: { uyarilar: readonly UyariKodu[]; olcumSiyah: number | null; olcumRenkli: number | null; olcumParca?: number | null }): number {
   const enAz = Math.min(c.olcumSiyah ?? 101, c.olcumRenkli ?? 101);
   if (c.uyarilar.some((u) => UYARI_TURU[u] === 'SERVIS')) return 0;
   if (c.uyarilar.some((u) => UYARI_TURU[u] === 'SARF') || enAz <= TONER_KRITIK) return 1000 + enAz;
+  if ((c.olcumParca ?? 101) <= PARCA_KRITIK) return 1500 + (c.olcumParca as number);
   return 2000;
+}
+
+// ── PARÇA ÖMRÜ ───────────────────────────────────────────────────────────
+//
+// Toner dışındaki kalemler (drum, fırın, transfer kayışı, bakım kiti, atık
+// toner kutusu) servis ziyareti demektir: biri bitince teknisyen gider.
+// RFC 3805: atık kutusu gibi DOLAN kalemlerde seviye KALAN BOŞ YER'dir —
+// yani her kalemde düşük yüzde "değişmeli" anlamına gelir.
+
+/** Bu yüzde ve altındaki parça "bitmek üzere" sayılır. */
+export const PARCA_KRITIK = 10;
+
+export interface SarfKalemi { ad: string; yuzde: number; tur: 'TONER' | 'PARCA' }
+
+export function sarfKalemleri(c: Pick<TaranmisCihaz, 'sarf'>): SarfKalemi[] {
+  const l: SarfKalemi[] = [];
+  for (const s of c.sarf) {
+    const yuzde = sarfYuzdesi(s);
+    if (yuzde === null) continue;
+    l.push({ ad: s.ad.slice(0, 80), yuzde, tur: tonerAdayi(s.ad) ? 'TONER' : 'PARCA' });
+  }
+  return l.slice(0, 24);
+}
+
+/** Biten parçadan fiş açılırken önerilen kategori. Ad bir şey söylemiyorsa öneri yok. */
+export function parcaKategorisi(ad: string | null | undefined): string | null {
+  const a = ad ?? '';
+  if (/drum|imaging|dram/i.test(a)) return 'DRUM';
+  if (/fuser|f[ıi]r[ıi]n/i.test(a)) return 'FUSER';
+  if (/maintenance|bak[ıi]m/i.test(a)) return 'PERIODIC_MAINTENANCE';
+  if (/waste|at[ıi]k/i.test(a)) return 'CONSUMABLE';
+  if (/roller|merdane|pick/i.test(a)) return 'ROLLER';
+  return null;
+}
+
+export function parcaEnAz(kalemler: readonly SarfKalemi[]): number | null {
+  const p = kalemler.filter((k) => k.tur === 'PARCA').map((k) => k.yuzde);
+  return p.length ? Math.min(...p) : null;
+}
+
+// ── UYARI GEÇMİŞİ VE OTOMATİK FİŞ ───────────────────────────────────────
+
+/** Açık olaylarla bu taramanın uyarıları: hangisi yeni başladı, hangisi sürüyor, hangisi bitti. */
+export function olayFarki(acik: readonly string[], simdi: readonly string[]): { yeni: string[]; suren: string[]; biten: string[] } {
+  const a = new Set(acik), s = new Set(simdi);
+  return {
+    yeni: [...s].filter((k) => !a.has(k)),
+    suren: [...s].filter((k) => a.has(k)),
+    biten: [...a].filter((k) => !s.has(k)),
+  };
+}
+
+/**
+ * Servis uyarısı kaç taramada üst üste görülürse fiş kendiliğinden açılır.
+ * İki: müşterinin kendisinin giderdiği tek seferlik bir sıkışma fiş
+ * kuyruğuna düşmesin; ertesi sabah hâlâ duruyorsa gerçek bir iştir.
+ */
+export const OTOMATIK_FIS_GORULME = 2;
+
+/** Fiş açtıracak olaylar: servis türü, yeterince görülmüş, henüz bir fişe bağlanmamış. */
+export function fisAcacakOlaylar<T extends { kod: string; gorulme: number; ticketId: string | null }>(olaylar: readonly T[]): T[] {
+  return olaylar.filter((o) => UYARI_TURU[o.kod as UyariKodu] === 'SERVIS' && o.gorulme >= OTOMATIK_FIS_GORULME && !o.ticketId);
 }

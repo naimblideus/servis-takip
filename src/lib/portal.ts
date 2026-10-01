@@ -102,6 +102,9 @@ export async function portalVerisi(m: PortalMusteri) {
       where: { tenantId: m.tenantId, customerId: m.id },
       select: {
         id: true, brand: true, model: true, serialNo: true, location: true, isRental: true,
+        // Toner seviyesi cihazın kendisinden (Ağ Tarayıcı). Arıza kodları BİLEREK
+        // yok: müşteriye "servis istiyor" yazmak bayinin işini onun yerine yapmak olur.
+        olcumAt: true, olcumSiyah: true, olcumRenkli: true,
       },
       orderBy: [{ location: 'asc' }, { brand: 'asc' }],
     }),
@@ -213,6 +216,10 @@ export async function portalVerisi(m: PortalMusteri) {
       // Kaynak müşteriye de gösterilir: "cihazınız kendisi bildirdi" cümlesi
       // faturayı tartışılmaz kılar; bayinin elle girdiği sayı ise itiraza açık.
       sayacKaynak: okuma.get(c.id)?.source ?? null,
+      // Bir haftadan eski ölçüm gösterilmez: dünkü %8 bugün yeni tonerle %100 olabilir.
+      toner: c.olcumAt && c.olcumAt.getTime() >= Date.now() - 7 * 86_400_000 && (c.olcumSiyah !== null || c.olcumRenkli !== null)
+        ? { siyah: c.olcumSiyah, renkli: c.olcumRenkli, tarih: c.olcumAt.toISOString() }
+        : null,
     })),
     fisler: fisler.map((f) => ({
       id: f.id,

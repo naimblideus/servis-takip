@@ -179,6 +179,7 @@ model Tenant {
   statusHistory       TicketStatusHistory[]
   customerGroups      CustomerGroup[]
   sayacTaramalari     SayacTaramasi[]
+  cihazOlaylari       CihazOlayi[]
   bankaHareketleri    BankaHareketi[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
@@ -221,6 +222,10 @@ model Tenant {
   // sayacının bayinin fatura sayacıyla aynı şeyi saydığı cihazda görülmeden
   // faturaya yazılmamalı. Bayi ilk taramaları panelde karşılaştırıp açar.
   tarayiciOtomatikYaz Boolean @default(false)
+  // Cihazın servis uyarısı (sıkışma, servis istendi, arızalı...) iki taramada
+  // üst üste görülürse fiş kendiliğinden açılsın. Varsayılan HAYIR: tek
+  // seferlik, müşterinin kendi çözdüğü bir sıkışma fiş kuyruğunu kirletmesin.
+  tarayiciOtomatikFis Boolean @default(false)
 
   // ÜRETİCİ VERİ PAYLAŞIMI — bayinin AÇIK RIZASI. Varsayılan KAPALI.
   // Bu bayrak açık DEĞİLSE bayinin hiçbir verisi /api/oem/reliability kapsamına
@@ -550,6 +555,27 @@ model SayacTaramasi {
   @@index([tenantId, createdAt])
 }
 
+// CİHAZ UYARISI GEÇMİŞİ — kart yalnız şu anki durumu tutar; "bu makine son
+// 90 günde kaç kez sıkıştı" sorusunun cevabı burada. Kod görüldüğü taramada
+// açılır, kaybolduğu taramada kapanır (lib/sayac-tarama olayFarki).
+model CihazOlayi {
+  id        String    @id @default(cuid())
+  tenantId  String
+  deviceId  String
+  kod       String // UyariKodu
+  basladi   DateTime
+  bitti     DateTime?
+  gorulme   Int       @default(1) // üst üste kaç taramada görüldü
+  ticketId  String? // bu uyarı için açılan ya da bağlanan fiş
+  createdAt DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, deviceId, basladi])
+  @@index([tenantId, bitti])
+}
+
 // BANKA EKSTRESİNDEN İŞLENEN HER SATIR.
 // Bayi bankasının hesap hareketleri dosyasını yükler; gelen havale müşteriye
 // eşlenip onaylanınca buraya yazılır, sonra para havuzlara dağıtılır.
@@ -669,6 +695,8 @@ model Device {
   olcumRenkli          Int? // renkli tonerlerin en düşüğü %
   cihazUyarilari       String[]       @default([]) // UyariKodu: SIKISMA, SERVIS_GEREKLI...
   uyariAt              DateTime? // şu anki uyarıların ilk görüldüğü an
+  olcumParca           Int? // parça ömrü (drum, fırın, bakım kiti, atık kutusu) en düşüğü %
+  olcumSarf            Json? // taramadaki bütün sarf kalemleri [{ad, yuzde, tur}]
   lastInvoicedPeriod   String? // Çift kira faturalamayı önlemek için son faturalanan dönem (YYYY-MM)
   publicCode           String         @unique // e.g., DEV-8F3A12 (for QR URL)
   qrTokenHash          String // Hashed version of QR token
@@ -684,6 +712,7 @@ model Device {
   serviceTickets  ServiceTicket[]
   counterReadings CounterReading[]
   tonerChanges    TonerChange[]
+  cihazOlaylari   CihazOlayi[]
   portalRequests  PortalRequest[]
   contractDevices ContractDevice[]
 

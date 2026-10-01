@@ -45,7 +45,8 @@ try {
       join(KOK, 'src/lib/readings.ts'), join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/sayac-anomali.ts'),
       join(KOK, 'src/lib/verim-ogrenme.ts'), join(KOK, 'src/lib/toner-verimi.ts'), join(KOK, 'src/lib/reliability.ts'),
       join(KOK, 'src/lib/fault-categories.ts'), join(KOK, 'src/lib/stok-maliyet.ts'), join(KOK, 'src/lib/device-brands.ts'),
-      join(KOK, 'src/lib/toner.ts'),
+      join(KOK, 'src/lib/toner.ts'), join(KOK, 'src/lib/ticket-number.ts'), join(KOK, 'src/lib/ticket-asama.ts'),
+      join(KOK, 'src/lib/i18n/sozluk.ts'), join(KOK, 'src/lib/i18n/tr.ts'), join(KOK, 'src/lib/i18n/en.ts'),
       '--outDir', g, '--module', 'esnext', '--target', 'es2022',
       '--moduleResolution', 'bundler', '--skipLibCheck',
     ], { stdio: 'pipe' });
@@ -212,6 +213,29 @@ console.log('\nCihaz durumu — arıza bitleri ve toner ölçümü\n');
     UYARI_KATEGORISI.SIKISMA === 'PAPER_JAM' && UYARI_KATEGORISI.SERVIS_GEREKLI === undefined && UYARI_KATEGORISI.CIHAZ_ARIZALI === undefined);
   t('servis uyarı listesi beş kod', SERVIS_UYARILARI.length === 5 && SERVIS_UYARILARI.includes('BAKIM_GECIKTI'));
   t('kritik eşik %15', TONER_KRITIK === 15);
+
+  const { sarfKalemleri, parcaEnAz, olayFarki, fisAcacakOlaylar, parcaKategorisi, PARCA_KRITIK } = saf;
+  const kl = sarfKalemleri({ sarf: [
+    { ad: 'Black Toner', max: 100, seviye: 40 }, { ad: 'Drum Unit', max: 100, seviye: 6 },
+    { ad: 'Waste Toner Box', max: 100, seviye: 30 }, { ad: 'Fuser Kit', max: 200, seviye: 100 }, { ad: 'Cyan Toner', max: 100, seviye: -3 },
+  ] });
+  t('★ sarf kalemleri: toner ve parça ayrılıyor, okunamayan (−3) düşüyor', JSON.stringify(kl.map((k) => `${k.ad}:${k.tur}:${k.yuzde}`)) === '["Black Toner:TONER:40","Drum Unit:PARCA:6","Waste Toner Box:PARCA:30","Fuser Kit:PARCA:50"]', kl);
+  t('parça ömrünün en düşüğü', parcaEnAz(kl) === 6 && parcaEnAz([]) === null && PARCA_KRITIK === 10);
+  const fk = olayFarki(['SIKISMA', 'KAGIT_YOK'], ['SIKISMA', 'SERVIS_GEREKLI']);
+  t('★ olay farkı: yeni / süren / biten', fk.yeni.join() === 'SERVIS_GEREKLI' && fk.suren.join() === 'SIKISMA' && fk.biten.join() === 'KAGIT_YOK', fk);
+  const ol = fisAcacakOlaylar([
+    { kod: 'SIKISMA', gorulme: 2, ticketId: null }, { kod: 'SIKISMA', gorulme: 1, ticketId: null },
+    { kod: 'KAGIT_YOK', gorulme: 5, ticketId: null }, { kod: 'SERVIS_GEREKLI', gorulme: 3, ticketId: 'f1' }, { kod: 'TONER_YOK', gorulme: 4, ticketId: null },
+  ]);
+  t('★ fiş yalnız iki taramada görülen, fişe bağlanmamış SERVİS uyarısından (kâğıt/toner fiş açmaz)', ol.length === 1 && ol[0].kod === 'SIKISMA' && ol[0].gorulme === 2, ol);
+  t('parçadan kategori: drum → DRUM, fırın → FUSER, bakım kiti, atık; bilinmeyen öneri yok',
+    parcaKategorisi('Drum Unit') === 'DRUM' && parcaKategorisi('Fırın Ünitesi') === 'FUSER' && parcaKategorisi('Maintenance Kit') === 'PERIODIC_MAINTENANCE'
+    && parcaKategorisi('Atık Toner Kutusu') === 'CONSUMABLE' && parcaKategorisi('Transfer Belt') === null);
+  t('panel sırası: parça ömrü tonerden sonra, bilgiden önce',
+    dikkatSirasi({ uyarilar: [], olcumSiyah: 50, olcumRenkli: null, olcumParca: 5 }) > dikkatSirasi({ uyarilar: ['TONER_AZ'], olcumSiyah: 50, olcumRenkli: null })
+    && dikkatSirasi({ uyarilar: [], olcumSiyah: 50, olcumRenkli: null, olcumParca: 5 }) < dikkatSirasi({ uyarilar: ['KAGIT_YOK'], olcumSiyah: 50, olcumRenkli: null }));
+  t('durum tablosu gelmeyen cihaz: durumOkundu=false (uyarı yok değil, bilinmiyor)',
+    cihazSonucu(cihaz({ hata: null, durumKodu: null }), []).durumOkundu === false && cihazSonucu(cihaz({ hata: '00', durumKodu: 2 }), []).durumOkundu === true);
 }
 
 console.log('\nSarf — cihazın ölçtüğü yüzde tahminin önüne geçer\n');
@@ -420,7 +444,11 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
       writeFileSync(yol, s, 'utf8');
     };
     const ortak = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(istemci)]];
-    duzelt('sayac-tarama-veri.js', [...ortak, ["'@/lib/readings'", "'./readings.js'"], ["'@/lib/sayac-tarama'", "'./sayac-tarama.js'"], ["'@/lib/verim-ogrenme'", "'./verim-ogrenme.js'"]]);
+    duzelt('sayac-tarama-veri.js', [...ortak, ["'@/lib/readings'", "'./readings.js'"], ["'@/lib/sayac-tarama'", "'./sayac-tarama.js'"], ["'@/lib/verim-ogrenme'", "'./verim-ogrenme.js'"],
+      ["'@/lib/ticket-number'", "'./ticket-number.js'"], ["'@/lib/ticket-asama'", "'./ticket-asama.js'"], ["'@/lib/i18n/sozluk'", "'./i18n/sozluk.js'"]]);
+    duzelt('ticket-number.js', ortak);
+    duzelt('ticket-asama.js', ortak);
+    duzelt('i18n/sozluk.js', [["from './tr'", "from './tr.js'"], ["from './en'", "from './en.js'"]]);
     duzelt('verim-ogrenme.js', [...ortak, ["'@/lib/toner-verimi'", "'./toner-verimi.js'"], ["'@/lib/reliability'", "'./reliability.js'"]]);
     duzelt('toner-verimi.js', [...ortak, ["'@/lib/device-brands'", "'./device-brands.js'"]]);
     duzelt('reliability.js', [...ortak, ["'@/lib/fault-categories'", "'./fault-categories.js'"], ["'@/lib/stok-maliyet'", "'./stok-maliyet.js'"]]);
@@ -611,6 +639,69 @@ if (veri) {
     t('★ güncel sürüm "eski" değil; sürüm taramada saklanıyor', pcs.find((x) => x.bilgisayar === 'YENI-PC')?.eski === false && pcs.find((x) => x.bilgisayar === 'YENI-PC')?.surum === saf.TARAYICI_SURUMU);
     t('★ 5 gündür tarama göndermeyen bilgisayar SESSİZ', pcs.find((x) => x.bilgisayar === 'OFIS-PC')?.sessiz === true);
 
+    // ── uyarı geçmişi (olaylar)
+    const { uyariGecmisi } = veri;
+    const olay1 = await cihazYap('OLAY-1', { counterBlack: 1000, counterColor: 0 });
+    const olayCihazi = (seri, hata, ek = {}) => cihaz({ ip: '10.0.0.50', seri, renkler: ['black'], toplam: 2000, ozel: {}, sysObjectID: '1.3.6.1.4.1.11.2.3.9.1',
+      hata, durumKodu: hata === undefined ? undefined : 2, ...ek });
+    const taraTek = (c) => taramaKaydet(bayiId, taramaGovdesiAyikla({ surum: 2, bilgisayar: 'OLAY-PC', taranan: 1, cihazlar: [c] }), false);
+    const olaylar = (id) => p.cihazOlayi.findMany({ where: { deviceId: id }, orderBy: { createdAt: 'asc' } });
+    await taraTek(olayCihazi('OLAY-1', '04'));
+    let ol1 = await olaylar(olay1);
+    t('★ sıkışma görüldü: olay açıldı (1 tarama)', ol1.length === 1 && ol1[0].kod === 'SIKISMA' && ol1[0].bitti === null && ol1[0].gorulme === 1, ol1);
+    await taraTek(olayCihazi('OLAY-1', '04'));
+    ol1 = await olaylar(olay1);
+    t('★ ikinci taramada sürüyor: aynı olay, görülme 2 (yeni olay açılmadı)', ol1.length === 1 && ol1[0].gorulme === 2);
+    t('otomatik fiş KAPALIYKEN fiş açılmadı', (await p.serviceTicket.count({ where: { deviceId: olay1 } })) === 0 && ol1[0].ticketId === null);
+    await taraTek(olayCihazi('OLAY-1', undefined));
+    const olay1Kart = await p.device.findUnique({ where: { id: olay1 }, select: { cihazUyarilari: true } });
+    ol1 = await olaylar(olay1);
+    t('★ ESKİ BETİK (durum tablosu yok) uyarıları "düzeldi" saymıyor: kart ve olay açık kalıyor', ol1[0].bitti === null && olay1Kart.cihazUyarilari.join() === 'SIKISMA', { ol1, olay1Kart });
+    await taraTek(olayCihazi('OLAY-1', '00'));
+    ol1 = await olaylar(olay1);
+    t('★ uyarı kaybolunca olay kapandı', ol1.length === 1 && ol1[0].bitti !== null);
+    await taraTek(olayCihazi('OLAY-1', '04'));
+    const g1 = await uyariGecmisi(bayiId, olay1, 90);
+    t('★ geçmiş: sıkışma 2 kez, en sonuncusu sürüyor', g1.ozet.length === 1 && g1.ozet[0].kod === 'SIKISMA' && g1.ozet[0].adet === 2 && g1.ozet[0].acik === true, g1.ozet);
+
+    // ── otomatik fiş
+    await p.user.create({ data: { tenantId: bayiId, email: 'tarayici-yonetici@ornek.local', passwordHash: 'x', name: 'Yönetici', role: 'ADMIN' } });
+    await p.tenant.update({ where: { id: bayiId }, data: { tarayiciOtomatikFis: true, locale: 'tr' } });
+    const olay2 = await cihazYap('OLAY-2', { counterBlack: 1000, counterColor: 0 });
+    const fisSay = () => p.serviceTicket.count({ where: { deviceId: olay2 } });
+    const r1o = await taraTek(olayCihazi('OLAY-2', '01'));
+    t('servis istendi ilk taramada: fiş YOK (tek seferlik olabilir)', (await fisSay()) === 0 && !r1o.sonuclar[0].fisAcildi);
+    const r2o = await taraTek(olayCihazi('OLAY-2', '01'));
+    const ofis1 = await p.serviceTicket.findFirst({ where: { deviceId: olay2 }, include: { statusHistory: true } });
+    t('★ iki taramada üst üste: fiş KENDİLİĞİNDEN açıldı', (await fisSay()) === 1 && ofis1?.status === 'NEW' && /^SF-\d+$/.test(ofis1?.ticketNumber ?? '') && r2o.sonuclar[0].fisAcildi === ofis1?.ticketNumber,
+      { sayi: await fisSay(), no: ofis1?.ticketNumber, sonuc: r2o.sonuclar[0].fisAcildi });
+    t('fiş metni cihazın bildirdiği uyarı, not "Ağ Tarayıcı açtı", aşama kaynağı SİSTEM', /Servis istiyor/.test(ofis1?.issueText ?? '') && /Ağ Tarayıcı/.test(ofis1?.notes ?? '') && ofis1?.statusHistory?.[0]?.kaynak === 'SISTEM', { issue: ofis1?.issueText, notes: ofis1?.notes, h: ofis1?.statusHistory });
+    t('"servis istiyor" arıza kategorisi uydurmuyor (teknisyen seçer)', ofis1?.faultCategory === null);
+    t('olay fişe bağlandı', (await olaylar(olay2)).every((o) => o.ticketId === ofis1?.id));
+    await taraTek(olayCihazi('OLAY-2', '01'));
+    t('★ üçüncü taramada İKİNCİ fiş açılmadı', (await fisSay()) === 1);
+    await taraTek(olayCihazi('OLAY-2', '05'));
+    await taraTek(olayCihazi('OLAY-2', '05'));
+    const sik = (await olaylar(olay2)).find((o) => o.kod === 'SIKISMA');
+    t('★ açık fiş varken yeni servis uyarısı yeni fiş açmıyor, açık fişe bağlanıyor', (await fisSay()) === 1 && sik?.ticketId === ofis1?.id, sik);
+    const olay3 = await cihazYap('OLAY-3', { counterBlack: 1000, counterColor: 0 });
+    await taraTek(olayCihazi('OLAY-3', '04'));
+    await taraTek(olayCihazi('OLAY-3', '04'));
+    const fis3 = await p.serviceTicket.findFirst({ where: { deviceId: olay3 } });
+    t('★ sıkışmadan açılan fiş "kâğıt sıkışması" kategorisinde', fis3?.faultCategory === 'PAPER_JAM' && /Kâğıt sıkışması/.test(fis3?.issueText ?? ''), fis3 && { k: fis3.faultCategory, i: fis3.issueText });
+    t('fiş numaraları çakışmıyor', fis3 && fis3.ticketNumber !== ofis1.ticketNumber);
+    const olay4 = await cihazYap('OLAY-4', { counterBlack: 1000, counterColor: 0 });
+    await taraTek(olayCihazi('OLAY-4', '40'));
+    await taraTek(olayCihazi('OLAY-4', '40'));
+    t('kâğıt bitti (müşterinin işi) iki taramada da fiş açmıyor', (await p.serviceTicket.count({ where: { deviceId: olay4 } })) === 0);
+
+    // ── parça ömrü
+    await taraTek(olayCihazi('OLAY-4', '00', { sarf: [{ ad: 'Black Toner', max: 100, seviye: 70 }, { ad: 'Drum Unit', max: 100, seviye: 6 }] }));
+    const o4 = await p.device.findUnique({ where: { id: olay4 }, select: { olcumParca: true, olcumSarf: true } });
+    t('★ parça ömrü kartta (drum %6) ve bütün kalemler saklandı', o4.olcumParca === 6 && Array.isArray(o4.olcumSarf) && o4.olcumSarf.length === 2, o4);
+    const dur4 = (await cihazDurumlari(bayiId)).cihazlar.find((c) => c.id === olay4);
+    t('★ drumı biten cihaz dikkat listesinde, parçanın adıyla', dur4?.olcumParca === 6 && dur4?.parcaAd === 'Drum Unit', dur4);
+
     // ── HTTP
     const SUNUCU = process.env.TEST_SUNUCU || 'http://localhost:3002';
     const acik = await fetch(`${SUNUCU}/api/sayac/tarayici`, { method: 'POST', signal: AbortSignal.timeout(4000) }).then(() => true).catch(() => false);
@@ -633,6 +724,21 @@ if (veri) {
       t('HTTP: anahtarsız 401', (await gonder('{}', null)).status === 401);
       t('HTTP: bozuk gövde 400', (await gonder('{bozuk', yeni)).status === 400);
       t('HTTP: panel listesi oturumsuz açılmıyor', (await fetch(`${SUNUCU}/api/sayac/tarayici`)).status === 401);
+
+      // ── Müşteri paneli: toner seviyesi görünür, arıza kodu görünmez
+      const jeton = 'ab'.repeat(32);
+      const pm = await p.customer.create({ data: { tenantId: bayiId, name: 'Panel Müşterisi', phone: '5559990088', portalEnabled: true, portalToken: jeton } });
+      const pc = await p.device.create({ data: {
+        tenantId: bayiId, customerId: pm.id, brand: 'HP', model: 'Panel', serialNo: 'PANEL-1', publicCode: 'TRY-PANEL-1', qrTokenHash: 'try-panel-1',
+        olcumAt: new Date(), olcumSiyah: 9, olcumRenkli: null, cihazUyarilari: ['SIKISMA', 'SERVIS_GEREKLI'], uyariAt: new Date(),
+      }, select: { id: true } });
+      const sayfa = async () => (await fetch(`${SUNUCU}/m/${jeton}`)).text();
+      let html = await sayfa();
+      t('★ müşteri panelinde toner seviyesi cihazdan okunmuş olarak görünüyor', /%9|9%/.test(html) && /cihazdan okundu/.test(html), html.length);
+      t('★ müşteriye arıza kodu GÖSTERİLMİYOR (bayinin işi)', !/Kâğıt sıkışması|Servis istiyor/.test(html));
+      await p.device.update({ where: { id: pc.id }, data: { olcumAt: new Date(Date.now() - 10 * 86400000) } });
+      html = await sayfa();
+      t('★ bir haftadan eski toner ölçümü müşteriye gösterilmiyor', !/cihazdan okundu/.test(html));
 
       // ── UÇTAN UCA: gerçek betik, gerçek anahtar, gerçek sunucu ────────
       if (psKabuk && ajanlar.length === 3) {

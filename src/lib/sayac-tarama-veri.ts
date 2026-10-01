@@ -8,13 +8,18 @@
  * reddi, anomali uyarısı ve kademeli ücret hesabı aynen işliyor.
  */
 import { createHash, randomBytes } from 'node:crypto';
+import { Prisma, type FaultCategory } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { createReading, ReadingError } from '@/lib/readings';
 import { degisimKaydet } from '@/lib/verim-ogrenme';
+import { generateTicketNumber } from '@/lib/ticket-number';
+import { kaydetAsama } from '@/lib/ticket-asama';
+import { sozluk, doldur } from '@/lib/i18n/sozluk';
 import {
   cihazSonucu, tekrarlariAyikla, taramaOzeti, ilerlemeDurumu, tonerDegistiMi,
   dikkatSirasi, TONER_KRITIK, DURUM_TAZE_MS, SESSIZ_MS, TARAYICI_SURUMU,
-  type CihazSonucu, type TaramaGovdesi, type TaramaOzeti, type UyariKodu,
+  olayFarki, fisAcacakOlaylar, UYARI_KATEGORISI, PARCA_KRITIK,
+  type CihazSonucu, type TaramaGovdesi, type TaramaOzeti, type UyariKodu, type SarfKalemi,
 } from '@/lib/sayac-tarama';
 
 export const KAYNAK_TARAMA = 'AG_TARAMA' as const;
@@ -82,30 +87,64 @@ const DEGISIM_PENCERESI_MS = 7 * 86_400_000;
 async function durumuYaz(tenantId: string, sonuclar: CihazSonucu[]): Promise<CihazSonucu[]> {
   const tekil = sonuclar.filter((s) => s.deviceId && s.durum !== 'BIRDEN_FAZLA');
   if (!tekil.length) return sonuclar;
-  const onceki = new Map(
-    (await prisma.device.findMany({
-      where: { tenantId, id: { in: tekil.map((s) => s.deviceId as string) } },
+  const ids = tekil.map((s) => s.deviceId as string);
+  const [onceki, acikOlaylar, bayi] = await Promise.all([
+    prisma.device.findMany({
+      where: { tenantId, id: { in: ids } },
       select: { id: true, olcumAt: true, olcumSiyah: true, cihazUyarilari: true, uyariAt: true, counterBlack: true },
-    })).map((d) => [d.id, d]),
-  );
+    }).then((l) => new Map(l.map((d) => [d.id, d]))),
+    prisma.cihazOlayi.findMany({
+      where: { tenantId, deviceId: { in: ids }, bitti: null },
+      select: { id: true, deviceId: true, kod: true, gorulme: true, ticketId: true },
+    }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { tarayiciOtomatikFis: true, locale: true } }),
+  ]);
   const simdi = new Date();
-  const degisen = new Set<CihazSonucu>();
+  const ek = new Map<CihazSonucu, Partial<CihazSonucu>>();
   for (const s of tekil) {
     const d = onceki.get(s.deviceId as string);
     if (!d) continue;
-    const uyarilar = s.uyarilar ?? [];
     const olcum = s.olcum ?? { siyah: null, renkli: null };
+    // Eski betik ya da durum tablosunu vermeyen cihaz: uyarılar "bilinmiyor".
+    // Kart ve açık olaylar olduğu gibi kalır; yoksa her eski tarama bütün
+    // uyarıları "düzeldi" diye kapatırdı.
+    const durumVar = s.durumOkundu !== false && s.durumOkundu !== undefined;
+    const uyarilar = durumVar ? (s.uyarilar ?? []) : null;
     await prisma.device.update({
       where: { id: d.id },
       data: {
         olcumAt: simdi,
         olcumSiyah: olcum.siyah,
         olcumRenkli: olcum.renkli,
-        cihazUyarilari: uyarilar,
-        // Uyarı sürüyorsa ilk görüldüğü an korunur ("3 gündür sıkışık").
-        uyariAt: uyarilar.length ? (d.cihazUyarilari.length && d.uyariAt ? d.uyariAt : simdi) : null,
+        olcumParca: s.parca ?? null,
+        olcumSarf: s.kalemler?.length ? (s.kalemler as unknown as object) : Prisma.DbNull,
+        ...(uyarilar ? {
+          cihazUyarilari: uyarilar,
+          // Uyarı sürüyorsa ilk görüldüğü an korunur ("3 gündür sıkışık").
+          uyariAt: uyarilar.length ? (d.cihazUyarilari.length && d.uyariAt ? d.uyariAt : simdi) : null,
+        } : {}),
       },
     });
+
+    if (uyarilar) {
+      const acik = acikOlaylar.filter((o) => o.deviceId === d.id);
+      const fark = olayFarki(acik.map((o) => o.kod), uyarilar);
+      if (fark.biten.length) {
+        await prisma.cihazOlayi.updateMany({ where: { tenantId, deviceId: d.id, bitti: null, kod: { in: fark.biten } }, data: { bitti: simdi } });
+      }
+      if (fark.suren.length) {
+        await prisma.cihazOlayi.updateMany({ where: { tenantId, deviceId: d.id, bitti: null, kod: { in: fark.suren } }, data: { gorulme: { increment: 1 } } });
+      }
+      if (fark.yeni.length) {
+        await prisma.cihazOlayi.createMany({ data: fark.yeni.map((kod) => ({ tenantId, deviceId: d.id, kod, basladi: simdi })) });
+      }
+      if (bayi?.tarayiciOtomatikFis) {
+        const guncel = acik.filter((o) => fark.suren.includes(o.kod)).map((o) => ({ ...o, gorulme: o.gorulme + 1 }));
+        const fis = await otomatikFis(tenantId, d.id, fisAcacakOlaylar(guncel), bayi.locale);
+        if (fis) ek.set(s, { ...(ek.get(s) ?? {}), fisAcildi: fis });
+      }
+    }
+
     if (!d.olcumAt || simdi.getTime() - d.olcumAt.getTime() > DEGISIM_PENCERESI_MS) continue;
     if (!tonerDegistiMi(d.olcumSiyah, olcum.siyah)) continue;
     const sayac = s.siyah ?? d.counterBlack;
@@ -119,9 +158,70 @@ async function durumuYaz(tenantId: string, sonuclar: CihazSonucu[]): Promise<Cih
       tenantId, deviceId: d.id, channel: 'BLACK', counterValue: sayac, changedAt: simdi,
       source: 'TARAYICI', note: `%${d.olcumSiyah} → %${olcum.siyah}`,
     });
-    degisen.add(s);
+    ek.set(s, { ...(ek.get(s) ?? {}), tonerDegisti: true });
   }
-  return degisen.size ? sonuclar.map((s) => (degisen.has(s) ? { ...s, tonerDegisti: true } : s)) : sonuclar;
+  return ek.size ? sonuclar.map((s) => (ek.has(s) ? { ...s, ...ek.get(s) } : s)) : sonuclar;
+}
+
+/**
+ * Servis uyarısından fiş. Cihazda açık fiş varsa YENİSİ AÇILMAZ, uyarı o
+ * fişe bağlanır: aynı arıza için ikinci fiş teknisyeni iki kez yollar.
+ * Cihaz satırı kilitlenir; aynı anda gelen iki tarama iki fiş açamaz.
+ * Fiş bir kullanıcı adına açılmak zorunda (createdByUserId): bayinin
+ * yöneticisi; kaynak "SISTEM" olarak işlenir. Fiş numarası tek yerden.
+ */
+async function otomatikFis(
+  tenantId: string,
+  deviceId: string,
+  olaylar: { id: string; kod: string }[],
+  dil: string | null,
+): Promise<string | null> {
+  if (!olaylar.length) return null;
+  const kodlar = olaylar.map((o) => o.kod as UyariKodu);
+  const yonetici = await prisma.user.findFirst({
+    where: { tenantId, isActive: true, role: { in: ['ADMIN', 'FRONT_DESK'] } },
+    orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+    select: { id: true },
+  });
+  if (!yonetici) return null;
+  const numara = await generateTicketNumber(tenantId);
+  // Fiş bayinin iç kaydı: bayinin dilinde yazılır.
+  const sz = sozluk(dil);
+  const sonuc = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Device" WHERE id = ${deviceId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+    const cihaz = await tx.device.findFirst({ where: { id: deviceId, tenantId }, select: { customerId: true } });
+    if (!cihaz) return null;
+    const acik = await tx.serviceTicket.findFirst({
+      where: { tenantId, deviceId, deletedAt: null, status: { notIn: ['DELIVERED', 'CANCELLED'] } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    });
+    if (acik) {
+      await tx.cihazOlayi.updateMany({ where: { id: { in: olaylar.map((o) => o.id) } }, data: { ticketId: acik.id } });
+      return { yeni: false as const, id: acik.id, no: null };
+    }
+    const adlar = kodlar.map((k) => sz.tarayici.uyari[k] ?? k).join(', ');
+    const fis = await tx.serviceTicket.create({
+      data: {
+        tenantId, deviceId, customerId: cihaz.customerId,
+        ticketNumber: numara, status: 'NEW',
+        issueText: doldur(sz.tarayici.fisSorun, { uyarilar: adlar }),
+        faultCategory: (kodlar.map((k) => UYARI_KATEGORISI[k]).find(Boolean) as FaultCategory | undefined) ?? null,
+        notes: sz.tarayici.otomatikFisNotu,
+        createdByUserId: yonetici.id,
+      },
+      select: { id: true, ticketNumber: true },
+    });
+    await tx.cihazOlayi.updateMany({ where: { id: { in: olaylar.map((o) => o.id) } }, data: { ticketId: fis.id } });
+    return { yeni: true as const, id: fis.id, no: fis.ticketNumber };
+  }).catch((e) => {
+    // Numara çakışması gibi nadir durumlar: olay açık kalır, bir sonraki tarama yeniden dener.
+    console.error('[tarayici] otomatik fiş açılamadı:', e instanceof Error ? e.message : e);
+    return null;
+  });
+  if (!sonuc?.yeni) return null;
+  await kaydetAsama({ tenantId, ticketId: sonuc.id, status: 'NEW', kaynak: 'SISTEM', notu: sz.tarayici.otomatikFisNotu });
+  return sonuc.no;
 }
 
 /**
@@ -272,11 +372,13 @@ export async function cihazDurumlari(tenantId: string, simdi = new Date()) {
           { cihazUyarilari: { isEmpty: false } },
           { olcumSiyah: { lte: TONER_KRITIK } },
           { olcumRenkli: { lte: TONER_KRITIK } },
+          { olcumParca: { lte: PARCA_KRITIK } },
         ],
       },
       select: {
         id: true, brand: true, model: true, serialNo: true, publicCode: true, location: true,
         olcumAt: true, olcumSiyah: true, olcumRenkli: true, cihazUyarilari: true, uyariAt: true,
+        olcumParca: true, olcumSarf: true,
         customer: { select: { id: true, name: true } },
         serviceTickets: {
           where: { deletedAt: null, status: { notIn: ['DELIVERED', 'CANCELLED'] } },
@@ -298,6 +400,11 @@ export async function cihazDurumlari(tenantId: string, simdi = new Date()) {
     olcumAt: d.olcumAt,
     olcumSiyah: d.olcumSiyah,
     olcumRenkli: d.olcumRenkli,
+    olcumParca: d.olcumParca,
+    // Ekranda en düşük parçanın ADI da yazsın ("Drum %6").
+    parcaAd: d.olcumParca !== null && Array.isArray(d.olcumSarf)
+      ? ((d.olcumSarf as unknown as SarfKalemi[]).find((k) => k.tur === 'PARCA' && k.yuzde === d.olcumParca)?.ad ?? null)
+      : null,
     uyarilar: d.cihazUyarilari as UyariKodu[],
     uyariAt: d.uyariAt,
     acikFis: d.serviceTickets[0] ?? null,
@@ -340,9 +447,41 @@ export async function tarayanBilgisayarlar(tenantId: string, simdi = new Date())
 export async function tarayiciAyari(tenantId: string) {
   const t = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { tarayiciAnahtarHash: true, tarayiciOtomatikYaz: true },
+    select: { tarayiciAnahtarHash: true, tarayiciOtomatikYaz: true, tarayiciOtomatikFis: true },
   });
-  return { anahtarVar: Boolean(t?.tarayiciAnahtarHash), otomatik: Boolean(t?.tarayiciOtomatikYaz) };
+  return {
+    anahtarVar: Boolean(t?.tarayiciAnahtarHash),
+    otomatik: Boolean(t?.tarayiciOtomatikYaz),
+    otomatikFis: Boolean(t?.tarayiciOtomatikFis),
+  };
+}
+
+export async function otomatikFisAyarla(tenantId: string, deger: boolean): Promise<void> {
+  await prisma.tenant.update({ where: { id: tenantId }, data: { tarayiciOtomatikFis: deger } });
+}
+
+/**
+ * Cihazın uyarı geçmişi: son `gun` günde hangi uyarı kaç kez başladı, en son
+ * ne zaman. "Bu makine ayda altı kez sıkışıyor" teşhisin yarısıdır.
+ */
+export async function uyariGecmisi(tenantId: string, deviceId: string, gun = 90, simdi = new Date()) {
+  const olaylar = await prisma.cihazOlayi.findMany({
+    where: { tenantId, deviceId, basladi: { gte: new Date(simdi.getTime() - gun * 86_400_000) } },
+    orderBy: { basladi: 'desc' },
+    take: 500,
+    select: { kod: true, basladi: true, bitti: true, ticketId: true },
+  });
+  const ozet = new Map<string, { kod: string; adet: number; son: Date; acik: boolean }>();
+  for (const o of olaylar) {
+    const x = ozet.get(o.kod);
+    if (!x) ozet.set(o.kod, { kod: o.kod, adet: 1, son: o.basladi, acik: o.bitti === null });
+    else { x.adet++; if (o.bitti === null) x.acik = true; }
+  }
+  return {
+    gun,
+    ozet: [...ozet.values()].sort((a, b) => b.adet - a.adet || b.son.getTime() - a.son.getTime()),
+    son: olaylar.slice(0, 10),
+  };
 }
 
 /** Yeni anahtar üretir; eskisi o anda çalışmayı bırakır. Anahtar bir kez döner. */

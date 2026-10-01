@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { writeAudit, istekIp } from '@/lib/audit';
-import { tarayiciAyari, anahtarYenile, otomatikAyarla } from '@/lib/sayac-tarama-veri';
+import { tarayiciAyari, anahtarYenile, otomatikAyarla, otomatikFisAyarla } from '@/lib/sayac-tarama-veri';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,11 +39,26 @@ export async function POST(req: Request) {
   }
 }
 
-/** PATCH { otomatik } — tarama sonucu onaysız sayaç olarak yazılsın mı. */
+/**
+ * PATCH { otomatik } — tarama sonucu onaysız sayaç olarak yazılsın mı.
+ * PATCH { otomatikFis } — servis uyarısından fiş kendiliğinden açılsın mı.
+ */
 export async function PATCH(req: Request) {
   try {
     const { tenantId, user } = await requireAdminUser();
     const b = await req.json().catch(() => ({}));
+    if (typeof b?.otomatikFis === 'boolean') {
+      const onceki = await tarayiciAyari(tenantId);
+      await otomatikFisAyarla(tenantId, b.otomatikFis);
+      await writeAudit({
+        tenantId, userId: user.id,
+        action: 'TARAYICI_OTOMATIK_FIS_DEGISTI',
+        entityType: 'Tenant', entityId: tenantId,
+        oldValue: { otomatikFis: onceki.otomatikFis }, newValue: { otomatikFis: b.otomatikFis },
+        ipAddress: istekIp(req),
+      });
+      return NextResponse.json({ otomatikFis: b.otomatikFis });
+    }
     if (typeof b?.otomatik !== 'boolean') return NextResponse.json({ error: 'otomatik: boolean' }, { status: 400 });
     const onceki = await tarayiciAyari(tenantId);
     await otomatikAyarla(tenantId, b.otomatik);

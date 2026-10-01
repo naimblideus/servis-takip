@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { garantiDurumu, tekrarAriza, ucretliMi, TEKRAR_ARIZA_GUN } from '@/lib/garanti';
+import { uyariGecmisi } from '@/lib/sayac-tarama-veri';
 
 /**
  * Cihazın son 12 aylık arıza geçmişi — kategoriye göre özet.
@@ -68,7 +69,11 @@ export async function GET(
       byCategory[key].count += 1;
     }
 
+    // Ağ Tarayıcı'nın kaydettiği, cihazın KENDİ bildirdiği uyarılar (90 gün).
+    const gecmis = await uyariGecmisi(user.tenantId, device.id, 90);
+
     return NextResponse.json({
+      cihazOlaylari: gecmis.ozet.map((o) => ({ kod: o.kod, adet: o.adet, son: o.son.toISOString(), acik: o.acik })),
       windowDays: WINDOW_DAYS,
       total: tickets.length,
       // Kategorisi bilinen kayıt sayısı — arayüz, kapsam düşükse yorum yapmamalı

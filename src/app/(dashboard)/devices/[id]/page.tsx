@@ -9,7 +9,8 @@ import TonerPanel from '@/components/TonerPanel';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
-import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, DURUM_TAZE_MS, type UyariKodu } from '@/lib/sayac-tarama';
+import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, PARCA_KRITIK, DURUM_TAZE_MS, type UyariKodu, type SarfKalemi } from '@/lib/sayac-tarama';
+import { uyariGecmisi } from '@/lib/sayac-tarama-veri';
 
 // statusLabel and priorityLabel removed — replaced with counter columns
 
@@ -96,6 +97,8 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
     const k = servisUyarilari.map((u) => UYARI_KATEGORISI[u]).find(Boolean);
     if (k) fisQ.set('kategori', k);
   }
+  const kalemler = (Array.isArray(device.olcumSarf) ? device.olcumSarf : []) as unknown as SarfKalemi[];
+  const gecmis = await uyariGecmisi(user.tenantId, device.id, 90);
   const rozetRengi = (u: UyariKodu) => UYARI_TURU[u] === 'SERVIS' ? ['#fee2e2', '#991b1b'] : UYARI_TURU[u] === 'SARF' ? ['#fef3c7', '#92400e'] : ['#f3f4f6', '#4b5563'];
 
   return (
@@ -258,7 +261,48 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
               </Link>
             )}
           </div>
+          {/* Bütün sarf kalemleri: drum, fırın, bakım kiti, atık kutusu da. */}
+          {kalemler.length > 0 && (
+            <div style={{ marginTop: '0.9rem', borderTop: '1px solid #f3f4f6', paddingTop: '0.75rem' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>{sz.cihaz.sarfBaslik}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(13rem,1fr))', gap: '0.45rem 1.25rem' }}>
+                {kalemler.map((k, i) => {
+                  const az = k.yuzde <= (k.tur === 'PARCA' ? PARCA_KRITIK : TONER_KRITIK);
+                  return (
+                    <div key={`${k.ad}-${i}`} style={{ fontSize: '0.78rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+                        <span style={{ color: '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={k.ad}>{k.ad}</span>
+                        <b style={{ color: az ? '#b91c1c' : '#111827' }}>{b.yuzde(k.yuzde)}</b>
+                      </div>
+                      <div style={{ height: 4, background: '#f3f4f6', borderRadius: 999, marginTop: 2, overflow: 'hidden' }}>
+                        <div style={{ width: `${k.yuzde}%`, height: '100%', background: az ? '#dc2626' : k.tur === 'PARCA' ? '#64748b' : '#059669' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0.7rem 0 0' }}>{sz.cihaz.olcumNot}</p>
+        </div>
+      )}
+
+      {/* Uyarı geçmişi: kart şu anı gösterir, bu son 90 günü. */}
+      {gecmis.ozet.length > 0 && (
+        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.25rem 1.5rem', marginTop: '1rem' }}>
+          <h2 style={{ fontWeight: '600', margin: '0 0 0.6rem' }}>{doldur(sz.cihaz.gecmisBaslik, { n: gecmis.gun })}</h2>
+          {gecmis.ozet.map((o) => {
+            const [bg, fg] = rozetRengi(o.kod as UyariKodu);
+            return (
+              <div key={o.kod} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', padding: '0.35rem 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.85rem' }}>
+                <span style={{ background: bg, color: fg, padding: '0.1rem 0.5rem', borderRadius: 999, fontWeight: 700, fontSize: '0.76rem' }}>{uyariAdi(o.kod as UyariKodu)}</span>
+                <span style={{ color: '#4b5563' }}>
+                  {doldur(sz.cihaz.gecmisSatir, { adet: o.adet, tarih: b.tarih(o.son) })}
+                  {o.acik && <b style={{ color: '#b91c1c' }}> · {sz.cihaz.gecmisSuruyor}</b>}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 

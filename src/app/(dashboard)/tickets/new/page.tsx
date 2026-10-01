@@ -735,6 +735,17 @@ export default function NewTicketPage() {
               deviceId={form.deviceId}
             />
 
+            {/* Cihazın kendi bildirdikleri (Ağ Tarayıcı): "ayda altı kez sıkışıyor"
+                teşhisin yarısıdır — teknisyen aynı parçayı tahminle değiştirmesin. */}
+            {((faultHistory as any)?.cihazOlaylari?.length ?? 0) > 0 && (
+              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.85rem', color: '#0c4a6e' }}>
+                <b>{doldur(sz.fisYeni.cihazBildirdi, { n: 90 })}</b>{' '}
+                {((faultHistory as any).cihazOlaylari as { kod: string; adet: number }[])
+                  .map((o) => `${(sz.tarayici.uyari as Record<string, string>)[o.kod] ?? o.kod} ×${o.adet}`)
+                  .join(' · ')}
+              </div>
+            )}
+
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
               <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisYeni.arizaBilgileri}</h2>
 

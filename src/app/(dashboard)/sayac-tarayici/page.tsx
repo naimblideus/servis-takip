@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useT, useBicim, useDil } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
-import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, type UyariKodu, type UyariTuru } from '@/lib/sayac-tarama';
+import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, PARCA_KRITIK, parcaKategorisi, type UyariKodu, type UyariTuru } from '@/lib/sayac-tarama';
 
 type Durum = 'YAZILABILIR' | 'YAZILDI' | 'DEGISMEDI' | 'GERILEDI' | 'ESLESMEDI' | 'BIRDEN_FAZLA' | 'AYRIM_YOK' | 'SAYAC_YOK' | 'HATA';
 
@@ -29,6 +29,7 @@ interface Sonuc {
   uyarilar?: UyariKodu[];
   olcum?: { siyah: number | null; renkli: number | null };
   tonerDegisti?: boolean;
+  fisAcildi?: string | null;
 }
 interface Tarama {
   id: string; createdAt: string; bilgisayar: string | null; taranan: number;
@@ -39,6 +40,7 @@ interface DikkatCihazi {
   id: string; etiket: string; seri: string; kod: string; konum: string | null;
   musteri: { id: string; ad: string } | null;
   olcumAt: string; olcumSiyah: number | null; olcumRenkli: number | null;
+  olcumParca: number | null; parcaAd: string | null;
   uyarilar: UyariKodu[]; uyariAt: string | null;
   acikFis: { id: string; ticketNumber: string } | null;
 }
@@ -84,7 +86,7 @@ export default function SayacTarayiciPage() {
   const tt = t.tarayici;
   const b = useBicim();
   const { dil } = useDil();
-  const [ayar, setAyar] = useState<{ anahtarVar: boolean; otomatik: boolean } | null>(null);
+  const [ayar, setAyar] = useState<{ anahtarVar: boolean; otomatik: boolean; otomatikFis?: boolean } | null>(null);
   const [liste, setListe] = useState<Liste | null>(null);
   const [acik, setAcik] = useState<string | null>(null);
   const [mesgul, setMesgul] = useState(false);
@@ -141,6 +143,15 @@ export default function SayacTarayiciPage() {
     setMesgul(false);
   };
 
+  const otomatikFisDegistir = async (deger: boolean) => {
+    if (deger && !window.confirm(tt.otomatikFisUyari)) return;
+    setMesgul(true); setHata(null);
+    const r = await fetch('/api/sayac/tarayici/ayar', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ otomatikFis: deger }) });
+    if (!r.ok) setHata((await r.json().catch(() => ({})))?.error ?? tt.kaydedilemedi);
+    await yukle();
+    setMesgul(false);
+  };
+
   const onayla = async (id: string) => {
     setMesgul(true); setHata(null); setBilgi(null);
     const r = await fetch(`/api/sayac/tarayici/${id}`, { method: 'POST' });
@@ -163,10 +174,16 @@ export default function SayacTarayiciPage() {
     return n < 1 ? tt.bugun : doldur(tt.gundur, { n });
   };
   // Uyarıdan fiş: cihaz, sorun metni ve (cihaz söylüyorsa) arıza kategorisi dolu gelir.
+  const parcaMetni = (c: DikkatCihazi) => (c.olcumParca !== null ? `${c.parcaAd ?? ''} ${b.yuzde(c.olcumParca)}`.trim() : '');
   const fisLinki = (c: DikkatCihazi) => {
     const servis = c.uyarilar.filter((u) => UYARI_TURU[u] === 'SERVIS');
-    const kategori = servis.map((u) => UYARI_KATEGORISI[u]).find(Boolean);
-    const q = new URLSearchParams({ cihaz: c.kod, sorun: doldur(tt.fisSorun, { uyarilar: servis.map(uyariAdi).join(', ') }) });
+    const parcaAz = (c.olcumParca ?? 101) <= PARCA_KRITIK;
+    const sorun = [
+      servis.length ? doldur(tt.fisSorun, { uyarilar: servis.map(uyariAdi).join(', ') }) : null,
+      parcaAz ? doldur(tt.parcaSorun, { deger: parcaMetni(c) }) : null,
+    ].filter(Boolean).join(' · ');
+    const kategori = servis.map((u) => UYARI_KATEGORISI[u]).find(Boolean) ?? (parcaAz ? parcaKategorisi(c.parcaAd) : null);
+    const q = new URLSearchParams({ cihaz: c.kod, sorun });
     if (kategori) q.set('kategori', kategori);
     return `/tickets/new?${q.toString()}`;
   };
@@ -198,8 +215,9 @@ export default function SayacTarayiciPage() {
                 const servis = c.uyarilar.some((u) => UYARI_TURU[u] === 'SERVIS');
                 const sarf = c.uyarilar.some((u) => UYARI_TURU[u] === 'SARF')
                   || Math.min(c.olcumSiyah ?? 101, c.olcumRenkli ?? 101) <= TONER_KRITIK;
+                const parcaAz = (c.olcumParca ?? 101) <= PARCA_KRITIK;
                 const toner = tonerMetni(c.olcumSiyah, c.olcumRenkli);
-                const kenar = servis ? '#dc2626' : sarf ? '#d97706' : '#cbd5e1';
+                const kenar = servis ? '#dc2626' : sarf || parcaAz ? '#d97706' : '#cbd5e1';
                 return (
                   <li key={c.id} style={{ border: '1px solid #e5e7eb', borderLeft: `4px solid ${kenar}`, borderRadius: 10, padding: '0.65rem 0.8rem', display: 'flex', justifyContent: 'space-between', gap: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <div style={{ minWidth: 0, flex: '1 1 320px' }}>
@@ -215,10 +233,11 @@ export default function SayacTarayiciPage() {
                         {c.uyarilar.map((u) => <span key={u} style={rozet(TUR_RENGI[UYARI_TURU[u]] ?? TUR_RENGI.BILGI)}>{uyariAdi(u)}</span>)}
                         {c.uyarilar.length > 0 && c.uyariAt && <span style={{ fontSize: '0.76rem', color: '#6b7280' }}>{sure(c.uyariAt)}</span>}
                         {toner && <span style={{ fontSize: '0.78rem', color: sarf ? '#92400e' : '#4b5563', fontWeight: sarf ? 700 : 400 }}>{doldur(tt.tonerOlcum, { deger: toner })}</span>}
+                        {parcaAz && <span style={{ fontSize: '0.78rem', color: '#92400e', fontWeight: 700 }}>{doldur(tt.parcaOlcum, { deger: parcaMetni(c) })}</span>}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {servis && (c.acikFis ? (
+                      {(servis || parcaAz) && (c.acikFis ? (
                         <Link href={`/tickets/${c.acikFis.id}`} style={{ padding: '0.4rem 0.75rem', border: '1px solid #bfdbfe', color: '#1d4ed8', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                           {doldur(tt.fisAcik, { no: c.acikFis.ticketNumber })}
                         </Link>
@@ -263,6 +282,14 @@ export default function SayacTarayiciPage() {
           <span>
             <strong style={{ display: 'block' }}>{tt.otomatikBaslik}</strong>
             <span style={{ fontSize: '0.87rem', color: '#4b5563' }}>{tt.otomatikAciklama}</span>
+          </span>
+        </label>
+        <label style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', cursor: 'pointer', marginTop: '0.9rem', paddingTop: '0.9rem', borderTop: '1px solid #f3f4f6' }}>
+          <input type="checkbox" checked={Boolean(ayar?.otomatikFis)} disabled={mesgul || !ayar}
+            onChange={(e) => otomatikFisDegistir(e.target.checked)} style={{ marginTop: 4, width: 18, height: 18 }} />
+          <span>
+            <strong style={{ display: 'block' }}>{tt.otomatikFisBaslik}</strong>
+            <span style={{ fontSize: '0.87rem', color: '#4b5563' }}>{tt.otomatikFisAciklama}</span>
           </span>
         </label>
       </section>
@@ -394,6 +421,7 @@ export default function SayacTarayiciPage() {
                               </div>
                             )}
                             {s.tonerDegisti && <div style={{ color: '#065f46', marginTop: 4, fontWeight: 600 }}>✓ {tt.tonerDegisti}</div>}
+                            {s.fisAcildi && <div style={{ color: '#991b1b', marginTop: 4, fontWeight: 600 }}>{doldur(tt.fisAcildi, { no: s.fisAcildi })}</div>}
                           </td>
                           <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>
                             {s.olcum && (s.olcum.siyah != null || s.olcum.renkli != null)

@@ -19,7 +19,11 @@ interface Cihaz {
   kiralik: boolean; sayacBlack: number | null; sayacColor: number | null;
   sayacTarih: string | null;
   sayacKaynak: string | null;
+  toner?: { siyah: number | null; renkli: number | null; tarih: string } | null;
 }
+
+/** Müşteri panelinde "azaldı" eşiği — bayi panelindeki kritik eşikle aynı. */
+const TONER_AZ = 15;
 
 /**
  * Müşteriye gösterilen kaynak cümlesi. YALNIZ itiraz edilemez kaynaklar
@@ -87,6 +91,29 @@ export default function CihazListesi({ token, cihazlar, dil = 'tr' }: { token: s
                       )}
                     </div>
                   )}
+                </div>
+              )}
+              {c.toner && (
+                <div className="mt-2 text-xs text-slate-600">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {([[sz.tonerSiyah, c.toner.siyah], [sz.tonerRenkli, c.toner.renkli]] as [string, number | null][])
+                      .filter(([, v]) => v !== null)
+                      .map(([ad, v]) => (
+                        <span key={ad} className="inline-flex items-center gap-1.5">
+                          {ad}
+                          <span className="inline-block h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
+                            <span className="block h-full" style={{ width: `${v}%`, background: (v as number) <= TONER_AZ ? '#dc2626' : '#059669' }} />
+                          </span>
+                          <b className={`tabular-nums ${(v as number) <= TONER_AZ ? 'text-red-700' : ''}`}>{b.yuzde(v)}</b>
+                        </span>
+                      ))}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">
+                    {doldur(sz.tonerOkundu, { tarih: b.tarih(c.toner.tarih) })}
+                    {Math.min(c.toner.siyah ?? 101, c.toner.renkli ?? 101) <= TONER_AZ && (
+                      <span className="text-red-700"> · {sz.tonerAz}</span>
+                    )}
+                  </div>
                 </div>
               )}
               <TalepFormu token={token} cihazId={c.id} cihazAd={c.ad} kiralik={c.kiralik} dil={dil} />
