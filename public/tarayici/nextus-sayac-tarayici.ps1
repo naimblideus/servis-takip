@@ -43,7 +43,7 @@ $ErrorActionPreference = 'Stop'
 # Çıktı UTF-8: yönlendirilen ya da eski kod sayfalı konsolda Türkçe harfler
 # bozuluyordu. Konsol izin vermezse (bazı uzak oturumlar) sessizce geçilir.
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
-$SURUM = 2
+$SURUM = 3
 
 $TR = ($Dil -ne 'en')
 function Yaz([string]$tr, [string]$en) { if ($TR) { Write-Host $tr } else { Write-Host $en } }
@@ -334,6 +334,33 @@ function Gunluk-Kurulu {
   return ($LASTEXITCODE -eq 0)
 }
 
+# KENDİNİ GÜNCELLEME. Tarayıcı müşterinin bilgisayarında günlerce, aylarca
+# çalışıyor; yeni sürüm için her müşteriye tekrar gidilmesin. Sunucu
+# yanıtında güncel sürümü söyler; bu dosya eskiyse aynı sunucudaki şablonu
+# indirir, KENDİ anahtarını, adresini ve dilini içine yazar, kendi yerine
+# koyar. Bir sonraki çalışma yeni sürümle olur. Şablon beklenen biçimde
+# değilse (başlık, yer tutucular, daha yeni sürüm) hiçbir şeye dokunulmaz.
+function Kendini-Guncelle([int]$hedefSurum) {
+  $ErrorActionPreference = 'SilentlyContinue'
+  try {
+    $yol = $PSCommandPath
+    if (-not $yol -or $hedefSurum -le $SURUM) { return }
+    $gecici = "$yol.indirilen"
+    Invoke-WebRequest -Uri ($Sunucu.TrimEnd('/') + '/tarayici/nextus-sayac-tarayici.ps1') -OutFile $gecici -UseBasicParsing -ErrorAction Stop
+    $sablon = [IO.File]::ReadAllText($gecici, [Text.Encoding]::UTF8)
+    Remove-Item -LiteralPath $gecici -Force
+    if ($sablon -notmatch 'NEXTUS SERV' -or $sablon -notmatch '\$SURUM = (\d+)') { return }
+    $yeniSurum = [int]$Matches[1]
+    if ($yeniSurum -le $SURUM) { return }
+    foreach ($y in @("'__SUNUCU__'", "'__ANAHTAR__'", "'__DIL__'")) { if (-not $sablon.Contains($y)) { return } }
+    $yeni = $sablon.Replace("'__SUNUCU__'", "'$Sunucu'").Replace("'__ANAHTAR__'", "'$Anahtar'").Replace("'__DIL__'", "'$Dil'")
+    # BOM şart: Windows PowerShell 5.1 BOM'suz dosyada Türkçe harfleri bozar.
+    [IO.File]::WriteAllText("$yol.yeni", $yeni, (New-Object Text.UTF8Encoding($true)))
+    Move-Item -LiteralPath "$yol.yeni" -Destination $yol -Force
+    Yaz "Tarayıcı güncellendi: sürüm $SURUM → $yeniSurum (bir sonraki çalışmada geçerli)." "Scanner updated: version $SURUM → $yeniSurum (takes effect on the next run)."
+  } catch { }
+}
+
 if ($GunlukKur) { Gunluk-Kur }
 
 if (-not $Kuru -and ($Anahtar -like '__*' -or $Sunucu -like '__*')) {
@@ -433,6 +460,8 @@ try {
   if (-not $Sessiz) { [void](Read-Host) }
   exit 1
 }
+
+if ($cevap.surum) { Kendini-Guncelle ([int]$cevap.surum) }
 
 $o = $cevap.ozet
 Yaz "Sistemdeki cihazla eşleşen: $($o.eslesen)" "Matched to a device in the system: $($o.eslesen)"

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { ucHatasi } from '@/lib/uc-hata';
 import { dilMi } from '@/lib/i18n/sozluk';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
-import { taramaGovdesiAyikla } from '@/lib/sayac-tarama';
+import { taramaGovdesiAyikla, TARAYICI_SURUMU } from '@/lib/sayac-tarama';
 import { anahtarlaBayi, taramaKaydet, sonTaramalar, cihazDurumlari, tarayanBilgisayarlar } from '@/lib/sayac-tarama-veri';
 
 export const dynamic = 'force-dynamic';
@@ -56,6 +56,8 @@ export async function POST(req: Request) {
     ok: true,
     tarama: id,
     otomatik: bayi.tarayiciOtomatikYaz,
+    // Güncel betik sürümü: daha eski tarayıcı kendini bu sunucudan günceller.
+    surum: TARAYICI_SURUMU,
     ozet,
     cihazlar: sonuclar.map((s) => ({ ip: s.ip, marka: s.marka, model: s.model, seri: s.seri, durum: s.durum, sebep: s.sebep })),
   });

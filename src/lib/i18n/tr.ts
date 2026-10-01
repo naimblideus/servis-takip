@@ -2240,7 +2240,7 @@ export const tr = {
     sessiz: '{n} gündür sessiz',
     eskiSurum: 'Eski sürüm — yeniden indirin',
     sessizNot: 'Sessiz bilgisayarda tarayıcı çalışmıyor: bilgisayar kapalı ya da günlük görev silinmiş olabilir. O müşterinin sayaç ve toner bilgisi o günden beri gelmiyor.',
-    eskiNot: 'Eski sürüm arıza durumunu okumuyor. Tarayıcıyı buradan yeniden indirip o bilgisayarda bir kez çalıştırın; günlük görev yeni dosyayla güncellenir.',
+    eskiNot: 'Eski sürüm arıza durumunu okumuyor ve kendini güncelleyemiyor. Tarayıcıyı buradan yeniden indirip o bilgisayarda bir kez çalıştırın; sürüm 3’ten sonrası yeni sürüme kendiliğinden geçer.',
   },
 
   // Takip — sayacı geç okunan cihazlar.
@@ -4704,7 +4704,7 @@ export const tr = {
           'Sonuç “Son taramalar” listesine düşer. Seri numarası sistemdeki cihazla eşleşen okumalar “Kaydedilebilir” olur; “N okumayı sayaç olarak kaydet” ile faturaya girer.',
           'Sistemdeki son okumadan düşük, değişmemiş ya da siyah/renkli ayrımı kesin olmayan okumalar yazılmaz — nedeni satırında yazar.',
           'Birkaç taramada cihazın sayacı fatura sayacınla aynı sayıyorsa “Okumalar onay beklemeden sayaç olarak yazılsın” anahtarını açabilirsin.',
-          'TARAYAN BİLGİSAYARLAR: 3 günden uzun sessiz kalan bilgisayar kırmızı görünür (kapatılmış ya da görev silinmiş). “Eski sürüm” yazıyorsa dosyayı yeniden indirip o bilgisayarda bir kez çalıştır.',
+          'TARAYAN BİLGİSAYARLAR: 3 günden uzun sessiz kalan bilgisayar kırmızı görünür (kapatılmış ya da görev silinmiş). “Eski sürüm” yazıyorsa dosyayı yeniden indirip o bilgisayarda bir kez çalıştır. Sürüm 3’ten sonra tarayıcı yeni sürüme kendiliğinden geçer; müşteriye tekrar gitmen gerekmez.',
         ],
         ipucu: 'Dosya yanlış ele geçerse “Yeni anahtarla indir” de: eski dosyalar o anda çalışmayı bırakır. Kyocera’da siyah/renkli ayrımı cihazın kendisinden okunur; ayrımı okunamayan renkli makinelerde toplam sayaç tek başına faturaya yazılmaz.',
       },

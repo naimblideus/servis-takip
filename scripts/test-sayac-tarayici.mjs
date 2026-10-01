@@ -776,6 +776,34 @@ if (veri) {
           c.stdin.write('H\r\n\r\n');
           c.stdin.end();
         });
+        // ── KENDİNİ GÜNCELLEME: eski sürüm bir kopya, sunucunun güncel sürümüne geçiyor.
+        const { mkdtempSync: gdir } = await import('node:fs');
+        const gk = gdir(join(tmpdir(), 'st-guncel-'));
+        const eskiYol = join(gk, 'nextus-sayac-tarayici.ps1');
+        const guncelMetin = readFileSync(betik, 'utf8').replace(/^\uFEFF/, '');
+        writeFileSync(eskiYol, '\uFEFF' + guncelMetin.replace(/\$SURUM = \d+/, '$SURUM = 1'), 'utf8');
+        const calis = (yol, ek) => new Promise((ok) => {
+          const c = spawn(psKabuk, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', yol, ...ek,
+            '-Sessiz', '-Hedef', '127.0.0.1', '-Port', String(ajanPort), '-ZamanAsimi', '700']);
+          let o = '', e = '';
+          c.stdout.on('data', (d) => { o += d; });
+          c.stderr.on('data', (d) => { e += d; });
+          c.on('close', (kod) => ok({ kod, o, e }));
+        });
+        const g1 = await calis(eskiYol, ['-Sunucu', SUNUCU, '-Anahtar', yeni, '-Dil', 'tr']);
+        const sonra = readFileSync(eskiYol);
+        const sonraMetin = sonra.toString('utf8');
+        t('★ eski sürüm tarayıcı kendini güncel sürüme yükseltti', g1.kod === 0 && new RegExp(`\\$SURUM = ${saf.TARAYICI_SURUMU}\\b`).test(sonraMetin) && /güncellendi/.test(g1.o),
+          { kod: g1.kod, cikti: g1.o.slice(-300), hata: g1.e.slice(0, 300) });
+        t('★ güncellenen dosya kendi anahtarını ve adresini taşıyor, BOM korunuyor',
+          sonraMetin.includes(`'${yeni}'`) && sonraMetin.includes(`'${SUNUCU}'`) && sonra.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])));
+        const once2 = await p.sayacTaramasi.count({ where: { tenantId: bayiId } });
+        const g2 = await calis(eskiYol, []);
+        t('★ güncellenmiş dosya parametresiz (zamanlanmış görev gibi) çalışıp tarama gönderiyor; tekrar güncellemiyor',
+          g2.kod === 0 && (await p.sayacTaramasi.count({ where: { tenantId: bayiId } })) === once2 + 1 && !/güncellendi/.test(g2.o),
+          { kod: g2.kod, cikti: g2.o.slice(-300), hata: g2.e.slice(0, 300) });
+        rmSync(gk, { recursive: true, force: true });
+
         t(`★ elle çalıştırma (${psKabuk}) çökmeden sona kadar gidiyor; günlük çalışma görevi sorgusu hata fırlatmıyor`,
           elle.kod === 0 && /Kapatmak için Enter/.test(elle.o) && !/schtasks|ERROR:/i.test(elle.e + elle.o),
           { kod: elle.kod, hata: elle.e.slice(0, 300), son: elle.o.slice(-400) });

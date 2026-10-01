@@ -2178,7 +2178,7 @@ export const en: Sozluk = {
     sessiz: 'silent for {n} days',
     eskiSurum: 'Old version — download again',
     sessizNot: 'The scanner is not running on a silent computer: it may be switched off or its daily task may have been removed. Meter and toner data for that customer has not arrived since then.',
-    eskiNot: 'The old version does not read fault status. Download the scanner again here and run it once on that computer; the daily task is updated with the new file.',
+    eskiNot: 'The old version does not read fault status and cannot update itself. Download the scanner again here and run it once on that computer; from version 3 on, it moves to new versions on its own.',
   },
 
   takip: {
@@ -4551,7 +4551,7 @@ export const en: Sozluk = {
           'The result lands in “Recent scans”. Readings whose serial number matches a device in the system become “Ready to record”; “Record N readings as meter readings” puts them on the invoice.',
           'Readings lower than the last one in the system, unchanged, or without a reliable mono/colour split are not written — the reason is shown on the row.',
           'Once a few scans show the machine counting the same as your billing meter, you can switch on “Record readings as meter readings without approval”.',
-          'SCANNING COMPUTERS: a computer silent for more than 3 days turns red (switched off, or its task was removed). If it says “Old version”, download the file again and run it once on that computer.',
+          'SCANNING COMPUTERS: a computer silent for more than 3 days turns red (switched off, or its task was removed). If it says “Old version”, download the file again and run it once on that computer. From version 3 on, the scanner moves to new versions on its own; you do not need to visit the customer again.',
         ],
         ipucu: 'If the file falls into the wrong hands, use “Download with a new key”: older files stop working at once. On Kyocera the mono/colour split is read from the machine itself; on colour machines where the split cannot be read, the total meter alone is never billed.',
       },

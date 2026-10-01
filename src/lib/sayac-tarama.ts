@@ -70,7 +70,7 @@ export interface TaramaGovdesi {
 }
 
 /** Panelden indirilen güncel tarayıcının sürümü (public/tarayici/*.ps1 $SURUM). */
-export const TARAYICI_SURUMU = 2;
+export const TARAYICI_SURUMU = 3;
 
 const metin = (v: unknown, azami: number): string | null => {
   if (typeof v !== 'string') return null;
