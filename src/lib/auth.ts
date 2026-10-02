@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { verifyTOTP, hashRecoveryCode } from '@/lib/totp';
 import { writeAudit } from '@/lib/audit';
+import { ENTRA_ISSUER, ssoEpostasi, ssoKullaniciBul } from '@/lib/sso-kimlik';
 
 /**
  * ── KURUMSAL GİRİŞ (SSO) ─────────────────────────────────────────────────
@@ -38,8 +39,8 @@ if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_I
     // e-postasıyla açılabildiği için bu bir risktir. "organizations" yalnız
     // iş/okul hesaplarına izin verir. Tek bir firmaya kilitlemek için
     // AUTH_MICROSOFT_ENTRA_ID_ISSUER'a firmanın dizin kimliğini verin.
-    issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER
-      || 'https://login.microsoftonline.com/organizations/v2.0',
+    // Kilitsiz kullanımda e-posta ancak doğrulanmışsa kabul edilir (lib/sso-kimlik).
+    issuer: ENTRA_ISSUER,
   }));
 }
 
@@ -48,20 +49,6 @@ export const AKTIF_SSO = {
   google: Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET),
   microsoft: Boolean(process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET),
 };
-
-/**
- * SSO ile gelen e-postayı tanımlı kullanıcıya bağlar.
- * Tek bir aktif eşleşme yoksa giriş REDDEDİLİR — belirsizliği tahminle çözmeyiz.
- */
-async function ssoKullaniciBul(eposta: string) {
-  const adaylar = await prisma.user.findMany({
-    where: { email: { equals: eposta, mode: 'insensitive' }, isActive: true },
-    include: { tenant: { select: { name: true, isActive: true, deletedAt: true } } },
-  });
-  const uygun = adaylar.filter((u) => u.tenant.isActive && !u.tenant.deletedAt);
-  if (uygun.length !== 1) return { user: null, sebep: uygun.length === 0 ? 'tanimsiz' : 'coklu' };
-  return { user: uygun[0], sebep: null };
-}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -130,11 +117,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * (giriş ekranı ?hata= ile karşılık gösterir) — "bir hata oluştu" diyen
      * bir SSO, BT ekibinin gününü yakar.
      */
-    async signIn({ user, account }) {
+    async signIn({ account, profile }) {
       if (!account || account.provider === 'credentials') return true;
 
-      const eposta = user.email?.trim().toLowerCase();
-      if (!eposta) return '/login?hata=sso-eposta-yok';
+      // E-posta sağlayıcının ham taleplerinden ve YALNIZ doğrulanmışsa alınır;
+      // next-auth'un `user.email`'i Entra'da doğrulanmamış `email` alanıdır.
+      const { eposta, sebep: epostaSebebi } = ssoEpostasi(account.provider, profile as Record<string, unknown> | undefined);
+      if (!eposta) return `/login?hata=sso-${epostaSebebi}`;
 
       const { user: kayitli, sebep } = await ssoKullaniciBul(eposta);
       if (!kayitli) return `/login?hata=sso-${sebep}`;
@@ -153,7 +142,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return true;
     },
 
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
@@ -163,7 +152,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // SSO'da `user` Google/Microsoft profilidir; rol ve bayi bilgisi onda yok.
       // Oturumun yetkileri HER ZAMAN kendi kullanıcı kaydımızdan gelir.
       if (account && account.provider !== 'credentials') {
-        const eposta = (user?.email ?? token.email)?.toString().trim().toLowerCase();
+        const { eposta } = ssoEpostasi(account.provider, profile as Record<string, unknown> | undefined);
         const { user: kayitli } = eposta ? await ssoKullaniciBul(eposta) : { user: null };
         if (!kayitli) return null; // eşleşme yoksa oturum kurulmaz
         token.id = kayitli.id;

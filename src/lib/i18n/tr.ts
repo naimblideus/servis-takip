@@ -194,6 +194,7 @@ export const tr = {
       'sso-tanimsiz': 'Bu e-posta sistemde tanımlı değil ya da hesabınız kapatılmış. Kurumsal giriş yeni hesap açmaz; yöneticinizin sizi eklemesi gerekir.',
       'sso-coklu': 'Bu e-posta birden fazla firmada tanımlı. Kurumsal giriş kullanılamıyor — lütfen e-posta ve şifrenizle girin.',
       'sso-eposta-yok': 'Kurumsal hesabınız e-posta adresi paylaşmadı. E-posta ve şifrenizle girebilirsiniz.',
+      'sso-eposta-dogrulanmamis': 'Kurumsal hesabınız e-posta adresinin doğrulandığını bildirmedi, bu yüzden giriş kabul edilmedi. E-posta ve şifrenizle girebilirsiniz.',
     },
   },
 

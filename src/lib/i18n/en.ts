@@ -185,6 +185,7 @@ export const en: Sozluk = {
       'sso-tanimsiz': 'This email is not registered, or the account has been closed. Corporate sign-in does not create accounts; an administrator must add you.',
       'sso-coklu': 'This email exists in more than one company. Corporate sign-in is unavailable — please sign in with your email and password.',
       'sso-eposta-yok': 'Your corporate account did not share an email address. You can sign in with your email and password.',
+      'sso-eposta-dogrulanmamis': 'Your corporate account did not confirm that its email address is verified, so sign-in was refused. You can sign in with your email and password.',
     },
   },
 
