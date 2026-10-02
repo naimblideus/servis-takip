@@ -215,12 +215,15 @@ a.logo:hover .logo-mark{transform:translateY(-1px) scale(1.04)}
 }
 .nav-link:hover{color:#fff;background:rgba(255,255,255,0.05)}
 .nav-cta{display:flex;gap:10px;align-items:center}
-/* Dil secici: TR <-> EN. btn-ghost oldugu icin 900px altinda gizlenir;
+/* Dil secici: TR <-> EN. btn-ghost oldugu icin 1000px altinda gizlenir;
    o genislikte mobil menudeki bagalanti devreye girer. */
 .dil-sec{padding:10px 12px;font-weight:700;letter-spacing:.04em}
 .nav-mobile{display:none}
 
-@media (max-width:900px){
+/* Masaüstü menü 1000 px'ten sonra: logo + 6 bağlantı + düğmeler tek satırda
+   en sıkışık hâliyle ~880 px istiyor; 900 px'te açılınca öğeler birbirine
+   değiyordu. Aradaki genişlik hamburger menüde kalır. */
+@media (max-width:1000px){
   .nav-links{display:none}
   .nav-cta .btn-ghost{display:none}
 }
@@ -1028,7 +1031,7 @@ h1.hero-title{
   flex-direction:column;justify-content:center;align-items:center;gap:4px;
 }
 .menu-btn span{display:block;width:16px;height:1.5px;background:#fff;border-radius:1px;transition:.3s}
-@media (max-width:900px){
+@media (max-width:1000px){
   .menu-btn{display:flex}
 }
 .mobile-menu{
@@ -3558,6 +3561,22 @@ html:not(.js) .reveal-stagger > *{
 /* --- Nav: dar ekranda CTA kisalir --- */
 .nav-inner{min-width:0}
 .logo{min-width:0}
+/* Menü metni ASLA satır kırmaz. Kırınca menü 72 px'e uzayıp başlığın üstündeki
+   rozetlere biniyordu (ölçüldü: 1000 px'te "Kaçan Gelir Hesabı" üç satır,
+   "WhatsApp'tan Demo" ve logo iki satır). Tek satıra tam hâliyle ~1160 px
+   gerekiyor; yer azaldıkça önce tekrar eden "Hesapla" gider (aynı yere giden
+   "Kaçan Gelir Hesabı" bağlantısı zaten menüde), bağlantı aralığı daralır,
+   sonra CTA'nın "WhatsApp'tan" öneki düşer. Her genişlikte öğeler arasında
+   en az ~25 px kalıyor. */
+.nav-link,.logo,.nav-cta .btn{white-space:nowrap}
+@media (max-width:1240px){
+  .nav-cta .btn-ghost:not(.dil-sec){display:none}
+  .nav-link{padding:8px 10px}
+  .nav-links{gap:2px}
+}
+@media (max-width:1140px){
+  .nav-cta-long{display:none}
+}
 @media (max-width:620px){
   .nav-cta-long{display:none}
   .logo span:last-child{font-size:15px}
