@@ -35,11 +35,12 @@ function yuzdeGunu(pct: number | null | undefined): number | null {
   return pct <= 10 ? 0 : pct <= 20 ? 10 : 30;
 }
 
-function sev(days: number | null): { border: string; bar: string; text: string } {
-  if (days == null) return { border: '#e5e7eb', bar: '#94a3b8', text: '#6b7280' };
-  if (days <= 7) return { border: '#fecaca', bar: '#dc2626', text: '#b91c1c' };
-  if (days <= 14) return { border: '#fde68a', bar: '#d97706', text: '#92400e' };
-  return { border: '#bbf7d0', bar: '#059669', text: '#15803d' };
+// Aciliyet metnin renginde (kanal satırı) ve çerçevenin hafif tonunda.
+function sev(days: number | null): { border: string; text: string } {
+  if (days == null) return { border: '#e5e7eb', text: '#6b7280' };
+  if (days <= 7) return { border: '#fecaca', text: '#b91c1c' };
+  if (days <= 14) return { border: '#fde68a', text: '#92400e' };
+  return { border: '#bbf7d0', text: '#15803d' };
 }
 
 function ChannelLine({ f, name, t, b }: { f: Forecast | null; name: string; t: Sozluk; b: Bicimleyici }) {
@@ -195,7 +196,7 @@ export default function SarfPage() {
           {items.map((i) => {
             const s = sev(i.needsSetup ? null : i.soonestDaysLeft ?? yuzdeGunu(i.enAzYuzde));
             return (
-              <div key={i.id} style={{ background: 'white', border: `1px solid ${s.border}`, borderLeft: `4px solid ${s.bar}`, borderRadius: 12, padding: '1rem' }}>
+              <div key={i.id} style={{ background: 'white', border: `1px solid ${s.border}`, borderRadius: 12, padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 700 }}>{i.brand} {i.model} <span style={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 400 }}>· SN {i.serialNo}</span></div>

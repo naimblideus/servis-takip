@@ -605,7 +605,11 @@
   ", Kurumsal'da": "on Professional or",
   "tavanını geçmez. Kiralık ve kopya başı anlaşmalı makineler sayılır, yalnız tamire gelen makine sayılmaz. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani": "on Enterprise. Rental and cost-per-copy machines are counted; a machine that only comes in for repair is not. Paying yearly, you pay 10 times the monthly total — that is",
   "Ağ Tarayıcı": "Network scanner",
-  "— sayaç, toner yüzdesi ve arıza durumu (sıkışma, servis isteği) yazıcının kendisinden, her sabah; toner değişimi kendiliğinden kaydedilir —": "— meter, toner percentage and fault status (jam, service request) read from the printer itself every morning; toner changes are recorded automatically —",
+  "— sayaç, toner yüzdesi, parça ömrü (drum, fırın, atık kutusu) ve arıza durumu yazıcının kendisinden, her sabah; tarayıcı kendini günceller —": "— meter, toner percentage, part life (drum, fuser, waste box) and fault status read from the printer itself every morning; the scanner updates itself —",
   "müşteri ağında bir Windows bilgisayar gerekir": "needs one Windows computer on the customer network",
-  "Sıkışan, servis isteyen, toneri biten makine ana panelde — müşteri aramadan": "Jammed machines, service requests and empty toner show on the dashboard — before the customer calls"
+  "Sıkışan, servis isteyen, toneri biten makine ana panelde — müşteri aramadan": "Jammed machines, service requests and empty toner show on the dashboard — before the customer calls",
+  "Toner değişimi": "Toner changes are",
+  "kendiliğinden kaydedilir": "recorded automatically",
+  "; istenirse üst üste iki taramada görülen arızadan": "; optionally, a fault seen in two scans in a row",
+  "fiş kendiliğinden açılır": "opens a ticket on its own"
 }

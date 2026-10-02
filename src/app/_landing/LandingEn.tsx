@@ -854,7 +854,8 @@ const BODY = `
           <li>Customer, device and <strong>service ticket</strong> management</li>
           <li><strong>Stock + barcode</strong> (LS2208) and <strong>Zebra labels</strong></li>
           <li>Consumable tracking and <strong>toner run-out forecasting</strong> — “how many days left” from the meter pace</li>
-          <li><strong>Network scanner</strong> — meter, toner percentage and fault status (jam, service request) read from the printer itself every morning; toner changes are recorded automatically — <span class="cap-cond">needs one Windows computer on the customer network</span></li>
+          <li><strong>Network scanner</strong> — meter, toner percentage, part life (drum, fuser, waste box) and fault status read from the printer itself every morning; the scanner updates itself — <span class="cap-cond">needs one Windows computer on the customer network</span></li>
+          <li>Toner changes are <strong>recorded automatically</strong>; optionally, a fault seen in two scans in a row <strong>opens a ticket on its own</strong></li>
           <li><strong>Route planning</strong> — a multi-stop Google Maps link</li>
           <li><strong>Customers report faults by QR</strong> (no sign-in needed)</li>
           <li>A one-click <strong>WhatsApp status update to the customer</strong> (work done + amount) — <span class="cap-cond">a WhatsApp Business API account is required</span></li>
