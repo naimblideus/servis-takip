@@ -217,9 +217,10 @@ export default function SayacTarayiciPage() {
                   || Math.min(c.olcumSiyah ?? 101, c.olcumRenkli ?? 101) <= TONER_KRITIK;
                 const parcaAz = (c.olcumParca ?? 101) <= PARCA_KRITIK;
                 const toner = tonerMetni(c.olcumSiyah, c.olcumRenkli);
-                const kenar = servis ? '#dc2626' : sarf || parcaAz ? '#d97706' : '#cbd5e1';
+                // Önem rengi rozetlerde ve düğmede; çerçeve yalnız hafif bir ton taşır.
+                const kenar = servis ? '#fecaca' : sarf || parcaAz ? '#fde68a' : '#e5e7eb';
                 return (
-                  <li key={c.id} style={{ border: '1px solid #e5e7eb', borderLeft: `4px solid ${kenar}`, borderRadius: 10, padding: '0.65rem 0.8rem', display: 'flex', justifyContent: 'space-between', gap: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <li key={c.id} style={{ border: `1px solid ${kenar}`, borderRadius: 10, padding: '0.65rem 0.8rem', display: 'flex', justifyContent: 'space-between', gap: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <div style={{ minWidth: 0, flex: '1 1 320px' }}>
                       <div>
                         <Link href={`/devices/${c.id}`} style={{ color: '#111827', fontWeight: 700, textDecoration: 'none' }}>{c.etiket}</Link>
