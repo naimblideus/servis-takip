@@ -164,7 +164,14 @@ Toplam ~20 dakika.
 
 ### B1 — Alan adını al
 
-Öneri: **Cloudflare Registrar**, `nextusservis.com` (2026-08-15'te boştaydı).
+✅ **ALINDI (2026-10-03):** `nextusservis.com`, Cloudflare'de (nameserver
+`aldo.ns.cloudflare.com` / `kelly.ns.cloudflare.com`). Uygulamanın kendisi için
+DNS: `A @ → 64.226.108.156` ve `A www → 64.226.108.156`, ikisi de **DNS only
+(gri bulut)**; Coolify → Domains'e eski sslip adresi SİLİNMEDEN eklenir
+(basılmış QR'lar, gönderilmiş fatura/portal bağlantıları ve kurulu tarayıcılar
+eski adresi taşıyor). `NEXTAUTH_URL=https://nextusservis.com`, Redeploy.
+
+Öneri (kayıt öncesi notu): **Cloudflare Registrar**, `nextusservis.com` (2026-08-15'te boştaydı).
 Cloudflare'den alırsan DNS zaten Cloudflare'de olur, nameserver taşıma adımı
 hiç olmaz. Maliyet fiyatına satar, gizlilik koruması dahil.
 
@@ -185,7 +192,7 @@ Workers & Pages → Create → Worker → adı `sayac-worker` → Deploy →
 export default {
   async email(message, env) {
     const metin = await new Response(message.raw).text();
-    await fetch('https://UYGULAMA-ADRESIN/api/sayac/eposta', {
+    await fetch('https://nextusservis.com/api/sayac/eposta', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
