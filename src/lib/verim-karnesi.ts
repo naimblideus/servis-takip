@@ -192,3 +192,150 @@ export function karneOzeti(satirlar: KarneSatiri[]): KarneOzeti {
     enPahali,
   };
 }
+
+// ── TONER ÜRÜNÜ: AYNI MAKİNEDE HANGİ TONER DAHA UCUZA GELİYOR ────────────
+//
+// Model karnesi bir modele takılan BÜTÜN tonerleri tek ortalamada
+// birleştiriyor. Oysa bayinin asıl sorusu "bu makineye hangi toneri
+// takayım": ucuz muadil 2.900 sayfa, pahalı olan 4.200 sayfa basıyorsa ucuz
+// olan pahalıya gelir. Bu bölüm her modeli takılan toner ürününe göre ayırır.
+//
+// ⚠ ÖLÇÜLEN VERİMİN SAHİBİ: değişim kaydının `observedYield`'i, BİR ÖNCEKİ
+// değişimden bu yana basılan sayfadır — yani bir önceki değişimde TAKILAN
+// kartuşun verimi. Kaydın kendi `partId`'si ise YENİ takılanı söyler. Verim
+// kaydın kendi parçasına yazılsaydı her tonere bir öncekinin verimi yazılır
+// ve karşılaştırma tam ters sonuç verirdi.
+
+export interface DegisimKaydi {
+  deviceId: string;
+  channel: string;
+  changedAt: Date | string;
+  partId: string | null;
+  observedYield: number | null;
+  /** Cihazın model anahtarı (toner-verimi modelAnahtari). */
+  model: string;
+}
+
+const zaman = (d: Date | string) => new Date(d).getTime();
+
+/** Gözlemler: `model|kanal|partId` → o tonerin ölçülen verimleri. */
+export function urunGozlemleri(kayitlar: readonly DegisimKaydi[]): Map<string, number[]> {
+  const cihazKanal = new Map<string, DegisimKaydi[]>();
+  for (const k of kayitlar) {
+    const a = `${k.deviceId}|${k.channel}`;
+    (cihazKanal.get(a) ?? cihazKanal.set(a, []).get(a)!).push(k);
+  }
+  const sonuc = new Map<string, number[]>();
+  for (const dizi of cihazKanal.values()) {
+    dizi.sort((x, y) => zaman(x.changedAt) - zaman(y.changedAt));
+    for (let i = 1; i < dizi.length; i++) {
+      const verim = dizi[i].observedYield;
+      const takilan = dizi[i - 1].partId;
+      if (!verim || verim <= 0 || !takilan) continue;
+      const a = `${dizi[i - 1].model}|${dizi[i - 1].channel}|${takilan}`;
+      (sonuc.get(a) ?? sonuc.set(a, []).get(a)!).push(verim);
+    }
+  }
+  return sonuc;
+}
+
+function ortanca(d: readonly number[]): number | null {
+  if (!d.length) return null;
+  const s = [...d].sort((a, b) => a - b);
+  const o = Math.floor(s.length / 2);
+  return s.length % 2 ? s[o] : Math.round((s[o - 1] + s[o]) / 2);
+}
+
+export interface UrunParcasi { ad: string; kod: string | null; fiyat: number | null }
+
+/** `model|kanal|partId` anahtarını çözer. Model anahtarı "MARKA|MODEL" — ayraç içerir, SAĞDAN çözülür. */
+export function urunAnahtari(anahtar: string): { model: string; kanal: string; partId: string } {
+  const i2 = anahtar.lastIndexOf('|');
+  const i1 = anahtar.lastIndexOf('|', i2 - 1);
+  return { model: anahtar.slice(0, i1), kanal: anahtar.slice(i1 + 1, i2), partId: anahtar.slice(i2 + 1) };
+}
+
+/**
+ * Model+kanal başına GERÇEK sayfa maliyeti: toplam toner harcaması ÷
+ * toplam basılan sayfa — yalnız hangi tonerin bastığı bilinen ve fiyatı
+ * olan ölçümlerden. Eski hesap (takılan tonerlerin ORTANCA fiyatı ÷ modelin
+ * karışık verimi) ucuz muadil ile uzun ömürlü orijinal karışınca maliyeti
+ * ikisinden de düşük gösterebiliyordu: ölçüldü, 7,20 ve 14,67 kr'lik iki
+ * tonerin modeli 5,14 kr görünüyordu. Anahtar: `model|kanal`.
+ */
+export function harmanMaliyet(
+  gozlemler: Map<string, number[]>,
+  fiyatlar: Map<string, number | null>,
+): Map<string, { maliyet: number; gozlem: number }> {
+  const top = new Map<string, { fiyat: number; sayfa: number; gozlem: number }>();
+  for (const [anahtar, verimler] of gozlemler) {
+    const { model, kanal, partId } = urunAnahtari(anahtar);
+    const f = fiyatlar.get(partId);
+    if (!f || f <= 0) continue;
+    const a = `${model}|${kanal}`;
+    const t = top.get(a) ?? { fiyat: 0, sayfa: 0, gozlem: 0 };
+    for (const v of verimler) if (v > 0) { t.fiyat += f; t.sayfa += v; t.gozlem++; }
+    top.set(a, t);
+  }
+  const sonuc = new Map<string, { maliyet: number; gozlem: number }>();
+  for (const [a, t] of top) if (t.sayfa > 0) sonuc.set(a, { maliyet: t.fiyat / t.sayfa, gozlem: t.gozlem });
+  return sonuc;
+}
+
+export interface UrunSatiri {
+  partId: string;
+  ad: string;
+  kod: string | null;
+  kanal: string;
+  gozlem: number;
+  /** Ölçülen verim (ortanca, sayfa). */
+  verim: number | null;
+  /** Alış fiyatı (ortalama maliyet, yoksa son alış). */
+  fiyat: number | null;
+  /** Sayfa başı toner maliyeti. */
+  sayfaBasi: number | null;
+  /** Karşılaştırılabilir ürünler içinde en ucuzu. */
+  enUcuz: boolean;
+  /** En ucuzsa: en çok kullanılan diğer tonere göre yüzde kaç ucuz. */
+  ucuzluk: number | null;
+}
+
+/**
+ * Model başına toner ürünü satırları. Karşılaştırma yalnız EN AZ iki ölçümü
+ * olan ve fiyatı bilinen ürünler arasında yapılır; tek kartuşun davranışı
+ * "bu toner ucuz" hükmüne yetmez.
+ */
+export function urunSatirlari(
+  gozlemler: Map<string, number[]>,
+  parcalar: Map<string, UrunParcasi>,
+): Map<string, UrunSatiri[]> {
+  const modeller = new Map<string, UrunSatiri[]>();
+  for (const [anahtar, verimler] of gozlemler) {
+    const { model, kanal, partId } = urunAnahtari(anahtar);
+    const p = parcalar.get(partId);
+    if (!p) continue;
+    const verim = ortanca(verimler);
+    const satir: UrunSatiri = {
+      partId, ad: p.ad, kod: p.kod, kanal, gozlem: verimler.length, verim,
+      fiyat: p.fiyat, sayfaBasi: sayfaBasiMaliyet(p.fiyat, verim), enUcuz: false, ucuzluk: null,
+    };
+    (modeller.get(model) ?? modeller.set(model, []).get(model)!).push(satir);
+  }
+  for (const satirlar of modeller.values()) {
+    for (const kanal of new Set(satirlar.map((s) => s.kanal))) {
+      const kiyas = satirlar.filter((s) => s.kanal === kanal && s.sayfaBasi !== null && s.gozlem >= EN_AZ_GOZLEM_KARNE);
+      if (kiyas.length < 2) continue;
+      const enUcuz = kiyas.reduce((a, b) => (b.sayfaBasi! < a.sayfaBasi! ? b : a));
+      // Kıyas, bayinin en çok kullandığı DİĞER tonerle: "şu an taktığınızdan yüzde kaç ucuz".
+      const digeri = kiyas.filter((s) => s !== enUcuz).reduce((a, b) => (b.gozlem > a.gozlem ? b : a));
+      enUcuz.enUcuz = true;
+      enUcuz.ucuzluk = digeri.sayfaBasi! > 0
+        ? Math.round((1 - enUcuz.sayfaBasi! / digeri.sayfaBasi!) * 1000) / 10
+        : null;
+    }
+    satirlar.sort((a, b) => (a.kanal === b.kanal ? 0 : a.kanal === 'BLACK' ? -1 : 1)
+      || (a.sayfaBasi ?? Infinity) - (b.sayfaBasi ?? Infinity) || b.gozlem - a.gozlem);
+  }
+  return modeller;
+}
+

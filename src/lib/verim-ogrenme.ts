@@ -344,6 +344,29 @@ export async function degisimKaydet(girdi: DegisimGirdisi): Promise<DegisimSonuc
       : { tonerResetColor: counterValue, tonerChangedAt: changedAt },
   });
 
+  // ── YOLDAKİ SEVK TAKILDI ──────────────────────────────────────────────
+  // Bu cihaza bu değişimden ÖNCE gönderilmiş açık sevk varsa, takılan o
+  // tonerdir: sevk kapanır ve değişim parçasını bilmiyorsa (tarayıcı gördü,
+  // müşteri kendisi taktı, fiş yok) gönderilen toner yazılır. Toner ürünü
+  // karnesi hangi tonerin kaç sayfa bastığını en çok bu bağdan öğrenir.
+  // Geçmiş aktarımı (GOC) sevk kapatmaz: o değişimler bugünkü sevkten eski.
+  if (source !== 'GOC') {
+    const sevk = await prisma.tonerSevki.findFirst({
+      where: { tenantId, deviceId, channel, durum: 'GONDERILDI', gonderildiAt: { lte: changedAt } },
+      orderBy: { gonderildiAt: 'asc' },
+      select: { id: true, partId: true },
+    });
+    if (sevk) {
+      const al = await prisma.tonerSevki.updateMany({
+        where: { id: sevk.id, durum: 'GONDERILDI' },
+        data: { durum: 'TAKILDI', takildiAt: changedAt, tonerChangeId: kayit.id },
+      });
+      if (al.count === 1 && !partId && sevk.partId) {
+        await prisma.tonerChange.update({ where: { id: kayit.id }, data: { partId: sevk.partId } });
+      }
+    }
+  }
+
   return { id: kayit.id, observedYield, elenmeSebebi };
 }
 

@@ -125,6 +125,11 @@ export default function SiparisPage() {
                         <td className="px-4 py-2">
                           <div className="font-medium text-gray-900">{k.ad}</div>
                           <div className="font-mono text-xs text-gray-500">{[k.oemKodu, k.sku].filter(Boolean).join(' · ')}</div>
+                          {(k.cihazTalebi ?? 0) > 0 && (
+                            <Link href="/sarf" className="mt-0.5 inline-block text-xs font-medium text-amber-800 hover:underline">
+                              {doldur(s.cihazBekliyor, { n: k.cihazTalebi ?? 0 })}
+                            </Link>
+                          )}
                         </td>
                         <td className={`whitespace-nowrap px-4 py-2 text-right ${k.stok <= 0 ? 'font-semibold text-red-700' : 'text-gray-700'}`}>{k.stok} / {k.asgari}</td>
                         <td className="whitespace-nowrap px-4 py-2 text-right text-gray-700">{k.kullanim90}</td>

@@ -55,6 +55,15 @@ interface KarneSatiri {
 interface Karne {
   model: number; olculenModel: number; cihaz: number; kapsananCihaz: number;
   kutudanAz: number; enPahali: { marka: string; model: string; maliyet: number } | null;
+  /** Daha ucuza gelen bir tonerin bulunduğu model sayısı. */
+  urunFarki?: number;
+}
+
+/** Aynı makinede takılan bir toner ürünü — verim önceki değişimde takılana yazılır (lib/verim-karnesi). */
+interface UrunSatiri {
+  partId: string; ad: string; kod: string | null; kanal: string;
+  gozlem: number; verim: number | null; fiyat: number | null; sayfaBasi: number | null;
+  enUcuz: boolean; ucuzluk: number | null;
 }
 
 /** Uyarı kodları ekranda cümleye dönüşür — kod göstermek bayiye bir şey anlatmaz. */
@@ -87,6 +96,7 @@ export default function TonerVerimiSayfasi() {
   const [gruplar, setGruplar] = useState<Grup[]>([]);
   const [satirlar, setSatirlar] = useState<KarneSatiri[]>([]);
   const [karne, setKarne] = useState<Karne | null>(null);
+  const [urunler, setUrunler] = useState<Record<string, UrunSatiri[]>>({});
   const [gorunum, setGorunum] = useState<'KARNE' | 'EKSIK'>('KARNE');
   const [ozet, setOzet] = useState<{ model: number; cihaz: number; verimli: number; kapsanan?: number; eksik: number; olculenModel?: number } | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
@@ -106,6 +116,7 @@ export default function TonerVerimiSayfasi() {
         setGruplar(j.gruplar);
         setSatirlar(j.satirlar ?? []);
         setKarne(j.karne ?? null);
+        setUrunler(j.urunler ?? {});
         setOzet(j.ozet);
         // Ölçülmüş model yoksa karne boş kalır; bayiyi boş bir ekrana
         // düşürmek yerine doğrudan yapılacak işe (eksik girişi) götür.
@@ -240,6 +251,11 @@ export default function TonerVerimiSayfasi() {
               {t.tonerVerimi.kutuYokOn} <b>{t.tonerVerimi.kutuYokVurgu}</b> {t.tonerVerimi.kutuYokSon}
             </p>
           )}
+          {(karne?.urunFarki ?? 0) > 0 && (
+            <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+              <b>{doldur(t.tonerVerimi.urunFarkiVurgu, { n: karne!.urunFarki! })}</b> {t.tonerVerimi.urunFarkiSon}
+            </p>
+          )}
           {karne?.enPahali && (
             <p className="mt-2 text-sm text-gray-600">
               {t.tonerVerimi.enPahaliOn} <b>{karne.enPahali.marka} {karne.enPahali.model}</b>{' '}
@@ -247,6 +263,7 @@ export default function TonerVerimiSayfasi() {
             </p>
           )}
 
+          {karneListe.length > 0 && <p className="mt-3 text-xs text-gray-500">{t.tonerVerimi.urunNot}</p>}
           {karneListe.length === 0 ? (
             <p className="mt-4 rounded-lg border bg-white p-10 text-center text-sm text-gray-500">
               {t.tonerVerimi.karneBos}
@@ -287,6 +304,35 @@ export default function TonerVerimiSayfasi() {
                       </div>
                     )}
                   </div>
+
+                  {/* ── TAKILAN TONERLER ── Model satırı bütün tonerleri tek ortalamada
+                      birleştiriyor; burada aynı makinede hangi tonerin sayfa başı daha
+                      ucuza geldiği ayrı ayrı. */}
+                  {(urunler[s.anahtar]?.length ?? 0) > 0 && (
+                    <div className="w-full basis-full rounded border border-gray-100 bg-gray-50 px-3 py-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t.tonerVerimi.urunBaslik}</div>
+                      {urunler[s.anahtar].map((u) => (
+                        <div key={`${u.kanal}-${u.partId}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-1 text-xs">
+                          <span className="min-w-0 truncate text-gray-800">
+                            {u.kanal === 'COLOR' ? '🟣 ' : '⚫ '}{u.ad}
+                            {u.kod ? <span className="font-mono text-gray-400"> · {u.kod}</span> : null}
+                          </span>
+                          <span className="flex flex-wrap items-center gap-x-2 tabular-nums text-gray-600">
+                            <span>{u.verim !== null ? doldur(t.tonerVerimi.urunVerim, { n: b.sayi(u.verim), g: u.gozlem }) : '—'}</span>
+                            <span className="font-semibold text-gray-900">
+                              {u.sayfaBasi !== null ? doldur(t.tonerVerimi.urunMaliyet, { m: b.altBirim(u.sayfaBasi) }) : t.tonerVerimi.urunFiyatYok}
+                            </span>
+                            {u.gozlem < 2 && <span className="text-gray-400">({t.tonerVerimi.urunAz})</span>}
+                            {u.enUcuz && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">
+                                {t.tonerVerimi.enUcuz}{u.ucuzluk !== null && u.ucuzluk > 0 ? ` · ${doldur(t.tonerVerimi.ucuzluk, { y: b.yuzde(u.ucuzluk) })}` : ''}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

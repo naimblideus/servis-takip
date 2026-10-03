@@ -180,6 +180,7 @@ model Tenant {
   customerGroups      CustomerGroup[]
   sayacTaramalari     SayacTaramasi[]
   cihazOlaylari       CihazOlayi[]
+  tonerSevkleri       TonerSevki[]
   bankaHareketleri    BankaHareketi[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
@@ -576,6 +577,33 @@ model CihazOlayi {
   @@index([tenantId, bitti])
 }
 
+// TONER SEVKİ — bitmek üzere olan cihaza gönderilen toner. Stok sevkte
+// düşer. Tarayıcı ya da fiş değişimi görünce TAKILDI olur ve gönderilen toner
+// o değişim kaydına yazılır: müşteri toneri kendisi takınca fiş açılmıyor ve
+// hangi tonerin takıldığı başka yerden öğrenilemiyor (toner ürünü karnesi).
+// Cihaz+kanal başına aynı anda TEK açık (GONDERILDI) sevk — kısmi tekil
+// indeksle veritabanı tutar (migration 20261003100000_toner_sevki).
+model TonerSevki {
+  id            String    @id @default(cuid())
+  tenantId      String
+  deviceId      String
+  channel       String // BLACK | COLOR
+  partId        String? // gönderilen stok kartı; yoksa yalnız kayıt (stok düşmez)
+  adet          Int       @default(1)
+  durum         String    @default("GONDERILDI") // GONDERILDI | TAKILDI | IPTAL
+  gonderenId    String?
+  gonderildiAt  DateTime  @default(now())
+  takildiAt     DateTime?
+  tonerChangeId String?
+  iptalAt       DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, deviceId, channel, durum])
+  @@index([tenantId, gonderildiAt])
+}
+
 // BANKA EKSTRESİNDEN İŞLENEN HER SATIR.
 // Bayi bankasının hesap hareketleri dosyasını yükler; gelen havale müşteriye
 // eşlenip onaylanınca buraya yazılır, sonra para havuzlara dağıtılır.
@@ -713,6 +741,7 @@ model Device {
   counterReadings CounterReading[]
   tonerChanges    TonerChange[]
   cihazOlaylari   CihazOlayi[]
+  tonerSevkleri   TonerSevki[]
   portalRequests  PortalRequest[]
   contractDevices ContractDevice[]
 

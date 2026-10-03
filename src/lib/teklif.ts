@@ -227,23 +227,33 @@ export function teklifOzeti(hesaplar: SatirHesabi[]): TeklifOzeti {
 import { prisma } from '@/lib/prisma';
 import { verimleriOgren, populasyonVerimleri } from '@/lib/verim-ogrenme';
 import { sayfaMaliyeti, VARSAYILAN_HEDEF_MARJ } from '@/lib/sozlesme-karlilik';
+import { urunGozlemleri, harmanMaliyet } from '@/lib/verim-karnesi';
 
 /**
  * Model başına ölçülmüş sayfa maliyeti.
  *
- * İki ölçümün çarpımı: ağırlıklı ortalama toner alış fiyatı ÷ sahada
- * ölçülen verim. İkisinden biri yoksa o model için maliyet YOK — ve
- * teklifte o satır fiyatsız kalıyor.
+ * ÖNCE GERÇEK HESAP: toplam toner harcaması ÷ toplam basılan sayfa, yalnız
+ * hangi tonerin bastığı bilinen ölçümlerden (verim, bir önceki değişimde
+ * takılan tonere aittir — lib/verim-karnesi harmanMaliyet). Böyle ölçüm
+ * yoksa YEDEK: takılan kartuşların ortanca alış fiyatı ÷ sahada ölçülen
+ * verim (bayiler arası verim dahil). İkisi de yoksa o model için maliyet
+ * YOK — ve teklifte o satır fiyatsız kalıyor.
  */
 export async function modelSayfaMaliyetleri(tenantId: string): Promise<SayfaMaliyetleri> {
   const ogrenilen = await verimleriOgren(tenantId);
   const populasyon = await populasyonVerimleri();
 
   // Takılan kartuşların ağırlıklı ortalama alış fiyatı, model+kanal başına.
-  const kayitlar = await prisma.tonerChange.findMany({
-    where: { tenantId, partId: { not: null } },
-    select: { partId: true, channel: true, device: { select: { brand: true, model: true } } },
+  // Bütün değişimler: verimin hangi tonere ait olduğu SIRAYA bakılarak
+  // bulunur; parçası bilinmeyen değişim de sırada yer tutar.
+  const tumKayitlar = await prisma.tonerChange.findMany({
+    where: { tenantId },
+    select: {
+      deviceId: true, changedAt: true, observedYield: true,
+      partId: true, channel: true, device: { select: { brand: true, model: true } },
+    },
   });
+  const kayitlar = tumKayitlar.filter((k) => k.partId);
   const parcaIdleri = [...new Set(kayitlar.map((k) => k.partId!))];
   const parcalar = parcaIdleri.length
     ? await prisma.part.findMany({
@@ -269,18 +279,32 @@ export async function modelSayfaMaliyetleri(tenantId: string): Promise<SayfaMali
     return s.length % 2 ? s[o] : (s[o - 1] + s[o]) / 2;
   };
 
+  const harman = harmanMaliyet(
+    urunGozlemleri(tumKayitlar.map((k) => ({
+      deviceId: k.deviceId, channel: k.channel, changedAt: k.changedAt, partId: k.partId,
+      observedYield: k.observedYield, model: modelAnahtari(k.device?.brand, k.device?.model),
+    }))),
+    new Map([...fiyat].map(([id, f]) => [id, f > 0 ? f : null])),
+  );
+
   const cikan: SayfaMaliyetleri = new Map();
   const anahtarlar = new Set<string>();
+  for (const k of harman.keys()) anahtarlar.add(k.slice(0, k.lastIndexOf('|')));
   for (const k of ogrenilen.model.keys()) anahtarlar.add(k.slice(0, k.lastIndexOf('|')));
   for (const k of populasyon.keys()) anahtarlar.add(k.slice(0, k.lastIndexOf('|')));
 
   for (const anahtar of anahtarlar) {
     const verimSb = ogrenilen.model.get(`${anahtar}|BLACK`) ?? populasyon.get(`${anahtar}|BLACK`);
     const verimRenkli = ogrenilen.model.get(`${anahtar}|COLOR`) ?? populasyon.get(`${anahtar}|COLOR`);
-    const sb = sayfaMaliyeti(ortancaFiyat(`${anahtar}|BLACK`), verimSb?.deger ?? null);
-    const renkli = sayfaMaliyeti(ortancaFiyat(`${anahtar}|COLOR`), verimRenkli?.deger ?? null);
+    const hSb = harman.get(`${anahtar}|BLACK`);
+    const hRenkli = harman.get(`${anahtar}|COLOR`);
+    const sb = hSb?.maliyet ?? sayfaMaliyeti(ortancaFiyat(`${anahtar}|BLACK`), verimSb?.deger ?? null);
+    const renkli = hRenkli?.maliyet ?? sayfaMaliyeti(ortancaFiyat(`${anahtar}|COLOR`), verimRenkli?.deger ?? null);
     if (sb === null && renkli === null) continue;
-    cikan.set(anahtar, { sb, renkli, gozlem: (verimSb?.gozlem ?? 0) + (verimRenkli?.gozlem ?? 0) });
+    cikan.set(anahtar, {
+      sb, renkli,
+      gozlem: Math.max((verimSb?.gozlem ?? 0) + (verimRenkli?.gozlem ?? 0), (hSb?.gozlem ?? 0) + (hRenkli?.gozlem ?? 0)),
+    });
   }
   return cikan;
 }

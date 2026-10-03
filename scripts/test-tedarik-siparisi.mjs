@@ -21,12 +21,18 @@ const t = (ad, kosul, detay) => {
 };
 
 const istemci = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
+// Veri katmanı cihazlardan doğan toner talebini de hesaplıyor (toner sevki):
+// Sarf Takibi ile aynı hesap, onun modülleriyle birlikte derlenir.
+const VERI_MODULLERI = [
+  'tedarik-siparisi-veri', 'toner-veri', 'toner-sevk-veri', 'toner-sevk', 'verim-ogrenme', 'toner-verimi',
+  'device-brands', 'reliability', 'fault-categories', 'stok-maliyet', 'toner', 'sayac-tarama', 'magaza-baglanti',
+];
 let saf, menu, veri = null;
 try {
   try {
     execFileSync(process.execPath, [
       join(KOK, 'node_modules/typescript/bin/tsc'),
-      ...['tedarik-siparisi', 'tedarik-siparisi-veri', 'menu-aileleri', 'modules'].map((f) => join(KOK, `src/lib/${f}.ts`)),
+      ...['tedarik-siparisi', 'menu-aileleri', 'modules', ...VERI_MODULLERI].map((f) => join(KOK, `src/lib/${f}.ts`)),
       '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck',
     ], { stdio: 'pipe' });
   } catch { /* tip hataları önemsiz */ }
@@ -37,7 +43,9 @@ try {
     for (const [a, b] of ciftler) s = s.split(a).join(b);
     writeFileSync(yol, s, 'utf8');
   };
-  duzelt('tedarik-siparisi-veri.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/tedarik-siparisi'", "'./tedarik-siparisi.js'"]]);
+  const yerel = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(istemci)],
+    ...['tedarik-siparisi', ...VERI_MODULLERI].map((d) => [`'@/lib/${d}'`, `'./${d}.js'`])];
+  for (const d of VERI_MODULLERI) duzelt(`${d}.js`, yerel);
   duzelt('menu-aileleri.js', [["'./modules'", "'./modules.js'"]]);
   saf = await import(pathToFileURL(join(g, 'tedarik-siparisi.js')).href);
   menu = await import(pathToFileURL(join(g, 'menu-aileleri.js')).href);

@@ -27,7 +27,7 @@ try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),
     join(KOK, 'src/lib/teklif.ts'), join(KOK, 'src/lib/toner-verimi.ts'),
-    join(KOK, 'src/lib/device-brands.ts'),
+    join(KOK, 'src/lib/device-brands.ts'), join(KOK, 'src/lib/verim-karnesi.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
     '--moduleResolution', 'bundler', '--skipLibCheck',
   ], { stdio: 'pipe' });
@@ -38,7 +38,8 @@ try {
     .split("'@/lib/prisma'").join("'./sahte.js'")
     .split("'@/lib/verim-ogrenme'").join("'./sahte.js'")
     .split("'@/lib/toner-verimi'").join("'./toner-verimi.js'")
-    .split("'@/lib/sozlesme-karlilik'").join("'./sahte.js'"), 'utf8');
+    .split("'@/lib/sozlesme-karlilik'").join("'./sahte.js'")
+    .split("'@/lib/verim-karnesi'").join("'./verim-karnesi.js'"), 'utf8');
   const tv = join(g, 'toner-verimi.js');
   writeFileSync(tv, readFileSync(tv, 'utf8')
     .split("'@/lib/prisma'").join("'./sahte.js'")

@@ -18,9 +18,13 @@
 //   • Kimden: o kalemin SON alış kaydındaki tedarikçi. Alış kaydı yoksa
 //     "tedarikçisi belli değil" grubunda kalır — uydurulmaz.
 //   • Kaç adet: asgari stoğa tamamlayan adet + son 90 günün AYLIK ORTALAMA
-//     kullanımı (servis fişlerinden). Tek bir yoğun ay öneriyi şişirmesin
-//     diye 30 gün değil 90 günün ortalaması. Tezgâh satışı parça bazında
-//     kaydedilmediği için bu sayıya girmiyor; ekran bunu söylüyor.
+//     kullanımı (servis fişleri + toner sevkleri). Tek bir yoğun ay öneriyi
+//     şişirmesin diye 30 gün değil 90 günün ortalaması. Tezgâh satışı parça
+//     bazında kaydedilmediği için bu sayıya girmiyor; ekran bunu söylüyor.
+//   • CİHAZ TALEBİ: toneri bitmek üzere olan ve tonerini bildiğimiz cihaz
+//     başına bir adet (Sarf Takibi ile aynı hesap). Stok bu talebi
+//     karşıladıktan sonra asgarinin altına düşecekse kalem listeye girer —
+//     stok henüz asgarinin üstünde olsa bile.
 
 export type SiparisParcasi = {
   id: string;
@@ -34,6 +38,8 @@ export type SiparisParcasi = {
   alisVar: boolean;
   sonTedarikci: string | null;
   sonFiyat: number | null;
+  /** Toneri bitmek üzere olan ve bu tonerle eşleşen cihaz sayısı (yolda olanlar hariç). */
+  cihazTalebi?: number;
 };
 
 export type SiparisKalemi = SiparisParcasi & { oneri: number };
@@ -48,14 +54,19 @@ export function aylikKullanim(kullanim90: number): number {
   return Math.ceil(Math.max(0, kullanim90) / 3);
 }
 
-/** Önerilen adet: asgariye tamamla + aylık ortalama kullanım; en az 1. */
-export function oneriAdet(p: Pick<SiparisParcasi, 'stok' | 'asgari' | 'kullanim90'>): number {
-  return Math.max(1, Math.max(0, p.asgari - p.stok) + aylikKullanim(p.kullanim90));
+/** Önerilen adet: cihaz talebini karşıla, asgariye tamamla + aylık ortalama kullanım; en az 1. */
+export function oneriAdet(p: Pick<SiparisParcasi, 'stok' | 'asgari' | 'kullanim90' | 'cihazTalebi'>): number {
+  return Math.max(1, Math.max(0, p.asgari + (p.cihazTalebi ?? 0) - p.stok) + aylikKullanim(p.kullanim90));
+}
+
+/** Kalem siparişe girer mi: cihaz talebi karşılandıktan sonra stok asgarinin altına (ya da eşitine) düşüyorsa. */
+export function siparisGerekli(p: Pick<SiparisParcasi, 'stok' | 'asgari' | 'cihazTalebi'>): boolean {
+  return p.stok - (p.cihazTalebi ?? 0) <= p.asgari;
 }
 
 /** Bayi bu kalemi gerçekten kullanıyor ya da alıyor mu? */
-export function aktifMi(p: Pick<SiparisParcasi, 'kullanim90' | 'alisVar'>): boolean {
-  return p.kullanim90 > 0 || p.alisVar;
+export function aktifMi(p: Pick<SiparisParcasi, 'kullanim90' | 'alisVar' | 'cihazTalebi'>): boolean {
+  return p.kullanim90 > 0 || p.alisVar || (p.cihazTalebi ?? 0) > 0;
 }
 
 /** Tedarikçi adını gruplamak için sadeleştirir ("AKSA  Toner" = "aksa toner"). */
@@ -77,7 +88,7 @@ export function tahminiTutar(kalemler: { sonFiyat: number | null; adet: number }
 const HIZMET_GRUPLARI = new Set(['LABOUR', 'REPAIR']);
 
 export function siparisGruplari(parcalar: SiparisParcasi[]): { gruplar: SiparisGrubu[]; hareketsiz: SiparisKalemi[] } {
-  const kritik = parcalar.filter((p) => p.stok <= p.asgari && !HIZMET_GRUPLARI.has(p.grup ?? ''));
+  const kritik = parcalar.filter((p) => siparisGerekli(p) && !HIZMET_GRUPLARI.has(p.grup ?? ''));
   const gruplar = new Map<string, SiparisGrubu>();
   const hareketsiz: SiparisKalemi[] = [];
   for (const p of kritik) {

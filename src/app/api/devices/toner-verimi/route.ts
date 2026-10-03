@@ -5,6 +5,7 @@ import { verimGruplari, verimUygula } from '@/lib/toner-verimi';
 import { verimleriOgren } from '@/lib/verim-ogrenme';
 import { modelSayfaMaliyetleri } from '@/lib/teklif';
 import { karneSatiri, karneSirasi, karneOzeti } from '@/lib/verim-karnesi';
+import { tonerUrunKarnesi } from '@/lib/toner-urun-veri';
 import { writeAudit, istekIp } from '@/lib/audit';
 
 /**
@@ -54,10 +55,18 @@ export async function GET() {
       })
       .sort(karneSirasi);
 
+    // ── TONER ÜRÜNÜ ──────────────────────────────────────────────────
+    // Model satırı bütün tonerleri tek ortalamada birleştiriyor; bu harita
+    // aynı makinede hangi toner ürününün sayfa başı daha ucuza geldiğini
+    // ayırıyor (model anahtarı → ürün satırları).
+    const urunler = await tonerUrunKarnesi(tenantId);
+    const urunFarki = Object.values(urunler).filter((l) => l.some((u) => u.enUcuz)).length;
+
     return NextResponse.json({
       gruplar,
       satirlar,
-      karne: karneOzeti(satirlar),
+      urunler,
+      karne: { ...karneOzeti(satirlar), urunFarki },
       ozet: {
         model: gruplar.length, cihaz, verimli,
         kapsanan, eksik: cihaz - kapsanan,
