@@ -2,7 +2,8 @@
 
 > **KARAR (kullanıcı, 2026-06-23): Marka adı = "Nexus Servis" kalacak.** Yeni isim (Sayatik/Nexus Servis/Servisflow)
 > değerlendirildi ama tercih edilmedi. Bu doküman artık "Nexus Servis" markasını güçlendirmeye odaklanır.
-> Domain zaten elde: **nexusservis.com** (demo e-postaları orada).
+> Alan adı: **nextusservis.com** — 2026-10-03'te alındı (Cloudflare). Marka 2026-08-06'da "Nextus Servis" oldu;
+> eski isimdeki nexusservis.com hiç alınmamıştı (RDAP 2026-10-03: kayıtsız).
 
 ---
 
@@ -15,7 +16,7 @@ adı olduğu için **3 zorluğu** var; her birinin somut çözümü:
 |---|---|---|
 | **SEO'da öne çıkmak zor** | "servis takip" çok genel, binlerce sonuç | Niş uzun-kuyruk: "fotokopi servis takip", "sayaç faturalama programı". Marka + alan: her yerde "Nexus Servis — Kiralık Cihaz Yönetimi" |
 | **Marka tescili zor** | Jenerik kelimeler tek başına tescillenemez | **Logo + ayırt edici sözcük/şekil** ile tescil (TÜRKPATENT'e logolu başvur). "Nexus Servis" bitişik + özgün logo |
-| **Karışabilir** | Aynı isimde başkaları olabilir | Tutarlı görsel kimlik (logo+renk) + nexusservis.com'u her yerde göster + kurucu markası (Mehmet Naim) ile kişiselleştir |
+| **Karışabilir** | Aynı isimde başkaları olabilir | Tutarlı görsel kimlik (logo+renk) + nextusservis.com'u her yerde göster + kurucu markası (Mehmet Naim) ile kişiselleştir |
 
 **Pratik kullanım kuralı:** Logoda ve başlıkta her zaman **"Nexus Servis"** (bitişik, ayırt edici yazım) +
 altında ince bir tanım: *"Kiralık Cihaz Servis & Sayaç Yönetimi"*. Bu, hem açıklığı hem ayırt ediciliği verir.
@@ -66,15 +67,15 @@ Değerlendirilen ama seçilmeyen ayırt edici isimler — ileride büyüyünce/A
 - **Nexus Servis** — markasal/premium, geniş ölçek + uluslararası için esnek.
 - **Servisflow** — açıklayıcı, modern SaaS.
 
-> Şimdilik gerek yok: nexusservis.com elde, ürün bu isimle tanınıyor, demo altyapısı kurulu. İsim değişimi
+> Şimdilik gerek yok: nextusservis.com elde, ürün bu isimle tanınıyor, demo altyapısı kurulu. İsim değişimi
 > ileride **büyüme + bütçe** olduğunda (tescil + rebrand maliyeti karşılanabilir) gündeme gelir.
 
 ---
 
 ## 5. Marka varlıkları kontrol listesi (sen yapacaksın)
-- [x] Domain: **nexusservis.com** (elde)
-- [ ] nexusservis.com.tr, .io (savunma amaçlı al)
-- [ ] Sosyal kullanıcı adı: @nexusservis (Instagram / X / LinkedIn şirket sayfası)
+- [x] Alan adı: **nextusservis.com** (2026-10-03, Cloudflare)
+- [ ] nextusservis.com.tr, .io (savunma amaçlı al)
+- [ ] Sosyal kullanıcı adı: @nextusservis (Instagram / X / LinkedIn şirket sayfası)
 - [ ] TÜRKPATENT marka başvurusu — **logolu** (Sınıf 42 yazılım/SaaS + Sınıf 9). Jenerik kelime tek başına değil, logo+stilize yazım ile.
 - [ ] Google Business + Search Console
-- [ ] Kurumsal e-posta: ad@nexusservis.com (zaten kullanımda)
+- [ ] Kurumsal e-posta: ad@nextusservis.com

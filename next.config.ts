@@ -15,5 +15,14 @@ const nextConfig: NextConfig = {
     },
   },
   serverExternalPackages: ['bcryptjs'],
+  // "Bu adrese hep https ile gel" (HSTS) — YALNIZ gerçek alan adında; sslip ve
+  // yerel adreslerde gönderilmez. includeSubDomains yok: alt alan adları etkilenmez.
+  async headers() {
+    return [{
+      source: '/:path*',
+      has: [{ type: 'host', value: '(www\\.)?nextusservis\\.com' }],
+      headers: [{ key: 'Strict-Transport-Security', value: 'max-age=31536000' }],
+    }];
+  },
 };
 export default nextConfig;
