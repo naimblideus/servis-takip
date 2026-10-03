@@ -176,6 +176,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: { signIn: '/login' },
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
+  // Canlıda giriş çerezleri HER ZAMAN "yalnız şifreli bağlantı" (Secure,
+  // __Secure-/__Host- önekli). Auth.js bunu kendi adresinin protokolünden
+  // çıkarıyor; canlıda NEXTAUTH_URL http:// kaldığı için çerezler Secure'suz
+  // gidiyordu ve http:// ile açılan ilk istek oturum çerezini şifresiz
+  // taşıyordu (ortak Wi-Fi'da oturum çalınabilir). Süper admin çerezi de bu kuralla.
+  useSecureCookies: process.env.NODE_ENV === 'production',
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   trustHost: true,
 });

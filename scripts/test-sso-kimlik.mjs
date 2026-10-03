@@ -121,6 +121,9 @@ console.log('\nSSO — bağlantılar\n');
   t('★ auth.ts ve sso-kimlik.ts\'de ILIKE üreten insensitive arama yok', !/insensitive/.test(auth) && !/insensitive/.test(modul));
   t('signIn ve jwt e-postayı doğrulanmış taleplerden alıyor (user.email değil)', (auth.match(/ssoEpostasi\(account\.provider, profile/g) ?? []).length === 2);
   t('Entra issuer tek kaynaktan', /issuer: ENTRA_ISSUER/.test(auth));
+  // Canlıda NEXTAUTH_URL http:// iken Auth.js çerezleri Secure'suz kuruyordu
+  // (ölçüldü: authjs.csrf-token; HttpOnly; SameSite=Lax — Secure yok).
+  t('★ giriş çerezleri canlıda adresin protokolünden bağımsız Secure', /useSecureCookies:\s*process\.env\.NODE_ENV === 'production'/.test(auth));
 }
 
 rmSync(g, { recursive: true, force: true });
