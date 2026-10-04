@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ücretsiz ağ taraması — Nextus Servis</title>
+<meta name="description" content="Ağınızdaki bütün yazıcı ve fotokopi makinelerinin sayacını, toner seviyesini ve arızalarını 2 dakikada görün. Hesap gerekmez, sonuç hiçbir yere gönderilmez.">
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root { --bg: #050508; --kart: #0f1017; --cizgi: rgba(255,255,255,.09); --metin: #e7e7ee; --soluk: #9b9bab; --vurgu: #14b8a6; --vurgu-koyu: #04201d; }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; color: var(--metin); font: 16px/1.6 Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 40px 16px 56px; }
+  .ust { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .logo { font-weight: 800; letter-spacing: -.01em; color: #fff; text-decoration: none; }
+  .dil button { background: none; border: 1px solid var(--cizgi); color: var(--soluk); padding: 4px 10px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 13px; }
+  .dil button[aria-pressed="true"] { color: #fff; border-color: var(--vurgu); }
+  .etiket { margin: 48px 0 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--vurgu); font-weight: 700; }
+  h1 { margin: 10px 0 14px; font-size: clamp(30px, 5vw, 46px); line-height: 1.12; letter-spacing: -.02em; color: #fff; }
+  .giris { margin: 0; max-width: 680px; color: var(--soluk); font-size: 18px; }
+  .indir { display: inline-flex; align-items: center; gap: 10px; margin-top: 26px; background: var(--vurgu); color: var(--vurgu-koyu); font-weight: 800; text-decoration: none; padding: 14px 22px; border-radius: 14px; }
+  .indir small { font-weight: 600; opacity: .75; }
+  .telefon { display: none; margin-top: 16px; padding: 12px 14px; border: 1px solid rgba(245,158,11,.4); border-radius: 12px; color: #fcd34d; font-size: 14.5px; }
+  .adimlar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 40px; }
+  .adim { background: var(--kart); border: 1px solid var(--cizgi); border-radius: 16px; padding: 18px; }
+  .adim b { display: block; color: #fff; margin: 8px 0 4px; }
+  .adim span { color: var(--soluk); font-size: 14.5px; }
+  .no { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: rgba(20,184,166,.15); color: var(--vurgu); font-weight: 800; font-size: 14px; }
+  h2 { margin: 44px 0 12px; font-size: 22px; color: #fff; letter-spacing: -.01em; }
+  ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  li { padding-left: 28px; position: relative; color: var(--metin); }
+  li::before { position: absolute; left: 0; top: 0; font-weight: 800; }
+  li.evet::before { content: "✓"; color: var(--vurgu); }
+  li.hayir::before { content: "✕"; color: #f87171; }
+  .not { margin-top: 18px; color: var(--soluk); font-size: 14.5px; }
+  .cta { margin-top: 44px; background: var(--kart); border: 1px solid var(--cizgi); border-radius: 18px; padding: 24px; display: flex; gap: 18px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .cta p { margin: 0; max-width: 560px; color: var(--soluk); }
+  .cta p b { color: #fff; }
+  .cta a { color: #fff; border: 1px solid var(--vurgu); padding: 11px 18px; border-radius: 12px; text-decoration: none; font-weight: 700; white-space: nowrap; }
+  [data-dil="en"] { display: none; }
+  html[lang="en"] [data-dil="tr"] { display: none; }
+  html[lang="en"] [data-dil="en"] { display: revert; }
+  @media (max-width: 720px) { .adimlar { grid-template-columns: 1fr; } .etiket { margin-top: 32px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="ust">
+    <a class="logo" href="/">Nextus Servis</a>
+    <div class="dil" role="group" aria-label="Dil / Language">
+      <button type="button" data-sec="tr" aria-pressed="true">TR</button>
+      <button type="button" data-sec="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+
+  <p class="etiket"><span data-dil="tr">Ücretsiz · hesap gerekmez</span><span data-dil="en">Free · no account needed</span></p>
+  <h1><span data-dil="tr">Ağınızdaki bütün makineleri 2 dakikada görün</span><span data-dil="en">See every printer on your network in 2 minutes</span></h1>
+  <p class="giris">
+    <span data-dil="tr">Tarayıcıyı indirip çalıştırın: her makinenin modeli, seri numarası, sayacı, toner seviyesi ve makinenin kendi bildirdiği arızalar tek sayfada. Sonuç yalnız sizin bilgisayarınızda kalır.</span>
+    <span data-dil="en">Download and run the scanner: every printer's model, serial number, counter, toner level and the faults it reports itself, on one page. The result stays on your computer.</span>
+  </p>
+  <a class="indir" href="/tarayici/nextus-sayac-tarayici.ps1" download="nextus-ag-tarayici.ps1">
+    <span data-dil="tr">Tarayıcıyı indir</span><span data-dil="en">Download the scanner</span>
+    <small>Windows</small>
+  </a>
+  <p class="telefon" id="telefon">
+    <span data-dil="tr">Tarayıcı Windows bilgisayarda çalışır. Bu sayfayı makinelerle aynı ağdaki bir bilgisayardan açın.</span>
+    <span data-dil="en">The scanner runs on a Windows computer. Open this page on a computer on the same network as the printers.</span>
+  </p>
+
+  <div class="adimlar">
+    <div class="adim"><span class="no">1</span>
+      <b><span data-dil="tr">İndirin</span><span data-dil="en">Download</span></b>
+      <span><span data-dil="tr">Makinelerle aynı ağdaki bir Windows bilgisayarına.</span><span data-dil="en">To a Windows computer on the same network as the printers.</span></span>
+    </div>
+    <div class="adim"><span class="no">2</span>
+      <b><span data-dil="tr">Sağ tıklayın → "PowerShell ile çalıştır"</span><span data-dil="en">Right-click → "Run with PowerShell"</span></b>
+      <span><span data-dil="tr">Windows soru sorarsa "Bir kez çalıştır" deyin.</span><span data-dil="en">If Windows asks, choose "Run once".</span></span>
+    </div>
+    <div class="adim"><span class="no">3</span>
+      <b><span data-dil="tr">Rapor açılır</span><span data-dil="en">The report opens</span></b>
+      <span><span data-dil="tr">Masaüstünüze bir sayfa ve Excel için bir dosya kaydedilir.</span><span data-dil="en">A page and an Excel file are saved to your desktop.</span></span>
+    </div>
+  </div>
+
+  <h2><span data-dil="tr">Ne yapar, ne yapmaz</span><span data-dil="en">What it does and does not do</span></h2>
+  <ul>
+    <li class="evet"><span data-dil="tr">Makinelerin kendisinden okur (SNMP): model, seri numarası, sayaç, toner, arıza durumu.</span><span data-dil="en">Reads from the printers themselves (SNMP): model, serial number, counter, toner, fault status.</span></li>
+    <li class="evet"><span data-dil="tr">Sonuç yalnız sizin bilgisayarınızda kalır, hiçbir yere gönderilmez.</span><span data-dil="en">The result stays on your computer and is not sent anywhere.</span></li>
+    <li class="hayir"><span data-dil="tr">Makinelerde hiçbir ayarı değiştirmez.</span><span data-dil="en">It changes no settings on the printers.</span></li>
+    <li class="hayir"><span data-dil="tr">Bilgisayara hiçbir şey kurmaz.</span><span data-dil="en">It installs nothing on the computer.</span></li>
+  </ul>
+  <p class="not">
+    <span data-dil="tr">Makine bulunamazsa: bilgisayarın makinelerle aynı ağda olduğundan emin olun. Bazı makinelerde SNMP kapalı gelir; makinenin ağ ayarlarından açılabilir.</span>
+    <span data-dil="en">If no printer is found: make sure the computer is on the same network as the printers. Some printers ship with SNMP turned off; it can be enabled in the printer's network settings.</span>
+  </p>
+
+  <div class="cta">
+    <p>
+      <span data-dil="tr"><b>Her ay kendiliğinden olsun.</b> Nextus Servis aynı tarayıcıyla sayaçları her gün toplar, ay sonunda faturaya çevirir; toneri bitmek üzere olan ve arıza bildiren makineyi müşteriniz aramadan önce gösterir.</span>
+      <span data-dil="en"><b>Make it automatic every month.</b> Nextus Servis collects the counters every day with the same scanner, turns them into invoices at month end, and shows the printer running out of toner or reporting a fault before your customer calls.</span>
+    </p>
+    <a href="/?kaynak=ucretsiz-tarama"><span data-dil="tr">Nextus Servis'i inceleyin →</span><span data-dil="en">See Nextus Servis →</span></a>
+  </div>
+</main>
+<script>
+  (function () {
+    var kok = document.documentElement;
+    var dugmeler = document.querySelectorAll('[data-sec]');
+    function uygula(dil) {
+      kok.lang = dil;
+      for (var i = 0; i < dugmeler.length; i++) dugmeler[i].setAttribute('aria-pressed', dugmeler[i].getAttribute('data-sec') === dil ? 'true' : 'false');
+    }
+    for (var i = 0; i < dugmeler.length; i++) dugmeler[i].addEventListener('click', function () { uygula(this.getAttribute('data-sec')); });
+    var istek = new URLSearchParams(location.search).get('lang');
+    uygula(istek === 'en' || (!istek && !/^tr/i.test(navigator.language || 'tr')) ? 'en' : 'tr');
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) document.getElementById('telefon').style.display = 'block';
+  })();
+</script>
+</body>
+</html>

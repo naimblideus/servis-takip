@@ -15,6 +15,11 @@
       sayaç, toner seviyesi ve cihazın kendi bildirdiği durum (kâğıt
       sıkışması, servis uyarısı gibi).
 
+  ÜCRETSİZ KİP
+    Dosya panelden değil sitedeki genel bağlantıdan indirildiyse (anahtar
+    yok) sonuç HİÇBİR YERE GÖNDERİLMEZ: aynı tarama yapılır, bu bilgisayarın
+    masaüstünde bir rapor (tarayıcıda açılan sayfa + Excel için CSV) açılır.
+
   NASIL ÇALIŞTIRILIR
     Dosyaya sağ tıklayın > "PowerShell ile çalıştır".
     Soru gelirse "Bir kez çalıştır" (R) deyin.
@@ -25,6 +30,7 @@
     -Kuru                   hiçbir şey göndermeden sonucu ekrana yaz
     -GunlukKur              her gün 09:00'da kendiliğinden çalışsın
     -Sessiz                 pencere beklemesin (zamanlanmış çalışma için)
+    -RaporKlasoru C:\yol    ücretsiz kipte raporun yazılacağı klasör
 #>
 param(
   [string]$Sunucu = '__SUNUCU__',
@@ -34,6 +40,7 @@ param(
   [int]$Port = 161,
   [string]$Topluluk = 'public',
   [int]$ZamanAsimi = 1500,
+  [string]$RaporKlasoru = '',
   [switch]$Kuru,
   [switch]$Sessiz,
   [switch]$GunlukKur
@@ -45,8 +52,19 @@ $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 $SURUM = 3
 
+# ÜCRETSİZ KİP: dosya panelden değil sitedeki genel bağlantıdan indirildi
+# (anahtar yok). Tarama aynıdır; sonuç hiçbir yere gönderilmez, bu
+# bilgisayarda rapor olarak açılır. Teknik servis hesap açmadan kendi
+# makinelerini görür.
+$Ucretsiz = ($Anahtar -like '__*' -or [string]::IsNullOrWhiteSpace($Anahtar))
+if ($Dil -like '__*') { if ((Get-Culture).Name -like 'tr*') { $Dil = 'tr' } else { $Dil = 'en' } }
+$SiteAdresi = $Sunucu
+if ($SiteAdresi -like '__*' -or -not $SiteAdresi) { $SiteAdresi = 'https://nextusservis.com' }
+
 $TR = ($Dil -ne 'en')
-function Yaz([string]$tr, [string]$en) { if ($TR) { Write-Host $tr } else { Write-Host $en } }
+# PowerShell'de değişken adı büyük/küçük harf ayırmaz: parametre $tr olsaydı
+# içerideki $TR o parametre olurdu ve İngilizce kipte de hep Türkçe yazılırdı.
+function Yaz([string]$metinTr, [string]$metinEn) { if ($TR) { Write-Host $metinTr } else { Write-Host $metinEn } }
 
 # ── BER (SNMP'nin kodlaması) ──────────────────────────────────────────────
 
@@ -361,11 +379,265 @@ function Kendini-Guncelle([int]$hedefSurum) {
   } catch { }
 }
 
-if ($GunlukKur) { Gunluk-Kur }
 
-if (-not $Kuru -and ($Anahtar -like '__*' -or $Sunucu -like '__*')) {
-  Yaz 'Bu dosya panelden indirilmemiş (anahtar yok). Nextus Servis > Sayaçlar > Ağ Tarayıcı ekranından indirin.' `
-      'This file was not downloaded from the panel (no key). Download it from Nextus Servis > Meters > Network scanner.'
+# ── ÜCRETSİZ KİP: YEREL RAPOR ────────────────────────────────────────────
+# Uyarı kodları, adları, marka listesi ve toner/parça ayrımı sunucudakiyle
+# aynı (src/lib/sayac-tarama.ts; i18n sayacTarayici.uyari). Test ikisini
+# karşılaştırır: biri değişirse öteki de değişmeli.
+$HATA_BITLERI = @(
+  '0:80:KAGIT_AZ', '0:40:KAGIT_YOK', '0:20:TONER_AZ', '0:10:TONER_YOK',
+  '0:08:KAPAK_ACIK', '0:04:SIKISMA', '0:02:CEVRIMDISI', '0:01:SERVIS_GEREKLI',
+  '1:80:KASET_YOK', '1:40:CIKIS_TEPSISI_YOK', '1:20:SARF_TAKILI_DEGIL', '1:10:CIKIS_DOLMAK_UZERE',
+  '1:08:CIKIS_DOLU', '1:04:KASET_BOS', '1:02:BAKIM_GECIKTI'
+)
+$UYARI_AD = @{
+  SERVIS_GEREKLI     = @('SERVIS', 'Servis istiyor', 'Service requested')
+  BAKIM_GECIKTI      = @('SERVIS', 'Bakım zamanı geçti', 'Maintenance overdue')
+  SIKISMA            = @('SERVIS', 'Kâğıt sıkışması', 'Paper jam')
+  SARF_TAKILI_DEGIL  = @('SERVIS', 'Sarf takılı değil', 'Supply not installed')
+  CIHAZ_ARIZALI      = @('SERVIS', 'Cihaz arızalı', 'Device down')
+  TONER_YOK          = @('SARF', 'Toner bitti', 'Out of toner')
+  TONER_AZ           = @('SARF', 'Toner az', 'Toner low')
+  KAGIT_YOK          = @('BILGI', 'Kâğıt bitti', 'Out of paper')
+  KAGIT_AZ           = @('BILGI', 'Kâğıt azaldı', 'Paper low')
+  KAPAK_ACIK         = @('BILGI', 'Kapak açık', 'Cover open')
+  CEVRIMDISI         = @('BILGI', 'Çevrimdışı', 'Offline')
+  KASET_YOK          = @('BILGI', 'Kaset takılı değil', 'Tray missing')
+  KASET_BOS          = @('BILGI', 'Kaset boş', 'Tray empty')
+  CIKIS_TEPSISI_YOK  = @('BILGI', 'Çıkış tepsisi yok', 'Output tray missing')
+  CIKIS_DOLU         = @('BILGI', 'Çıkış tepsisi dolu', 'Output tray full')
+  CIKIS_DOLMAK_UZERE = @('BILGI', 'Çıkış tepsisi dolmak üzere', 'Output tray almost full')
+}
+$MARKALAR = @{ '11' = 'HP'; '236' = 'Samsung'; '253' = 'Xerox'; '367' = 'Ricoh'; '641' = 'Lexmark'; '1248' = 'Epson';
+  '1347' = 'Kyocera'; '1602' = 'Canon'; '2385' = 'Sharp'; '2435' = 'Brother'; '18334' = 'Konica Minolta' }
+$TONER_KRITIK = 15
+$PARCA_KRITIK = 10
+$TONER_DISI = 'drum|imaging|waste|at[ıi]k|fuser|f[ıi]r[ıi]n|belt|kay[ıi][sş]|maintenance|bak[ıi]m|developer|geli[sş]tirici|staple|z[ıi]mba|transfer|roller|merdane'
+$TONER_ADI = 'toner|cartridge|kartu[sş]|ink|m[üu]rekkep|black|siyah|schwarz|noir|negro|cyan|magenta|yellow|camg[öo]be[ğg]i|macenta|sar[ıi]|cian|gelb'
+
+# Ad 'H' olamaz: PowerShell'de h hazır bir kısayol (Get-History) ve kısayol fonksiyondan önce gelir.
+# Yalnız HTML'de anlamı olan beş karakter. Hazır HtmlEncode Türkçe harflerin
+# bir kısmını sayısal koda çeviriyordu (â → &#226;); sayfa zaten UTF-8.
+function Kacis([object]$x) { return ([string]$x).Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;').Replace('"', '&quot;').Replace("'", '&#39;') }
+function Cevir([string]$metinTr, [string]$metinEn) { if ($TR) { return $metinTr } return $metinEn }
+
+function Cihaz-Uyarilari($c) {
+  $kodlar = New-Object System.Collections.ArrayList
+  $hex = [string]$c.hata
+  foreach ($b in $HATA_BITLERI) {
+    $p = $b.Split(':')
+    $i = [int]$p[0]
+    if ($hex.Length -lt ($i + 1) * 2) { continue }
+    try { $bayt = [Convert]::ToInt32($hex.Substring($i * 2, 2), 16) } catch { continue }
+    if ($bayt -band [Convert]::ToInt32($p[1], 16)) { [void]$kodlar.Add($p[2]) }
+  }
+  if ($c.durumKodu -eq 5) { [void]$kodlar.Add('CIHAZ_ARIZALI') }
+  # Sort-Object sırayı korumuyor: tür, sonra bit tablosundaki yer (sunucudaki sırayla aynı).
+  $sira = @{ SERVIS = 0; SARF = 1; BILGI = 2 }
+  $yer = @{}
+  for ($j = 0; $j -lt $kodlar.Count; $j++) { $yer[$kodlar[$j]] = $j }
+  return @($kodlar | Sort-Object -Property @{ Expression = { $sira[$UYARI_AD[$_][0]] } }, @{ Expression = { $yer[$_] } })
+}
+
+# Sunucudaki sarfYuzdesi ile aynı: eksi seviye ya da sıfır kapasite = bilinmiyor.
+function Sarf-Yuzde($s) {
+  $mx = [double]$s.max; $sv = [double]$s.seviye
+  if ($mx -le 0 -or $sv -lt 0) { return $null }
+  return [int][Math]::Max(0, [Math]::Min(100, [Math]::Round(($sv / $mx) * 100, [MidpointRounding]::AwayFromZero)))
+}
+
+function Cihaz-Adi($c) {
+  $model = ([string]$c.model).Trim()
+  if (-not $model) { $model = ([string]$c.sysDescr).Trim() }
+  $marka = $null
+  if ([string]$c.sysObjectID -match '^1\.3\.6\.1\.4\.1\.(\d+)') { $marka = $MARKALAR[$Matches[1]] }
+  if ($marka -and $model -notmatch [regex]::Escape($marka)) { $model = ("$marka $model").Trim() }
+  if (-not $model) { $model = Cevir 'Bilinmeyen model' 'Unknown model' }
+  return $model
+}
+
+# RFC 3805: atık kutusu gibi DOLAN kalemlerde seviye kalan boş yerdir; yani
+# her kalemde düşük yüzde "değişmeli" anlamına gelir, tek eşik yeter.
+function Sarf-Html($kalemler, [int]$esik) {
+  if (-not $kalemler -or $kalemler.Count -eq 0) { return '<span class="sonuk">&mdash;</span>' }
+  $parcalar = foreach ($k in $kalemler) {
+    if ($null -eq $k.yuzde) {
+      $deger = Cevir 'bilinmiyor' 'unknown'
+      if ($k.seviye -eq -3) { $deger = Cevir 'kalan var' 'some left' }
+      "<span class=`"olcu sonuk`">$(Kacis $k.ad) <b>$deger</b></span>"
+    } else {
+      $deger = "$($k.yuzde)%"
+      if ($TR) { $deger = "%$($k.yuzde)" }
+      $sinif = 'olcu'
+      if ($k.yuzde -le $esik) { $sinif = 'olcu az' }
+      "<span class=`"$sinif`" data-yuzde=`"$($k.yuzde)`">$(Kacis $k.ad) <b>$deger</b></span>"
+    }
+  }
+  return (@($parcalar) -join '')
+}
+
+$RAPOR_CSS = @'
+*{box-sizing:border-box}
+body{margin:0;background:#f4f6f8;color:#14181f;font:15px/1.5 "Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:32px 20px 48px}
+header{background:#0b1220;color:#fff;border-radius:18px;padding:28px 28px 24px}
+header .ust{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#7fe0d6;font-weight:600}
+header h1{margin:6px 0 4px;font-size:28px;line-height:1.2}
+header p{margin:0;color:#b8c2d0;font-size:14px}
+.ozet{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+.kutu{background:#fff;border:1px solid #e3e7ec;border-radius:14px;padding:14px 16px}
+.kutu b{display:block;font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kutu span{color:#5b6573;font-size:13px}
+.kutu.dikkat b{color:#c2410c}
+.kutu.servis b{color:#b91c1c}
+.tablo{background:#fff;border:1px solid #e3e7ec;border-radius:14px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:860px}
+th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#5b6573;background:#f8fafb;padding:10px 12px;border-bottom:1px solid #e3e7ec}
+td{padding:12px;border-bottom:1px solid #eef1f4;vertical-align:top}
+tr:last-child td{border-bottom:0}
+td .alt{display:block;color:#5b6573;font-size:12.5px;font-family:Consolas,monospace}
+.mono{font-family:Consolas,monospace;font-size:13px}
+.sayi{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.olcu,.uyari{display:inline-block;margin:0 6px 6px 0;padding:3px 9px;border-radius:999px;font-size:12.5px;background:#eef6f5;color:#0f5f58;white-space:nowrap}
+.olcu.az{background:#fff1e6;color:#9a3412}
+.olcu.sonuk{background:#f1f3f5}
+.olcu.sonuk,.sonuk{color:#7a8492}
+.uyari.servis{background:#fde8e8;color:#991b1b}
+.uyari.sarf{background:#fff1e6;color:#9a3412}
+.uyari.bilgi{background:#f1f3f5;color:#4b5563}
+.bos{background:#fff;border:1px dashed #c9d1da;border-radius:14px;padding:22px;color:#3d4653}
+.cta{margin-top:18px;background:#0b1220;color:#e7ecf3;border-radius:18px;padding:22px 24px;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.cta p{margin:0;max-width:720px}
+.cta a{background:#14b8a6;color:#04201d;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:12px;white-space:nowrap}
+.not{margin-top:14px;color:#5b6573;font-size:12.5px}
+@media (max-width:760px){.ozet{grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.cta a{border:1px solid #0b1220}}
+'@
+
+function Rapor-Yaz($liste, [int]$taranan) {
+  $kultur = [Globalization.CultureInfo]::GetCultureInfo('en-GB')
+  if ($TR) { $kultur = [Globalization.CultureInfo]::GetCultureInfo('tr-TR') }
+  $simdi = Get-Date
+  $satirlar = New-Object System.Collections.ArrayList
+  $tonerAz = 0; $servis = 0; $toplamSayac = [long]0
+  foreach ($c in @($liste)) {
+    if ($null -eq $c) { continue }
+    $kodlar = @(Cihaz-Uyarilari $c)
+    $tonerler = New-Object System.Collections.ArrayList
+    $parcalar = New-Object System.Collections.ArrayList
+    $enAzToner = 101; $enAzParca = 101
+    foreach ($s in @($c.sarf)) {
+      if ($null -eq $s) { continue }
+      $sarfAdi = ([string]$s.ad).Trim()
+      if (-not $sarfAdi) { continue }
+      $y = Sarf-Yuzde $s
+      $kalem = @{ ad = $sarfAdi; yuzde = $y; seviye = [long]$s.seviye }
+      if (($sarfAdi -notmatch $TONER_DISI) -and ($sarfAdi -match $TONER_ADI)) {
+        if ($null -ne $y -and $y -lt $enAzToner) { $enAzToner = $y }
+        [void]$tonerler.Add($kalem)
+      } else {
+        if ($null -ne $y -and $y -lt $enAzParca) { $enAzParca = $y }
+        [void]$parcalar.Add($kalem)
+      }
+    }
+    $servisVar = @($kodlar | Where-Object { $UYARI_AD[$_][0] -eq 'SERVIS' }).Count -gt 0
+    $sarfVar = @($kodlar | Where-Object { $UYARI_AD[$_][0] -eq 'SARF' }).Count -gt 0
+    if ($servisVar) { $servis++ }
+    if ($enAzToner -le $TONER_KRITIK) { $tonerAz++ }
+    if ($null -ne $c.toplam) { $toplamSayac += [long]$c.toplam }
+    # Panel sırasıyla aynı: servis isteyen → toneri biten → parça ömrü → kalanlar.
+    $oncelik = 2000
+    if ($servisVar) { $oncelik = 0 }
+    elseif ($sarfVar -or $enAzToner -le $TONER_KRITIK) { $oncelik = 1000 + $enAzToner }
+    elseif ($enAzParca -le $PARCA_KRITIK) { $oncelik = 1500 + $enAzParca }
+    [void]$satirlar.Add(@{ c = $c; kodlar = $kodlar; tonerler = $tonerler; parcalar = $parcalar; oncelik = $oncelik })
+  }
+  $sirali = @($satirlar | Sort-Object -Property @{ Expression = { $_.oncelik } }, @{ Expression = { [string]$_.c.ip } })
+  $n = $sirali.Count
+
+  $baslik = Cevir 'Ağınızdaki makineler' 'Printers on your network'
+  $dilKodu = 'en'
+  if ($TR) { $dilKodu = 'tr' }
+  $sb = New-Object System.Text.StringBuilder
+  [void]$sb.Append("<!doctype html><html lang=`"$dilKodu`"><head><meta charset=`"utf-8`"><meta name=`"viewport`" content=`"width=device-width, initial-scale=1`">")
+  [void]$sb.Append("<title>$(Kacis $baslik) — Nextus Servis</title><style>$RAPOR_CSS</style></head><body><main>")
+  [void]$sb.Append("<header><div class=`"ust`">Nextus Servis · $(Kacis (Cevir 'Ücretsiz ağ taraması' 'Free network scan'))</div><h1>$(Kacis $baslik)</h1>")
+  $altSatir = (Cevir '{0} · {1} · {2} adres tarandı' '{0} · {1} · {2} addresses scanned') -f $simdi.ToString('d MMMM yyyy HH:mm', $kultur), $env:COMPUTERNAME, $taranan.ToString('N0', $kultur)
+  [void]$sb.Append("<p>$(Kacis $altSatir)</p></header>")
+
+  [void]$sb.Append('<section class="ozet">')
+  [void]$sb.Append("<div class=`"kutu`" data-olcu=`"bulunan`"><b>$n</b><span>$(Kacis (Cevir 'Bulunan makine' 'Printers found'))</span></div>")
+  [void]$sb.Append("<div class=`"kutu dikkat`" data-olcu=`"toner`"><b>$tonerAz</b><span>$(Kacis (Cevir "Toneri bitmek üzere (%$TONER_KRITIK ve altı)" "Toner nearly out ($TONER_KRITIK% or less)"))</span></div>")
+  [void]$sb.Append("<div class=`"kutu servis`" data-olcu=`"servis`"><b>$servis</b><span>$(Kacis (Cevir 'Servis isteyen' 'Requesting service'))</span></div>")
+  [void]$sb.Append("<div class=`"kutu`" data-olcu=`"sayac`"><b>$($toplamSayac.ToString('N0', $kultur))</b><span>$(Kacis (Cevir 'Toplam sayaç' 'Total counter'))</span></div>")
+  [void]$sb.Append('</section>')
+
+  if ($n -eq 0) {
+    [void]$sb.Append("<div class=`"bos`"><b>$(Kacis (Cevir 'Bu ağda yazıcı bulunamadı.' 'No printers were found on this network.'))</b><br>")
+    [void]$sb.Append((Kacis (Cevir 'Bilgisayar makinelerle aynı ağda mı? Bazı makinelerde SNMP kapalı gelir; makinenin ağ ayarlarından açılabilir.' 'Is this computer on the same network as the printers? Some printers ship with SNMP turned off; it can be enabled in the printer''s network settings.')))
+    [void]$sb.Append('</div>')
+  } else {
+    [void]$sb.Append('<div class="tablo"><table><thead><tr>')
+    foreach ($b in @((Cevir 'Makine' 'Device'), (Cevir 'Seri no' 'Serial'), (Cevir 'Sayaç' 'Counter'), 'Toner', (Cevir 'Parça ömrü' 'Parts'), (Cevir 'Makinenin bildirdiği' 'Reported by the device'))) {
+      [void]$sb.Append("<th>$(Kacis $b)</th>")
+    }
+    [void]$sb.Append('</tr></thead><tbody>')
+    foreach ($r in $sirali) {
+      $c = $r.c
+      $sayac = '&mdash;'
+      if ($null -ne $c.toplam) { $sayac = ([long]$c.toplam).ToString('N0', $kultur) }
+      $uyariHtml = '<span class="sonuk">' + (Kacis (Cevir 'Sorun bildirmiyor' 'No issues reported')) + '</span>'
+      if ($r.kodlar.Count) {
+        # Tür adı küçük harfe değişmez kültürle çevrilir: tr-TR'de 'BILGI' → 'bılgı' olurdu.
+        $uyariHtml = (@($r.kodlar | ForEach-Object { $t = $UYARI_AD[$_]; "<span class=`"uyari $($t[0].ToLowerInvariant())`" data-kod=`"$_`">$(Kacis (Cevir $t[1] $t[2]))</span>" }) -join '')
+      }
+      [void]$sb.Append("<tr data-ip=`"$(Kacis $c.ip)`"><td><b>$(Kacis (Cihaz-Adi $c))</b><span class=`"alt`">$(Kacis $c.ip)</span></td>")
+      [void]$sb.Append("<td class=`"mono`">$(Kacis $c.seri)</td><td class=`"sayi`">$sayac</td>")
+      [void]$sb.Append("<td>$(Sarf-Html $r.tonerler $TONER_KRITIK)</td><td>$(Sarf-Html $r.parcalar $PARCA_KRITIK)</td><td>$uyariHtml</td></tr>")
+    }
+    [void]$sb.Append('</tbody></table></div>')
+  }
+
+  $link = $SiteAdresi.TrimEnd('/') + '/?kaynak=tarayici'
+  [void]$sb.Append("<section class=`"cta`"><p><b>$(Kacis (Cevir 'Bu sayaçları her ay tek tek toplamanız gerekmiyor.' 'You do not have to collect these counters one by one every month.'))</b> ")
+  [void]$sb.Append((Kacis (Cevir 'Nextus Servis aynı tarayıcıyla sayaçları her gün kendiliğinden toplar, ay sonunda faturaya çevirir; toneri bitmek üzere olan ve arıza bildiren makineyi müşteriniz aramadan önce gösterir.' 'Nextus Servis collects these counters automatically every day with the same scanner, turns them into invoices at month end, and shows the printer that is running out of toner or reporting a fault before your customer calls.')))
+  [void]$sb.Append("</p><a href=`"$(Kacis $link)`">$(Kacis (Cevir 'Nextus Servis''i inceleyin' 'See Nextus Servis')) &rarr;</a></section>")
+  [void]$sb.Append("<p class=`"not`">$(Kacis (Cevir 'Bu rapor yalnız bu bilgisayarda oluşturuldu; tarama sonucu hiçbir yere gönderilmedi. Tarayıcı makinelerde hiçbir ayarı değiştirmez, yalnız okur.' 'This report was created on this computer only; the scan result was not sent anywhere. The scanner changes no settings on the printers; it only reads.'))</p>")
+  [void]$sb.Append('</main></body></html>')
+
+  $klasor = $RaporKlasoru
+  if (-not $klasor) { $klasor = [Environment]::GetFolderPath('Desktop') }
+  if (-not $klasor -or -not (Test-Path -LiteralPath $klasor)) { $klasor = $env:TEMP }
+  $dosyaAdi = (Cevir 'Nextus-Makine-Raporu-' 'Nextus-Printer-Report-') + $simdi.ToString('yyyy-MM-dd-HHmm')
+  $htmlYol = Join-Path $klasor "$dosyaAdi.html"
+  $csvYol = Join-Path $klasor "$dosyaAdi.csv"
+  [IO.File]::WriteAllText($htmlYol, $sb.ToString(), (New-Object Text.UTF8Encoding($false)))
+
+  # Excel için: noktalı virgül ayraçlı, BOM'lu UTF-8. Cihazdan gelen metin
+  # = + - @ ile başlıyorsa formül sanılmasın diye başına kesme işareti.
+  $hucre = { param($v) $s = [string]$v; if ($s -match '^[=+\-@]') { $s = "'" + $s }; '"' + $s.Replace('"', '""') + '"' }
+  $kalemMetni = { param($l) (@($l | ForEach-Object { if ($null -ne $_.yuzde) { "$($_.ad) $($_.yuzde)%" } else { "$($_.ad) ?" } }) -join ', ') }
+  $csv = New-Object System.Text.StringBuilder
+  [void]$csv.AppendLine((Cevir 'IP;Makine;Seri no;Toplam sayaç;Toner;Parça ömrü;Makinenin bildirdiği' 'IP;Device;Serial;Total counter;Toner;Parts;Reported by the device'))
+  foreach ($r in $sirali) {
+    $uyariMetni = (@($r.kodlar | ForEach-Object { Cevir $UYARI_AD[$_][1] $UYARI_AD[$_][2] }) -join ', ')
+    $alanlar = @($r.c.ip, (Cihaz-Adi $r.c), $r.c.seri, $r.c.toplam, (& $kalemMetni $r.tonerler), (& $kalemMetni $r.parcalar), $uyariMetni)
+    [void]$csv.AppendLine((@($alanlar | ForEach-Object { & $hucre $_ }) -join ';'))
+  }
+  [IO.File]::WriteAllText($csvYol, $csv.ToString(), (New-Object Text.UTF8Encoding($true)))
+
+  return @{ html = $htmlYol; csv = $csvYol; bulunan = $n; tonerAz = $tonerAz; servis = $servis }
+}
+
+if ($GunlukKur -and -not $Ucretsiz) { Gunluk-Kur }
+
+if ($Ucretsiz -and -not $Kuru) {
+  Yaz 'Ücretsiz tarama: sonuç hiçbir yere gönderilmez, bu bilgisayarda rapor olarak açılır.' `
+      'Free scan: nothing is sent anywhere; the result opens as a report on this computer.'
+}
+if (-not $Ucretsiz -and -not $Kuru -and $Sunucu -like '__*') {
+  Yaz 'Bu dosyada sunucu adresi yok. Nextus Servis > Sayaçlar > Ağ Tarayıcı ekranından yeniden indirin.' `
+      'This file has no server address. Download it again from Nextus Servis > Meters > Network scanner.'
   if (-not $Sessiz) { [void](Read-Host) }
   exit 2
 }
@@ -446,6 +718,25 @@ $govde = [ordered]@{ surum = $SURUM; bilgisayar = $env:COMPUTERNAME; taranan = $
 $json = ConvertTo-Json -InputObject $govde -Depth 6 -Compress
 
 if ($Kuru) { Write-Output $json; exit 0 }
+
+if ($Ucretsiz) {
+  try {
+    $rapor = Rapor-Yaz ($cihazlar.ToArray()) ($hedefler.Count)
+  } catch {
+    Yaz "Rapor yazılamadı: $($_.Exception.Message)" "Could not write the report: $($_.Exception.Message)"
+    if (-not $Sessiz) { [void](Read-Host) }
+    exit 1
+  }
+  Yaz "Toneri bitmek üzere: $($rapor.tonerAz) · Servis isteyen: $($rapor.servis)" "Toner nearly out: $($rapor.tonerAz) · Requesting service: $($rapor.servis)"
+  Yaz "Rapor: $($rapor.html)" "Report: $($rapor.html)"
+  Yaz "Excel için: $($rapor.csv)" "For Excel: $($rapor.csv)"
+  if (-not $Sessiz) {
+    try { Invoke-Item -LiteralPath $rapor.html } catch { }
+    Yaz 'Kapatmak için Enter.' 'Press Enter to close.'
+    [void](Read-Host)
+  }
+  exit 0
+}
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 try {

@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
     },
   },
   serverExternalPackages: ['bcryptjs'],
+  // Paylaşılan kısa adresler → public/ altındaki düz sayfalar (oturum istemez).
+  async rewrites() {
+    return [
+      { source: '/ucretsiz-tarama', destination: '/ucretsiz-tarama.html' },
+      { source: '/gizlilik', destination: '/gizlilik.html' },
+    ];
+  },
   // "Bu adrese hep https ile gel" (HSTS) — YALNIZ gerçek alan adında; sslip ve
   // yerel adreslerde gönderilmez. includeSubDomains yok: alt alan adları etkilenmez.
   async headers() {

@@ -349,6 +349,37 @@ let ajanlar = [];
 let ajanPort = 0;
 let psKabuk = null;
 const betik = join(KOK, 'public/tarayici/nextus-sayac-tarayici.ps1');
+
+// ── ÜCRETSİZ KİP RAPORU sunucuyla aynı dili konuşuyor mu ─────────────────
+// Rapor betiğin içinde üretiliyor (sunucuya hiç gitmiyor); uyarı bitleri,
+// adları, marka listesi ve eşikler sunucudakinin kopyası. Kopya ayrışırsa
+// panel "sıkışma" derken rapor başka bir şey der.
+{
+  console.log('\nÜcretsiz kip raporu — sunucuyla eşlik\n');
+  const ps = readFileSync(betik, 'utf8');
+  const tsKaynak = readFileSync(join(KOK, 'src/lib/sayac-tarama.ts'), 'utf8');
+  const bitler = (metin, desen) => [...metin.matchAll(desen)].map((m) => `${m[1]}:${m[2].toLowerCase()}:${m[3]}`).sort();
+  const tsBit = bitler(tsKaynak.match(/HATA_BITLERI[^=]*=\s*\[([\s\S]*?)\];/)?.[1] ?? '', /\[(\d), 0x([0-9a-f]{2}), '([A-Z_]+)'\]/gi);
+  const psBit = bitler(ps.match(/\$HATA_BITLERI = @\(([\s\S]*?)\)/)?.[1] ?? '', /'(\d):([0-9a-f]{2}):([A-Z_]+)'/gi);
+  t('★ arıza bitleri sunucudakiyle birebir (15 bit)', tsBit.length === 15 && JSON.stringify(psBit) === JSON.stringify(tsBit), { ps: psBit, ts: tsBit });
+  const psAd = Object.fromEntries([...ps.matchAll(/^\s*([A-Z_]+)\s*= @\('(SERVIS|SARF|BILGI)', '([^']*)', '([^']*)'\)/gm)].map((m) => [m[1], { tur: m[2], tr: m[3], en: m[4] }]));
+  const uyariBul = (o) => { if (!o || typeof o !== 'object') return null; if (o.uyari?.SERVIS_GEREKLI) return o.uyari; for (const v of Object.values(o)) { const r = uyariBul(v); if (r) return r; } return null; };
+  let trU = null, enU = null;
+  try {
+    trU = uyariBul((await import(pathToFileURL(join(g, 'i18n', 'tr.js')).href)).tr);
+    enU = uyariBul((await import(pathToFileURL(join(g, 'i18n', 'en.js')).href)).en);
+  } catch (e) { console.log('  sözlük yüklenemedi:', e?.message); }
+  const kodlar = Object.keys(saf.UYARI_TURU).sort();
+  t('★ uyarı kodları ve türleri sunucudakiyle aynı', JSON.stringify(Object.keys(psAd).sort()) === JSON.stringify(kodlar) && kodlar.every((k) => psAd[k]?.tur === saf.UYARI_TURU[k]),
+    { ps: Object.keys(psAd).sort(), sunucu: kodlar });
+  t('★ uyarı adları paneldeki Türkçe ve İngilizce adlarla aynı', !!trU && !!enU && kodlar.every((k) => psAd[k]?.tr === trU[k] && psAd[k]?.en === enU[k]),
+    kodlar.filter((k) => psAd[k]?.tr !== trU?.[k] || psAd[k]?.en !== enU?.[k]));
+  const psMarka = Object.fromEntries([...(ps.match(/\$MARKALAR = @\{([\s\S]*?)\}/)?.[1] ?? '').matchAll(/'(\d+)' = '([^']+)'/g)].map((m) => [m[1], m[2]]));
+  t('marka listesi sunucudakiyle aynı', JSON.stringify(psMarka) === JSON.stringify(Object.fromEntries(Object.entries(saf.MARKALAR).map(([k, v]) => [String(k), v]))), psMarka);
+  t('toner ve parça eşikleri sunucudakiyle aynı', new RegExp(`\\$TONER_KRITIK = ${saf.TONER_KRITIK}\\b`).test(ps) && new RegExp(`\\$PARCA_KRITIK = ${saf.PARCA_KRITIK}\\b`).test(ps));
+  const tsDisi = tsKaynak.match(/const TONER_DISI = \/([^/]+)\/i;/)?.[1];
+  t('toner dışı kalem deseni (drum, atık kutusu…) sunucudakiyle aynı', !!tsDisi && ps.includes(`$TONER_DISI = '${tsDisi}'`), tsDisi);
+}
 if (process.platform !== 'win32') {
   console.log('\n  ⊘ PowerShell tarayıcısı atlandı (Windows değil)');
 } else {
@@ -401,6 +432,76 @@ if (process.platform !== 'win32') {
       t(`[${kabuk}] ★ arıza bit maskesi ham bayt olarak geldi ("0402")`, ky?.hata === '0402' && ky?.durumKodu === 3, { hata: ky?.hata, durumKodu: ky?.durumKodu });
       t(`[${kabuk}] hata tablosu olmayan cihazda hata boş, durum geliyor`, hp?.hata == null && hp?.durumKodu === 2, { hata: hp?.hata, durumKodu: hp?.durumKodu });
       t(`[${kabuk}] ★ betik sürümü sunucunun beklediği sürüm (TARAYICI_SURUMU)`, js.surum === saf.TARAYICI_SURUMU, { betik: js.surum, sunucu: saf.TARAYICI_SURUMU });
+    }
+
+    // ── ÜCRETSİZ KİP: anahtarsız dosya → yerel rapor, hiçbir yere gönderim yok
+    // Sitedeki genel bağlantıdan indirilen dosya (yer tutucular yerinde).
+    if (psKabuk) {
+      const KOTU_MIB = {
+        '1.3.6.1.2.1.1.1.0': { t: 'str', v: 'Generic printer' },
+        '1.3.6.1.2.1.1.2.0': { t: 'oid', v: '1.3.6.1.4.1.99999.1' },
+        '1.3.6.1.2.1.25.3.2.1.3.1': { t: 'str', v: '<img src=x onerror=alert(1)>' },
+        [`${PRT}.5.1.1.17.1`]: { t: 'str', v: '=HYPERLINK("x")' },
+        [`${PRT}.10.2.1.4.1.1`]: { t: 'cnt', v: 900 },
+        [`${PRT}.11.1.1.6.1.1`]: { t: 'str', v: 'Black Toner' },
+        [`${PRT}.11.1.1.6.1.2`]: { t: 'str', v: 'Waste Toner Box' },
+        [`${PRT}.11.1.1.8.1.1`]: { t: 'int', v: 100 },
+        [`${PRT}.11.1.1.8.1.2`]: { t: 'int', v: 100 },
+        [`${PRT}.11.1.1.9.1.1`]: { t: 'int', v: 80 },
+        [`${PRT}.11.1.1.9.1.2`]: { t: 'int', v: 5 },
+        '1.3.6.1.2.1.25.3.2.1.5.1': { t: 'int', v: 2 },
+        // Kâğıt azaldı (BILGI): tür sınıfı Türkçe kültürde 'bılgı'ya dönmemeli.
+        '1.3.6.1.2.1.25.3.5.1.2.1': { t: 'hex', v: '80' },
+      };
+      const kotu = await ajan('127.0.0.5', port, KOTU_MIB).catch(() => null);
+      const { spawn } = await import('node:child_process');
+      const { mkdirSync, readdirSync } = await import('node:fs');
+      const rk = mkdtempSync(join(tmpdir(), 'st-rapor-'));
+      const ucretsiz = (dil) => {
+        mkdirSync(join(rk, dil), { recursive: true });
+        return new Promise((ok) => {
+          const c = spawn(psKabuk, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', betik,
+            '-Sessiz', '-RaporKlasoru', join(rk, dil), '-Dil', dil,
+            '-Hedef', '127.0.0.1,127.0.0.2,127.0.0.3,127.0.0.5', '-Port', String(port), '-ZamanAsimi', '700']);
+          let o = '', e = '';
+          c.stdout.on('data', (d) => { o += d; });
+          c.stderr.on('data', (d) => { e += d; });
+          c.on('close', (kod) => ok({ kod, o, e }));
+        });
+      };
+      const dosya = (dil, uzanti) => { const f = readdirSync(join(rk, dil)).find((x) => x.endsWith(uzanti)); return f ? readFileSync(join(rk, dil, f)) : null; };
+
+      const tr = await ucretsiz('tr');
+      const htmlB = dosya('tr', '.html'), csvB = dosya('tr', '.csv');
+      const html = htmlB ? htmlB.toString('utf8') : '';
+      const csv = csvB ? csvB.toString('utf8').replace(/^\uFEFF/, '') : '';
+      t('★ ÜCRETSİZ: anahtarsız betik hatasız bitti, rapor ve CSV yazdı', kotu !== null && tr.kod === 0 && !!htmlB && !!csvB, { kod: tr.kod, hata: tr.e.slice(0, 400), son: tr.o.slice(-400) });
+      t('ücretsiz: ekranda "gönderilmez" uyarısı ve rapor yolu', /Ücretsiz tarama: sonuç hiçbir yere gönderilmez/.test(tr.o) && /Rapor: /.test(tr.o), tr.o.slice(-400));
+      const sayi = (metin, olcu) => (metin.match(new RegExp(`data-olcu="${olcu}"><b>([^<]+)</b>`)) ?? [])[1];
+      t('★ ücretsiz: üç yazıcı bulundu, ağ anahtarı elendi', sayi(html, 'bulunan') === '3', sayi(html, 'bulunan'));
+      t('ücretsiz: toneri bitmek üzere 1 (HP %12), servis isteyen 1 (Kyocera sıkışma)', sayi(html, 'toner') === '1' && sayi(html, 'servis') === '1', { toner: sayi(html, 'toner'), servis: sayi(html, 'servis') });
+      t('ücretsiz: toplam sayaç Türkçe biçimde (120.000 + 45.678 + 900)', sayi(html, 'sayac') === '166.578', sayi(html, 'sayac'));
+      t('★ ücretsiz: uyarılar panelle aynı kod, ad ve sırayla', /data-kod="SIKISMA">Kâğıt sıkışması<\/span><span class="uyari servis" data-kod="BAKIM_GECIKTI">Bakım zamanı geçti</.test(html),
+        html.match(/data-kod="[A-Z_]+"/g));
+      t('★ ücretsiz: tür sınıfı Türkçe kültürde bozulmuyor ("servis"/"bilgi", "servıs"/"bılgı" değil)', /class="uyari servis" data-kod="SIKISMA"/.test(html) && /class="uyari bilgi" data-kod="KAGIT_AZ"/.test(html), html.match(/class="uyari [^"]*"/g));
+      t('ücretsiz: marka kurum numarasından ("Kyocera TASKalfa 2553ci")', html.includes('Kyocera TASKalfa 2553ci'));
+      t('ücretsiz: HP toneri %12 "az"; Kyocera camgöbeği seviye bildirmiyor → "kalan var"', /class="olcu az" data-yuzde="12"/.test(html) && /Cyan Toner <b>kalan var<\/b>/.test(html));
+      t('ücretsiz: atık kutusu parça ömründe, %5 "az"', /class="olcu az" data-yuzde="5">Waste Toner Box/.test(html));
+      const sira = ['127.0.0.1', '127.0.0.2', '127.0.0.5'].map((ip) => html.indexOf(`data-ip="${ip}"`));
+      t('ücretsiz: sıra panelle aynı — servis isteyen, toneri biten, parça ömrü', sira.every((x) => x > 0) && sira[0] < sira[1] && sira[1] < sira[2], sira);
+      t('★ ücretsiz: cihazdan gelen metin HTML olarak çalışmıyor (kaçışlı)', html.includes('&lt;img src=x onerror=alert(1)&gt;') && !html.includes('<img src=x'));
+      t('ücretsiz: tanıtım bağlantısı ve "gönderilmedi" notu', html.includes('href="https://nextusservis.com/?kaynak=tarayici"') && /hiçbir yere gönderilmedi/.test(html));
+      t('ücretsiz: CSV BOM\'lu, başlık + 3 satır', !!csvB && csvB.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])) && csv.trim().split(/\r?\n/).length === 4, csv.slice(0, 300));
+      t('★ ücretsiz: CSV\'de formül sanılacak hücre etkisiz (başına kesme işareti)', csv.includes(`"'=HYPERLINK(""x"")"`) && !csv.includes(`;"=HYPERLINK`), csv.slice(0, 600));
+
+      const en = await ucretsiz('en');
+      const enHtmlB = dosya('en', '.html');
+      const enHtml = enHtmlB ? enHtmlB.toString('utf8') : '';
+      t('★ İngilizce kip: ekran İngilizce (Yaz fonksiyonu İngilizcede de Türkçe yazıyordu)', en.kod === 0 && /Free scan/.test(en.o) && /Printers found: 3/.test(en.o) && !/Bulunan yazıcı/.test(en.o), en.o.slice(-400));
+      t('İngilizce kip: rapor İngilizce, sayaç İngilizce biçimde', /lang="en"/.test(enHtml) && enHtml.includes('Printers on your network')
+        && sayi(enHtml, 'sayac') === '166,578' && /data-kod="SIKISMA">Paper jam</.test(enHtml), { sayac: sayi(enHtml, 'sayac') });
+      rmSync(rk, { recursive: true, force: true });
+      if (kotu) kotu.close();
     }
   }
 }

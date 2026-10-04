@@ -854,7 +854,7 @@ const BODY = `
           <li>Müşteri, cihaz ve <strong>servis fişi</strong> yönetimi</li>
           <li><strong>Stok + barkod</strong> (LS2208) ve <strong>Zebra etiket</strong></li>
           <li>Sarf takibi ve <strong>toner tükenme tahmini</strong> — sayaç hızından "kaç gün sonra biter"</li>
-          <li><strong>Ağ Tarayıcı</strong> — sayaç, toner yüzdesi, parça ömrü (drum, fırın, atık kutusu) ve arıza durumu yazıcının kendisinden, her sabah; tarayıcı kendini günceller — <span class="cap-cond">müşteri ağında bir Windows bilgisayar gerekir</span></li>
+          <li><strong>Ağ Tarayıcı</strong> — sayaç, toner yüzdesi, parça ömrü (drum, fırın, atık kutusu) ve arıza durumu yazıcının kendisinden, her sabah; tarayıcı kendini günceller — <span class="cap-cond">müşteri ağında bir Windows bilgisayar gerekir</span> · <a href="/ucretsiz-tarama">ücretsiz deneyin →</a></li>
           <li>Toner değişimi <strong>kendiliğinden kaydedilir</strong>; istenirse üst üste iki taramada görülen arızadan <strong>fiş kendiliğinden açılır</strong></li>
           <li><strong>Rota planlama</strong> — Google Maps çok duraklı bağlantı</li>
           <li><strong>QR ile müşteri arıza bildirimi</strong> (giriş gerektirmez)</li>
