@@ -327,6 +327,8 @@ export interface CihazSonucu {
   tonerDegisti?: boolean;
   /** Bu taramada kendiliğinden açılan fişin numarası. */
   fisAcildi?: string | null;
+  /** Sistemde yoktu; bayi bu taramadan cihaz olarak ekledi (taramadanCihazEkle). */
+  eklendi?: boolean;
 }
 
 /** Sarf seviyesi yüzdesi. -1/-2/-3 (sınırsız / bilinmiyor / biraz var) sayı değildir. */

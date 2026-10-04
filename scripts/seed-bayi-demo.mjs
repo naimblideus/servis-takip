@@ -169,6 +169,9 @@ const KOMSULAR = [
 const patronEpostasi = (bayi) => `demo${bayi.n}@demo.com`;
 const teknisyenEpostasi = (bayi) => `tekniker${bayi.n}@demo.com`;
 const SIFRE = process.env.BAYI_DEMO_SIFRE || 'demo1234';
+// lib/sayac-tarama TARAYICI_SURUMU ile AYNI olmalı (test-sayac-tarayici
+// karşılaştırıyor); geride kalırsa demodaki bilgisayar "eski sürüm" görünür.
+const TARAYICI_SURUMU = 3;
 
 const BUGUN = new Date();
 const gunOnce = (n) => new Date(BUGUN.getTime() - n * 86400000);
@@ -1292,6 +1295,91 @@ async function kur(bayi) {
   });
   console.log(`  1 teklif (${teklif.teklifNo})`);
 
+  // ── AĞ TARAYICI ───────────────────────────────────────────────────────
+  // Demonun en çok soru alan ekranı: sistem hangi makinenin sıkıştığını,
+  // hangisinin toneri ya da drumu bittiğini KENDİSİ söylüyor. Veri yoksa
+  // ekran boş açılır ve anlatılamaz. En büyük müşterinin ağında birkaç saat
+  // önce bir tarama var: makineleri eşleşiyor (sayaçlar onay bekliyor),
+  // ikisi sistemde kayıtlı değil — "cihaz olarak ekle" kutusu görünsün.
+  //
+  // ⚠ Ölçüm 3 günden eskiyse panel onu güncel saymaz (DURUM_TAZE_MS):
+  // demo günü sabahı bu betik bir kez çalıştırılmalı.
+  let agUyari = 0;
+  {
+    const ana = musteriler[0];
+    const agCihazlari = await p.device.findMany({
+      where: { tenantId: tenant.id, customerId: ana.id },
+      orderBy: { serialNo: 'asc' },
+      select: { id: true, brand: true, model: true, serialNo: true, counterBlack: true, counterColor: true },
+    });
+    const taramaAni = new Date(BUGUN.getTime() - 3 * 3600000);
+    const dun = new Date(taramaAni.getTime() - 86400000);
+    // Makine başına cihazın kendi söylediği: biri sıkışık ve toneri bitiyor,
+    // biri servis istiyor, birinin drumu bitmek üzere; gerisi temiz.
+    const DURUMLAR = [
+      { siyah: 6, renk: 52, uyarilar: ['SIKISMA'] },
+      { siyah: 58, renk: 37, uyarilar: ['SERVIS_GEREKLI'] },
+      { siyah: 71, renk: 64, uyarilar: [], drum: 8 },
+      { siyah: 44, renk: 81, uyarilar: [] },
+      { siyah: 90, renk: 58, uyarilar: [] },
+      { siyah: 33, renk: 70, uyarilar: [] },
+    ];
+    const satirlar = [];
+    for (let i = 0; i < agCihazlari.length; i++) {
+      const d = agCihazlari[i];
+      const durum = DURUMLAR[i % DURUMLAR.length];
+      const renkli = (d.counterColor ?? 0) > 0;
+      // Sayaç son okumanın ÜSTÜNDE olmalı; altında kalırsa onay "geriledi" der.
+      const son = await p.counterReading.findFirst({ where: { deviceId: d.id }, orderBy: { readingDate: 'desc' }, select: { counterBlack: true, counterColor: true } });
+      const sb = Math.max(son?.counterBlack ?? 0, d.counterBlack ?? 0) + rnd(180, 900);
+      const rk = renkli ? Math.max(son?.counterColor ?? 0, d.counterColor ?? 0) + rnd(60, 400) : (d.counterColor ?? 0);
+      const kalemler = [
+        { ad: 'Black Toner', yuzde: durum.siyah, tur: 'TONER' },
+        ...(renkli ? [{ ad: 'Cyan Toner', yuzde: durum.renk, tur: 'TONER' }] : []),
+        { ad: 'Drum Unit', yuzde: durum.drum ?? rnd(35, 90), tur: 'PARCA' },
+      ];
+      const olcum = { siyah: durum.siyah, renkli: renkli ? durum.renk : null };
+      const parca = Math.min(...kalemler.filter((k) => k.tur === 'PARCA').map((k) => k.yuzde));
+      await p.device.update({
+        where: { id: d.id },
+        data: {
+          olcumAt: taramaAni, olcumSiyah: olcum.siyah, olcumRenkli: olcum.renkli, olcumParca: parca, olcumSarf: kalemler,
+          cihazUyarilari: durum.uyarilar, uyariAt: durum.uyarilar.length ? dun : null,
+        },
+      });
+      if (durum.uyarilar.length) {
+        agUyari++;
+        await p.cihazOlayi.createMany({ data: durum.uyarilar.map((kod) => ({ tenantId: tenant.id, deviceId: d.id, kod, basladi: dun, gorulme: 2 })) });
+      }
+      satirlar.push({
+        ip: `192.168.1.${21 + i}`, marka: d.brand, model: d.model, seri: d.serialNo, deviceId: d.id,
+        toplam: sb + (renkli ? rk : 0), siyah: sb, renkli: rk, ayrim: renkli ? 'DOGRULANDI' : 'TEK_RENK', sebep: null,
+        sonSiyah: d.counterBlack, sonRenkli: d.counterColor, durum: 'YAZILABILIR',
+        sarf: kalemler.map((k) => ({ ad: k.ad, yuzde: k.yuzde })), uyarilar: durum.uyarilar, olcum,
+        durumOkundu: true, kalemler, parca,
+      });
+    }
+    // Sistemde kayıtlı olmayan iki yazıcı: müşterinin kendi aldığı ya da
+    // henüz girilmemiş makineler. "Cihaz olarak ekle" kutusu bunlar için.
+    const kayitsiz = [
+      { marka: 'HP', model: 'HP LaserJet Pro M404dn', seri: `PHCBR${bayi.n}${rnd(1000, 9999)}`, sb: rnd(12000, 30000), toner: 63, ad: 'Black Cartridge HP 59A' },
+      { marka: 'Brother', model: 'MFC-L2750DW', seri: `E78${bayi.n}${rnd(10000, 99999)}`, sb: rnd(6000, 15000), toner: 18, ad: 'Black Toner' },
+    ];
+    kayitsiz.forEach((k, i) => satirlar.push({
+      ip: `192.168.1.${60 + i}`, marka: k.marka, model: k.model, seri: k.seri, deviceId: null,
+      toplam: k.sb, siyah: k.sb, renkli: 0, ayrim: 'TEK_RENK', sebep: null, sonSiyah: null, sonRenkli: null, durum: 'ESLESMEDI',
+      sarf: [{ ad: k.ad, yuzde: k.toner }], uyarilar: [], olcum: { siyah: k.toner, renkli: null },
+      durumOkundu: true, kalemler: [{ ad: k.ad, yuzde: k.toner, tur: 'TONER' }], parca: null,
+    }));
+    await p.sayacTaramasi.create({
+      data: {
+        tenantId: tenant.id, createdAt: taramaAni, bilgisayar: 'RESEPSIYON-PC', surum: TARAYICI_SURUMU, taranan: 254,
+        bulunan: satirlar.length, eslesen: agCihazlari.length, yazilabilir: agCihazlari.length, yazilan: 0, sonuc: satirlar,
+      },
+    });
+    console.log(`  ağ tarayıcı: ${ana.name} ağında ${satirlar.length} yazıcı · ${agUyari} uyarı · ${kayitsiz.length} yazıcı eklenmeyi bekliyor`);
+  }
+
   // ── ÖZET ──────────────────────────────────────────────────────────────
   const say = async (f) => f;
   console.log('');
@@ -1366,6 +1454,10 @@ async function dogrula(tenantId) {
     p.customer.count({ where: { tenantId, OR: [{ taxNo: null }, { legalName: null }, { eInvoiceUser: null }] } }),
     p.part.count({ where: { tenantId, stockQty: { lte: 2 } } }),
   ]);
+  // Ağ Tarayıcı: panelin "Cihaz durumu" listesi ve "cihaz olarak ekle" kutusu dolu mu.
+  const agUyarisi = await p.device.count({ where: { tenantId, cihazUyarilari: { isEmpty: false } } });
+  const sonTarama = await p.sayacTaramasi.findFirst({ where: { tenantId }, orderBy: { createdAt: 'desc' }, select: { sonuc: true } });
+  const eklenecek = (Array.isArray(sonTarama?.sonuc) ? sonTarama.sonuc : []).filter((s) => s.durum === 'ESLESMEDI' && !s.deviceId).length;
 
   return [
     ['otomatik sayaç gönderen', calisan],
@@ -1380,6 +1472,8 @@ async function dogrula(tenantId) {
     ['sayaç e-postası', epostaKuyruk],
     ['vergi bilgisi eksik müşteri', eksikVergi],
     ['kritik stok', kritikStok],
+    ['ağ tarayıcı uyarısı', agUyarisi],
+    ['taramadan eklenecek yazıcı', eklenecek],
   ];
 }
 

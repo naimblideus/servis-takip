@@ -30,6 +30,7 @@ interface Sonuc {
   olcum?: { siyah: number | null; renkli: number | null };
   tonerDegisti?: boolean;
   fisAcildi?: string | null;
+  eklendi?: boolean;
 }
 interface Tarama {
   id: string; createdAt: string; bilgisayar: string | null; taranan: number;
@@ -50,7 +51,7 @@ interface Bilgisayar {
 }
 interface Liste {
   taramalar: Tarama[];
-  cihazlar: Record<string, { etiket: string; seri: string; musteri: string | null }>;
+  cihazlar: Record<string, { etiket: string; seri: string; musteri: string | null; musteriId?: string | null }>;
   durum?: { izlenen: number; cihazlar: DikkatCihazi[] };
   bilgisayarlar?: Bilgisayar[];
 }
@@ -81,6 +82,14 @@ const RENK: Record<Durum, { bg: string; fg: string }> = {
 
 const kart: React.CSSProperties = { background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.1rem 1.25rem', marginBottom: '1rem' };
 
+/** Yazıcının bildirdiği model çoğu zaman markayı da içeriyor ("HP LaserJet…"); marka iki kez yazılmasın. */
+function cihazAdi(marka: string | null, model: string | null): string {
+  if (!model) return marka || '—';
+  if (!marka) return model;
+  const m = model.toLowerCase(), k = marka.toLowerCase();
+  return m === k || m.startsWith(`${k} `) ? model : `${marka} ${model}`;
+}
+
 export default function SayacTarayiciPage() {
   const t = useT();
   const tt = t.tarayici;
@@ -92,6 +101,11 @@ export default function SayacTarayiciPage() {
   const [mesgul, setMesgul] = useState(false);
   const [bilgi, setBilgi] = useState<string | null>(null);
   const [hata, setHata] = useState<string | null>(null);
+  // Taramadan cihaz ekleme: müşteri listesi yalnız gerektiğinde çekilir;
+  // işareti KALDIRILAN seriler ve seçilen müşteri tarama başına tutulur.
+  const [musteriler, setMusteriler] = useState<{ id: string; name: string }[] | null>(null);
+  const [cikarilan, setCikarilan] = useState<Record<string, string[]>>({});
+  const [ekleMusteri, setEkleMusteri] = useState<Record<string, string>>({});
 
   const yukle = useCallback(async () => {
     const [a, l] = await Promise.all([
@@ -160,6 +174,88 @@ export default function SayacTarayiciPage() {
     else setBilgi(doldur(tt.kaydedildi, { n: j.ozet?.yazilan ?? 0 }));
     await yukle();
     setMesgul(false);
+  };
+
+  // ── Taramadan cihaz ekleme ── Yeni bayinin ilk günü: tarayıcının bulduğu
+  // ama sistemde olmayan yazıcılar tek tıkla cihaz olur. Seri, marka, model
+  // ve sayaç sunucuda taramadan okunur; buradan yalnız seçim gider.
+  const eklenebilir = (tr: Tarama) => tr.sonuc.filter((s) => s.durum === 'ESLESMEDI' && !s.deviceId && s.seri);
+  // Varsayılan müşteri: bu taramada zaten eşleşen cihazların en çok bağlı olduğu.
+  const varsayilanMusteri = (tr: Tarama) => {
+    const say = new Map<string, number>();
+    for (const s of tr.sonuc) {
+      const m = s.deviceId ? liste?.cihazlar[s.deviceId]?.musteriId : null;
+      if (m) say.set(m, (say.get(m) ?? 0) + 1);
+    }
+    return [...say.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? '';
+  };
+  const acikTarama = liste?.taramalar.find((x) => x.id === acik) ?? null;
+  const eklemeVar = Boolean(acikTarama && eklenebilir(acikTarama).length);
+  useEffect(() => {
+    if (!eklemeVar || musteriler) return;
+    fetch('/api/customers')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((l) => setMusteriler(Array.isArray(l) ? l.map((m: { id: string; name: string }) => ({ id: m.id, name: m.name })) : []))
+      .catch(() => setMusteriler([]));
+  }, [eklemeVar, musteriler]);
+
+  const isaretDegistir = (taramaId: string, seri: string, secili: boolean) =>
+    setCikarilan((x) => {
+      const l = x[taramaId] ?? [];
+      return { ...x, [taramaId]: secili ? l.filter((s) => s !== seri) : [...l, seri] };
+    });
+
+  const ekle = async (tr: Tarama) => {
+    const customerId = ekleMusteri[tr.id] ?? varsayilanMusteri(tr);
+    const cik = cikarilan[tr.id] ?? [];
+    const seriler = eklenebilir(tr).map((s) => s.seri as string).filter((s) => !cik.includes(s));
+    if (!customerId || !seriler.length) return;
+    setMesgul(true); setHata(null); setBilgi(null);
+    const r = await fetch(`/api/sayac/tarayici/${tr.id}/cihaz`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ customerId, seriler }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) setHata(j.error ?? tt.kaydedilemedi);
+    else setBilgi([
+      j.eklenen ? doldur(tt.eklendiBilgi, { n: j.eklenen }) : null,
+      j.zatenVar ? doldur(tt.zatenVarBilgi, { n: j.zatenVar }) : null,
+    ].filter(Boolean).join(' '));
+    await yukle();
+    setMesgul(false);
+  };
+
+  const ekleKutusu = (tr: Tarama) => {
+    const adaylar = eklenebilir(tr);
+    if (!adaylar.length) return null;
+    const cik = cikarilan[tr.id] ?? [];
+    const secili = adaylar.filter((s) => !cik.includes(s.seri as string)).length;
+    const customerId = ekleMusteri[tr.id] ?? varsayilanMusteri(tr);
+    const kapali = mesgul || !customerId || secili === 0;
+    return (
+      <div style={{ margin: '0.9rem 0 0.4rem', padding: '0.85rem 1rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10 }}>
+        <strong style={{ display: 'block', color: '#1e3a8a' }}>{doldur(tt.ekleBaslik, { n: adaylar.length })}</strong>
+        <p style={{ margin: '0.25rem 0 0.65rem', fontSize: '0.84rem', color: '#374151' }}>{tt.ekleAciklama}</p>
+        {musteriler && musteriler.length === 0 ? (
+          <p style={{ margin: 0, fontSize: '0.86rem', color: '#374151' }}>
+            {tt.ekleMusteriYok}{' '}
+            <Link href="/customers/new" style={{ color: '#1d4ed8', fontWeight: 700, textDecoration: 'none' }}>{tt.ekleMusteriEkle}</Link>
+          </p>
+        ) : (
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <select value={customerId} disabled={!musteriler || mesgul} aria-label={tt.ekleMusteriSec}
+              onChange={(e) => setEkleMusteri((x) => ({ ...x, [tr.id]: e.target.value }))}
+              style={{ padding: '0.45rem 0.6rem', border: '1px solid #d1d5db', borderRadius: 8, minWidth: 220, maxWidth: '100%', background: 'white' }}>
+              <option value="">{musteriler ? tt.ekleMusteriSec : t.genel.yukleniyor}</option>
+              {(musteriler ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <button onClick={() => ekle(tr)} disabled={kapali}
+              style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: kapali ? 'default' : 'pointer', opacity: kapali ? 0.55 : 1 }}>
+              {doldur(tt.ekleDugme, { n: secili })}
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const fark = (yeni: number | null, eski: number | null) =>
@@ -367,6 +463,7 @@ export default function SayacTarayiciPage() {
                   <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{tt.kaydetNot}</span>
                 </div>
               )}
+              {ekleKutusu(tr)}
               <div style={{ overflowX: 'auto', marginTop: '0.75rem' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem', minWidth: 760 }}>
                   <thead>
@@ -377,13 +474,24 @@ export default function SayacTarayiciPage() {
                   <tbody>
                     {tr.sonuc.map((s, i) => {
                       const c = s.deviceId ? liste.cihazlar[s.deviceId] : null;
-                      const renk = RENK[s.durum] ?? RENK.DEGISMEDI;
+                      const renk = s.eklendi ? RENK.YAZILDI : RENK[s.durum] ?? RENK.DEGISMEDI;
                       const toner = s.sarf.filter((x) => x.yuzde !== null).map((x) => x.yuzde as number);
+                      const aday = s.durum === 'ESLESMEDI' && !s.deviceId && s.seri;
                       return (
                         <tr key={`${s.ip}-${i}`} style={{ borderBottom: '1px solid #f3f4f6', verticalAlign: 'top' }}>
                           <td style={{ padding: '0.5rem' }}>
-                            <div style={{ fontWeight: 600 }}>{[s.marka, s.model].filter(Boolean).join(' ') || '—'}</div>
-                            <div style={{ color: '#9ca3af' }}>{s.ip}{s.seri ? ` · ${s.seri}` : ''}</div>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                              {aday && (
+                                <input type="checkbox" aria-label={tt.ekleSec} disabled={mesgul}
+                                  checked={!(cikarilan[tr.id] ?? []).includes(s.seri as string)}
+                                  onChange={(e) => isaretDegistir(tr.id, s.seri as string, e.target.checked)}
+                                  style={{ marginTop: 3, width: 16, height: 16 }} />
+                              )}
+                              <div>
+                                <div style={{ fontWeight: 600 }}>{cihazAdi(s.marka, s.model)}</div>
+                                <div style={{ color: '#9ca3af' }}>{s.ip}{s.seri ? ` · ${s.seri}` : ''}</div>
+                              </div>
+                            </div>
                           </td>
                           <td style={{ padding: '0.5rem' }}>
                             {c ? (
@@ -408,7 +516,7 @@ export default function SayacTarayiciPage() {
                           </td>
                           <td style={{ padding: '0.5rem' }}>
                             <span style={{ background: renk.bg, color: renk.fg, padding: '0.15rem 0.55rem', borderRadius: 999, fontWeight: 700, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                              {(tt.durum as Record<string, string>)[s.durum] ?? s.durum}
+                              {s.eklendi ? tt.eklendi : (tt.durum as Record<string, string>)[s.durum] ?? s.durum}
                             </span>
                             {(s.sebep || s.durum === 'GERILEDI' || s.hataKodu) && (
                               <div style={{ color: '#6b7280', marginTop: 4, maxWidth: 260 }}>

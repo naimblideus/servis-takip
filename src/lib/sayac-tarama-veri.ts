@@ -15,10 +15,11 @@ import { degisimKaydet } from '@/lib/verim-ogrenme';
 import { generateTicketNumber } from '@/lib/ticket-number';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import { sozluk, doldur } from '@/lib/i18n/sozluk';
+import { normalizeBrandModel } from '@/lib/device-brands';
 import {
   cihazSonucu, tekrarlariAyikla, taramaOzeti, ilerlemeDurumu, tonerDegistiMi,
   dikkatSirasi, TONER_KRITIK, DURUM_TAZE_MS, SESSIZ_MS, TARAYICI_SURUMU,
-  olayFarki, fisAcacakOlaylar, UYARI_KATEGORISI, PARCA_KRITIK,
+  olayFarki, fisAcacakOlaylar, UYARI_KATEGORISI, PARCA_KRITIK, seriEsle, seriNormal,
   type CihazSonucu, type TaramaGovdesi, type TaramaOzeti, type UyariKodu, type SarfKalemi,
 } from '@/lib/sayac-tarama';
 
@@ -83,8 +84,11 @@ const DEGISIM_PENCERESI_MS = 7 * 86_400_000;
  * kaydedilmez. Arada fişle ya da elle değişim girilmişse yine kaydedilmez.
  * Renkli kanal kaydedilmiyor: "renkli" en düşük renk; bir rengin değişmesi
  * öbürlerinin de değiştiği anlamına gelmez.
+ *
+ * `simdi` ölçümün anı: taramadan sonradan eklenen cihazda taramanın kendi
+ * zamanı verilir; günler önceki ölçüm "bugün görüldü" sayılmamalı.
  */
-async function durumuYaz(tenantId: string, sonuclar: CihazSonucu[]): Promise<CihazSonucu[]> {
+async function durumuYaz(tenantId: string, sonuclar: CihazSonucu[], simdi = new Date()): Promise<CihazSonucu[]> {
   const tekil = sonuclar.filter((s) => s.deviceId && s.durum !== 'BIRDEN_FAZLA');
   if (!tekil.length) return sonuclar;
   const ids = tekil.map((s) => s.deviceId as string);
@@ -99,7 +103,6 @@ async function durumuYaz(tenantId: string, sonuclar: CihazSonucu[]): Promise<Cih
     }),
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { tarayiciOtomatikFis: true, locale: true } }),
   ]);
-  const simdi = new Date();
   const ek = new Map<CihazSonucu, Partial<CihazSonucu>>();
   for (const s of tekil) {
     const d = onceki.get(s.deviceId as string);
@@ -328,6 +331,139 @@ export async function taramaOnayla(tenantId: string, id: string): Promise<OnayCe
   return { durum: 'TAMAM', ozet };
 }
 
+export type EklemeCevabi =
+  | { durum: 'YOK' }
+  | { durum: 'MUSTERI_YOK' }
+  | { durum: 'TAMAM'; eklenen: number; zatenVar: number };
+
+/** Taramadaki model adı: marka başta tekrar ediyorsa atılır ("KYOCERA ECOSYS…" → "ECOSYS…"). */
+export function taramaModeli(marka: string, model: string): string {
+  const m = model.trim().replace(/\s+/g, ' ');
+  const kirpik = marka && m.toLowerCase().startsWith(`${marka.toLowerCase()} `) ? m.slice(marka.length + 1) : m;
+  return kirpik.slice(0, 120);
+}
+
+/**
+ * TARAMADAN CİHAZ EKLEME — yeni bayinin ilk günü.
+ *
+ * Tarayıcı müşteri ağındaki yazıcıları buldu ama sistemde kayıtlı değiller
+ * (ESLESMEDI). Seri, marka, model ve sayaç taramada zaten var: kırk makineyi
+ * elle yazdırmak hem saatler alır hem seride harf hatası üretir (O/0, I/1);
+ * o hata sayaç e-postasını her ay sessizce eşleşmez bırakır.
+ *
+ * İstemciden DEĞER alınmaz: istemci yalnız hangi serileri ve hangi müşteriyi
+ * seçtiğini söyler; marka, model ve sayaç sunucudaki taramadan okunur.
+ * Başlangıç sayacı zincirin başıdır: fark 0, faturaya kapalı. Devredilen
+ * sayaç bu ayın kullanımı değildir (elle eklemedeki kuralın aynısı). Toner
+ * ve uyarılar taramanın kendi anıyla yazılır.
+ *
+ * Aynı seri iki kez eklenmez: sistemde (etiket ya da bildirilen seriyle)
+ * varsa "zaten var" sayılır; aynı anda gelen iki istekte (tenantId,
+ * serialNo) benzersizliği ikinci kaydı reddeder.
+ */
+export async function taramadanCihazEkle(
+  tenantId: string,
+  taramaId: string,
+  customerId: string,
+  seriler: readonly string[],
+): Promise<EklemeCevabi> {
+  const [kayit, musteri] = await Promise.all([
+    prisma.sayacTaramasi.findFirst({ where: { id: taramaId, tenantId }, select: { createdAt: true, sonuc: true } }),
+    prisma.customer.findFirst({ where: { id: customerId, tenantId }, select: { id: true } }),
+  ]);
+  if (!kayit) return { durum: 'YOK' };
+  if (!musteri) return { durum: 'MUSTERI_YOK' };
+
+  const istenen = new Set(seriler.map(seriNormal).filter((s): s is string => Boolean(s)));
+  const adaylar = new Map<string, CihazSonucu>();
+  for (const s of (Array.isArray(kayit.sonuc) ? kayit.sonuc : []) as unknown as CihazSonucu[]) {
+    const k = seriNormal(s.seri);
+    if (k && s.durum === 'ESLESMEDI' && !s.deviceId && istenen.has(k) && !adaylar.has(k)) adaylar.set(k, s);
+  }
+
+  const mevcut = await sistemCihazlari(tenantId);
+  const isaret = new Map<string, { deviceId: string; eklendi: boolean }>();
+  const eklenenler: CihazSonucu[] = [];
+  let zatenVar = 0;
+  for (const [k, s] of adaylar) {
+    const esler = seriEsle(s.seri, mevcut);
+    if (esler.length) {
+      zatenVar++;
+      if (esler.length === 1) isaret.set(k, { deviceId: esler[0].id, eklendi: false });
+      continue;
+    }
+    const seri = (s.seri as string).trim();
+    const nz = normalizeBrandModel(s.marka, s.model);
+    const brand = nz.brand || '—';
+    const sayacVar = s.siyah !== null && s.renkli !== null;
+    for (let deneme = 0; ; deneme++) {
+      try {
+        const id = await prisma.$transaction(async (tx) => {
+          const cihaz = await tx.device.create({
+            data: {
+              tenantId, customerId, brand,
+              model: taramaModeli(brand, nz.model) || '—',
+              serialNo: seri,
+              location: `IP ${s.ip}`,
+              counterBlack: sayacVar ? s.siyah : null,
+              counterColor: sayacVar ? s.renkli : null,
+              qrTokenHash: randomBytes(32).toString('hex'),
+              publicCode: `DEV-${randomBytes(3).toString('hex').toUpperCase()}`,
+            },
+            select: { id: true },
+          });
+          if (sayacVar) {
+            await tx.counterReading.create({
+              data: {
+                tenantId, deviceId: cihaz.id,
+                counterBlack: s.siyah as number, counterColor: s.renkli as number,
+                deltaBlack: 0, deltaColor: 0, calculatedCost: 0,
+                billed: true, source: KAYNAK_TARAMA, readingDate: kayit.createdAt,
+              },
+            });
+          }
+          return cihaz.id;
+        });
+        isaret.set(k, { deviceId: id, eklendi: true });
+        eklenenler.push({ ...s, deviceId: id });
+        break;
+      } catch (e) {
+        const hedef = e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002' ? String(e.meta?.target ?? '') : null;
+        // Kısa kod çakıştı: yeni kodla bir daha dene.
+        if (hedef?.includes('publicCode') && deneme < 2) continue;
+        // Aynı anda gelen öbür istek bu seriyi az önce ekledi.
+        if (hedef?.includes('serialNo')) {
+          zatenVar++;
+          const d = await prisma.device.findFirst({ where: { tenantId, serialNo: seri }, select: { id: true } });
+          if (d) isaret.set(k, { deviceId: d.id, eklendi: false });
+          break;
+        }
+        throw e;
+      }
+    }
+  }
+
+  if (eklenenler.length) await durumuYaz(tenantId, eklenenler, kayit.createdAt);
+
+  // Taramadaki satır cihaza bağlanır: ekranda "Eklendi" görünür, bir daha
+  // eklenmeye aday olmaz. Satır kilitlenir; aynı anda iki ekleme birbirinin
+  // işaretini ezmesin.
+  if (isaret.size) {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "SayacTaramasi" WHERE id = ${taramaId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+      const guncel = await tx.sayacTaramasi.findFirst({ where: { id: taramaId, tenantId }, select: { sonuc: true } });
+      const satirlar = (Array.isArray(guncel?.sonuc) ? guncel.sonuc : []) as unknown as CihazSonucu[];
+      const yeni = satirlar.map((s) => {
+        const k = seriNormal(s.seri);
+        const e = k && s.durum === 'ESLESMEDI' && !s.deviceId ? isaret.get(k) : undefined;
+        return e ? { ...s, deviceId: e.deviceId, ...(e.eklendi ? { eklendi: true } : {}) } : s;
+      });
+      await tx.sayacTaramasi.update({ where: { id: taramaId }, data: { sonuc: yeni as unknown as object } });
+    });
+  }
+  return { durum: 'TAMAM', eklenen: eklenenler.length, zatenVar };
+}
+
 /** Panelin gösterdiği son taramalar ve eşleşen cihazların etiketi. */
 export async function sonTaramalar(tenantId: string, adet = 10) {
   const taramalar = await prisma.sayacTaramasi.findMany({
@@ -346,12 +482,14 @@ export async function sonTaramalar(tenantId: string, adet = 10) {
   const cihazlar = ids.size
     ? await prisma.device.findMany({
         where: { tenantId, id: { in: [...ids] } },
-        select: { id: true, brand: true, model: true, serialNo: true, customer: { select: { name: true } } },
+        select: { id: true, brand: true, model: true, serialNo: true, customer: { select: { id: true, name: true } } },
       })
     : [];
   return {
     taramalar,
-    cihazlar: Object.fromEntries(cihazlar.map((c) => [c.id, { etiket: `${c.brand} ${c.model}`, seri: c.serialNo, musteri: c.customer?.name ?? null }])),
+    cihazlar: Object.fromEntries(cihazlar.map((c) => [c.id, {
+      etiket: `${c.brand} ${c.model}`, seri: c.serialNo, musteri: c.customer?.name ?? null, musteriId: c.customer?.id ?? null,
+    }])),
   };
 }
 

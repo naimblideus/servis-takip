@@ -379,6 +379,8 @@ const betik = join(KOK, 'public/tarayici/nextus-sayac-tarayici.ps1');
   t('toner ve parça eşikleri sunucudakiyle aynı', new RegExp(`\\$TONER_KRITIK = ${saf.TONER_KRITIK}\\b`).test(ps) && new RegExp(`\\$PARCA_KRITIK = ${saf.PARCA_KRITIK}\\b`).test(ps));
   const tsDisi = tsKaynak.match(/const TONER_DISI = \/([^/]+)\/i;/)?.[1];
   t('toner dışı kalem deseni (drum, atık kutusu…) sunucudakiyle aynı', !!tsDisi && ps.includes(`$TONER_DISI = '${tsDisi}'`), tsDisi);
+  const demo = readFileSync(join(KOK, 'scripts/seed-bayi-demo.mjs'), 'utf8');
+  t('demo kurulumunun tarayıcı sürümü güncel (demoda "eski sürüm" görünmesin)', Number(demo.match(/const TARAYICI_SURUMU = (\d+);/)?.[1]) === saf.TARAYICI_SURUMU);
 }
 if (process.platform !== 'win32') {
   console.log('\n  ⊘ PowerShell tarayıcısı atlandı (Windows değil)');
@@ -546,7 +548,8 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
     };
     const ortak = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(istemci)]];
     duzelt('sayac-tarama-veri.js', [...ortak, ["'@/lib/readings'", "'./readings.js'"], ["'@/lib/sayac-tarama'", "'./sayac-tarama.js'"], ["'@/lib/verim-ogrenme'", "'./verim-ogrenme.js'"],
-      ["'@/lib/ticket-number'", "'./ticket-number.js'"], ["'@/lib/ticket-asama'", "'./ticket-asama.js'"], ["'@/lib/i18n/sozluk'", "'./i18n/sozluk.js'"]]);
+      ["'@/lib/ticket-number'", "'./ticket-number.js'"], ["'@/lib/ticket-asama'", "'./ticket-asama.js'"], ["'@/lib/i18n/sozluk'", "'./i18n/sozluk.js'"],
+      ["'@/lib/device-brands'", "'./device-brands.js'"]]);
     duzelt('ticket-number.js', ortak);
     duzelt('ticket-asama.js', ortak);
     duzelt('i18n/sozluk.js', [["from './tr'", "from './tr.js'"], ["from './en'", "from './en.js'"]]);
@@ -661,7 +664,87 @@ if (veri) {
     const liste = await sonTaramalar(bayiId);
     t('panel son taramaları yeniden eskiye veriyor', liste.taramalar.length === 4 && liste.taramalar[0].id === r4.id);
     t('eşleşen cihazların etiketi ve müşterisi geliyor', liste.cihazlar[kyId]?.musteri === 'Tarama Müşterisi', liste.cihazlar[kyId]);
+    t('panel eşleşen cihazın müşteri kimliğini de veriyor (ekleme kutusunun varsayılanı)', liste.cihazlar[kyId]?.musteriId === musteri.id);
     t('canon cihazına hiç okuma yazılmadı', (await p.counterReading.count({ where: { deviceId: canonId } })) === 0);
+
+    // ── taramadan cihaz ekleme: yeni bayinin ilk günü. Tarayıcının bulduğu
+    // ama sistemde olmayan yazıcılar elle yazılmadan cihaz oluyor.
+    {
+      const { taramadanCihazEkle, taramaModeli } = veri;
+      t('model adı: baştaki marka tekrarı atılıyor', taramaModeli('Kyocera', 'KYOCERA ECOSYS M2540dn') === 'ECOSYS M2540dn'
+        && taramaModeli('Konica Minolta', 'KONICA MINOLTA bizhub C258') === 'bizhub C258' && taramaModeli('HP', 'LaserJet  M404') === 'LaserJet M404'
+        && taramaModeli('Ricoh', 'x'.repeat(300)).length === 120);
+      const site = await p.customer.create({ data: { tenantId: bayiId, name: 'Yeni Site', phone: '5559990079' }, select: { id: true } });
+      const eskiBaska = await p.tenant.findFirst({ where: { slug: `${SLUG}-baska` }, select: { id: true } });
+      if (eskiBaska) await p.tenant.delete({ where: { id: eskiBaska.id } });
+      const baska = await p.tenant.create({ data: { name: 'Başka Bayi', slug: `${SLUG}-baska` }, select: { id: true } });
+      const baskaMusteri = await p.customer.create({ data: { tenantId: baska.id, name: 'Başkasının Müşterisi', phone: '5559990080' }, select: { id: true } });
+
+      const r6 = await taramaKaydet(bayiId, taramaGovdesiAyikla({ bilgisayar: 'EKLE-PC', taranan: 254, cihazlar: [
+        cihaz({ ip: '10.0.1.5', seri: 'EKLE-RENK-1', ozel: kyoOzel(), hata: '0400', durumKodu: 3, sarf: [{ ad: 'Black Toner', max: 100, seviye: 8 }] }),
+        cihaz({ ip: '10.0.1.6', seri: 'EKLE-SB-1', sysObjectID: '1.3.6.1.4.1.11.2.3.9.1', model: 'HP LaserJet Pro M404dn', renkler: ['black'], toplam: 45678, ozel: {} }),
+        cihaz({ ip: '10.0.1.7', seri: 'EKLE-AYRIMSIZ', sysObjectID: '1.3.6.1.4.1.1602.4.7', model: 'iR-ADV C3530', ozel: {} }),
+        cihaz({ ip: '10.0.1.8', seri: 'EKLE-SONRA', renkler: ['black'], toplam: 7000, ozel: {} }),
+        cihaz({ ip: '10.0.1.9', seri: 'LJD1Z12345', ozel: kyoOzel(91000, 31000), toplam: 122000 }),
+      ] }), false);
+      const d6 = Object.fromEntries(r6.sonuclar.map((s) => [s.seri, s.durum]));
+      t('ekleme taraması: sistemde olmayanlar ESLESMEDI, kayıtlı olan eşleşti', d6['EKLE-RENK-1'] === 'ESLESMEDI' && d6['EKLE-SB-1'] === 'ESLESMEDI' && d6['LJD1Z12345'] !== 'ESLESMEDI'
+        && r6.sonuclar.find((s) => s.seri === 'LJD1Z12345')?.deviceId === kyId, d6);
+
+      t('★ başka bayinin müşterisine eklenmiyor', (await taramadanCihazEkle(bayiId, r6.id, baskaMusteri.id, ['EKLE-RENK-1'])).durum === 'MUSTERI_YOK'
+        && (await p.device.count({ where: { serialNo: 'EKLE-RENK-1' } })) === 0);
+      t('başka bayinin taraması bulunmuyor', (await taramadanCihazEkle(baska.id, r6.id, baskaMusteri.id, ['EKLE-RENK-1'])).durum === 'YOK');
+      await p.tenant.delete({ where: { id: baska.id } });
+
+      const okumaOnce = await okumaSayisi();
+      const e1 = await taramadanCihazEkle(bayiId, r6.id, site.id, ['EKLE-RENK-1', 'ekle-sb-1', 'EKLE-AYRIMSIZ', 'LJD1Z12345', 'TARAMADA-YOK']);
+      t('★ seçilen 3 yazıcı eklendi (küçük harfli seri de); kayıtlı olan ve taramada olmayan eklenmedi', e1.durum === 'TAMAM' && e1.eklenen === 3 && e1.zatenVar === 0, e1);
+      const yeniCihaz = (seri) => p.device.findFirst({ where: { tenantId: bayiId, serialNo: seri }, include: { counterReadings: true } });
+      const renkli = await yeniCihaz('EKLE-RENK-1');
+      t('★ marka, model, seri, müşteri ve konum (IP) taramadan', renkli?.brand === 'Kyocera' && renkli?.model === 'TASKalfa 2553ci' && renkli?.customerId === site.id && renkli?.location === 'IP 10.0.1.5',
+        renkli && { brand: renkli.brand, model: renkli.model, location: renkli.location });
+      t('★ sayaç taramadan; başlangıç okuması fark 0 ve faturaya kapalı', renkli?.counterBlack === 90000 && renkli?.counterColor === 30000 && renkli?.counterReadings.length === 1
+        && renkli.counterReadings[0].deltaBlack === 0 && renkli.counterReadings[0].billed === true && renkli.counterReadings[0].source === 'AG_TARAMA',
+        renkli && { siyah: renkli.counterBlack, renkli: renkli.counterColor, okumalar: renkli.counterReadings });
+      t('★ toner ve uyarı kartta, ölçüm anı taramanın anı', renkli?.olcumSiyah === 8 && JSON.stringify(renkli?.cihazUyarilari) === '["SIKISMA"]'
+        && renkli?.olcumAt?.getTime() === (await p.sayacTaramasi.findUnique({ where: { id: r6.id } })).createdAt.getTime(), renkli && { olcum: renkli.olcumSiyah, uyari: renkli.cihazUyarilari });
+      const sb = await yeniCihaz('EKLE-SB-1');
+      t('tek renkli HP: marka tanındı, modelden marka tekrarı atıldı, renkli sayaç 0', sb?.brand === 'HP' && sb?.model === 'LaserJet Pro M404dn' && sb?.counterBlack === 45678 && sb?.counterColor === 0,
+        sb && { brand: sb.brand, model: sb.model, siyah: sb.counterBlack, renkli: sb.counterColor });
+      const ayrimsiz = await yeniCihaz('EKLE-AYRIMSIZ');
+      t('★ renk ayrımı doğrulanamayan cihaz sayaçsız eklendi (yanlış sayaç yazılmadı)', ayrimsiz && ayrimsiz.counterBlack === null && ayrimsiz.counterReadings.length === 0,
+        ayrimsiz && { siyah: ayrimsiz.counterBlack, okumalar: ayrimsiz.counterReadings.length });
+      t('seçilmeyen yazıcı eklenmedi; taramadaki okumalar faturaya yazılmadı', !(await yeniCihaz('EKLE-SONRA')) && (await okumaSayisi()) === okumaOnce + 2);
+      const s6 = (await p.sayacTaramasi.findUnique({ where: { id: r6.id }, select: { sonuc: true } })).sonuc;
+      const satir = (seri) => s6.find((s) => s.seri === seri);
+      t('★ taramadaki satır cihaza bağlandı ve "eklendi" işaretlendi; seçilmeyene dokunulmadı',
+        satir('EKLE-RENK-1')?.eklendi === true && satir('EKLE-RENK-1')?.deviceId === renkli?.id && !satir('EKLE-SONRA')?.deviceId && !satir('EKLE-SONRA')?.eklendi,
+        { renk: satir('EKLE-RENK-1'), sonra: satir('EKLE-SONRA') });
+      const e2 = await taramadanCihazEkle(bayiId, r6.id, site.id, ['EKLE-RENK-1']);
+      t('★ aynı seçim ikinci kez cihaz açmıyor', e2.eklenen === 0 && (await p.device.count({ where: { tenantId: bayiId, serialNo: 'EKLE-RENK-1' } })) === 1, e2);
+
+      // Taramadan sonra elle eklenmiş seri: "zaten var" sayılır, satır o cihaza bağlanır.
+      const elleId = await cihazYap('ekle sonra');
+      const e3 = await taramadanCihazEkle(bayiId, r6.id, site.id, ['EKLE-SONRA']);
+      const s6b = (await p.sayacTaramasi.findUnique({ where: { id: r6.id }, select: { sonuc: true } })).sonuc.find((s) => s.seri === 'EKLE-SONRA');
+      t('★ sonradan elle eklenen seri (yazımı farklı) ikinci kez eklenmiyor; satır ona bağlanıyor', e3.eklenen === 0 && e3.zatenVar === 1 && s6b?.deviceId === elleId && !s6b?.eklendi, { e3, s6b });
+
+      // Çift tıklama / iki sekme: aynı seri aynı anda iki kez istenirse tek cihaz.
+      const r7 = await taramaKaydet(bayiId, taramaGovdesiAyikla({ bilgisayar: 'EKLE-PC', taranan: 1, cihazlar: [cihaz({ ip: '10.0.1.20', seri: 'EKLE-YARIS', renkler: ['black'], toplam: 100, ozel: {} })] }), false);
+      const [y1, y2] = await Promise.all([taramadanCihazEkle(bayiId, r7.id, site.id, ['EKLE-YARIS']), taramadanCihazEkle(bayiId, r7.id, site.id, ['EKLE-YARIS'])]);
+      t('★ aynı anda iki istek: tek cihaz, biri "zaten var"', y1.eklenen + y2.eklenen === 1 && y1.zatenVar + y2.zatenVar === 1
+        && (await p.device.count({ where: { tenantId: bayiId, serialNo: 'EKLE-YARIS' } })) === 1, { y1, y2 });
+      t('olmayan müşteri reddediliyor', (await taramadanCihazEkle(bayiId, r7.id, 'yok-boyle-musteri', ['EKLE-YARIS'])).durum === 'MUSTERI_YOK');
+
+      // Asıl kazanç: bir sonraki tarama eklenen cihazı tanıyor ve sayacı yazıyor.
+      const r8 = await taramaKaydet(bayiId, taramaGovdesiAyikla({ bilgisayar: 'EKLE-PC', taranan: 1, cihazlar: [
+        cihaz({ ip: '10.0.1.6', seri: 'EKLE-SB-1', sysObjectID: '1.3.6.1.4.1.11.2.3.9.1', model: 'HP LaserJet Pro M404dn', renkler: ['black'], toplam: 46000, ozel: {} }),
+      ] }), false);
+      const o8 = await taramaOnayla(bayiId, r8.id);
+      const sonOkuma = await p.counterReading.findFirst({ where: { deviceId: sb?.id }, orderBy: { readingDate: 'desc' } });
+      t('★ sonraki tarama eklenen cihazı eşledi; onayla fark (322 sayfa) yazıldı', r8.sonuclar[0].durum === 'YAZILABILIR' && o8.durum === 'TAMAM' && o8.ozet.yazilan === 1 && sonOkuma?.deltaBlack === 322,
+        { durum: r8.sonuclar[0].durum, fark: sonOkuma?.deltaBlack });
+    }
 
     // ── cihazdan ölçülen durum
     // Kyocera taramalarında Black Toner %40, uyarı yok; HP'de kartuş yok (sarf boş).
@@ -825,6 +908,10 @@ if (veri) {
       t('HTTP: anahtarsız 401', (await gonder('{}', null)).status === 401);
       t('HTTP: bozuk gövde 400', (await gonder('{bozuk', yeni)).status === 400);
       t('HTTP: panel listesi oturumsuz açılmıyor', (await fetch(`${SUNUCU}/api/sayac/tarayici`)).status === 401);
+      const ekleUc = await fetch(`${SUNUCU}/api/sayac/tarayici/x/cihaz`, {
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${yeni}` }, body: '{"customerId":"x","seriler":["A"]}',
+      });
+      t('★ HTTP: taramadan cihaz ekleme oturumsuz açılmıyor (tarayıcı anahtarı da yetmez)', ekleUc.status === 401, ekleUc.status);
 
       // ── Müşteri paneli: toner seviyesi görünür, arıza kodu görünmez
       const jeton = 'ab'.repeat(32);
