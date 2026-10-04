@@ -2089,7 +2089,7 @@ export const en: Sozluk = {
     adimlar: [
       'Download the scanner. The file carries a key that belongs to you.',
       'Take the file to a Windows computer on the customer network (USB stick or e-mail).',
-      'Right-click the file and choose “Run with PowerShell”. It takes a minute or two; the result appears here.',
+      'Right-click the file and choose “Run with PowerShell” (if you don’t see it, click “Show more options” first). It takes a minute or two; the result appears here.',
       'At the end, answer Y to “run automatically every day?”: meters, toner and fault status then arrive every morning on their own.',
     ],
     indir: 'Download the scanner',
@@ -4598,7 +4598,7 @@ export const en: Sozluk = {
         intro: 'For offices where the email channel is not set up: one file, one click, the meters of every printer in the office. Nothing changes on the machines and nothing is installed on the customer’s computer.',
         adimlar: [
           'Side menu → Meters → Network scanner → “Download the scanner”. The file carries a key that belongs to your business; do not share it with another dealer.',
-          'Take the file to any Windows computer on the customer’s network (USB stick or email) → right-click → “Run with PowerShell”. It takes a minute or two. At the end, answer Y to “run automatically every day?”: that computer then scans on its own every morning at 09:00.',
+          'Take the file to any Windows computer on the customer’s network (USB stick or email) → right-click → “Run with PowerShell” (on Windows 11 you may need “Show more options” first). It takes a minute or two. At the end, answer Y to “run automatically every day?”: that computer then scans on its own every morning at 09:00.',
           'The scanner finds the printers in the office, reads serial number, meter, toner level and the status the device reports itself (jam, service request, out of toner) over SNMP, read-only, and sends the result to you.',
           'DEVICE STATUS (top of the page): machines asking for service are red, those about to run out of toner are orange. “Open service ticket” opens a ticket already filled with the device, the problem and the category; if the machine already has an open ticket, that ticket is shown instead. The “Devices Reporting Faults” card on the Dashboard leads here too.',
           'The toner percentage shows up in Supplies tracking labelled “from device” and takes precedence over the meter-based estimate. When toner goes from nearly empty back to full, the change is recorded automatically, so toner yield is learned without anyone typing it in.',

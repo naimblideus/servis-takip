@@ -2149,7 +2149,7 @@ export const tr = {
     adimlar: [
       'Tarayıcıyı indirin. Dosyanın içinde size özel bir anahtar var.',
       'Dosyayı müşterinin ağındaki bir Windows bilgisayara götürün (USB bellek ya da e-posta).',
-      'Dosyaya sağ tıklayıp “PowerShell ile çalıştır” deyin. Bir-iki dakika sürer; sonuç burada görünür.',
+      'Dosyaya sağ tıklayıp “PowerShell ile çalıştır” deyin (görmüyorsanız önce “Diğer seçenekleri göster”). Bir-iki dakika sürer; sonuç burada görünür.',
       'Sonunda “her gün kendiliğinden çalışsın mı?” sorusuna E deyin: sayaç, toner ve arıza durumu her sabah kendiliğinden gelir.',
     ],
     indir: 'Tarayıcıyı indir',
@@ -4751,7 +4751,7 @@ export const tr = {
         intro: 'E-posta kanalı kurulmamış ofisler için: bir dosya, bir tıklama, ofisteki bütün yazıcıların sayacı. Cihazda hiçbir ayar değişmez, müşterinin bilgisayarına bir şey kurulmaz.',
         adimlar: [
           'Sol menü → Sayaçlar → Ağ Tarayıcı → “Tarayıcıyı indir”. Dosyanın içinde firmana özel bir anahtar var; başka bayiyle paylaşma.',
-          'Dosyayı müşterinin ağındaki herhangi bir Windows bilgisayara götür (USB bellek ya da e-posta) → sağ tık → “PowerShell ile çalıştır”. Bir-iki dakika sürer. Sonda “her gün kendiliğinden çalışsın mı?” sorusuna E de: o bilgisayar her sabah 09:00’da kendisi tarar.',
+          'Dosyayı müşterinin ağındaki herhangi bir Windows bilgisayara götür (USB bellek ya da e-posta) → sağ tık → “PowerShell ile çalıştır” (Windows 11’de önce “Diğer seçenekleri göster” gerekebilir). Bir-iki dakika sürer. Sonda “her gün kendiliğinden çalışsın mı?” sorusuna E de: o bilgisayar her sabah 09:00’da kendisi tarar.',
           'Tarayıcı ofisteki yazıcıları bulur; seri numarası, sayaç, toner seviyesi ve cihazın kendi bildirdiği durumu (sıkışma, servis isteği, toner bitti) okur (SNMP, yalnız okuma) ve sonucu sana gönderir.',
           'CİHAZ DURUMU (sayfanın en üstünde): servis isteyen makineler kırmızı, toneri bitmek üzere olanlar turuncu. “Servis fişi aç” fişi cihaz, sorun ve kategoriyle dolu açar; makinede zaten açık fiş varsa onu gösterir. Ana Panel’deki “Arıza Bildiren Cihaz” kartı da buraya getirir.',
           'Toner yüzdesi Sarf Takibi’ne “cihazdan” etiketiyle düşer ve sayaçtan tahminin önüne geçer. Toner bitmek üzereyken doluya dönerse değişim kendiliğinden kaydedilir; toner verimi kimse yazmadan öğrenilir.',
