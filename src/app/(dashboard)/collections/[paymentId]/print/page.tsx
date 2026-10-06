@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import PrintNowButton from '@/components/PrintNowButton';
 import ReceiptDocument, { type ReceiptDocData } from '@/components/docs/ReceiptDocument';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { belgeMagazaAdresi } from '@/lib/magaza-baglanti';
 
 export default async function ReceiptPrintPage({ params }: { params: Promise<{ paymentId: string }> }) {
   const { paymentId } = await params;
@@ -36,6 +37,7 @@ export default async function ReceiptPrintPage({ params }: { params: Promise<{ p
     allocations: payment.allocations.map((a) => ({
       invoiceNumber: a.invoice.invoiceNumber, status: a.invoice.status, amount: Number(a.amount),
     })),
+    magazaAdresi: await belgeMagazaAdresi(user.tenantId),
   };
 
   return (

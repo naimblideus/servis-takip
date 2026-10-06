@@ -45,6 +45,8 @@ export interface InvoiceDocData {
     rows: { device: string; location: string | null; channel: 'BLACK' | 'COLOR'; prev: number | null; current: number | null; pages: number; included: number; billed: number; unitPrice: number; lineTotal: number; lastReadAt: Date | string | null }[];
     totalPages: number; totalBilled: number; totalAmount: number; hasIncluded: boolean;
   } | null;
+  /** Bayinin mağazası kendi alan adındaysa (bkz. belgeMagazaAdresi) alt bilgide basılır. */
+  magazaAdresi?: string | null;
 }
 
 export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }) {
@@ -134,6 +136,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
         .sig-area { height: 52px; border-bottom: 2px solid #9ca3af; margin-bottom: 6px; }
         .sig-label { font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
         .footer { text-align: center; font-size: 10px; color: #9ca3af; padding: 10px 24px 14px; border-top: 1px solid #f3f4f6; background: #fafafa; }
+        .magaza-satiri { margin-top: 5px; font-size: 11px; font-weight: 600; color: #374151; }
         .empty { text-align: center; color: #9ca3af; padding: 28px; font-size: 13px; }
         .mono { font-family: 'Courier New', monospace; }
         /* ── Sayaç Eki (2. sayfa) ── */
@@ -258,6 +261,9 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
           <div className="footer">
             {doldur(S.altbilgi, { firma: t.name, tarih: fmtDate(invoice.invoiceDate) })}
             {openAmount > 0 ? doldur(S.vadeNotu, { tarih: fmtDate(invoice.dueDate) }) : S.odendiNotu}
+            {invoice.magazaAdresi && (
+              <div className="magaza-satiri">{doldur(sz.belge.magazaSatiri, { adres: invoice.magazaAdresi })}</div>
+            )}
           </div>
         </div>
 

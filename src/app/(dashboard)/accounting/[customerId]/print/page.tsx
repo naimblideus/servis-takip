@@ -6,6 +6,7 @@ import { oturumKullanicisi } from '@/lib/api-auth';
 import { ekstre } from '@/lib/musteri-bakiye';
 import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
 import { bicimYap } from '@/lib/bicim';
+import { belgeMagazaAdresi } from '@/lib/magaza-baglanti';
 
 export default async function CariEkstrePrintPage({ params }: { params: Promise<{ customerId: string }> }) {
   const { customerId } = await params;
@@ -32,7 +33,7 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
   // BİRLEŞİK EKSTRE: servis kalemleri + kira/sayaç faturaları.
   // Eskiden yalnız AccountEntry basılıyordu; müşteriye verilen ekstrede kira
   // faturası borcu HİÇ görünmüyordu, yani bayi eksik belge veriyordu.
-  const satirlar = await ekstre(user.tenantId, customerId);
+  const [satirlar, magazaAdresi] = await Promise.all([ekstre(user.tenantId, customerId), belgeMagazaAdresi(user.tenantId)]);
   const eskidenYeniye = [...satirlar].reverse(); // ekstre() yeniden eskiye döner
 
   let running = 0;
@@ -111,6 +112,7 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
         .sig-area { height: 52px; border-bottom: 2px solid #9ca3af; margin-bottom: 6px; }
         .sig-label { font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
         .footer { text-align: center; font-size: 10px; color: #9ca3af; padding: 10px 24px 14px; border-top: 1px solid #f3f4f6; background: #fafafa; }
+        .magaza-satiri { margin-top: 5px; font-size: 11px; font-weight: 600; color: #374151; }
         .empty { text-align: center; color: #9ca3af; padding: 28px; font-size: 13px; }
       `}</style>
 
@@ -204,6 +206,9 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
 
           <div className="footer">
             {doldur(S.altbilgi, { firma: t.name, tarih: fmtDate(new Date()) })}
+            {magazaAdresi && (
+              <div className="magaza-satiri">{doldur(sz.belge.magazaSatiri, { adres: magazaAdresi })}</div>
+            )}
           </div>
         </div>
       </div>

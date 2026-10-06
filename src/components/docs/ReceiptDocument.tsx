@@ -15,6 +15,8 @@ export interface ReceiptDocData {
   tenant: { name: string; logo?: string | null; phone?: string | null; locale?: string | null; currency?: string | null };
   customer: { name?: string | null; phone?: string | null } | null;
   allocations: { invoiceNumber: string; status: string; amount: number }[];
+  /** Bayinin mağazası kendi alan adındaysa (bkz. belgeMagazaAdresi) alt bilgide basılır. */
+  magazaAdresi?: string | null;
 }
 
 export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }) {
@@ -84,6 +86,7 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
         .sig-area { height: 48px; border-bottom: 2px solid #9ca3af; margin-bottom: 6px; }
         .sig-label { font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
         .footer { text-align: center; font-size: 10px; color: #9ca3af; padding: 10px 24px 14px; border-top: 1px solid #f3f4f6; background: #fafafa; }
+        .magaza-satiri { margin-top: 5px; font-size: 11px; font-weight: 600; color: #374151; }
         .empty { text-align: center; color: #9ca3af; padding: 18px; font-size: 12.5px; }
       `}</style>
 
@@ -163,6 +166,9 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
 
           <div className="footer">
             {doldur(S.altbilgi, { firma: t.name, tarih: fmtDate(receipt.paymentDate) })}
+            {receipt.magazaAdresi && (
+              <div className="magaza-satiri">{doldur(sz.belge.magazaSatiri, { adres: receipt.magazaAdresi })}</div>
+            )}
           </div>
         </div>
       </div>

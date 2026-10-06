@@ -1308,6 +1308,9 @@ export const tr = {
 
   // Müşteriye giden belgeler. Dili BAYİNİN dili (bkz. components/docs).
   belge: {
+    // Bayinin mağazası KENDİ alan adındaysa her belgenin altına basılır:
+    // müşterinin elinde kalan her fiş, sarfı nereden sipariş edeceğini söyler.
+    magazaSatiri: 'Toner, kartuş ve yedek parça siparişi: {adres}',
     fatura: {
       etiket: 'Fatura',
       eArsiv: 'e-Arşiv',

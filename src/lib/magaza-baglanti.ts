@@ -75,6 +75,30 @@ export async function bayiMagazasi(servisTenantId: string): Promise<MagazaBilgi 
 }
 
 /**
+ * BELGELERE BASILACAK MAĞAZA ADRESİ — yalnız bayinin KENDİ alan adı.
+ *
+ * Fiş, fatura, makbuz ve ekstre müşterinin elinde kalıyor; altına "toner
+ * siparişi: kutahyadanal.com" yazmak her belgeyi bedava bir reklama çeviriyor.
+ * Ama platform adresi ("magaza.64.226.108.156.sslip.io") basmak reklam değil
+ * şüphe üretir ve bayi kendi adresine geçince basılı fiş eskir. Bu yüzden:
+ * mağaza açık + kendi alan adı var + platform/IP adresi değil. Değilse null,
+ * satır hiç basılmaz.
+ *
+ * Mağaza alan adını ancak DOĞRULANDIKTAN sonra asıl adres yapıyor
+ * (nextus-magaza alanAdiKaydet), yani burada dönen adres çalışan bir adres.
+ * Bağlandığı gün belgeler kendiliğinden adresi taşımaya başlar.
+ */
+export async function belgeMagazaAdresi(servisTenantId: string): Promise<string | null> {
+  const m = await bayiMagazasi(servisTenantId);
+  if (!m || !m.aktif || !m.domain) return null;
+  const d = m.domain.trim().toLowerCase().replace(/^www\./, '');
+  const taban = (process.env.SHOP_BASE_DOMAIN ?? '').toLowerCase().replace(/^www\./, '');
+  if (taban && (d === taban || d.endsWith('.' + taban))) return null;
+  if (/(^|\.)(sslip\.io|nip\.io|localhost)$/.test(d) || /^\d{1,3}(\.\d{1,3}){3}$/.test(d)) return null;
+  return d;
+}
+
+/**
  * Müşteriye gönderilecek mağaza bağlantısı.
  *
  * Jeton müşteri panelinin jetonudur; mağaza da AYNI jetonu kabul eder

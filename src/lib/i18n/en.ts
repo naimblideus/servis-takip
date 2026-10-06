@@ -1270,6 +1270,7 @@ export const en: Sozluk = {
   },
 
   belge: {
+    magazaSatiri: 'Order toner, cartridges and spare parts: {adres}',
     fatura: {
       etiket: 'Invoice',
       eArsiv: 'e-Archive',

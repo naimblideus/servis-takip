@@ -5,6 +5,7 @@ import PrintButton from '@/components/PrintButton';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
 import { bicimYap } from '@/lib/bicim';
+import { belgeMagazaAdresi } from '@/lib/magaza-baglanti';
 
 export default async function TicketPrintPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -72,6 +73,9 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
     const sz = sozluk(dil);
     const b = bicimYap(dil, ticket.tenant.currency);
     const S = sz.belge.fis;
+    // Fiş müşterinin elinde kalan kâğıt: mağaza kendi alan adındaysa altına
+    // sipariş adresi basılır (yoksa null, satır hiç çıkmaz).
+    const magazaAdresi = await belgeMagazaAdresi(user.tenantId);
 
     return (
         <>
@@ -287,6 +291,7 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
         .sig-label { font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
 
         /* ─── FOOTER ─── */
+        .magaza-satiri { margin-top: 5px; font-size: 11px; font-weight: 600; color: #374151; }
         .footer {
           text-align: center; font-size: 10px; color: #9ca3af;
           padding: 10px 24px 14px;
@@ -547,6 +552,9 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                     {/* Footer */}
                     <div className="footer">
                         {doldur(S.altbilgi, { firma: ticket.tenant.name, tarih: b.tarih(ticket.createdAt) })}
+                        {magazaAdresi && (
+                            <div className="magaza-satiri">{doldur(sz.belge.magazaSatiri, { adres: magazaAdresi })}</div>
+                        )}
                     </div>
                 </div>
             </div>

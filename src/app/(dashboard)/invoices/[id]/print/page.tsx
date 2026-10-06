@@ -5,6 +5,7 @@ import PrintNowButton from '@/components/PrintNowButton';
 import InvoiceDocument, { type InvoiceDocData } from '@/components/docs/InvoiceDocument';
 import { buildCounterAppendix } from '@/lib/invoice-appendix';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { belgeMagazaAdresi } from '@/lib/magaza-baglanti';
 
 export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,7 +22,10 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
   if (!invoice) redirect('/invoices');
 
   // Sayaç eki (2. sayfa) — sayaç satırı yoksa null döner, sayfa basılmaz
-  const counterAppendix = await buildCounterAppendix(user.tenantId, invoice as any);
+  const [counterAppendix, magazaAdresi] = await Promise.all([
+    buildCounterAppendix(user.tenantId, invoice as any),
+    belgeMagazaAdresi(user.tenantId),
+  ]);
 
   const doc: InvoiceDocData = {
     invoiceNumber: invoice.invoiceNumber,
@@ -53,6 +57,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
       quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), lineTotal: Number(l.lineTotal),
     })),
     counterAppendix,
+    magazaAdresi,
   };
 
   return (
