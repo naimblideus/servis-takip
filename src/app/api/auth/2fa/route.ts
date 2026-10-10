@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
+import { demoBayiMi } from '@/lib/demo-koruma';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { generateSecret, otpauthURI, verifyTOTP, generateRecoveryCodes, hashRecoveryCode } from '@/lib/totp';
@@ -23,6 +24,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const { user } = await requireTenantUser();
+    if (await demoBayiMi(user.tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
     const body = await req.json();
     const action = body?.action;
 

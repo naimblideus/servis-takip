@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { tekSeferlik } from '@/lib/zamanlanmis-is';
 
 export const maxDuration = 120;
 
@@ -75,11 +76,13 @@ async function run() {
 
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    return NextResponse.json({ ok: true, ...(await run()) });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Hata' }, { status: 500 });
-  }
+  return tekSeferlik(req, 'wa-temizlik', 'gunluk', async () => {
+    try {
+      return NextResponse.json({ ok: true, ...(await run()) });
+    } catch (e: any) {
+      return NextResponse.json({ error: e?.message || 'Hata' }, { status: 500 });
+    }
+  });
 }
 
 export async function POST(req: NextRequest) {

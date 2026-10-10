@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { buildInvoiceForCustomerPeriod, periodOf } from '@/lib/invoicing';
+import { tekSeferlik } from '@/lib/zamanlanmis-is';
 
 // Vercel function timeout (saniye) — büyük tenant'lar için
 export const maxDuration = 300;
@@ -96,9 +97,13 @@ async function run(period: string, tenantId?: string) {
 // Vercel Cron GET ile çağırır
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const period = new URL(req.url).searchParams.get('period') || kapananDonem();
-  const results = await run(period);
-  return NextResponse.json({ ok: true, period, tenants: results.length, results });
+  const elle = new URL(req.url).searchParams.get('period');
+  const calistir = async () => {
+    const period = elle || kapananDonem();
+    const results = await run(period);
+    return NextResponse.json({ ok: true, period, tenants: results.length, results });
+  };
+  return elle ? calistir() : tekSeferlik(req, 'faturalar', 'aylik', calistir);
 }
 
 // Manuel tetik (admin) — body: { period?, tenantId? }

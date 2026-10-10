@@ -111,11 +111,25 @@ const bayi = await p.tenant.findFirst({
   where: { sayacEpostaKodu: { not: null }, users: { some: { email: 'demo@nextusservis.com' } } },
   select: { id: true, name: true, sayacEpostaKodu: true },
 });
-const cihazlar = await p.device.findMany({
-  where: { tenantId: bayi.id, isRental: true }, take: 3,
+// Kartı son okumayla AYNI olan cihazlar seçilir: renkli sayaç taşınırken son
+// okumanın değeri kullanılır. Demo bayisinde kart bilerek ileride ("son okuma
+// + bu ayın kısmi kullanımı", seed-bayi-demo); öyle bir cihazda "renkli artmadı"
+// karşılaştırması anlamsız olurdu. En az bir renkli cihaz bulunur.
+const adaylar = await p.device.findMany({
+  where: { tenantId: bayi.id, isRental: true },
   select: { id: true, serialNo: true, counterBlack: true, counterColor: true },
   orderBy: { serialNo: 'asc' },
 });
+const tutarli = [];
+for (const c of adaylar) {
+  const s = await p.counterReading.findFirst({
+    where: { deviceId: c.id }, orderBy: [{ readingDate: 'desc' }, { createdAt: 'desc' }],
+    select: { counterBlack: true, counterColor: true },
+  });
+  if (s && s.counterBlack === c.counterBlack && s.counterColor === c.counterColor) tutarli.push(c);
+}
+const renkliIlk = tutarli.find((c) => (c.counterColor ?? 0) > 0);
+const cihazlar = [...(renkliIlk ? [renkliIlk] : []), ...tutarli.filter((c) => c !== renkliIlk)].slice(0, 3);
 const adres = `sayac+${bayi.sayacEpostaKodu}@nextusservis.com`;
 console.log(`bayi: ${bayi.name} · kod: ${bayi.sayacEpostaKodu} · ${cihazlar.length} cihaz`);
 console.log(`renkli sayaclar: ${cihazlar.map((c) => `${c.serialNo}=${c.counterColor}`).join(', ')}\n`);

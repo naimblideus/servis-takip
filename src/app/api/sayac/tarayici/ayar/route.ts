@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { writeAudit, istekIp } from '@/lib/audit';
+import { ucHatasi } from '@/lib/uc-hata';
+import { demoBayiMi } from '@/lib/demo-koruma';
 import { tarayiciAyari, anahtarYenile, otomatikAyarla, otomatikFisAyarla } from '@/lib/sayac-tarama-veri';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +27,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { tenantId, user } = await requireAdminUser();
+    if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_TARAYICI_KAPALI', 403);
     const onceki = await tarayiciAyari(tenantId);
     const anahtar = await anahtarYenile(tenantId);
     await writeAudit({

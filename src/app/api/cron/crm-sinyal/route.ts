@@ -21,6 +21,7 @@
 // Çalıştırma: Coolify/Vercel cron → GET /api/cron/crm-sinyal?secret=$CRON_SECRET
 
 import { NextRequest, NextResponse } from "next/server";
+import { tekSeferlik } from '@/lib/zamanlanmis-is';
 import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 120;
@@ -207,7 +208,7 @@ export async function GET(req: NextRequest) {
   if (!authorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(await run());
+  return tekSeferlik(req, 'crm-sinyal', 'gunluk', async () => NextResponse.json(await run()));
 }
 
 export async function POST(req: NextRequest) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { nobetciCalistir, alarmGonder } from '@/lib/nobetci';
 import { kontrolAdi, kontrolMesaji } from '@/lib/nobetci-metin';
 import { sozluk, VARSAYILAN_DIL } from '@/lib/i18n/sozluk';
+import { tekSeferlik } from '@/lib/zamanlanmis-is';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,10 @@ function yetkili(req: NextRequest): boolean {
  */
 export async function GET(req: NextRequest) {
   if (!yetkili(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  return tekSeferlik(req, 'nobetci', 'gunluk', () => calistir());
+}
 
+async function calistir() {
   const sonuc = await nobetciCalistir();
   const alarm = await alarmGonder(sonuc);
 

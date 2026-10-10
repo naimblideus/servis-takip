@@ -38,7 +38,7 @@ const BODY = `
            konuşma başlar, gösterimi kurucu yönetir, talep de kaybolmaz. -->
       <a href="/" class="btn btn-ghost btn-sm dil-sec" hreflang="tr" lang="tr" aria-label="Türkçe sürüme geç">TR</a>
       <a href="#hesap" class="btn btn-ghost btn-sm">Calculate</a>
-      <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20a%20demo%20of%20Nextus%20Servis%20and%20pricing" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><span class="nav-cta-long">On WhatsApp&nbsp;</span>Demo →</a>
+      <a href="/login?demo=1" class="btn btn-primary btn-sm"><span class="nav-cta-long">Instant&nbsp;</span>Demo →</a>
       <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
     </div>
   </div>
@@ -96,7 +96,7 @@ const BODY = `
     </p>
 
     <div class="hero-ctas">
-      <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20of%20Nextus%20Servis" target="_blank" rel="noopener" class="btn btn-grad">Try it free for 14 days <span style="font-size:18px;line-height:1">→</span></a>
+      <a href="/kayit" class="btn btn-grad">Try it free for 14 days <span style="font-size:18px;line-height:1">→</span></a>
       <a href="#hesap" class="btn btn-ghost">Work out what I am losing</a>
     </div>
 
@@ -719,7 +719,7 @@ const BODY = `
         </div>
 
         <div class="pd-cta">
-          <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20a%20demo%20of%20Nextus%20Servis" target="_blank" rel="noopener" class="btn btn-grad">Get a demo on WhatsApp →</a>
+          <a href="/login?demo=1" class="btn btn-grad">Open the demo now →</a>
           <a href="#fiyatlandirma" class="btn btn-ghost">See the pricing</a>
         </div>
       </div>
@@ -1283,7 +1283,7 @@ const BODY = `
         </div>
         <div class="price-note">The first <strong>20</strong> devices included · then ₺25 per device · at most ₺7,499 a month</div>
         <div class="price-calc" hidden></div>
-        <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20on%20the%20Starter%20plan" target="_blank" rel="noopener" class="btn btn-ghost btn-block">Try it free for 14 days</a>
+        <a href="/kayit" class="btn btn-ghost btn-block">Try it free for 14 days</a>
         <ul class="price-features">
           <li class="has"><strong>First 20 devices included</strong> · ₺25 for each device beyond</li>
           <li class="has"><strong>3 users · 200 service tickets a month</strong></li>
@@ -1313,7 +1313,7 @@ const BODY = `
         </div>
         <div class="price-note">The first <strong>25</strong> devices included · then ₺25 per device · at most ₺9,999 a month</div>
         <div class="price-calc" hidden></div>
-        <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20on%20the%20Professional%20plan" target="_blank" rel="noopener" class="btn btn-grad btn-block">Try it free for 14 days</a>
+        <a href="/kayit" class="btn btn-grad btn-block">Try it free for 14 days</a>
         <ul class="price-features">
           <li class="has"><strong>First 25 devices included</strong> · ₺25 for each device beyond</li>
           <li class="has"><strong>10 users · unlimited service tickets</strong></li>
@@ -1567,7 +1567,7 @@ const BODY = `
         <h2 class="cta-title">Let us count your machines once <span class="gradient-text">and see what is leaking, together</span></h2>
         <p class="cta-sub">14 days free (trial account: 2 users · 50 tickets). No card needed, no commitment. Setup + Excel import + 2 hours of training are free during the founding period.</p>
         <div class="cta-actions">
-          <a href="https://wa.me/905526961703?text=Hello%2C%20I%20would%20like%20to%20start%20the%2014-day%20trial%20of%20Nextus%20Servis" target="_blank" rel="noopener" class="btn btn-grad btn-lg btn-pulse">Let’s start on WhatsApp <span class="arr">→</span></a>
+          <a href="/kayit" class="btn btn-grad btn-lg btn-pulse">Start free for 14 days <span class="arr">→</span></a>
           <a href="#hesap" class="btn btn-ghost btn-lg">Show me the numbers first</a>
         </div>
         <div class="cta-meta">

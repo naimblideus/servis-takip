@@ -5,7 +5,8 @@
  * müşterisinin adı, fiyatı, cihaz sayısı bu dosyaya GİRMEZ.
  *
  * ── NEDEN AYRI BİR DEMO ──────────────────────────────────────────────────
- * `seed-demo.mjs` landing'deki "Demoyu Dene" için küçük ve hızlı. Bu ise
+ * Eskiden `seed-demo.mjs` landing demosunu ayrı ve küçük kuruyordu; artık o
+ * hesap da burada (6. hesap, aşağıda). Bu dosya
  * SAHADA GÖSTERİLEN demo: 14 müşteri, 40+ makine, 12 aylık geçmiş. Amacı,
  * karşısındaki bayinin ekrana bakıp "bu benim işim" demesi.
  *
@@ -37,7 +38,7 @@ const p = new PrismaClient();
 // adres başka bir bayide de olabilir; giriş kodu şifresi tutan adayı
 // arayarak çözüyor. Yine de çakışmasın diye kullanılmayan adresler seçildi.
 /**
- * BEŞ AYRI DEMO HESABI.
+ * BEŞ AYRI SAHA DEMO HESABI (+ altıncısı herkese açık, ana sayfadan).
  *
  * Tek hesap vardı ve aynı anda iki adaya gösterilemiyordu: biri bir şeyi
  * değiştirince öbürü onu görüyordu. Beş bağımsız bayi, beş ayrı veri —
@@ -58,6 +59,13 @@ const BAYILER = [
   { n: 3, slug: 'demo-bayi-3', ad: 'Ege Kopya Sistemleri',     sehir: 'İzmir',    adres: 'Gazi Bulvarı No:78 Kat:1',   tohum: 20260917, vknOn: '4330', telOn: '0534333', onEk: 'EKS', patronAd: 'Burak Aydın',   teknisyenAd: 'Kemal Yıldız' },
   { n: 4, slug: 'demo-bayi-4', ad: 'Marmara Büro Teknoloji',   sehir: 'Bursa',    adres: 'Fevzi Çakmak Cad. No:23',    tohum: 20260918, vknOn: '5440', telOn: '0535444', onEk: 'MBT', patronAd: 'Seda Öztürk',   teknisyenAd: 'Hakan Çelik' },
   { n: 5, slug: 'demo-bayi-5', ad: 'Akdeniz Ofis Servis',      sehir: 'Antalya',  adres: 'Yüzüncü Yıl Bulvarı No:9',   tohum: 20260919, vknOn: '6550', telOn: '0536555', onEk: 'AOS', patronAd: 'Tolga Acar',    teknisyenAd: 'Sinan Koç' },
+  // ── HERKESE AÇIK DEMO ── Ana sayfadaki "Demoyu hemen dene" (/login?demo=1).
+  // Adres ve şifre giriş sayfasında YAZILI (src/app/login/page.tsx), bu yüzden
+  // ortam değişkeninden değil buradan gelir. Ziyaretçiler veri değiştirir;
+  // zamanlayıcı her gece baştan kurar. Slug 'demo': eski küçük demonun
+  // (seed-demo.mjs) yerini alır — ana sayfadan gelen de bütün hikâyeleri görür.
+  { n: 6, slug: 'demo',        ad: 'Örnek Fotokopi Servis',    sehir: 'İstanbul', adres: 'Barbaros Bulvarı No:64 Kat:3', tohum: 20260920, vknOn: '7660', telOn: '0537666', onEk: 'OFS', patronAd: 'Deniz Arslan',  teknisyenAd: 'Can Yılmaz',
+    patronEposta: 'demo@nextusservis.com', teknisyenEposta: 'teknisyen@nextusservis.com', sifre: 'demo1234' },
 ];
 
 /**
@@ -166,8 +174,8 @@ const KOMSULAR = [
 // Hesap başına adres: demo1@demo.com … demo5@demo.com.
 // 1 numaralı bayide demo@demo.com da açılıyor — o adres zaten dağıtıldı,
 // çalışmaya devam etsin.
-const patronEpostasi = (bayi) => `demo${bayi.n}@demo.com`;
-const teknisyenEpostasi = (bayi) => `tekniker${bayi.n}@demo.com`;
+const patronEpostasi = (bayi) => bayi.patronEposta ?? `demo${bayi.n}@demo.com`;
+const teknisyenEpostasi = (bayi) => bayi.teknisyenEposta ?? `tekniker${bayi.n}@demo.com`;
 const SIFRE = process.env.BAYI_DEMO_SIFRE || 'demo1234';
 // lib/sayac-tarama TARAYICI_SURUMU ile AYNI olmalı (test-sayac-tarayici
 // karşılaştırıyor); geride kalırsa demodaki bilgisayar "eski sürüm" görünür.
@@ -285,12 +293,14 @@ const ARIZALAR = [
 async function komsulariKur() {
   let ilan = 0;
   for (const k of KOMSULAR) {
+    const var_ = await p.tenant.findFirst({ where: { slug: k.slug }, select: { demo: true } });
+    if (var_ && !var_.demo) throw new Error(`'${k.slug}' adlı bayi DEMO DEĞİL — pazar ilanlarına dokunulmadı, kurulum durdu.`);
     const kb = await p.tenant.upsert({
       where: { slug: k.slug },
-      update: { name: k.ad, city: k.sehir },
+      update: { name: k.ad, city: k.sehir, demo: true },
       create: {
         name: k.ad, slug: k.slug, city: k.sehir,
-        plan: 'basic', isActive: true, marketEnabled: true,
+        plan: 'basic', isActive: true, marketEnabled: true, demo: true,
       },
     });
     await p.marketListing.deleteMany({ where: { sellerTenantId: kb.id } });
@@ -324,6 +334,11 @@ async function kur(bayi) {
 
   const eski = await p.tenant.findFirst({ where: { slug: SLUG } });
   if (eski) {
+    // YALNIZ DEMO İŞARETLİ BAYİ SİLİNİR. Bu betik her gece sunucuda kendiliğinden
+    // çalışıyor (lib/zamanlayici.ts); aynı adı taşıyan gerçek bir bayi olursa
+    // (ör. "Demo" adlı bir firma kendi kendine kayıt olduysa) verisini silmek
+    // yerine durup bağırır. Kayıt zaten 'demo' ile başlayan adı vermiyor.
+    if (!eski.demo) throw new Error(`'${SLUG}' adlı bayi DEMO DEĞİL (demo bayrağı yok) — silinmedi, kurulum durdu.`);
     await p.tenant.delete({ where: { id: eski.id } });
     console.log('  eski demo silindi');
   }
@@ -337,9 +352,14 @@ async function kur(bayi) {
       // bir modül, karşıdaki bayinin göremediği bir özellik demek;
       // görmediği şeyi de sormuyor. Plan Kurumsal ve modül listesi
       // açıkça yazılı: plan varsayılanı ileride değişse bile demoda
-      // hiçbir ekran kaybolmasın.
+      // hiçbir ekran kaybolmasın. Liste src/lib/modules.ts'teki BÜTÜN
+      // anahtarları içermeli (test-demo-ve-kayit karşılaştırıyor): 'SLA'
+      // (Kurumsal: SLA, periyodik bakım, teknisyen karnesi, kurumsal
+      // gruplar) unutulmuştu ve bu dört ekran demoda kapalıydı.
       plan: 'enterprise', isActive: true, maxUsers: 25,
-      modules: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP'],
+      modules: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP', 'SLA'],
+      // Şifre/2FA değişikliği ve dışarıya mesaj demoda kapalı (lib/demo-koruma.ts).
+      demo: true,
       marketEnabled: true,
       // WhatsApp menüde ancak Meta numarası bağlıysa görünüyor.
       // Demoda kanal kurulmuş sayılıyor; gelen mesaj kuyruğu aşağıda.
@@ -378,13 +398,13 @@ async function kur(bayi) {
   const patron = await p.user.create({
     data: {
       tenantId: tenant.id, email: PATRON, name: bayi.patronAd,
-      passwordHash: await bcrypt.hash(SIFRE, 12), role: 'ADMIN', isActive: true,
+      passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, 12), role: 'ADMIN', isActive: true,
     },
   });
   const teknisyen = await p.user.create({
     data: {
       tenantId: tenant.id, email: TEKNISYEN, name: bayi.teknisyenAd,
-      passwordHash: await bcrypt.hash(SIFRE, 12), role: 'TECHNICIAN', isActive: true,
+      passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, 12), role: 'TECHNICIAN', isActive: true,
     },
   });
 
@@ -397,13 +417,13 @@ async function kur(bayi) {
     await p.user.create({
       data: {
         tenantId: tenant.id, email: 'demo@demo.com', name: bayi.patronAd,
-        passwordHash: await bcrypt.hash(SIFRE, 12), role: 'ADMIN', isActive: true,
+        passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, 12), role: 'ADMIN', isActive: true,
       },
     });
     await p.user.create({
       data: {
         tenantId: tenant.id, email: 'tekniker@demo.com', name: bayi.teknisyenAd,
-        passwordHash: await bcrypt.hash(SIFRE, 12), role: 'TECHNICIAN', isActive: true,
+        passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, 12), role: 'TECHNICIAN', isActive: true,
       },
     });
   }
@@ -1385,7 +1405,7 @@ async function kur(bayi) {
   console.log('');
   console.log(`  YÖNETİCİ  : ${PATRON}`);
   console.log(`  TEKNİSYEN : ${TEKNISYEN}`);
-  console.log(`  ŞİFRE     : ${SIFRE}`);
+  console.log(`  ŞİFRE     : ${bayi.sifre ?? SIFRE}`);
   console.log(`  ${musteriler.length} müşteri · ${cihazlar.length} makine · ${okuma} sayaç okuması`);
   console.log(`  ${fisSayisi + tonerFisi} servis fişi · ${faturaSayisi} fatura · ${sozNo} sözleşme`);
   console.log(`  ${gozlem} toner verimi SAHADA ÖLÇÜLDÜ (elle girilen: 0)`);
@@ -1507,11 +1527,11 @@ async function main() {
   for (const s of sonuclar) {
     console.log(`  ${s.bayi.n}  ${s.bayi.ad.padEnd(26)}  ${s.patron.padEnd(18)}  ${s.teknisyen}`);
   }
-  console.log(`\n  ŞİFRE (hepsi): ${SIFRE}`);
+  console.log(`\n  ŞİFRE (1–5): ${SIFRE}  ·  herkese açık demo (6): giriş sayfasındaki 'Demoyu dene'`);
   console.log('  1 numaralı hesaba demo@demo.com / tekniker@demo.com da girer.');
   console.log('');
   if (eksikToplam === 0) {
-    console.log('  Beş hesabın HEPSİNDE ölçülerek doğrulandı: susan sayaç, ölçülmüş toner');
+    console.log(`  ${sonuclar.length} hesabın HEPSİNDE ölçülerek doğrulandı: susan sayaç, ölçülmüş toner`);
     console.log('  verimi, yenileme adayı yaşlı makine, geçmiş dönem kaybı, sözleşme,');
     console.log('  teklif, pazar ilanı, eksik vergi bilgisi, kritik stok. Modüller açık.');
   } else {

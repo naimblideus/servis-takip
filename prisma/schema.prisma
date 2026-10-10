@@ -113,6 +113,13 @@ model Tenant {
   isSuspended   Boolean   @default(false)
   suspendReason String?
 
+  // DEMO HESABI (seed-bayi-demo). Herkese açık demoda biri şifreyi ya da
+  // 2FA'yı değiştirirse demo herkese kilitlenir; dışarıya SMS/WhatsApp
+  // göndermesi gerçek numaralara gider. Bu bayrakla ikisi de kapanır
+  // (lib/demo-koruma.ts). Ad/slug'a bakılmaz: "Demo Ofis" adlı gerçek bir
+  // bayi de olabilir.
+  demo Boolean @default(false)
+
   // Limitler
   maxUsers           Int   @default(2)
   maxTicketsPerMonth Int?
@@ -1502,8 +1509,28 @@ model PlatformSettings {
   odemeIban           String?
   odemeHesapAdi       String?
   satisWhatsapp       String?
+  // Sitede kendi kendine deneme hesabı açılabilsin mi (/kayit). Kapalıyken
+  // ziyaretçi WhatsApp'a yönlendirilir; hesabı süper admin açar.
+  kayitAcik           Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+// ============================================
+// ZAMANLANMIŞ İŞLER — dönem başına TEK çalışma
+// ============================================
+// Aylık fatura, günlük hatırlatma, gece demo tazeleme... Hem uygulamanın kendi
+// zamanlayıcısı (lib/zamanlayici.ts) hem Coolify görevi aynı ucu çağırabilir.
+// İş başlamadan önce dönemi SAHİPLENİR (lib/zamanlanmis-is.ts): aynı dönemde
+// ikinci çağrı çalışmaz — müşteriye aynı hatırlatma iki kez gitmez.
+model ZamanlanmisIs {
+  anahtar   String    @id // 'faturalar', 'hatirlatma', 'demo'...
+  donem     String // '2026-10' (aylık) ya da '2026-10-10' (günlük), İstanbul saatiyle
+  basladiAt DateTime  @default(now())
+  bittiAt   DateTime?
+  durum     String    @default("CALISIYOR") // CALISIYOR | TAMAM | HATA
+  mesaj     String?
+  kaynak    String? // 'zamanlayici' | 'disari' (Coolify/elle)
 }
 
 // ============================================

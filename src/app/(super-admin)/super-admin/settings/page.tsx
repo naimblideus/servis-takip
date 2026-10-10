@@ -105,6 +105,21 @@ export default function PlatformSettingsPage() {
                     </div>
                 </div>
 
+                {/* Siteden kayıt */}
+                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-violet-300 mb-4">{z.kayitBaslik}</h3>
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <div className="text-sm">{z.kayitAcik}</div>
+                            <div className="text-xs text-gray-400">{z.kayitAlt}</div>
+                        </div>
+                        <button onClick={() => set('kayitAcik', settings.kayitAcik === false)} aria-pressed={settings.kayitAcik !== false} aria-label={z.kayitAcik}
+                            className={`relative w-12 h-6 shrink-0 rounded-full transition-all ${settings.kayitAcik !== false ? 'bg-emerald-500' : 'bg-gray-600'}`}>
+                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${settings.kayitAcik !== false ? 'left-6' : 'left-0.5'}`} />
+                        </button>
+                    </div>
+                </div>
+
                 {/* Duyuru */}
                 <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
                     <h3 className="text-sm font-semibold text-violet-300 mb-4">{z.duyuruBaslik}</h3>

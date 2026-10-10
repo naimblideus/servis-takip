@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
+import { demoBayiMi } from '@/lib/demo-koruma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { resolveRecipients, fmtTLm } from '@/lib/reminders';
 import { sendOneWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
@@ -10,6 +11,7 @@ import { prisma } from '@/lib/prisma';
 export async function POST(req: NextRequest) {
   try {
     const { tenantId } = await requireTenantUser();
+    if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
     if (!waConfigured()) {
       return ucHatasi('WHATSAPP_API_AYARLI_DEGIL_YONETICI', 503);
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
+import { demoBayiMi } from '@/lib/demo-koruma';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
@@ -23,6 +24,10 @@ export async function PATCH(
 
     try {
         const body = await req.json();
+        // Demoda giriş bilgisi ve kullanıcı kapatma değişmez (lib/demo-koruma.ts).
+        if ((body.password || body.email || body.isActive === false) && await demoBayiMi(me.tenantId)) {
+            return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
+        }
         const updateData: any = {};
         if (body.name) updateData.name = body.name;
         if (body.email) updateData.email = body.email;
@@ -74,6 +79,8 @@ export async function DELETE(
     // IDOR koruması: hedef kullanıcı aynı tenant'ta olmalı
     const target = await prisma.user.findFirst({ where: { id, tenantId: me.tenantId } });
     if (!target) return ucHatasi('BULUNAMADI', 404);
+
+    if (await demoBayiMi(me.tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
 
     try {
         // Önce kullanıcıyı pasife çek (ilişkili fişler bozulmasın)

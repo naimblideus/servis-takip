@@ -28,6 +28,8 @@ interface CreateTenantInput {
     maxUsers?: number;
     adminNotes?: string;
     logo?: string;
+    /** Kendi kendine kayıtta kullanıcının seçtiği şifre; yoksa geçici şifre üretilir. */
+    password?: string;
 }
 
 /**
@@ -44,9 +46,9 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
     // Slug oluştur
     const slug = input.slug || generateSlug(input.name);
 
-    // Geçici şifre oluştur
-    const tempPassword = generateTempPassword();
-    const passwordHash = await bcrypt.hash(tempPassword, 12);
+    // Şifre: kayıtta kullanıcınınki; süper admin açıyorsa geçici şifre üretilir.
+    const tempPassword = input.password ? '' : generateTempPassword();
+    const passwordHash = await bcrypt.hash(input.password || tempPassword, 12);
 
     // Tenant + admin user tek transaction'da oluştur
     const result = await prisma.$transaction(async (tx) => {
@@ -108,7 +110,10 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
  * Slug üret
  */
 export function generateSlug(name: string): string {
+    // 'İ'.toLowerCase() = 'i' + birleşik nokta; nokta da '-' olurdu
+    // ("İstanbul" → "i-stanbul"). Önce düz harfe çevrilir.
     return name
+        .replace(/İ/g, 'i').replace(/I/g, 'i')
         .toLowerCase()
         .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
         .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')

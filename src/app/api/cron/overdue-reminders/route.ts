@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { markOverdueInvoices } from '@/lib/invoicing';
 import { sendOneWhatsApp, waConfigured } from '@/lib/whatsapp';
+import { tekSeferlik } from '@/lib/zamanlanmis-is';
 
 export const maxDuration = 120;
 
@@ -19,7 +20,7 @@ async function run() {
 
   // 2) reminderEnabled tenant'larda OVERDUE faturalar için hatırlatma kuyruğa (günde 1)
   const tenants = await prisma.tenant.findMany({
-    where: { deletedAt: null, isActive: true, reminderEnabled: true },
+    where: { deletedAt: null, isActive: true, reminderEnabled: true, demo: false }, // demo müşteri numaraları uydurma
     select: { id: true },
   });
 
@@ -78,6 +79,5 @@ async function run() {
 
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const res = await run();
-  return NextResponse.json({ ok: true, ...res });
+  return tekSeferlik(req, 'hatirlatma', 'gunluk', async () => NextResponse.json({ ok: true, ...(await run()) }));
 }

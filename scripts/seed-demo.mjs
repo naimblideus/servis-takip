@@ -11,6 +11,14 @@
  * Ziyaret öncesi tazelemek iyi fikir: demoda gezinen biri veri bozmuş olabilir.
  */
 import { PrismaClient } from '@prisma/client';
+
+// ── KULLANILMIYOR (2026-10-10) ──────────────────────────────────────────
+// Herkese açık demo (demo@nextusservis.com) artık scripts/seed-bayi-demo.mjs
+// içinde 6. hesap: saha demolarının bütün hikâyeleri, demo koruması (şifre,
+// 2FA, dışarıya mesaj kapalı) ve sunucunun gece tazelemesi orada. Bu betik
+// aynı 'demo' bayisini korumasız ve eksik kurardı; yanlışlıkla çalıştırılmasın.
+console.error('Bu betik artık kullanılmıyor. Herkese açık demo şununla kurulur: node scripts/seed-bayi-demo.mjs');
+process.exit(1);
 import bcrypt from 'bcryptjs';
 
 const p = new PrismaClient();

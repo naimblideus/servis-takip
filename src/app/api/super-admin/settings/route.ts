@@ -29,6 +29,8 @@ export async function PUT(req: NextRequest) {
     if (body.contactEmail !== undefined) data.contactEmail = body.contactEmail || null;
     if (body.defaultTrialDays !== undefined) data.defaultTrialDays = Math.max(0, Math.min(365, parseInt(body.defaultTrialDays) || 0));
     if (body.maintenanceMode !== undefined) data.maintenanceMode = !!body.maintenanceMode;
+    // Siteden kendi kendine deneme hesabı (/kayit). Kapalıyken ziyaretçi WhatsApp'a yönlenir.
+    if (body.kayitAcik !== undefined) data.kayitAcik = !!body.kayitAcik;
     if (body.announcementText !== undefined) data.announcementText = body.announcementText || null;
     if (body.announcementActive !== undefined) data.announcementActive = !!body.announcementActive;
     if (body.marketCommissionPct !== undefined) data.marketCommissionPct = Math.max(0, Math.min(100, Number(body.marketCommissionPct) || 0));

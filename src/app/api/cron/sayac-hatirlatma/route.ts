@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendBulkWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
+import { tekSeferlik } from '@/lib/zamanlanmis-is';
 
 export const maxDuration = 300;
 
@@ -36,7 +37,7 @@ async function run() {
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const tenants = await prisma.tenant.findMany({
-    where: { deletedAt: null, isActive: true, isSuspended: false },
+    where: { deletedAt: null, isActive: true, isSuspended: false, demo: false }, // demo müşteri numaraları uydurma
     select: { id: true, name: true },
   });
 
@@ -81,11 +82,13 @@ async function run() {
 
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    return NextResponse.json({ ok: true, ...(await run()) });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Hata' }, { status: 500 });
-  }
+  return tekSeferlik(req, 'sayac', 'aylik', async () => {
+    try {
+      return NextResponse.json({ ok: true, ...(await run()) });
+    } catch (e: any) {
+      return NextResponse.json({ error: e?.message || 'Hata' }, { status: 500 });
+    }
+  });
 }
 
 export async function POST(req: NextRequest) {

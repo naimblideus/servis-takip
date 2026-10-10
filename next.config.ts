@@ -22,6 +22,11 @@ const nextConfig: NextConfig = {
       { source: '/gizlilik', destination: '/gizlilik.html' },
     ];
   },
+  // Satış ekibinin WhatsApp'tan bıraktığı kısa adres: herkese açık demo
+  // (giriş sayfası demo bilgileriyle dolu açılır).
+  async redirects() {
+    return [{ source: '/demo', destination: '/login?demo=1', permanent: false }];
+  },
   // "Bu adrese hep https ile gel" (HSTS) — YALNIZ gerçek alan adında; sslip ve
   // yerel adreslerde gönderilmez. includeSubDomains yok: alt alan adları etkilenmez.
   async headers() {

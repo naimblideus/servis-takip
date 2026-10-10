@@ -69,5 +69,15 @@ async function bootstrapAdmin() {
 bootstrapAdmin();
 " 2>&1
 
+# UYGULAMA İÇİ ZAMANLAYICI (src/lib/zamanlayici.ts) kendi cron uçlarını
+# CRON_SECRET ile çağırır. Coolify'da tanımlı değilse bu çalışmaya özel geçici
+# bir anahtar üretilir: dışarıdan kimse bilmez, uçlar yine kapalı kalır, ama
+# aylık fatura ve hatırlatmalar sunucunun kendisi tarafından çalıştırılır.
+if [ -z "$CRON_SECRET" ]; then
+  CRON_SECRET=$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))")
+  export CRON_SECRET
+  echo "[zamanlayıcı] CRON_SECRET tanımlı değil — bu çalışmaya özel geçici anahtar üretildi."
+fi
+
 echo "=== [3/3] Starting Next.js server ==="
 exec node server.js

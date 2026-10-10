@@ -5,9 +5,11 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useT } from '@/lib/i18n/client';
 import DilSecici from '@/components/DilSecici';
+import Monogram from '@/components/Monogram';
 
-// Landing'deki "Demoyu Dene" buraya /login?demo=1 ile gelir. Bilgiler ÖRNEK VERİLİ
-// demo hesabına aittir (scripts/seed-demo.mjs) — gerçek bir bayinin hesabı DEĞİLDİR.
+// Landing'deki "Demoyu hemen dene" buraya /login?demo=1 ile gelir. Bilgiler ÖRNEK
+// VERİLİ herkese açık demo hesabına aittir (scripts/seed-bayi-demo.mjs, 6. hesap;
+// her gece baştan kurulur) — gerçek bir bayinin hesabı DEĞİLDİR.
 const DEMO_EPOSTA = 'demo@nextusservis.com';
 const DEMO_SIFRE = 'demo1234';
 
@@ -20,25 +22,6 @@ const DEMO_SIFRE = 'demo1234';
  * ya da ?hata= parametresindeki sebep). Metin render anında dilden çözülüyor;
  * böylece kullanıcı dili değiştirdiğinde hata da o dilde görünür.
  */
-
-/** Marka işareti — landing'deki N monogramının aynısı (nexus-video kaynağından). */
-function Monogram({ size = 34 }: { size?: number }) {
-  return (
-    <span
-      style={{ width: size, height: size }}
-      className="inline-flex items-center justify-center rounded-[10px] border border-white/10 bg-gradient-to-br from-[#161c28] to-[#0a0e16]"
-    >
-      <svg viewBox="0 0 230 200" aria-hidden="true" style={{ width: '70%', height: '70%', overflow: 'visible' }}>
-        <g fill="#e6ecf5">
-          <rect x="30" y="20" width="38" height="160" />
-          <polygon points="68,20 106,20 150,180 112,180" />
-          <rect x="150" y="20" width="38" height="160" />
-        </g>
-        <path d="M14 154 C84 120 152 78 224 34" stroke="#0d121c" strokeWidth="13" fill="none" strokeLinecap="round" />
-      </svg>
-    </span>
-  );
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -270,7 +253,13 @@ export default function LoginPage() {
             </div>
           )}
 
-          <a href="/" className="mt-8 block text-center text-[13px] text-white/35 transition hover:text-white/70">
+          {/* Hesabı olmayan: siteden 14 günlük deneme hesabı (/kayit). */}
+          <p className="mt-8 text-center text-[14px] text-white/50">
+            {t.giris.hesapYok}{' '}
+            <a href="/kayit" className="font-semibold text-teal-300 transition hover:text-teal-200">{t.giris.denemeBaslat}</a>
+          </p>
+
+          <a href="/" className="mt-4 block text-center text-[13px] text-white/35 transition hover:text-white/70">
             {t.giris.anaSayfa}
           </a>
         </div>
