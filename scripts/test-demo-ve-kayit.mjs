@@ -27,7 +27,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
 const g = mkdtempSync(join(tmpdir(), 'st-kayit-'));
-const KAYNAKLAR = ['kayit', 'zamanlanmis-is', 'zamanlayici', 'tenant-manager', 'talep', 'audit', 'iller', 'modules', 'demo-koruma'];
+const KAYNAKLAR = ['kayit', 'zamanlanmis-is', 'zamanlayici', 'tenant-manager', 'talep', 'sahip-bildirim', 'audit', 'iller', 'modules', 'demo-koruma'];
 try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),

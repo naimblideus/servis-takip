@@ -22,6 +22,8 @@ const JOBS = {
   // Sessiz arıza taraması: cron durmuş mu, webhook susmuş mu, kuyruk birikmiş mi.
   // KRİTİK bulguda uç 500 döner -> bu betik exit 1 -> Coolify görevi kırmızı olur.
   nobetci: { path: '/api/cron/nobetci', label: 'Nöbetçi (sessiz arıza taraması)' },
+  // Platform sahibine sabah özeti: yeni deneme hesapları, aranacaklar, denemesi bitenler.
+  ozet: { path: '/api/cron/sahip-ozet', label: 'Sahibe günlük özet (e-posta)' },
 };
 // Takma adlar
 JOBS.invoices = JOBS.faturalar;

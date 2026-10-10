@@ -153,10 +153,10 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null): Promise<Kay
       newValue: { firma: veri.firma, il: veri.il },
       ipAddress: ip,
     });
-    // Satış ekibi arasın: Talepler ekranı + CRM. Hesap açılmışken bu adımın
-    // hatası ziyaretçiye yansımaz.
+    // Satış ekibi arasın: Talepler ekranı + sahibine anında e-posta + CRM.
+    // Hesap açılmışken bu adımın hatası ziyaretçiye yansımaz.
     await talepKaydet({
-      firma: veri.firma, ad: veri.ad, telefon: veri.telefon, eposta: veri.eposta,
+      firma: veri.firma, ad: veri.ad, telefon: veri.telefon, eposta: veri.eposta, il: veri.il,
       mesaj: `Siteden 14 günlük deneme hesabı açtı${veri.il ? ` (${veri.il})` : ''}. Kurulum için arayın.`,
     }, 'kayit').catch((e) => console.error('[kayit] talep yazılamadı:', (e as Error).message));
     return { durum: 'TAMAM', tenantId: tenant.id };

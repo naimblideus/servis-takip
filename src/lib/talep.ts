@@ -1,9 +1,10 @@
 /**
  * TALEP — sitedeki iki kapı (iletişim formu ve kendi kendine kayıt) aynı yere yazar:
- * önce VERİTABANI (süper admin → Talepler), sonra varsa Nexus CRM.
+ * önce VERİTABANI (süper admin → Talepler), sonra platform sahibine e-posta
+ * (lib/sahip-bildirim.ts) ve varsa Nexus CRM.
  *
- * Talep her koşulda Lead tablosuna yazılır; CRM aktarımı bunun ÜSTÜNE ek bir
- * adımdır ve başarısız olması talebi kaybettirmez (bkz. api/talep geçmişi:
+ * Talep her koşulda Lead tablosuna yazılır; e-posta ve CRM bunun ÜSTÜNE ek
+ * adımlardır ve başarısız olmaları talebi kaybettirmez (bkz. api/talep geçmişi:
  * CRM kapalıyken talepler yalnız konsola yazılıp kayboluyordu).
  *
  * .env (isteğe bağlı):
@@ -11,6 +12,7 @@
  *   NEXUS_CRM_TOKEN="<CRM'deki WEBHOOK_TOKEN>"
  */
 import { prisma } from '@/lib/prisma';
+import { sahibeEposta, siteAdresi, whatsappBaglantisi } from '@/lib/sahip-bildirim';
 
 /** Aşırı uzun alanların veritabanını şişirmesini önle (bot/kötü niyetli gönderim). */
 const kirp = (v: unknown, n = 200): string | null => {
@@ -29,30 +31,41 @@ export interface TalepGirdisi {
   mesaj?: unknown;
   utm_source?: unknown;
   utm_campaign?: unknown;
+  /** Kayıtta seçilen il (e-posta konusunda görünür; Lead'e mesajla girer). */
+  il?: unknown;
 }
 
-/**
- * Talebi kaydeder ve CRM'e iletir. Veritabanı yazımı başarısızsa FIRLATIR
- * (çağıran ziyaretçiye hata göstermeli); CRM hatası yutulur, talep kayıtlı kalır.
- * `kaynak` CRM'de talebin hangi kapıdan geldiğini söyler.
- */
-export async function talepKaydet(veri: TalepGirdisi, kaynak: 'landing' | 'kayit'): Promise<{ id: string }> {
-  const lead = await prisma.lead.create({
-    data: {
-      firma: kirp(veri.firma),
-      yetkili: kirp(veri.ad ?? veri.yetkili),
-      telefon: kirp(veri.telefon, 40),
-      eposta: kirp(veri.eposta, 120),
-      cihazSayisi: kirp(veri.cihazSayisi ?? veri.cihaz, 40),
-      mesaj: kirp(veri.mesaj, 2000),
-      kaynak: kirp(veri.utm_source, 80) ?? (kaynak === 'kayit' ? 'kayit' : null),
-      kampanya: kirp(veri.utm_campaign, 120),
-    },
-    select: { id: true },
-  });
+/** Platform sahibine giden e-posta: kimi, nereden, nasıl aramalı. */
+function bildirimMetni(veri: TalepGirdisi, kaynak: 'landing' | 'kayit') {
+  const firma = kirp(veri.firma) ?? kirp(veri.ad) ?? 'Adsız';
+  const il = kirp(veri.il, 40);
+  const telefon = kirp(veri.telefon, 40);
+  const wa = whatsappBaglantisi(telefon);
+  const konu = kaynak === 'kayit'
+    ? `Yeni deneme hesabı: ${firma}${il ? ` (${il})` : ''}`
+    : `Siteden talep: ${firma}`;
+  const satirlar = [
+    kaynak === 'kayit'
+      ? `${kirp(veri.ad) ?? 'Bir servis'} siteden 14 günlük deneme hesabı açtı. Bugün arayın; kurulumda (müşteri/cihaz listesi, ağ tarayıcı) yardım edin.`
+      : 'Ana sayfadaki formdan talep geldi.',
+    '',
+    `Firma: ${firma}`,
+    kirp(veri.ad ?? veri.yetkili) ? `Yetkili: ${kirp(veri.ad ?? veri.yetkili)}` : null,
+    il ? `İl: ${il}` : null,
+    telefon ? `Telefon: ${telefon}` : null,
+    wa ? `WhatsApp: ${wa}` : null,
+    kirp(veri.eposta, 120) ? `E-posta: ${kirp(veri.eposta, 120)}` : null,
+    kirp(veri.cihazSayisi ?? veri.cihaz, 40) ? `Cihaz sayısı: ${kirp(veri.cihazSayisi ?? veri.cihaz, 40)}` : null,
+    kaynak === 'landing' && kirp(veri.mesaj, 2000) ? `\nMesaj:\n${kirp(veri.mesaj, 2000)}` : null,
+    '',
+    `Talepler: ${siteAdresi()}/super-admin/talepler`,
+  ];
+  return { konu, satirlar };
+}
 
+async function crmeAktar(veri: TalepGirdisi, kaynak: 'landing' | 'kayit', leadId: string): Promise<void> {
   const url = process.env.NEXUS_CRM_URL;
-  if (!url) return lead;
+  if (!url) return;
   try {
     const cevap = await fetch(url, {
       method: 'POST',
@@ -70,10 +83,35 @@ export async function talepKaydet(veri: TalepGirdisi, kaynak: 'landing' | 'kayit
       signal: AbortSignal.timeout(8000),
     });
     if (!cevap.ok) throw new Error(`CRM ${cevap.status}`);
-    await prisma.lead.update({ where: { id: lead.id }, data: { crmDurum: 'aktarildi' } });
+    await prisma.lead.update({ where: { id: leadId }, data: { crmDurum: 'aktarildi' } });
   } catch (e) {
     console.error('[talep] CRM\'e iletilemedi (talep kayıtlı):', (e as Error).message);
-    await prisma.lead.update({ where: { id: lead.id }, data: { crmDurum: 'hata' } }).catch(() => {});
+    await prisma.lead.update({ where: { id: leadId }, data: { crmDurum: 'hata' } }).catch(() => {});
   }
+}
+
+/**
+ * Talebi kaydeder, sahibine e-postayla bildirir ve CRM'e iletir. Veritabanı
+ * yazımı başarısızsa FIRLATIR (çağıran ziyaretçiye hata göstermeli); e-posta
+ * ve CRM hataları yutulur, talep kayıtlı kalır. `kaynak` talebin hangi
+ * kapıdan geldiğini söyler.
+ */
+export async function talepKaydet(veri: TalepGirdisi, kaynak: 'landing' | 'kayit'): Promise<{ id: string }> {
+  const lead = await prisma.lead.create({
+    data: {
+      firma: kirp(veri.firma),
+      yetkili: kirp(veri.ad ?? veri.yetkili),
+      telefon: kirp(veri.telefon, 40),
+      eposta: kirp(veri.eposta, 120),
+      cihazSayisi: kirp(veri.cihazSayisi ?? veri.cihaz, 40),
+      mesaj: kirp(veri.mesaj, 2000),
+      kaynak: kirp(veri.utm_source, 80) ?? (kaynak === 'kayit' ? 'kayit' : null),
+      kampanya: kirp(veri.utm_campaign, 120),
+    },
+    select: { id: true },
+  });
+
+  const { konu, satirlar } = bildirimMetni(veri, kaynak);
+  await Promise.allSettled([sahibeEposta(konu, satirlar), crmeAktar(veri, kaynak, lead.id)]);
   return lead;
 }
