@@ -9,6 +9,8 @@ import TwoFactorCard from '@/components/TwoFactorCard';
 
 interface TenantInfo {
     id: string;
+    /** Platformun WhatsApp kanalı açık mı (Ayarlar → WhatsApp hatırlatmaları notu). */
+    whatsappAcik?: boolean;
     name: string;
     logo: string | null;
     phone: string | null;
@@ -27,7 +29,7 @@ export default function SettingsPage() {
     const b = useBicim();
     const fileRef = useRef<HTMLInputElement>(null);
     const [tenant, setTenant] = useState<TenantInfo | null>(null);
-    const [form, setForm] = useState({ name: '', phone: '', address: '', pricePerBlack: '0.40', pricePerColor: '1.50', portalShowFinancials: true });
+    const [form, setForm] = useState({ name: '', phone: '', address: '', pricePerBlack: '0.40', pricePerColor: '1.50', portalShowFinancials: true, vadeHatirlatma: false, sayacHatirlatma: false });
     // Çalışma takvimi ayrı state: fiyat formuyla birlikte kaydedilirse
     // bayi fiyat düzeltirken farkında olmadan mesai saatini de değiştirir.
     const [takvim, setTakvim] = useState({
@@ -54,6 +56,8 @@ export default function SettingsPage() {
                 pricePerBlack: String(data.pricePerBlack ?? '0.40'),
                 pricePerColor: String(data.pricePerColor ?? '1.50'),
                 portalShowFinancials: data.portalShowFinancials !== false,
+                vadeHatirlatma: data.vadeHatirlatma === true,
+                sayacHatirlatma: data.sayacHatirlatma === true,
             });
             setOdeme({
                 odemeIban: data.odemeIban ? String(data.odemeIban).replace(/(.{4})/g, '$1 ').trim() : '',
@@ -246,6 +250,29 @@ export default function SettingsPage() {
                         </span>
                     </span>
                 </label>
+            </div>
+
+            {/* ── WHATSAPP HATIRLATMALARI ── Bayinin açık rızası: kapalıyken
+                müşteriye hiçbir şey gitmez (lib/vade-hatirlatma, sayac-hatirlatma). */}
+            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>{t.ayarlar.waBaslik}</h2>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem', lineHeight: 1.6 }}>{t.ayarlar.waAlt}</p>
+                {tenant && tenant.whatsappAcik === false && (
+                    <p style={{ fontSize: '0.8rem', color: '#4b5563', background: '#f3f4f6', borderRadius: 8, padding: '0.5rem 0.75rem', marginBottom: '0.9rem' }}>{t.ayarlar.waKapali}</p>
+                )}
+                {([
+                    ['vadeHatirlatma', t.ayarlar.waVade, t.ayarlar.waVadeAlt],
+                    ['sayacHatirlatma', t.ayarlar.waSayac, t.ayarlar.waSayacAlt],
+                ] as const).map(([alan, baslik, alt]) => (
+                    <label key={alan} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', marginTop: '0.7rem' }}>
+                        <input type="checkbox" checked={form[alan]} style={{ marginTop: '0.2rem', width: 18, height: 18, cursor: 'pointer' }}
+                            onChange={e => setForm({ ...form, [alan]: e.target.checked })} />
+                        <span style={{ fontSize: '0.875rem' }}>
+                            <b>{baslik}</b>
+                            <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem' }}>{alt}</span>
+                        </span>
+                    </label>
+                ))}
             </div>
 
             {/* ── MÜŞTERİDEN ÖDEME ───────────────────────────────────────

@@ -6,7 +6,8 @@
  * serbest metin gönderilebilir ve Meta bunu 1 Temmuz 2025'ten beri ÜCRETLENDİRMEZ.
  * Yani otomatik cevaplar bedavadır; şablon onayı da gerekmez.
  */
-const GRAPH = 'https://graph.facebook.com/v21.0';
+// WHATSAPP_GRAPH_KOK yalnız testte (sahte Meta sunucusu); canlıda tanımsız.
+const GRAPH = process.env.WHATSAPP_GRAPH_KOK || 'https://graph.facebook.com/v21.0';
 
 export function waOutConfigured(): boolean {
   return !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);

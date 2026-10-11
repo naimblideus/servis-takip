@@ -3,6 +3,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { ibanGecerli, ibanTemizle, odemeLinkiGecerli, hesapAdiTemizle } from '@/lib/odeme-bilgisi';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { waConfigured } from '@/lib/whatsapp';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { sayacAdresi } from '@/lib/sayac-eposta';
 
@@ -19,6 +20,7 @@ export async function GET() {
             id: true, name: true, logo: true, phone: true, address: true,
             pricePerBlack: true, pricePerColor: true, portalShowFinancials: true, sayacEpostaKodu: true,
             odemeIban: true, odemeHesapAdi: true, odemeLinki: true,
+            vadeHatirlatma: true, sayacHatirlatma: true,
             // Çalışma takvimi — SLA ölçümü mesai saatine göre yapılır.
             workTimezone: true, workDays: true, workStartMin: true, workEndMin: true, workHolidays: true,
         },
@@ -26,7 +28,7 @@ export async function GET() {
 
     // Adres sunucuda kurulur: alan adı ortam değişkeninden gelir ve kanal
     // kapalıysa null döner — ekran hiç göstermesin (bkz. lib/sayac-eposta.ts).
-    return NextResponse.json({ ...tenant, sayacEpostaAdresi: sayacAdresi(tenant?.sayacEpostaKodu) });
+    return NextResponse.json({ ...tenant, sayacEpostaAdresi: sayacAdresi(tenant?.sayacEpostaKodu), whatsappAcik: waConfigured() });
 }
 
 export async function PATCH(req: Request) {
@@ -42,7 +44,7 @@ export async function PATCH(req: Request) {
     const {
         name, phone, address, pricePerBlack, pricePerColor, portalShowFinancials,
         workTimezone, workDays, workStartMin, workEndMin, workHolidays,
-        odemeIban, odemeHesapAdi, odemeLinki,
+        odemeIban, odemeHesapAdi, odemeLinki, vadeHatirlatma, sayacHatirlatma,
     } = body;
 
     // MÜŞTERİDEN ÖDEME — yanlış IBAN parayı başka hesaba gönderir, bozuk
@@ -92,6 +94,9 @@ export async function PATCH(req: Request) {
             ...(pricePerColor !== undefined && { pricePerColor: parseFloat(pricePerColor) }),
             // Müşteri panelinde bakiye/fatura/tutar gösterilsin mi
             ...(portalShowFinancials !== undefined && { portalShowFinancials: Boolean(portalShowFinancials) }),
+            // WhatsApp hatırlatmaları — bayinin açık rızası (yalnız true/false kabul).
+            ...(typeof vadeHatirlatma === 'boolean' && { vadeHatirlatma }),
+            ...(typeof sayacHatirlatma === 'boolean' && { sayacHatirlatma }),
             ...(workTimezone !== undefined && workTimezone !== '' && { workTimezone: String(workTimezone) }),
             ...(workDays !== undefined && { workDays: gunListesi(workDays) ?? '1,2,3,4,5' }),
             ...(bas !== null && { workStartMin: bas }),

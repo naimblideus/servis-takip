@@ -5,6 +5,7 @@ import {
   parseWebhook,
   findCustomerByPhone,
   findTenantByPhoneNumberId,
+  paylasimliNumaraBayisi,
 } from '@/lib/whatsapp-inbound';
 import { looksLikeFaultReport } from '@/lib/whatsapp-out';
 import { handleAutoReply } from '@/lib/whatsapp-autoreply';
@@ -59,8 +60,10 @@ export async function POST(req: NextRequest) {
 
   for (const m of messages) {
     try {
-      const tenant = await findTenantByPhoneNumberId(m.phoneNumberId);
-      // Bu numara hiçbir bayiye tanımlı değil → bizi ilgilendirmiyor, sessizce geç.
+      // Önce bayinin KENDİ numarası; değilse platformun paylaşımlı numarası →
+      // gönderen hangi bayinin müşterisiyse ona (emin olunamazsa hiçbirine).
+      const tenant = (await findTenantByPhoneNumberId(m.phoneNumberId))
+        ?? (await paylasimliNumaraBayisi(m.phoneNumberId, m.fromPhone));
       if (!tenant) continue;
 
       const customer = await findCustomerByPhone(tenant.id, m.fromPhone);

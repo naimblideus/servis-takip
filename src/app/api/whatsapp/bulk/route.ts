@@ -5,12 +5,15 @@ import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { resolveRecipients, fmtTLm } from '@/lib/reminders';
 import { sendOneWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
 import { prisma } from '@/lib/prisma';
+import { borcParametreleri } from '@/lib/whatsapp-sablon';
+import { BORC_KAYIT_ONEKI } from '@/lib/vade-hatirlatma';
 
 // POST /api/whatsapp/bulk — Seçili müşterilere TEK TIKLA toplu WhatsApp (Meta onaylı şablonla).
-// Güvenlik: müşteriler TENANT-scoped; şablon değişkenleri SUNUCUDA üretilir ({{1}}=ad, {{2}}=borç).
+// Güvenlik: müşteriler TENANT-scoped; şablon değişkenleri SUNUCUDA üretilir ({{1}}=ad, {{2}}=bayi, {{3}}=borç).
 export async function POST(req: NextRequest) {
   try {
     const { tenantId } = await requireTenantUser();
+    const bayi = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
     if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
     if (!waConfigured()) {
       return ucHatasi('WHATSAPP_API_AYARLI_DEGIL_YONETICI', 503);
@@ -27,7 +30,8 @@ export async function POST(req: NextRequest) {
     const recipients = await resolveRecipients(tenantId, customerIds);
     const items = recipients
       .filter(r => waApiPhone(r.phone))
-      .map(r => ({ phone: r.phone, params: [r.name, fmtTLm(r.balance)] }));
+      // Şablon değişkenleri tek yerde (lib/whatsapp-sablon): müşteri, bayi, tutar.
+      .map(r => ({ phone: r.phone, ad: r.name, tutar: fmtTLm(r.balance), params: borcParametreleri(r.name, bayi?.name ?? '', fmtTLm(r.balance)) }));
     const skipped = recipients.length - items.length;
 
     if (items.length === 0) {
@@ -50,7 +54,7 @@ export async function POST(req: NextRequest) {
           channel: 'WHATSAPP',
           status: r.ok ? 'SENT' : 'FAILED',
           error: r.ok ? null : (r.error ?? 'bilinmeyen hata'),
-          message: `Borç hatırlatma — ${it.params[0]} · ${it.params[1]}`,
+          message: `${BORC_KAYIT_ONEKI} — ${it.ad} · ${it.tutar} TL`,
         },
       }).catch(() => {}); // kayıt yazılamazsa gönderim yine de sürsün
     }

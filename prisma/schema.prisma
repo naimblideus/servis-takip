@@ -89,7 +89,12 @@ model Tenant {
   ziyaretMaliyeti  Decimal? @db.Decimal(10, 2)
   // Kârlılık ekranının hedef marjı (0-1 arası oran). Boşsa 0,25.
   hedefMarj        Decimal? @db.Decimal(5, 4)
-  reminderEnabled  Boolean  @default(true) // Vade hatırlatma
+  reminderEnabled  Boolean  @default(true) // ESKİ — kullanılmıyor (ekranı hiç olmadı); yerine vadeHatirlatma
+  // WHATSAPP HATIRLATMALARI — bayinin AÇIK RIZASIYLA. Mesaj platformun tek
+  // numarasından, bayinin adıyla gider; bayi açmadıkça müşterisine hiçbir şey
+  // gitmez (Ayarlar → WhatsApp hatırlatmaları).
+  vadeHatirlatma   Boolean  @default(false) // vadesi geçen faturalar: müşteri başına 7 günde bir
+  sayacHatirlatma  Boolean  @default(false) // ay başında sayaç isteği (kiralık, okunmamış)
 
   // Sektör
   businessType String @default("general")

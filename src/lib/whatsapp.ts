@@ -1,7 +1,8 @@
 // Toplu WhatsApp — Meta WhatsApp Cloud API, ONAYLI şablon (template) ile.
 // 24s penceresi dışındaki proaktif mesajlar için Meta ONAYLI şablon ZORUNLUDUR (serbest metin gönderilemez).
 // Env: WHATSAPP_TOKEN (kalıcı erişim token), WHATSAPP_PHONE_ID, WHATSAPP_TEMPLATE (şablon adı), WHATSAPP_LANG (örn 'tr').
-const GRAPH = 'https://graph.facebook.com/v21.0';
+// WHATSAPP_GRAPH_KOK yalnız testte (sahte Meta sunucusu); canlıda tanımsız.
+const GRAPH = process.env.WHATSAPP_GRAPH_KOK || 'https://graph.facebook.com/v21.0';
 
 export interface WaItem { phone: string; params: string[]; } // params = şablon body değişkenleri {{1}},{{2}}...
 export interface WaResult { ok: boolean; sent: number; failed: number; skippedInvalid: number; errors: string[] }

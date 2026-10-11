@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { sendBulkWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
+import { sendOneWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
 import { tekSeferlik } from '@/lib/zamanlanmis-is';
+import { sayacParametreleri } from '@/lib/whatsapp-sablon';
 
 export const maxDuration = 300;
 
@@ -25,7 +26,7 @@ function authorized(req: NextRequest): boolean {
  * Şablon adı WHATSAPP_TEMPLATE_SAYAC ile verilir; yoksa iş sessizce atlanır.
  *
  * Şablon gövdesi şu değişkenleri beklemelidir:
- *   {{1}} müşteri adı   {{2}} okunmamış cihaz sayısı   {{3}} bayi adı
+ *   {{1}} müşteri adı   {{2}} bayi adı   {{3}} okunmamış cihaz sayısı (lib/whatsapp-sablon)
  */
 async function run() {
   if (!waConfigured() || !process.env.WHATSAPP_TEMPLATE_SAYAC) {
@@ -37,7 +38,8 @@ async function run() {
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const tenants = await prisma.tenant.findMany({
-    where: { deletedAt: null, isActive: true, isSuspended: false, demo: false }, // demo müşteri numaraları uydurma
+    // Yalnız bayinin açtığı (Ayarlar → WhatsApp hatırlatmaları). Demo: numaralar uydurma.
+    where: { deletedAt: null, isActive: true, isSuspended: false, sayacHatirlatma: true, demo: false },
     select: { id: true, name: true },
   });
 
@@ -64,17 +66,27 @@ async function run() {
       select: { id: true, name: true, phone: true },
     });
 
-    const items = customers
-      .filter(c => waApiPhone(c.phone))
-      .map(c => ({
-        phone: c.phone,
-        params: [c.name, String(perCustomer.get(c.id) || 0), t.name],
-      }));
+    const items = customers.filter(c => waApiPhone(c.phone));
     if (items.length === 0) continue;
 
-    // Şablon adı AÇIKÇA veriliyor. Verilmezse borç hatırlatma şablonu giderdi.
-    const r = await sendBulkWhatsApp(items, process.env.WHATSAPP_TEMPLATE_SAYAC);
-    results.push({ tenant: t.name, sent: r.sent, failed: r.failed, customers: items.length });
+    // Tek tek gönderilip KAYDEDİLİR: bayi kime ne gittiğini görür, müşterinin
+    // cevabı da paylaşımlı numarada doğru bayiye yönlenir (son gönderen bayi).
+    // Şablon adı AÇIKÇA veriliyor; verilmezse borç hatırlatma şablonu giderdi.
+    let sent = 0, failed = 0;
+    for (const c of items) {
+      const cihaz = perCustomer.get(c.id) || 0;
+      const r = await sendOneWhatsApp(c.phone, sayacParametreleri(c.name, t.name, cihaz), process.env.WHATSAPP_TEMPLATE_SAYAC);
+      if (r.ok) sent++; else failed++;
+      await prisma.notificationLog.create({
+        data: {
+          tenantId: t.id, recipient: c.phone, channel: 'WHATSAPP',
+          status: r.ok ? 'SENT' : 'FAILED', sentAt: r.ok ? new Date() : null,
+          error: r.ok ? null : (r.error ?? 'bilinmeyen hata'),
+          message: `Sayaç hatırlatma — ${c.name} · ${cihaz} cihaz`,
+        },
+      }).catch(() => {});
+    }
+    results.push({ tenant: t.name, sent, failed, customers: items.length });
   }
 
   return { period: periodStart.toISOString().slice(0, 7), results };

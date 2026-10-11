@@ -6,6 +6,7 @@
  * müşteriyle eşleştirip bayiye bağlam vermek.
  */
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
 /** Webhook'un herkese açık olduğu unutulmasın: imza doğrulanmadan HİÇBİR ŞEY yazılmaz. */
@@ -85,7 +86,7 @@ export async function findCustomerByPhone(
   const rows = await prisma.$queryRaw<{ id: string; name: string }[]>`
     SELECT "id", "name" FROM "Customer"
     WHERE "tenantId" = ${tenantId}
-      AND right(regexp_replace("phone", '\D', '', 'g'), 10) = ${last10}
+      AND right(regexp_replace("phone", '[^0-9]', '', 'g'), 10) = ${last10}
     LIMIT 1
   `;
   return rows[0] ?? null;
@@ -97,4 +98,50 @@ export async function findTenantByPhoneNumberId(phoneNumberId: string) {
     where: { whatsappPhoneId: phoneNumberId },
     select: { id: true, name: true }, // name: otomatik cevabın altındaki imza için
   });
+}
+
+/** Platformun paylaşımlı WhatsApp numarası kurulu mu (giden + gelen). */
+export function paylasimliWhatsappAcik(): boolean {
+  return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
+}
+
+/**
+ * PAYLAŞIMLI NUMARA — gelen mesaj hangi bayinin?
+ *
+ * Bayilerin kendi numarasını bağlamadığı sürece hatırlatmalar platformun TEK
+ * numarasından gider (WHATSAPP_PHONE_ID) ve müşterinin cevabı oraya gelir.
+ * Bayi, gönderen numaranın hangi bayinin MÜŞTERİSİ olduğundan bulunur:
+ *   · tek bayide kayıtlıysa o bayi;
+ *   · birden çok bayide kayıtlıysa bu numaraya EN SON WhatsApp GÖNDEREN bayi
+ *     (müşteri büyük olasılıkla ona cevap veriyor);
+ *   · hiçbir bayide yoksa ya da karar verilemiyorsa NULL — mesaj hiçbir
+ *     bayiye düşmez. Yanlış bayiye düşmek, bir bayinin müşterisinin mesajını
+ *     başka bayiye göstermek olurdu.
+ * Demo, kapalı ve silinmiş bayiler sayılmaz. Bayinin KENDİ numarası tanımlıysa
+ * bu fonksiyona hiç gelinmez (findTenantByPhoneNumberId önce bakar).
+ */
+export async function paylasimliNumaraBayisi(
+  phoneNumberId: string,
+  e164Digits: string,
+): Promise<{ id: string; name: string } | null> {
+  const platform = process.env.WHATSAPP_PHONE_ID;
+  if (!platform || phoneNumberId !== platform) return null;
+  const last10 = e164Digits.slice(-10);
+  if (last10.length < 10) return null;
+  const adaylar = await prisma.$queryRaw<{ id: string; name: string }[]>`
+    SELECT DISTINCT t."id", t."name" FROM "Customer" c
+    JOIN "Tenant" t ON t."id" = c."tenantId"
+    WHERE right(regexp_replace(c."phone", '[^0-9]', '', 'g'), 10) = ${last10}
+      AND t."demo" = false AND t."isActive" = true AND t."deletedAt" IS NULL
+  `;
+  if (adaylar.length <= 1) return adaylar[0] ?? null;
+  const son = await prisma.$queryRaw<{ tenantId: string }[]>`
+    SELECT "tenantId" FROM "NotificationLog"
+    WHERE "channel" = 'WHATSAPP' AND "status" = 'SENT'
+      AND "tenantId" IN (${Prisma.join(adaylar.map((a) => a.id))})
+      AND right(regexp_replace("recipient", '[^0-9]', '', 'g'), 10) = ${last10}
+    ORDER BY "createdAt" DESC
+    LIMIT 1
+  `;
+  return son.length ? adaylar.find((a) => a.id === son[0].tenantId) ?? null : null;
 }

@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { paylasimliWhatsappAcik } from '@/lib/whatsapp-inbound';
 import { effectiveModules } from '@/lib/modules';
 import Sidebar from '@/components/Sidebar';
 import AileSekmeleri from '@/components/AileSekmeleri';
@@ -116,7 +117,8 @@ export default async function DashboardLayout({
   const denemeGun = rol === 'ADMIN' || rol === 'SUPER_ADMIN' ? denemeKalanGun(tenant?.plan, tenant?.trialEndsAt, new Date()) : null;
 
   const menuDurum = {
-    whatsappKurulu: Boolean(tenant?.whatsappPhoneId),
+    // Bayinin kendi numarası YA DA platformun paylaşımlı numarası (lib/whatsapp-inbound).
+    whatsappKurulu: Boolean(tenant?.whatsappPhoneId) || paylasimliWhatsappAcik(),
     // Bizim Hesap sekmesi yalnız bağlantı kurulunca. Kurulum yolu Ayarlar'da.
     bizimHesapKurulu: Boolean(tenant?.bizimHesapFirmId),
   };

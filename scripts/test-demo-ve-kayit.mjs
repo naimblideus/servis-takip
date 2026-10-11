@@ -107,7 +107,7 @@ const baslangic = oku('startup.sh');
 t('CRON_SECRET yoksa sunucudan ÖNCE geçici anahtar üretiliyor', /if \[ -z "\$CRON_SECRET" \]/.test(baslangic) && baslangic.indexOf('export CRON_SECRET') < baslangic.indexOf('exec node server.js'));
 const enstr = oku('src/instrumentation.ts');
 t('zamanlayıcı yalnız üretimde ve Node ortamında başlıyor (Node modülü yalnız nodejs dalında)', /if \(process\.env\.NEXT_RUNTIME === 'nodejs'\) \{/.test(enstr) && /NODE_ENV !== 'production'/.test(enstr) && enstr.indexOf("import('./lib/zamanlayici')") > enstr.indexOf("=== 'nodejs'"));
-t('★ hatırlatma işleri demo bayilerine gitmiyor', /demo: false/.test(oku('src/app/api/cron/overdue-reminders/route.ts')) && /demo: false/.test(oku('src/app/api/cron/sayac-hatirlatma/route.ts')));
+t('★ hatırlatma işleri demo bayilerine gitmiyor', /demo: false/.test(oku('src/lib/vade-hatirlatma.ts')) && /demo: false/.test(oku('src/app/api/cron/sayac-hatirlatma/route.ts')));
 const KORUMA = ['src/app/api/sms/bulk/route.ts', 'src/app/api/whatsapp/bulk/route.ts', 'src/app/api/auth/2fa/route.ts', 'src/app/api/users/[id]/route.ts', 'src/app/api/sayac/tarayici/ayar/route.ts'];
 t('demo koruması beş uçta', KORUMA.every((f) => oku(f).includes('demoBayiMi(')), KORUMA.filter((f) => !oku(f).includes('demoBayiMi(')));
 
