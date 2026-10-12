@@ -523,7 +523,7 @@ export default function TicketPartsPanel({ ticketId }: Props) {
                             >
                                 <option value="">{sz.parcalar.grupSecin}</option>
                                 {PART_GROUPS.map(g => (
-                                    <option key={g} value={g}>{g}</option>
+                                    <option key={g} value={g}>{grupAdi(g)}</option>
                                 ))}
                             </select>
                         </div>
