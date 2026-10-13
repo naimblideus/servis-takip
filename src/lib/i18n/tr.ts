@@ -158,7 +158,7 @@ export const tr = {
     demoAlt: 'Bilgiler dolduruldu — Giriş Yap’a basmanız yeterli.',
     demoUyariOn: 'Bu hesaptaki tüm firma isimleri ve rakamlar',
     demoUyariVurgu: 'örnektir',
-    demoUyariSon: '. Dilediğiniz gibi gezebilir, kayıt ekleyip silebilirsiniz.',
+    demoUyariSon: '. Dilediğiniz gibi gezebilir, fiş açıp sayaç girebilirsiniz. Silme ve ayarlar demoda kapalı: aynı anda birçok kişi kullanıyor.',
     eposta: 'E-posta adresi',
     epostaYer: 'ad@firma.com',
     sifre: 'Şifre',
@@ -234,6 +234,9 @@ export const tr = {
       'Ağdaki yazıcıları tarayıcıyla bulun, tek tıkla ekleyin',
     ],
     panelNot: 'Hesabınız açılınca ekibimiz kurulum için sizi arar.',
+    // Aynı ağdan çok kayıt (ör. etkinlik salonu): hesap yerine talep alındı.
+    talepBaslik: 'Bilgileriniz bize ulaştı',
+    talepMetin: 'Bu ağdan bugün çok sayıda hesap açıldı, o yüzden hesabınızı otomatik açamadık. Hesabınızı bugün biz açıp giriş bilgisini WhatsApp’tan göndereceğiz.',
   },
 
   arama: {

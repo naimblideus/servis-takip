@@ -27,7 +27,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
 const g = mkdtempSync(join(tmpdir(), 'st-kayit-'));
-const KAYNAKLAR = ['kayit', 'zamanlanmis-is', 'zamanlayici', 'tenant-manager', 'talep', 'sahip-bildirim', 'audit', 'iller', 'modules', 'demo-koruma'];
+const KAYNAKLAR = ['kayit', 'zamanlanmis-is', 'zamanlayici', 'tenant-manager', 'talep', 'sahip-bildirim', 'audit', 'iller', 'modules', 'demo-koruma', 'demo-yazma'];
 try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),
@@ -56,6 +56,7 @@ const zis = await al('zamanlanmis-is');
 const zam = await al('zamanlayici');
 const tm = await al('tenant-manager');
 const mod = await al('modules');
+const dy = await al('demo-yazma');
 
 // ── KAYIT DOĞRULAMA (saf) ────────────────────────────────────────────────
 console.log('\nKayıt formu\n');
@@ -82,6 +83,40 @@ t('slug: "İ" tire üretmiyor', tm.generateSlug('İstanbul Fotokopi Ltd.') === '
   t('★ IP başına 10 dakikada 5 deneme; 6.\'sı reddediliyor', izinler.slice(0, 5).every(Boolean) && izinler[5] === false, izinler);
   t('10 dakika sonra yeniden deneyebiliyor', denemeIzni('9.9.9.9', 1_000_000 + 10 * 60_000 + 1) === true);
   hizSiniriniSifirla();
+}
+
+// ── ETKİNLİK KODU (saf) ──────────────────────────────────────────────────
+console.log('\nEtkinlik kodu (salonda herkes aynı Wi-Fi)\n');
+{
+  const { etkinlikBul, denemeDurumu, hizSiniriniSifirla } = kayit;
+  const ekim17 = Date.parse('2026-10-17T10:00:00+03:00');
+  t('★ "pantum" toplantı günlerinde geçerli, adıyla', etkinlikBul('pantum', ekim17)?.ad === 'Pantum Premium Partners Meeting 2026');
+  t('kod büyük harf/boşlukla da tanınıyor', etkinlikBul(' PANTUM ', ekim17)?.kod === 'pantum');
+  t('süresi geçen ya da bilinmeyen kod sıradan kayıt sayılır', etkinlikBul('pantum', Date.parse('2027-01-02T10:00:00+03:00')) === null
+    && etkinlikBul('bilinmeyen', ekim17) === null && etkinlikBul('__proto__', ekim17) === null && etkinlikBul('constructor', ekim17) === null && etkinlikBul(null, ekim17) === null);
+  hizSiniriniSifirla();
+  const etk = etkinlikBul('pantum', ekim17);
+  const kodlu = Array.from({ length: 31 }, () => denemeDurumu('7.7.7.7', ekim17, etk));
+  t('★ etkinlik kodlu: aynı IP\'den 10 dakikada 30 deneme, 31.\'si bot sayılır', kodlu.slice(0, 30).every((x) => x === 'TAMAM') && kodlu[30] === 'DENEME', kodlu.slice(28));
+  const kodsuz = Array.from({ length: 6 }, () => denemeDurumu('8.8.8.8', ekim17, null));
+  t('kodsuz sınır değişmedi (5 deneme)', kodsuz.slice(0, 5).every((x) => x === 'TAMAM') && kodsuz[5] === 'DENEME', kodsuz);
+  hizSiniriniSifirla();
+}
+
+// ── DEMODA YAZMA KURALI (saf) ────────────────────────────────────────────
+console.log('\nDemoda yazma kuralı (aynı anda yüz ziyaretçi)\n');
+{
+  const y = dy.demoYazmaYasak;
+  t('★ her silme kapalı', y('DELETE', '/api/customers/abc') && y('DELETE', '/api/tickets/trash') && y('delete', '/api/devices/x'));
+  t('★ ayarlar, kullanıcılar, içe aktarım, yedek kapalı', y('PUT', '/api/settings') && y('PATCH', '/api/users/u1') && y('POST', '/api/users')
+    && y('POST', '/api/import/sheet') && y('POST', '/api/backup/restore') && y('POST', '/api/devices/bulk-settings') && y('POST', '/api/fix-phones'));
+  t('★ demonun amacı açık: fiş, sayaç, fatura, cihaz, müşteri ekleme', !y('POST', '/api/tickets') && !y('POST', '/api/readings/bulk') && !y('POST', '/api/invoices')
+    && !y('POST', '/api/devices') && !y('POST', '/api/customers') && !y('PATCH', '/api/tickets/t1'));
+  t('okuma, giriş/çıkış ve dil seçimi her zaman açık', !y('GET', '/api/settings') && !y('HEAD', '/api/users') && !y('POST', '/api/auth/callback/credentials')
+    && !y('POST', '/api/auth/signout') && !y('POST', '/api/locale') && !y('DELETE', '/api/auth/session'));
+  t('API dışı yollar kurala girmiyor', !y('POST', '/login') && !y('DELETE', '/dashboard'));
+  t('tarayıcı anahtarı kendi demo cevabını veriyor (ücretsiz taramaya yönlendiren)', !y('POST', '/api/sayac/tarayici/ayar'));
+  t('mesaj iki dilde ve kayıt sayfasını gösteriyor', /kayit/.test(dy.DEMO_YAZMA_MESAJI.tr) && /kayit/.test(dy.DEMO_YAZMA_MESAJI.en) && !/[ğışçöü]/i.test(dy.DEMO_YAZMA_MESAJI.en.replace('nextusservis.com/kayit', '')));
 }
 
 // ── DÖNEM VE VAKİT (saf) ─────────────────────────────────────────────────
@@ -111,7 +146,30 @@ t('★ hatırlatma işleri demo bayilerine gitmiyor', /demo: false/.test(oku('sr
 const KORUMA = ['src/app/api/sms/bulk/route.ts', 'src/app/api/whatsapp/bulk/route.ts', 'src/app/api/auth/2fa/route.ts', 'src/app/api/users/[id]/route.ts', 'src/app/api/sayac/tarayici/ayar/route.ts'];
 t('demo koruması beş uçta', KORUMA.every((f) => oku(f).includes('demoBayiMi(')), KORUMA.filter((f) => !oku(f).includes('demoBayiMi(')));
 
+const ara = oku('src/middleware.ts');
+t('★ middleware demo oturumunda kuralı uyguluyor ve /api yollarını kapsıyor', /demoYazmaYasak\(request\.method, pathname\)/.test(ara) && /jeton\?\.demo/.test(ara) && ara.includes("'/api/:path*'"));
+const authKaynak = oku('src/lib/auth.ts');
+t('★ oturum jetonu bayinin demo bayrağını taşıyor (giriş ve SSO)', /demo: Boolean\(\(user as any\)\.tenant\.demo\)/.test(authKaynak) && /token\.demo = Boolean\(\(user as any\)\.demo\)/.test(authKaynak) && /token\.demo = Boolean\(kayitli\.tenant\.demo\)/.test(authKaynak)
+  && /demo: true/.test(oku('src/lib/sso-kimlik.ts')));
+// Bayi Pazarı: demo komşuları gerçek bayilere görünmesin, demo ziyaretçisi gerçek bayiye yazamasın.
+t('★ pazar listesi yalnız kendi dünyasındaki satıcıları gösteriyor', /marketEnabled: true, demo: a\.tenant!\.demo/.test(oku('src/app/api/market/listings/route.ts')));
+t('★ ilan ayrıntısı, sipariş ve mesaj demo ↔ gerçek arası kapalı', /sellerTenant\?\.demo !== a\.tenant!\.demo/.test(oku('src/app/api/market/listings/[id]/route.ts'))
+  && /seller\.demo !== a\.tenant!\.demo/.test(oku('src/app/api/market/orders/route.ts')) && /ayniDunyada\(a\.tenant!/.test(oku('src/app/api/market/messages/route.ts')));
+const etkinlikSayfasi = oku('public/pantum.html');
+t('★ etkinlik sayfası: kısa adres, kodlu kayıt, etiketli talep', /source: '\/pantum', destination: '\/pantum\.html'/.test(oku('next.config.ts'))
+  && etkinlikSayfasi.includes('href="/kayit?k=pantum"') && etkinlikSayfasi.includes('href="/demo"') && /utm_source: 'pantum'/.test(etkinlikSayfasi)
+  && kayit.etkinlikBul('pantum', Date.parse('2026-10-17T10:00:00+03:00')) !== null);
+
 const tohum = oku('scripts/seed-bayi-demo.mjs');
+{
+  // Parça grubu KOD olmalı: Türkçe ad İngilizce ekranda Türkçe kalır, grup süzgeci kaçırır.
+  const parcalar = tohum.slice(tohum.indexOf('const PARCALAR = ['), tohum.indexOf('];', tohum.indexOf('const PARCALAR = [')));
+  const gruplar = [...parcalar.matchAll(/grup: '([^']+)'/g)].map((m) => m[1]);
+  const KODLAR = ['TONER', 'INK', 'FUSER', 'ROLLER', 'GEAR', 'DRUM', 'SPARE', 'PAPER', 'LABOUR', 'REPAIR', 'OTHER'];
+  t('★ demo stoğunda parça grubu KOD (gece tazelemesi Türkçe ad yazmıyor)', gruplar.length >= 15 && gruplar.every((x) => KODLAR.includes(x)), [...new Set(gruplar)]);
+  t('★ demoda Pantum makineleri ve tonerleri var (Pantum bayileri kendi makinesini görsün)', /marka: 'Pantum', model: 'M7100DW'/.test(tohum) && /marka: 'Pantum', model: 'BP5100DN'/.test(tohum)
+    && /'Pantum TL-410X Toner'/.test(parcalar) && /'Pantum TL-5120X Toner'/.test(parcalar));
+}
 const demoModuller = (tohum.match(/modules: \[([^\]]+)\]/)?.[1] ?? '').match(/'([A-Z_]+)'/g)?.map((x) => x.slice(1, -1)) ?? [];
 t('★ demo bayisinde BÜTÜN modüller açık (yeni modül eklenince bu test hatırlatır)', mod.ALL_MODULE_KEYS.every((k) => demoModuller.includes(k)), { eksik: mod.ALL_MODULE_KEYS.filter((k) => !demoModuller.includes(k)) });
 t('demo bayileri demo bayrağıyla kuruluyor', /demo: true,/.test(tohum));
@@ -143,7 +201,7 @@ const p = new PrismaClient();
 const yerel = /@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl());
 const TEST_EPOSTA = (n) => `kayit.testi.${n}@ornek.local`;
 const temizle = async () => {
-  const eposta = { in: [1, 2, 3, 4, 5, 6].map(TEST_EPOSTA) };
+  const eposta = { in: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(TEST_EPOSTA) };
   const kullanicilar = await p.user.findMany({ where: { OR: [{ email: eposta }, { email: 'Kayit.Testi.Buyuk@Ornek.local' }] }, select: { tenantId: true } });
   for (const k of kullanicilar) await p.tenant.delete({ where: { id: k.tenantId } }).catch(() => {});
   await p.lead.deleteMany({ where: { eposta } });
@@ -241,6 +299,20 @@ if (!yerel) {
     t('★ aynı e-posta aynı anda iki kez: tek hesap', [e1.durum, e2.durum].sort().join() === 'EPOSTA_VAR,TAMAM'
       && (await p.user.count({ where: { email: TEST_EPOSTA(3) } })) === 1, [e1.durum, e2.durum]);
 
+    const etk = kayit.etkinlikBul('pantum', Date.parse('2026-10-17T10:00:00+03:00'));
+    const s7 = await kayitAc(veri(7), '10.0.0.7', etk);
+    const b7 = await p.tenant.findUnique({ where: { id: s7.tenantId } });
+    const l7 = await p.lead.findFirst({ where: { eposta: TEST_EPOSTA(7) } });
+    t('★ etkinlik kodlu kayıt: bayi notunda ve talepte etkinlik adı', s7.durum === 'TAMAM' && b7.adminNotes.includes(etk.ad)
+      && l7?.kaynak === 'pantum' && l7?.kampanya === etk.ad, { not: b7?.adminNotes, kaynak: l7?.kaynak });
+
+    await kayit.sinirdaTalep(veri(8), etk);
+    const l8 = await p.lead.findFirst({ where: { eposta: TEST_EPOSTA(8) } });
+    t('★ sınıra takılan kayıt kaybolmuyor: talep düşüyor, hesap açılmıyor, şifre yazılmıyor', !!l8 && l8.kaynak === 'pantum' && /otomatik açılmadı/.test(l8.mesaj ?? '')
+      && !JSON.stringify(l8).includes('gizli-sifre-1') && (await p.user.count({ where: { email: TEST_EPOSTA(8) } })) === 0, l8);
+    await kayit.sinirdaTalep(veri(9), null);
+    t('etkinliksiz sınır talebi "kayit" kaynağıyla', (await p.lead.findFirst({ where: { eposta: TEST_EPOSTA(9) } }))?.kaynak === 'kayit');
+
     await p.platformSettings.update({ where: { id: ayar.id }, data: { kayitAcik: false } });
     t('★ süper admin kapattıysa hesap açılmıyor', (await kayitAc(veri(4), null)).durum === 'KAPALI' && (await p.user.count({ where: { email: TEST_EPOSTA(4) } })) === 0);
   } finally {
@@ -282,6 +354,10 @@ if (!durumIstegi) {
   t('geçersiz telefon: 400 ve hata kodu', kotu?.status === 400 && (await kotu.json()).kod === 'KAYIT_TELEFON_GECERSIZ');
   const bal = await istek('/api/kayit', json({ ...tam, eposta: TEST_EPOSTA(5), web_sitesi: 'http://spam' }));
   t('bal küpü: "tamam" der ama hesap açmaz', bal?.status === 200 && (await p.user.count({ where: { email: TEST_EPOSTA(5) } })) === 0);
+  const ek = await (await istek('/api/kayit?k=pantum'))?.json().catch(() => ({}));
+  t('GET /api/kayit?k=pantum etkinlik adını veriyor (sayfadaki rozet)', ek?.etkinlik === 'Pantum Premium Partners Meeting 2026', ek);
+  const ps = await istek('/pantum');
+  t('/pantum oturumsuz açılıyor', ps?.status === 200 && /Pantum Premium Partners Meeting 2026/.test(await ps.text()), ps?.status);
   if (yerel && dj.acik) {
     try {
       const iyi = await istek('/api/kayit', json({ ...tam, eposta: TEST_EPOSTA(6), sifre: 'yeni-hesap-1' }));
@@ -290,6 +366,37 @@ if (!durumIstegi) {
       t('★ açılan hesapla seçilen şifre giriş yapıyor', !!cerez);
       const ob = cerez ? await (await istek('/api/onboarding/status', { headers: { cookie: cerez } })).json() : null;
       t('ilk girişte başlangıç rehberi açılacak', ob?.onboarded === false, ob);
+      if (cerez) {
+        // Gerçek (deneme) bayi pazarda demo komşularının ilanlarını görmemeli.
+        const pz = await (await istek('/api/market/listings', { headers: { cookie: cerez } })).json().catch(() => ({}));
+        const ilanlar = await p.marketListing.findMany({ where: { id: { in: (pz.listings ?? []).map((l) => l.id) } }, select: { sellerTenantId: true } });
+        const demoSatici = await p.tenant.count({ where: { id: { in: ilanlar.map((l) => l.sellerTenantId) }, demo: true } });
+        t('★ gerçek bayi pazarda demo ilanı görmüyor', Array.isArray(pz.listings) && demoSatici === 0, { ilan: pz.listings?.length, demoSatici });
+        const demoSaticilar = await p.tenant.findMany({ where: { demo: true, marketEnabled: true }, select: { id: true } });
+        const demoIlan = await p.marketListing.findFirst({ where: { status: 'ACTIVE', sellerTenantId: { in: demoSaticilar.map((d) => d.id) } } });
+        if (demoIlan) {
+          const sip = await istek('/api/market/orders', json({ listingId: demoIlan.id, quantity: 1 }, cerez));
+          t('★ gerçek bayi demo satıcıya sipariş veremiyor', sip?.status === 400, sip?.status);
+          const ay = await istek(`/api/market/listings/${demoIlan.id}`, { headers: { cookie: cerez } });
+          t('demo ilanının ayrıntısı gerçek bayiye 404', ay?.status === 404, ay?.status);
+        }
+        const sil = await istek('/api/customers/olmayan-musteri', { method: 'DELETE', headers: { cookie: cerez } });
+        t('gerçek bayinin silme isteği demo kuralına takılmıyor', sil?.status !== 403 || (await sil.json()).kod !== 'DEMO_KAPALI', sil?.status);
+      }
+
+      // Salon: aynı IP'den 3 hesap açılır, 4.'sü TALEBE döner; etkinlik koduyla devam eder.
+      const ip = `10.${(Date.now() >> 8) % 250}.${Date.now() % 250}.${7 + (process.pid % 200)}`;
+      const ipli = (govde) => ({ ...json(govde), headers: { 'content-type': 'application/json', 'x-real-ip': ip } });
+      const sonuclar = [];
+      for (const n of [10, 11, 12]) sonuclar.push((await istek('/api/kayit', ipli({ ...tam, eposta: TEST_EPOSTA(n) })))?.status);
+      const dorduncu = await istek('/api/kayit', ipli({ ...tam, eposta: TEST_EPOSTA(13) }));
+      const dj4 = await dorduncu?.json().catch(() => ({}));
+      t('★ aynı IP\'den 4. kayıt hata değil: talep alındı (202), hesap açılmadı', sonuclar.every((s) => s === 200) && dorduncu?.status === 202 && dj4?.talep === true
+        && (await p.user.count({ where: { email: TEST_EPOSTA(13) } })) === 0 && !!(await p.lead.findFirst({ where: { eposta: TEST_EPOSTA(13), mesaj: { contains: 'otomatik açılmadı' } } })),
+        { sonuclar, dorduncu: dorduncu?.status, dj4 });
+      await p.lead.deleteMany({ where: { eposta: TEST_EPOSTA(13) } });
+      const kodlu = await istek('/api/kayit', ipli({ ...tam, eposta: TEST_EPOSTA(13), kod: 'pantum' }));
+      t('★ aynı IP, etkinlik koduyla: hesap açılıyor', kodlu?.status === 200, kodlu?.status);
     } finally { await temizle(); }
   }
 
@@ -303,7 +410,7 @@ if (!durumIstegi) {
       const hedef = demo.users.find((u) => u.email === girisEposta);
       const kodu = async (r) => (r ? (await r.json().catch(() => ({}))).kod : null);
       const s1 = await istek(`/api/users/${hedef.id}`, { ...json({ password: 'degistirildi-1' }, cerez), method: 'PATCH' });
-      t('★ demoda şifre değişmiyor', s1?.status === 403 && await kodu(s1) === 'DEMO_HESABINDA_KAPALI', s1?.status);
+      t('★ demoda şifre değişmiyor', s1?.status === 403 && ['DEMO_HESABINDA_KAPALI', 'DEMO_KAPALI'].includes(await kodu(s1)), s1?.status);
       const s2 = await istek('/api/auth/2fa', json({ action: 'setup' }, cerez));
       t('★ demoda 2FA açılmıyor', s2?.status === 403);
       const s3 = await istek('/api/sayac/tarayici/ayar', json({}, cerez));
@@ -311,8 +418,17 @@ if (!durumIstegi) {
       const s4 = await istek('/api/sms/bulk', json({ customerIds: [], message: 'x' }, cerez));
       t('demoda toplu SMS kapalı', s4?.status === 403);
       const s5 = await istek(`/api/users/${hedef.id}`, { ...json({ name: 'Ad Değişebilir' }, cerez), method: 'PATCH' });
-      t('demoda zararsız düzenleme (ad) serbest', s5?.status === 200);
+      t('★ demoda kullanıcı adı da değişmiyor (herkesin ekranında görünür)', s5?.status === 403 && await kodu(s5) === 'DEMO_KAPALI', s5?.status);
       await p.user.update({ where: { id: hedef.id }, data: { name: hedef.name } });
+      const musteri = await p.customer.findFirst({ where: { tenantId: demo.id }, select: { id: true } });
+      const s6 = await istek(`/api/customers/${musteri.id}`, { method: 'DELETE', headers: { cookie: cerez } });
+      t('★ demoda müşteri silinmiyor', s6?.status === 403 && await kodu(s6) === 'DEMO_KAPALI' && !!(await p.customer.findUnique({ where: { id: musteri.id } })), s6?.status);
+      const s7 = await istek('/api/settings', { ...json({ name: 'Bozuk Ad' }, cerez), method: 'PUT' });
+      t('★ demoda firma ayarları değişmiyor', s7?.status === 403 && (await p.tenant.findUnique({ where: { id: demo.id } })).name === demo.name, s7?.status);
+      const pz = await (await istek('/api/market/listings', { headers: { cookie: cerez } })).json().catch(() => ({}));
+      const ilanlar = await p.marketListing.findMany({ where: { id: { in: (pz.listings ?? []).map((l) => l.id) } }, select: { sellerTenantId: true } });
+      const gercek = await p.tenant.count({ where: { id: { in: ilanlar.map((l) => l.sellerTenantId) }, demo: false } });
+      t('★ demo ziyaretçisi pazarda yalnız demo satıcıları görüyor', (pz.listings?.length ?? 0) > 0 && gercek === 0, { ilan: pz.listings?.length, gercek });
       t('şifre gerçekten değişmedi', await bcrypt.compare(girisSifre, (await p.user.findUnique({ where: { id: hedef.id } })).passwordHash));
     }
   }

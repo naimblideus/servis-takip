@@ -95,7 +95,7 @@ export async function ssoKullaniciBul(eposta: string) {
   if (satirlar.length !== 1) return { user: null, sebep: satirlar.length === 0 ? 'tanimsiz' as const : 'coklu' as const };
   const user = await prisma.user.findUnique({
     where: { id: satirlar[0].id },
-    include: { tenant: { select: { name: true, isActive: true, deletedAt: true } } },
+    include: { tenant: { select: { name: true, isActive: true, deletedAt: true, demo: true } } },
   });
   return user ? { user, sebep: null } : { user: null, sebep: 'tanimsiz' as const };
 }

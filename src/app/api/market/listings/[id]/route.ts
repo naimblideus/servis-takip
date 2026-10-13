@@ -21,10 +21,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const sellerTenant = await prisma.tenant.findUnique({
     where: { id: l.sellerTenantId },
-    select: { name: true, marketDisplayName: true, marketCity: true, marketEnabled: true },
+    select: { name: true, marketDisplayName: true, marketCity: true, marketEnabled: true, demo: true },
   });
   // Satıcı pazardan ayrıldıysa ilan başkalarına görünmez (hayalet ilan önle)
   if (!isOwner && !sellerTenant?.marketEnabled) return ucHatasi('ILAN_BULUNAMADI', 404);
+  // Demo satıcının ilanı gerçek bayiye, gerçek satıcınınki demoya görünmez.
+  if (!isOwner && sellerTenant?.demo !== a.tenant!.demo) return ucHatasi('ILAN_BULUNAMADI', 404);
 
   const ratings = await sellerRatings([l.sellerTenantId]);
   const seller = sellerTenant ? { name: sellerTenant.marketDisplayName || sellerTenant.name, city: sellerTenant.marketCity || null, ...(ratings.get(l.sellerTenantId) || {}) } : undefined;

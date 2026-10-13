@@ -36,18 +36,27 @@ export interface TalepGirdisi {
 }
 
 /** Platform sahibine giden e-posta: kimi, nereden, nasıl aramalı. */
-function bildirimMetni(veri: TalepGirdisi, kaynak: 'landing' | 'kayit') {
+/** landing: iletişim formu · kayit: hesap açıldı · kayit-sinir: sınıra takıldı, hesabı biz açacağız. */
+export type TalepKaynagi = 'landing' | 'kayit' | 'kayit-sinir';
+
+function bildirimMetni(veri: TalepGirdisi, kaynak: TalepKaynagi) {
   const firma = kirp(veri.firma) ?? kirp(veri.ad) ?? 'Adsız';
   const il = kirp(veri.il, 40);
   const telefon = kirp(veri.telefon, 40);
   const wa = whatsappBaglantisi(telefon);
+  const etkinlik = kirp(veri.utm_campaign, 120);
   const konu = kaynak === 'kayit'
     ? `Yeni deneme hesabı: ${firma}${il ? ` (${il})` : ''}`
-    : `Siteden talep: ${firma}`;
+    : kaynak === 'kayit-sinir'
+      ? `HESABI SİZ AÇIN: ${firma}${il ? ` (${il})` : ''}`
+      : `Siteden talep: ${firma}`;
   const satirlar = [
     kaynak === 'kayit'
       ? `${kirp(veri.ad) ?? 'Bir servis'} siteden 14 günlük deneme hesabı açtı. Bugün arayın; kurulumda (müşteri/cihaz listesi, ağ tarayıcı) yardım edin.`
-      : 'Ana sayfadaki formdan talep geldi.',
+      : kaynak === 'kayit-sinir'
+        ? `${kirp(veri.ad) ?? 'Bir servis'} deneme hesabı açmak istedi ama aynı ağdan çok kayıt geldiği için hesap otomatik açılmadı. Süper admin → Bayiler → Yeni bayi ile açın, giriş bilgisini WhatsApp'tan gönderin. Ekranda "hesabınızı biz açacağız" yazdı.`
+        : 'Ana sayfadaki formdan talep geldi.',
+    etkinlik ? `Etkinlik: ${etkinlik}` : null,
     '',
     `Firma: ${firma}`,
     kirp(veri.ad ?? veri.yetkili) ? `Yetkili: ${kirp(veri.ad ?? veri.yetkili)}` : null,
@@ -63,7 +72,7 @@ function bildirimMetni(veri: TalepGirdisi, kaynak: 'landing' | 'kayit') {
   return { konu, satirlar };
 }
 
-async function crmeAktar(veri: TalepGirdisi, kaynak: 'landing' | 'kayit', leadId: string): Promise<void> {
+async function crmeAktar(veri: TalepGirdisi, kaynak: TalepKaynagi, leadId: string): Promise<void> {
   const url = process.env.NEXUS_CRM_URL;
   if (!url) return;
   try {
@@ -96,7 +105,7 @@ async function crmeAktar(veri: TalepGirdisi, kaynak: 'landing' | 'kayit', leadId
  * ve CRM hataları yutulur, talep kayıtlı kalır. `kaynak` talebin hangi
  * kapıdan geldiğini söyler.
  */
-export async function talepKaydet(veri: TalepGirdisi, kaynak: 'landing' | 'kayit'): Promise<{ id: string }> {
+export async function talepKaydet(veri: TalepGirdisi, kaynak: TalepKaynagi): Promise<{ id: string }> {
   const lead = await prisma.lead.create({
     data: {
       firma: kirp(veri.firma),
@@ -105,7 +114,7 @@ export async function talepKaydet(veri: TalepGirdisi, kaynak: 'landing' | 'kayit
       eposta: kirp(veri.eposta, 120),
       cihazSayisi: kirp(veri.cihazSayisi ?? veri.cihaz, 40),
       mesaj: kirp(veri.mesaj, 2000),
-      kaynak: kirp(veri.utm_source, 80) ?? (kaynak === 'kayit' ? 'kayit' : null),
+      kaynak: kirp(veri.utm_source, 80) ?? (kaynak === 'landing' ? null : 'kayit'),
       kampanya: kirp(veri.utm_campaign, 120),
     },
     select: { id: true },

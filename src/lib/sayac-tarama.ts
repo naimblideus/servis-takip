@@ -161,6 +161,7 @@ export const MARKALAR: Readonly<Record<number, string>> = {
   2385: 'Sharp',
   2435: 'Brother',
   18334: 'Konica Minolta',
+  40093: 'Pantum', // IANA kaydı: Zhuhai Seine Technology (pantum.com)
 };
 
 export function kurumNo(sysObjectID: string | null): number | null {

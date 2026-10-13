@@ -409,7 +409,8 @@ $UYARI_AD = @{
   CIKIS_DOLMAK_UZERE = @('BILGI', 'Çıkış tepsisi dolmak üzere', 'Output tray almost full')
 }
 $MARKALAR = @{ '11' = 'HP'; '236' = 'Samsung'; '253' = 'Xerox'; '367' = 'Ricoh'; '641' = 'Lexmark'; '1248' = 'Epson';
-  '1347' = 'Kyocera'; '1602' = 'Canon'; '2385' = 'Sharp'; '2435' = 'Brother'; '18334' = 'Konica Minolta' }
+  '1347' = 'Kyocera'; '1602' = 'Canon'; '2385' = 'Sharp'; '2435' = 'Brother'; '18334' = 'Konica Minolta';
+  '40093' = 'Pantum' }
 $TONER_KRITIK = 15
 $PARCA_KRITIK = 10
 $TONER_DISI = 'drum|imaging|waste|at[ıi]k|fuser|f[ıi]r[ıi]n|belt|kay[ıi][sş]|maintenance|bak[ıi]m|developer|geli[sş]tirici|staple|z[ıi]mba|transfer|roller|merdane'

@@ -10,7 +10,7 @@ export interface MarketAuth {
   error: string | null;
   status: number;
   user: { id: string; tenantId: string; name: string; role: string } | null;
-  tenant: { id: string; name: string; marketEnabled: boolean; marketDisplayName: string | null; marketCity: string | null; marketContactPhone: string | null } | null;
+  tenant: { id: string; name: string; marketEnabled: boolean; marketDisplayName: string | null; marketCity: string | null; marketContactPhone: string | null; demo: boolean } | null;
 }
 
 export async function marketAuth(requireEnabled = true): Promise<MarketAuth> {
@@ -20,12 +20,24 @@ export async function marketAuth(requireEnabled = true): Promise<MarketAuth> {
   if (!user) return { error: 'User not found', status: 404, user: null, tenant: null };
   const tenant = await prisma.tenant.findUnique({
     where: { id: user.tenantId },
-    select: { id: true, name: true, marketEnabled: true, marketDisplayName: true, marketCity: true, marketContactPhone: true, plan: true, modules: true },
+    select: { id: true, name: true, marketEnabled: true, marketDisplayName: true, marketCity: true, marketContactPhone: true, plan: true, modules: true, demo: true },
   });
   if (!tenant) return { error: 'Tenant not found', status: 404, user, tenant: null };
   // Modül kapısı: Bayi Pazarı MARKETPLACE modülü açık mı? (marketEnabled eski bayrak geriye-uyumlu)
   if (requireEnabled && !hasModule(tenant, 'MARKETPLACE')) return { error: 'Bayi Pazarı paketinizde yok', status: 403, user, tenant };
   return { error: null, status: 200, user, tenant };
+}
+
+/**
+ * DEMO VE GERÇEK PAZAR AYRI DÜNYALAR. Demo tohumu pazara "komşu bayi" ilanları
+ * koyuyor; gerçek bayi onları görüp sahte satıcıya sipariş veriyordu. Tersi de
+ * açıktı: herkese açık demoya giren ziyaretçi gerçek bayilere sipariş ve mesaj
+ * atabiliyordu. Kural: bayi yalnız kendi dünyasındaki (demo ↔ demo, gerçek ↔
+ * gerçek) satıcıyı görür, ona sipariş ve mesaj gönderir.
+ */
+export async function ayniDunyada(bakan: { demo: boolean }, saticiTenantId: string): Promise<boolean> {
+  const t = await prisma.tenant.findUnique({ where: { id: saticiTenantId }, select: { demo: true } });
+  return Boolean(t) && t!.demo === bakan.demo;
 }
 
 /** Satıcı tenant'ları için yalnız PUBLİK görünen bilgi (ad + şehir). İç veri sızdırmaz. */

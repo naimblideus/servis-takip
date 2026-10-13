@@ -149,7 +149,7 @@ export const en: Sozluk = {
     demoAlt: 'Credentials are filled in — just press Sign in.',
     demoUyariOn: 'Every company name and figure in this account is',
     demoUyariVurgu: 'sample data',
-    demoUyariSon: '. Explore freely, add and delete records as you like.',
+    demoUyariSon: '. Explore freely, open tickets and enter meter readings. Deleting and settings are off in the demo because many people use it at once.',
     eposta: 'Email address',
     epostaYer: 'name@company.com',
     sifre: 'Password',
@@ -225,6 +225,8 @@ export const en: Sozluk = {
       'Find the printers on a network with the scanner and add them in one click',
     ],
     panelNot: 'Once your account is open, our team will call you about setup.',
+    talepBaslik: 'We have your details',
+    talepMetin: 'Many accounts were opened from this network today, so we could not open yours automatically. We will open it today and send your sign-in details on WhatsApp.',
   },
 
   arama: {

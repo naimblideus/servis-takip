@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pantum bayileri için Nextus Servis</title>
+<meta name="description" content="Yazıcı ve fotokopi bayileri için servis takip programı: sayaç toplama, kira faturası, toner tahmini, servis fişi. Pantum dahil bütün markalarla çalışır. 14 gün ücretsiz.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root { --bg: #050508; --kart: #0f1017; --cizgi: rgba(255,255,255,.09); --metin: #e7e7ee; --soluk: #9b9bab; --vurgu: #14b8a6; --vurgu-koyu: #04201d; }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; color: var(--metin); font: 16px/1.6 Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 16px 56px; }
+  .ust { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .logo { font-weight: 800; letter-spacing: -.01em; color: #fff; text-decoration: none; }
+  .dil button { background: none; border: 1px solid var(--cizgi); color: var(--soluk); padding: 4px 10px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 13px; }
+  .dil button[aria-pressed="true"] { color: #fff; border-color: var(--vurgu); }
+  .etiket { display: inline-block; margin: 32px 0 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--vurgu); font-weight: 700; border: 1px solid rgba(20,184,166,.35); border-radius: 999px; padding: 4px 12px; }
+  h1 { margin: 14px 0 12px; font-size: clamp(28px, 7vw, 42px); line-height: 1.15; letter-spacing: -.02em; color: #fff; }
+  .giris { margin: 0; color: var(--soluk); font-size: 17px; }
+  .eylemler { display: grid; gap: 10px; margin-top: 24px; }
+  .eylem { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-radius: 14px; text-decoration: none; font-weight: 800; font-size: 17px; }
+  .eylem small { display: block; font-weight: 500; font-size: 13.5px; opacity: .8; margin-top: 2px; }
+  .eylem.ana { background: var(--vurgu); color: var(--vurgu-koyu); }
+  .eylem.ikinci { background: var(--kart); border: 1px solid var(--cizgi); color: #fff; }
+  .eylem.wa { background: #0f2a1d; border: 1px solid rgba(37,211,102,.35); color: #dcfce7; }
+  .ok { font-size: 22px; line-height: 1; }
+  h2 { margin: 40px 0 12px; font-size: 21px; color: #fff; letter-spacing: -.01em; }
+  .kartlar { display: grid; gap: 10px; }
+  .kart { background: var(--kart); border: 1px solid var(--cizgi); border-radius: 14px; padding: 14px 16px; }
+  .kart b { display: block; color: #fff; margin-bottom: 2px; }
+  .kart > span { color: var(--soluk); font-size: 15px; }
+  .fiyat { margin-top: 14px; color: var(--soluk); font-size: 15px; }
+  .fiyat b { color: #fff; }
+  form { display: grid; gap: 10px; margin-top: 8px; }
+  label { font-size: 13px; color: var(--soluk); font-weight: 600; }
+  input, select { width: 100%; margin-top: 4px; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--cizgi); background: rgba(255,255,255,.04); color: #fff; font: inherit; font-size: 16px; }
+  select option { background: #0b0f17; }
+  button.gonder { margin-top: 4px; padding: 15px; border: 0; border-radius: 12px; background: #fff; color: #050508; font: inherit; font-weight: 800; font-size: 16px; cursor: pointer; }
+  button.gonder[disabled] { opacity: .5; }
+  .durum { margin-top: 10px; padding: 12px 14px; border-radius: 12px; font-size: 15px; display: none; }
+  .durum.tamam { display: block; background: rgba(20,184,166,.1); border: 1px solid rgba(20,184,166,.35); color: #ccfbf1; }
+  .durum.hata { display: block; background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.3); color: #fecaca; }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .alt { margin-top: 40px; color: var(--soluk); font-size: 13.5px; }
+  .alt a { color: var(--soluk); }
+  [data-dil="en"] { display: none; }
+  html[lang="en"] [data-dil="tr"] { display: none; }
+  html[lang="en"] [data-dil="en"] { display: revert; }
+  @media (min-width: 720px) { main { padding-top: 40px; } .kartlar { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="ust">
+    <a class="logo" href="/">Nextus Servis</a>
+    <div class="dil" role="group" aria-label="Dil / Language">
+      <button type="button" data-sec="tr" aria-pressed="true">TR</button>
+      <button type="button" data-sec="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+
+  <p class="etiket">Pantum Premium Partners Meeting 2026</p>
+  <h1>
+    <span data-dil="tr">Kiraladığınız makinelerin sayacı, toneri ve servisi tek ekranda</span>
+    <span data-dil="en">Meter readings, toner and service for every machine you rent, on one screen</span>
+  </h1>
+  <p class="giris">
+    <span data-dil="tr">Nextus Servis, yazıcı ve fotokopi bayileri için yazılmış servis takip programı. Sayacı toplar, kira faturasını hesaplar, toner bitmeden haber verir. Pantum dahil bütün markalarla çalışır.</span>
+    <span data-dil="en">Nextus Servis is service software built for printer and copier dealers. It collects meter readings, works out the rental invoice and warns you before toner runs out. It works with every brand, Pantum included.</span>
+  </p>
+
+  <div class="eylemler">
+    <a class="eylem ana" href="/demo">
+      <span><span data-dil="tr">Demoyu şimdi açın</span><span data-dil="en">Open the demo now</span>
+        <small><span data-dil="tr">Telefonda çalışır, kayıt gerekmez</span><span data-dil="en">Works on your phone, no sign-up</span></small></span>
+      <span class="ok" aria-hidden="true">→</span>
+    </a>
+    <a class="eylem ikinci" href="/kayit?k=pantum">
+      <span><span data-dil="tr">14 gün ücretsiz deneyin</span><span data-dil="en">Try it free for 14 days</span>
+        <small><span data-dil="tr">Kendi hesabınız, bütün özellikler açık, kart istenmez</span><span data-dil="en">Your own account, every feature on, no card</span></small></span>
+      <span class="ok" aria-hidden="true">→</span>
+    </a>
+    <a class="eylem wa" id="wa" href="https://wa.me/905526961703">
+      <span><span data-dil="tr">WhatsApp'tan yazın</span><span data-dil="en">Message us on WhatsApp</span>
+        <small><span data-dil="tr">Kurulumu birlikte yapalım</span><span data-dil="en">We set it up together</span></small></span>
+      <span class="ok" aria-hidden="true">→</span>
+    </a>
+  </div>
+
+  <h2><span data-dil="tr">Bayiye ne kazandırır</span><span data-dil="en">What it does for a dealer</span></h2>
+  <div class="kartlar">
+    <div class="kart">
+      <b><span data-dil="tr">Sayaç kendiliğinden gelir</span><span data-dil="en">Meter readings come in by themselves</span></b>
+      <span data-dil="tr">Makinenin e-postasından, ağ tarayıcıdan ya da teknisyenin telefonundan. Okunmayan sayaç ay sonunda listede kırmızı görünür.</span>
+      <span data-dil="en">From the machine's own e-mail, the network scanner or the technician's phone. Missing readings show up in red before month-end.</span>
+    </div>
+    <div class="kart">
+      <b><span data-dil="tr">Kira faturası tek tıkla</span><span data-dil="en">Rental invoices in one click</span></b>
+      <span data-dil="tr">Dahil hacim ve aşım fiyatı sözleşmeden hesaplanır. Faturası kesilmeyen sayaç "kaçan gelir" olarak önünüze gelir.</span>
+      <span data-dil="en">Included volume and overage come from the contract. Readings that were never billed show up as lost revenue.</span>
+    </div>
+    <div class="kart">
+      <b><span data-dil="tr">Toner bitmeden haber</span><span data-dil="en">Know before toner runs out</span></b>
+      <span data-dil="tr">Her makinenin toneri kaç gün sonra biter, görürsünüz. Tonerin gerçekte kaç sayfa bastığını sistem kendisi ölçer.</span>
+      <span data-dil="en">See how many days each machine's toner has left. The system measures how many pages a toner really printed.</span>
+    </div>
+    <div class="kart">
+      <b><span data-dil="tr">Servis fişi ve teknisyen</span><span data-dil="en">Service tickets and technicians</span></b>
+      <span data-dil="tr">Arıza, takılan parça, stoktan düşüş, müşteri imzası. Teknisyen telefondan çalışır.</span>
+      <span data-dil="en">Fault, parts fitted, stock deducted, customer signature. Technicians work from their phones.</span>
+    </div>
+    <div class="kart">
+      <b><span data-dil="tr">Ağ taraması: makineler hazır gelir</span><span data-dil="en">Network scan: machines come in ready</span></b>
+      <span data-dil="tr">Müşterinin ağındaki yazıcıları bulur; marka, model, seri ve sayaçla tek tıkla eklersiniz. Pantum makineleri adıyla tanınır.</span>
+      <span data-dil="en">Finds the printers on a customer's network; add them with brand, model, serial and meter in one click. Pantum machines are recognised by name.</span>
+    </div>
+    <div class="kart">
+      <b><span data-dil="tr">Müşteri kendi borcunu görür</span><span data-dil="en">Customers see their own balance</span></b>
+      <span data-dil="tr">Müşteri portalında cihazları, borcu ve faturaları; arıza bildirimini de oradan yapar.</span>
+      <span data-dil="en">In the customer portal they see their machines, balance and invoices, and report faults there too.</span>
+    </div>
+  </div>
+  <p class="fiyat">
+    <span data-dil="tr"><b>Paketler aylık ₺1.749'dan başlar</b> (KDV hariç). 14 gün boyunca bütün özellikler açık, kredi kartı istenmez. <a href="/#fiyatlandirma" style="color:#fff">Fiyatların tamamı</a></span>
+    <span data-dil="en"><b>Plans start at ₺1,749 a month</b> (excl. VAT). Every feature is on for 14 days, no credit card. <a href="/en#fiyatlandirma" style="color:#fff">All prices</a></span>
+  </p>
+
+  <h2><span data-dil="tr">Sizi arayalım</span><span data-dil="en">We'll call you</span></h2>
+  <form id="form" novalidate>
+    <label><span data-dil="tr">Adınız soyadınız</span><span data-dil="en">Your name</span>
+      <input name="ad" autocomplete="name" maxlength="80" required></label>
+    <label><span data-dil="tr">Firma</span><span data-dil="en">Company</span>
+      <input name="firma" autocomplete="organization" maxlength="120" required></label>
+    <label><span data-dil="tr">Cep telefonu</span><span data-dil="en">Mobile phone</span>
+      <input name="telefon" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="05xx xxx xx xx" required></label>
+    <label><span data-dil="tr">Kaç makineye bakıyorsunuz?</span><span data-dil="en">How many machines do you look after?</span>
+      <select name="cihazSayisi">
+        <option value="">—</option>
+        <option value="1-20">1–20</option>
+        <option value="21-50">21–50</option>
+        <option value="51-150">51–150</option>
+        <option value="150+">150+</option>
+      </select></label>
+    <div class="hp" aria-hidden="true"><label>Web <input name="website_hp" tabindex="-1" autocomplete="off"></label></div>
+    <button class="gonder" type="submit"><span data-dil="tr">Beni arayın</span><span data-dil="en">Call me</span></button>
+    <div class="durum" id="durum" role="status"></div>
+  </form>
+
+  <p class="alt">
+    <span data-dil="tr">Ağınızdaki makineleri önce kendiniz görmek isterseniz: <a href="/ucretsiz-tarama">ücretsiz ağ taraması</a> (bilgisayardan). · <a href="/gizlilik">Gizlilik</a></span>
+    <span data-dil="en">Want to see your own machines first? <a href="/ucretsiz-tarama">Free network scan</a> (on a computer). · <a href="/gizlilik">Privacy</a></span>
+  </p>
+</main>
+<script>
+  (function () {
+    var kok = document.documentElement;
+    var dugmeler = document.querySelectorAll('[data-sec]');
+    var METIN = {
+      tr: { wa: 'Merhaba, Pantum toplantısında Nextus Servis\'i gördüm. Bilgi almak istiyorum.', tamam: 'Aldık, teşekkürler. Bugün sizi arıyoruz.', eksik: 'Adınızı, firmanızı ve cep telefonunuzu yazın.', hata: 'Gönderilemedi. WhatsApp\'tan yazar mısınız?' },
+      en: { wa: 'Hello, I saw Nextus Servis at the Pantum meeting and would like to know more.', tamam: 'Got it, thank you. We will call you today.', eksik: 'Please enter your name, company and mobile number.', hata: 'Could not send. Please message us on WhatsApp.' }
+    };
+    var dil = 'tr';
+    function uygula(d) {
+      dil = d;
+      kok.lang = d;
+      for (var i = 0; i < dugmeler.length; i++) dugmeler[i].setAttribute('aria-pressed', dugmeler[i].getAttribute('data-sec') === d ? 'true' : 'false');
+      document.getElementById('wa').href = 'https://wa.me/905526961703?text=' + encodeURIComponent(METIN[d].wa);
+    }
+    for (var i = 0; i < dugmeler.length; i++) dugmeler[i].addEventListener('click', function () { uygula(this.getAttribute('data-sec')); });
+    // Salon Türkçe: telefon İngilizce olsa da Türkçe açılır; İngilizce yalnız seçilince.
+    uygula(new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'tr');
+
+    var form = document.getElementById('form');
+    var durum = document.getElementById('durum');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = {};
+      new FormData(form).forEach(function (deger, ad) { v[ad] = String(deger).trim(); });
+      durum.className = 'durum';
+      if (!v.ad || !v.firma || v.telefon.replace(/[^0-9]/g, '').length < 10) { durum.textContent = METIN[dil].eksik; durum.className = 'durum hata'; return; }
+      var dugme = form.querySelector('button');
+      dugme.disabled = true;
+      fetch('/api/talep', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ad: v.ad, firma: v.firma, telefon: v.telefon, cihazSayisi: v.cihazSayisi, website_hp: v.website_hp,
+          mesaj: 'Pantum toplantısı sayfasından: beni arayın.',
+          utm_source: 'pantum', utm_campaign: 'Pantum Premium Partners Meeting 2026'
+        })
+      }).then(function (r) {
+        if (!r.ok) throw new Error(String(r.status));
+        durum.textContent = METIN[dil].tamam; durum.className = 'durum tamam';
+        form.reset();
+      }).catch(function () {
+        durum.textContent = METIN[dil].hata; durum.className = 'durum hata';
+      }).then(function () { dugme.disabled = false; });
+    });
+  })();
+</script>
+</body>
+</html>

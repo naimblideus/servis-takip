@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
-import { marketAuth } from '@/lib/market';
+import { marketAuth, ayniDunyada } from '@/lib/market';
 
 // GET /api/market/messages?listingId=..&buyer=..  — bir konuşmadaki mesajlar (yalnız taraflar)
 export async function GET(req: Request) {
@@ -68,6 +68,8 @@ export async function POST(req: Request) {
     // Alıcı: yeni konuşma yalnız ACTIVE ilanda başlatılabilir
     const hasThread = await prisma.marketMessage.findFirst({ where: { listingId, buyerTenantId: me }, select: { id: true } });
     if (!hasThread && listing.status !== 'ACTIVE') return ucHatasi('ILAN_AKTIF_DEGIL', 400);
+    // Demo ↔ gerçek arası mesaj yok: demodaki ziyaretçi gerçek bayiye yazamaz.
+    if (!(await ayniDunyada(a.tenant!, listing.sellerTenantId))) return ucHatasi('ILAN_BULUNAMADI', 404);
     buyerTenantId = me;
   }
 

@@ -20,8 +20,10 @@ export async function POST(req: Request) {
   if (listing.sellerTenantId === me) return ucHatasi('KENDI_ILANINA_SIPARIS_VEREMEZSIN', 400);
 
   // Satıcı hâlâ pazara açık mı
-  const seller = await prisma.tenant.findUnique({ where: { id: listing.sellerTenantId }, select: { marketEnabled: true, name: true, marketDisplayName: true } });
+  const seller = await prisma.tenant.findUnique({ where: { id: listing.sellerTenantId }, select: { marketEnabled: true, name: true, marketDisplayName: true, demo: true } });
   if (!seller?.marketEnabled) return ucHatasi('SATICI_SU_AN_PAZARDA_DEGIL', 400);
+  // Demo ↔ gerçek arası sipariş yok (lib/market ayniDunyada).
+  if (seller.demo !== a.tenant!.demo) return ucHatasi('SATICI_SU_AN_PAZARDA_DEGIL', 400);
 
   // Spam koruması: son 1 saatte 30 sipariş
   const since = new Date(Date.now() - 3600 * 1000);

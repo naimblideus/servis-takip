@@ -17,6 +17,16 @@
  *     IP'si bilinmeyen istek (yerel geliştirme; canlıda vekil her zaman
  *     yazar) IP sınırına girmez, genel tavana girer.
  *   · Süper admin kapatabilir (PlatformSettings.kayitAcik).
+ *
+ * ── ETKİNLİK KODU VE SINIRDA TALEP ───────────────────────────────────────
+ * Bir bayi toplantısında herkes aynı otel Wi-Fi'ından (tek IP) çıkar; günde
+ * 3 hesap sınırı dördüncü bayiyi kapıdan çevirirdi. Basılı QR'daki kod
+ * (/kayit?k=pantum) tarih aralığındaysa sınırlar GENİŞLER (kaldırılmaz; kod
+ * kâğıtta basılı, gizli değil) ve talep etkinlik adıyla etiketlenir.
+ * Sınıra yine takılan, formu doğru dolduran kişi kaybolmaz: hesap açılmaz
+ * ama bilgileri talep olarak düşer, sahibine anında e-posta gider; ekranda
+ * "hesabınızı biz açıp WhatsApp'tan göndereceğiz" yazar. Şifre saklanmaz.
+ * Kısa sürede çok deneme (bot davranışı) ise eskisi gibi reddedilir.
  */
 import { randomBytes } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
@@ -68,11 +78,34 @@ export function kayitDogrula(ham: unknown): { ok: true; veri: KayitVerisi } | { 
   return { ok: true, veri: { firma, ad, telefon, eposta, sifre, il } };
 }
 
+// ── ETKİNLİK ───────────────────────────────────────────────────────────
+export interface Etkinlik { kod: string; ad: string }
+
+/** Basılı QR'larda geçen kodlar. Bitiş sonrası kod yok sayılır (sıradan kayıt). */
+const ETKINLIKLER: Readonly<Record<string, { ad: string; bas: string; bit: string }>> = {
+  pantum: { ad: 'Pantum Premium Partners Meeting 2026', bas: '2026-10-01', bit: '2026-12-31' },
+};
+
+export function etkinlikBul(kod: unknown, simdi = Date.now()): Etkinlik | null {
+  if (typeof kod !== 'string') return null;
+  const k = kod.trim().toLowerCase();
+  const e = Object.prototype.hasOwnProperty.call(ETKINLIKLER, k) ? ETKINLIKLER[k] : null;
+  if (!e) return null;
+  // Gün sonuna kadar geçerli (İstanbul, UTC+3).
+  const bas = Date.parse(`${e.bas}T00:00:00+03:00`);
+  const bit = Date.parse(`${e.bit}T23:59:59+03:00`);
+  return simdi >= bas && simdi <= bit ? { kod: k, ad: e.ad } : null;
+}
+
 // ── HIZ SINIRI (bellekte; tek sunucu) ──────────────────────────────────
 const DENEME_PENCERE = 10 * 60_000;
 const DENEME_AZAMI = 5;
 const GUNLUK_HESAP_AZAMI = 3;
 const SAATLIK_GENEL_AZAMI = 20;
+/** Etkinlik kodlu kayıtta: salon kalabalığı tek IP'den gelir. */
+const ETKINLIK_DENEME_AZAMI = 30;
+const ETKINLIK_GUNLUK_HESAP_AZAMI = 40;
+const ETKINLIK_SAATLIK_GENEL_AZAMI = 150;
 const denemeler = new Map<string, number[]>();
 const hesaplar = new Map<string, number[]>();
 
@@ -82,14 +115,24 @@ function sayac(m: Map<string, number[]>, ip: string, pencere: number, simdi: num
   return l;
 }
 
-/** Bu IP şimdi deneyebilir mi; deneyebiliyorsa denemeyi sayar. */
-export function denemeIzni(ip: string, simdi = Date.now()): boolean {
+/**
+ * Bu IP şimdi deneyebilir mi. TAMAM: denemeyi sayar. DENEME: kısa sürede çok
+ * deneme (bot) → reddedilir. GUNLUK: bugünkü hesap sınırı dolu → form doğruysa
+ * talebe çevrilir (sinirdaTalep).
+ */
+export function denemeDurumu(ip: string, simdi = Date.now(), etk: Etkinlik | null = null): 'TAMAM' | 'DENEME' | 'GUNLUK' {
   if (denemeler.size > 5000) denemeler.clear();
   const l = sayac(denemeler, ip, DENEME_PENCERE, simdi);
-  if (l.length >= DENEME_AZAMI) return false;
-  if (sayac(hesaplar, ip, 86_400_000, simdi).length >= GUNLUK_HESAP_AZAMI) return false;
+  if (l.length >= (etk ? ETKINLIK_DENEME_AZAMI : DENEME_AZAMI)) return 'DENEME';
+  // GUNLUK da sayılır: sınırdaki talep yolu da deneme sınırına tabi (talep yağmuru olmasın).
   l.push(simdi);
-  return true;
+  if (sayac(hesaplar, ip, 86_400_000, simdi).length >= (etk ? ETKINLIK_GUNLUK_HESAP_AZAMI : GUNLUK_HESAP_AZAMI)) return 'GUNLUK';
+  return 'TAMAM';
+}
+
+/** Bu IP şimdi hesap açabilir mi (etkinliksiz; deneyebiliyorsa denemeyi sayar). */
+export function denemeIzni(ip: string, simdi = Date.now()): boolean {
+  return denemeDurumu(ip, simdi) === 'TAMAM';
 }
 
 /** Testler için. */
@@ -110,13 +153,13 @@ export type KayitSonucu =
   | { durum: 'EPOSTA_VAR' }
   | { durum: 'YOGUN' };
 
-export async function kayitAc(veri: KayitVerisi, ip: string | null): Promise<KayitSonucu> {
+export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinlik | null = null): Promise<KayitSonucu> {
   const ayar = await prisma.platformSettings.findFirst({ select: { kayitAcik: true, defaultTrialDays: true } });
   if (ayar && !ayar.kayitAcik) return { durum: 'KAPALI' };
 
   const saatOnce = new Date(Date.now() - 3_600_000);
   const sonSaat = await prisma.tenant.count({ where: { createdAt: { gte: saatOnce }, adminNotes: { startsWith: KAYIT_NOTU } } });
-  if (sonSaat >= SAATLIK_GENEL_AZAMI) return { durum: 'YOGUN' };
+  if (sonSaat >= (etk ? ETKINLIK_SAATLIK_GENEL_AZAMI : SAATLIK_GENEL_AZAMI)) return { durum: 'YOGUN' };
 
   if (suren.has(veri.eposta)) return { durum: 'EPOSTA_VAR' };
   suren.add(veri.eposta);
@@ -143,24 +186,39 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null): Promise<Kay
       plan: 'trial',
       trialDays: ayar?.defaultTrialDays ?? 14,
       password: veri.sifre,
-      adminNotes: `${KAYIT_NOTU}${veri.il ? ` · ${veri.il}` : ''}`,
+      adminNotes: `${KAYIT_NOTU}${veri.il ? ` · ${veri.il}` : ''}${etk ? ` · ${etk.ad}` : ''}`,
     });
 
     if (ip) sayac(hesaplar, ip, 86_400_000, Date.now()).push(Date.now());
     await writeAudit({
       tenantId: tenant.id, userId: user.id,
       action: 'KENDI_KAYDI', entityType: 'Tenant', entityId: tenant.id,
-      newValue: { firma: veri.firma, il: veri.il },
+      newValue: { firma: veri.firma, il: veri.il, ...(etk ? { etkinlik: etk.kod } : {}) },
       ipAddress: ip,
     });
     // Satış ekibi arasın: Talepler ekranı + sahibine anında e-posta + CRM.
     // Hesap açılmışken bu adımın hatası ziyaretçiye yansımaz.
     await talepKaydet({
       firma: veri.firma, ad: veri.ad, telefon: veri.telefon, eposta: veri.eposta, il: veri.il,
-      mesaj: `Siteden 14 günlük deneme hesabı açtı${veri.il ? ` (${veri.il})` : ''}. Kurulum için arayın.`,
+      mesaj: `Siteden 14 günlük deneme hesabı açtı${veri.il ? ` (${veri.il})` : ''}${etk ? ` — ${etk.ad}` : ''}. Kurulum için arayın.`,
+      ...(etk ? { utm_source: etk.kod, utm_campaign: etk.ad } : {}),
     }, 'kayit').catch((e) => console.error('[kayit] talep yazılamadı:', (e as Error).message));
     return { durum: 'TAMAM', tenantId: tenant.id };
   } finally {
     suren.delete(veri.eposta);
   }
+}
+
+/**
+ * Sınıra takılan, formu doğru dolduran kişi: hesap açılmaz, talep düşer
+ * (Talepler + sahibine anında e-posta + CRM). Şifre talebe yazılmaz.
+ * Veritabanı yazılamazsa fırlatır; çağıran sınır hatasını gösterir.
+ */
+export async function sinirdaTalep(veri: KayitVerisi, etk: Etkinlik | null = null): Promise<void> {
+  await talepKaydet({
+    firma: veri.firma, ad: veri.ad, telefon: veri.telefon, eposta: veri.eposta, il: veri.il,
+    mesaj: `Deneme hesabı açmak istedi; aynı ağdan çok kayıt olduğu için hesap otomatik açılmadı${etk ? ` (${etk.ad})` : ''}. `
+      + "Süper admin → Bayiler → Yeni bayi ile hesabı açın, giriş bilgisini WhatsApp'tan gönderin.",
+    ...(etk ? { utm_source: etk.kod, utm_campaign: etk.ad } : {}),
+  }, 'kayit-sinir');
 }

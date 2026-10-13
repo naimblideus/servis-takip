@@ -106,6 +106,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           tenantId: user.tenantId,
           tenantName: (user as any).tenant.name,
+          // Herkese açık demo: middleware silme/ayar isteklerini buna bakarak kapatır (lib/demo-yazma).
+          demo: Boolean((user as any).tenant.demo),
         };
       },
     }),
@@ -148,6 +150,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = (user as any).role;
         token.tenantId = (user as any).tenantId;
         token.tenantName = (user as any).tenantName;
+        token.demo = Boolean((user as any).demo);
       }
       // SSO'da `user` Google/Microsoft profilidir; rol ve bayi bilgisi onda yok.
       // Oturumun yetkileri HER ZAMAN kendi kullanıcı kaydımızdan gelir.
@@ -159,6 +162,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = kayitli.role;
         token.tenantId = kayitli.tenantId;
         token.tenantName = kayitli.tenant.name;
+        token.demo = Boolean(kayitli.tenant.demo);
         token.name = kayitli.name;
         token.email = kayitli.email;
       }

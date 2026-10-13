@@ -6,6 +6,8 @@
  * Giriş sayfasıyla aynı dil: neredeyse siyah zemin, tek vurgu rengi (teal).
  * Hesap açılınca seçilen şifreyle hemen giriş yapılır; ilk girişte başlangıç
  * rehberi açılır. Kayıt kapalıysa (süper admin) form yerine WhatsApp çıkar.
+ * Basılı QR'dan gelen ?k=kod etkinlik kaydıdır (lib/kayit etkinlikBul);
+ * sınıra takılan kayıt talebe döner ve burada "biz açacağız" yazar.
  */
 import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
@@ -22,12 +24,17 @@ export default function KayitSayfasi() {
   const k = t.kayit;
   const router = useRouter();
   const [f, setF] = useState(BOS);
-  const [durum, setDurum] = useState<{ acik: boolean; whatsapp: string } | null>(null);
+  const [durum, setDurum] = useState<{ acik: boolean; whatsapp: string; etkinlik?: string | null } | null>(null);
   const [hata, setHata] = useState('');
   const [mesgul, setMesgul] = useState(false);
+  const [kod, setKod] = useState('');
+  const [talepAlindi, setTalepAlindi] = useState(false);
 
   useEffect(() => {
-    fetch('/api/kayit').then((r) => r.json()).then(setDurum).catch(() => setDurum({ acik: true, whatsapp: '905526961703' }));
+    const k = new URLSearchParams(window.location.search).get('k') ?? '';
+    setKod(k);
+    fetch(`/api/kayit${k ? `?k=${encodeURIComponent(k)}` : ''}`).then((r) => r.json()).then(setDurum)
+      .catch(() => setDurum({ acik: true, whatsapp: '905526961703' }));
   }, []);
 
   const degistir = (alan: keyof typeof BOS) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -37,8 +44,13 @@ export default function KayitSayfasi() {
     e.preventDefault();
     setMesgul(true);
     setHata('');
-    const r = await fetch('/api/kayit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(f) });
+    const r = await fetch('/api/kayit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...f, kod }) });
     const j = await r.json().catch(() => ({}));
+    if (r.status === 202 && j.talep) {
+      setTalepAlindi(true);
+      setMesgul(false);
+      return;
+    }
     if (!r.ok) {
       setHata(j.error ?? t.ucHata.KAYIT_ACILAMADI);
       setMesgul(false);
@@ -71,10 +83,23 @@ export default function KayitSayfasi() {
             <span className="text-[19px] font-bold tracking-tight">Nextus Servis</span>
           </a>
 
+          {durum?.etkinlik && (
+            <div className="mb-4 inline-block rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1 text-[12px] font-semibold text-teal-200">
+              {durum.etkinlik}
+            </div>
+          )}
           <h1 className="text-[30px] font-bold leading-tight tracking-tight">{k.baslik}</h1>
           <p className="mt-2 text-[15px] leading-relaxed text-white/45">{k.alt}</p>
 
-          {durum && !durum.acik ? (
+          {talepAlindi ? (
+            <div role="status" className="mt-8 rounded-xl border border-teal-400/25 bg-teal-400/[0.06] p-5">
+              <p className="text-[17px] font-bold text-white">{k.talepBaslik}</p>
+              <p className="mt-2 text-[15px] leading-relaxed text-white/70">{k.talepMetin}</p>
+              <a href={whatsapp} className="mt-4 inline-block rounded-xl bg-teal-500 px-5 py-3 text-[15px] font-bold text-[#04121a] transition hover:bg-teal-400">
+                {k.whatsapp}
+              </a>
+            </div>
+          ) : durum && !durum.acik ? (
             <div className="mt-8 rounded-xl border border-white/10 bg-white/[0.03] p-5">
               <p className="text-[15px] text-white/80">{k.kapali}</p>
               <a href={whatsapp} className="mt-4 inline-block rounded-xl bg-teal-500 px-5 py-3 text-[15px] font-bold text-[#04121a] transition hover:bg-teal-400">

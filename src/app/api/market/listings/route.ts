@@ -37,10 +37,11 @@ export async function GET(req: Request) {
   const hasMore = rows.length > limit;
   const page = rows.slice(0, limit);
 
-  // Yalnız hâlâ pazara açık (marketEnabled) satıcıların ilanları görünsün — "hayalet ilan" önle
+  // Yalnız hâlâ pazara açık (marketEnabled) satıcıların ilanları görünsün — "hayalet ilan" önle.
+  // Demo ve gerçek bayiler ayrı dünyalar (lib/market ayniDunyada).
   const sellerIds = Array.from(new Set(page.map((l) => l.sellerTenantId)));
   const enabled = await prisma.tenant.findMany({
-    where: { id: { in: sellerIds }, marketEnabled: true },
+    where: { id: { in: sellerIds }, marketEnabled: true, demo: a.tenant!.demo },
     select: { id: true, name: true, marketDisplayName: true, marketCity: true },
   });
   const ratings = await sellerRatings(enabled.map((t) => t.id));

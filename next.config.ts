@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
     return [
       { source: '/ucretsiz-tarama', destination: '/ucretsiz-tarama.html' },
       { source: '/gizlilik', destination: '/gizlilik.html' },
+      // Etkinlik sayfası: basılı el ilanındaki QR buraya gelir (Pantum bayi toplantısı, Ekim 2026).
+      { source: '/pantum', destination: '/pantum.html' },
     ];
   },
   // Satış ekibinin WhatsApp'tan bıraktığı kısa adres: herkese açık demo

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import { getToken } from 'next-auth/jwt';
+import { demoYazmaYasak, DEMO_YAZMA_MESAJI } from '@/lib/demo-yazma';
 
 // Fail-closed: gömülü fallback YOK. Secret tanımlı değilse süper-admin erişimi tümden reddedilir.
 const RAW_SECRET = process.env.SUPER_ADMIN_SECRET || process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || '';
@@ -25,6 +27,21 @@ function oturumCerezi(request: NextRequest): boolean {
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
+
+    // ─── Herkese açık demo: silme ve ayar istekleri kapalı ────────────────────
+    // Kural ve gerekçe lib/demo-yazma.ts'te. Oturum jetonu yalnız kural bir
+    // isteği kapsıyorsa açılır; okuma (GET) istekleri buraya hiç uğramaz.
+    if (demoYazmaYasak(request.method, pathname)) {
+        const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+        const jeton = secret
+            ? await getToken({ req: request, secret, secureCookie: process.env.NODE_ENV === 'production' }).catch(() => null)
+            : null;
+        if (jeton?.demo) {
+            const dil = request.cookies.get('dil')?.value === 'en' ? 'en' : 'tr';
+            return NextResponse.json({ error: DEMO_YAZMA_MESAJI[dil], kod: 'DEMO_KAPALI' }, { status: 403 });
+        }
+        return NextResponse.next();
+    }
 
     // ─── Ana sayfa: girişliyse panele ─────────────────────────────────────────
     // Bu kontrol eskiden page.tsx içinde auth() ile yapılıyordu. Çerez okumak
@@ -87,5 +104,7 @@ export const config = {
         '/en',
         '/super-admin/:path*',
         '/api/super-admin/:path*',
+        // Demo koruması (yukarıda) yalnız yazma isteklerinde jeton açar.
+        '/api/:path*',
     ],
 };

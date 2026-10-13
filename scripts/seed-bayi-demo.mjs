@@ -243,33 +243,43 @@ const MODELLER = [
   { marka: 'HP', model: 'LaserJet Pro M404dn', renkli: false, verim: 3000, aylik: [900, 2600], kira: 850, sbFiyat: 0.48, toner: 'HP CF259A Toner' },
   { marka: 'Konica Minolta', model: 'bizhub 250i', renkli: false, verim: 12000, aylik: [2400, 6800], kira: 1850, sbFiyat: 0.39, toner: 'Konica TN-118 Toner' },
   { marka: 'Brother', model: 'HL-L5100DN', renkli: false, verim: 3000, aylik: [800, 2200], kira: 780, sbFiyat: 0.50, toner: 'Brother TN-3480 Toner' },
+  // Pantum bayileri demoda kendi makinelerini görsün (Pantum Premium Partners
+  // Meeting 2026). Toner kodları ve verimleri satıcı katalogları ile doğrulandı:
+  // TL-410X ≈ 6.000 sayfa (M7100DW/P3300DW, drum DL-410), TL-5120X ≈ 15.000 (BP5100DN).
+  { marka: 'Pantum', model: 'M7100DW', renkli: false, verim: 6000, aylik: [900, 2800], kira: 900, sbFiyat: 0.45, toner: 'Pantum TL-410X Toner' },
+  { marka: 'Pantum', model: 'BP5100DN', renkli: false, verim: 15000, aylik: [2400, 6800], kira: 1350, sbFiyat: 0.39, toner: 'Pantum TL-5120X Toner' },
 ];
 
 // ── STOK ─────────────────────────────────────────────────────────────────
 // Alış fiyatı burada YOK: her parça ALIŞ KAYITLARINDAN maliyetleniyor
 // (aşağıda), çünkü gerçek bayi aynı toneri üç ayrı yerden üç ayrı fiyata
 // alıyor ve "tek alış fiyatı" alanı bunu taşıyamıyor.
+// grup = KOD (lib/part-groups PART_GROUPS); ekrandaki ad sözlükten gelir. Türkçe ad
+// yazılırsa İngilizce ekranda Türkçe kalır ve grup süzgeci bu parçaları kaçırır.
 const PARCALAR = [
-  { ad: 'Kyocera TK-1170 Toner', grup: 'Toner', satis: 1250, alislar: [[8, 690, 'Anadolu Bilgisayar'], [6, 740, 'Kadıköy Ofis'], [10, 665, 'Anadolu Bilgisayar']] },
-  { ad: 'Kyocera TK-8115K Siyah Toner', grup: 'Toner', satis: 2150, alislar: [[4, 1180, 'Anadolu Bilgisayar'], [3, 1290, 'Acil Tedarik']] },
-  { ad: 'Kyocera TK-8115 Renkli Set (C+M+Y)', grup: 'Toner', satis: 7900, alislar: [[6, 4620, 'Anadolu Bilgisayar'], [3, 5080, 'Kadıköy Ofis']] },
-  { ad: 'Canon C-EXV60 Toner', grup: 'Toner', satis: 1780, alislar: [[5, 980, 'Kadıköy Ofis'], [4, 1045, 'Anadolu Bilgisayar']] },
-  { ad: 'Canon C-EXV49 Siyah Toner', grup: 'Toner', satis: 1950, alislar: [[4, 1090, 'Anadolu Bilgisayar'], [2, 1210, 'Acil Tedarik']] },
+  { ad: 'Kyocera TK-1170 Toner', grup: 'TONER', satis: 1250, alislar: [[8, 690, 'Anadolu Bilgisayar'], [6, 740, 'Kadıköy Ofis'], [10, 665, 'Anadolu Bilgisayar']] },
+  { ad: 'Kyocera TK-8115K Siyah Toner', grup: 'TONER', satis: 2150, alislar: [[4, 1180, 'Anadolu Bilgisayar'], [3, 1290, 'Acil Tedarik']] },
+  { ad: 'Kyocera TK-8115 Renkli Set (C+M+Y)', grup: 'TONER', satis: 7900, alislar: [[6, 4620, 'Anadolu Bilgisayar'], [3, 5080, 'Kadıköy Ofis']] },
+  { ad: 'Canon C-EXV60 Toner', grup: 'TONER', satis: 1780, alislar: [[5, 980, 'Kadıköy Ofis'], [4, 1045, 'Anadolu Bilgisayar']] },
+  { ad: 'Canon C-EXV49 Siyah Toner', grup: 'TONER', satis: 1950, alislar: [[4, 1090, 'Anadolu Bilgisayar'], [2, 1210, 'Acil Tedarik']] },
   // ⚠ RENKLİ TONER = SET FİYATI. Bir renkli sayfa camgöbeği, macenta ve
   //   sarıyı birden tüketiyor; tek kartuş fiyatıyla hesaplamak sayfa
   //   maliyetini üç kat düşük gösterirdi. Eski sözleşmedeki düşük renkli
   //   sayfa fiyatı bu maliyetin ALTINDA kalıyor — kârlılık ekranındaki
   //   kırmızı "her sayfada zarar" uyarısı buradan doğuyor.
-  { ad: 'Canon C-EXV49 Renkli Set (C+M+Y)', grup: 'Toner', satis: 9600, alislar: [[3, 5680, 'Anadolu Bilgisayar'], [3, 6240, 'Acil Tedarik']] },
-  { ad: 'Ricoh IM 350 Toner', grup: 'Toner', satis: 1690, alislar: [[6, 920, 'Kadıköy Ofis'], [4, 985, 'Anadolu Bilgisayar']] },
-  { ad: 'HP CF259A Toner', grup: 'Toner', satis: 1450, alislar: [[8, 810, 'Anadolu Bilgisayar'], [5, 870, 'Kadıköy Ofis']] },
-  { ad: 'Konica TN-118 Toner', grup: 'Toner', satis: 1620, alislar: [[5, 890, 'Kadıköy Ofis'], [4, 940, 'Anadolu Bilgisayar']] },
-  { ad: 'Brother TN-3480 Toner', grup: 'Toner', satis: 1180, alislar: [[7, 640, 'Anadolu Bilgisayar']] },
-  { ad: 'Kyocera DK-1150 Drum Ünitesi', grup: 'Drum', satis: 2400, alislar: [[3, 1350, 'Anadolu Bilgisayar']] },
-  { ad: 'Canon FM1-A606 Fırın Ünitesi', grup: 'Fırın Grubu', satis: 3900, alislar: [[2, 2250, 'Kadıköy Ofis']] },
-  { ad: 'Kağıt Alma Pateni (set)', grup: 'Paten', satis: 480, alislar: [[20, 165, 'Anadolu Bilgisayar'], [15, 190, 'Acil Tedarik']] },
-  { ad: 'Fuser Film Kılıfı', grup: 'Yedek Parça', satis: 620, alislar: [[12, 240, 'Anadolu Bilgisayar']] },
-  { ad: 'Transfer Rulosu', grup: 'Yedek Parça', satis: 540, alislar: [[10, 215, 'Kadıköy Ofis']] },
+  { ad: 'Canon C-EXV49 Renkli Set (C+M+Y)', grup: 'TONER', satis: 9600, alislar: [[3, 5680, 'Anadolu Bilgisayar'], [3, 6240, 'Acil Tedarik']] },
+  { ad: 'Ricoh IM 350 Toner', grup: 'TONER', satis: 1690, alislar: [[6, 920, 'Kadıköy Ofis'], [4, 985, 'Anadolu Bilgisayar']] },
+  { ad: 'HP CF259A Toner', grup: 'TONER', satis: 1450, alislar: [[8, 810, 'Anadolu Bilgisayar'], [5, 870, 'Kadıköy Ofis']] },
+  { ad: 'Konica TN-118 Toner', grup: 'TONER', satis: 1620, alislar: [[5, 890, 'Kadıköy Ofis'], [4, 940, 'Anadolu Bilgisayar']] },
+  { ad: 'Brother TN-3480 Toner', grup: 'TONER', satis: 1180, alislar: [[7, 640, 'Anadolu Bilgisayar']] },
+  { ad: 'Pantum TL-410X Toner', grup: 'TONER', satis: 990, alislar: [[10, 540, 'Anadolu Bilgisayar'], [6, 575, 'Kadıköy Ofis']] },
+  { ad: 'Pantum TL-5120X Toner', grup: 'TONER', satis: 2290, alislar: [[5, 1290, 'Anadolu Bilgisayar'], [3, 1360, 'Acil Tedarik']] },
+  { ad: 'Pantum DL-410 Drum Ünitesi', grup: 'DRUM', satis: 890, alislar: [[4, 470, 'Anadolu Bilgisayar']] },
+  { ad: 'Kyocera DK-1150 Drum Ünitesi', grup: 'DRUM', satis: 2400, alislar: [[3, 1350, 'Anadolu Bilgisayar']] },
+  { ad: 'Canon FM1-A606 Fırın Ünitesi', grup: 'FUSER', satis: 3900, alislar: [[2, 2250, 'Kadıköy Ofis']] },
+  { ad: 'Kağıt Alma Pateni (set)', grup: 'ROLLER', satis: 480, alislar: [[20, 165, 'Anadolu Bilgisayar'], [15, 190, 'Acil Tedarik']] },
+  { ad: 'Fuser Film Kılıfı', grup: 'SPARE', satis: 620, alislar: [[12, 240, 'Anadolu Bilgisayar']] },
+  { ad: 'Transfer Rulosu', grup: 'SPARE', satis: 540, alislar: [[10, 215, 'Kadıköy Ofis']] },
 ];
 
 const ARIZALAR = [
@@ -1383,7 +1393,7 @@ async function kur(bayi) {
     // henüz girilmemiş makineler. "Cihaz olarak ekle" kutusu bunlar için.
     const kayitsiz = [
       { marka: 'HP', model: 'HP LaserJet Pro M404dn', seri: `PHCBR${bayi.n}${rnd(1000, 9999)}`, sb: rnd(12000, 30000), toner: 63, ad: 'Black Cartridge HP 59A' },
-      { marka: 'Brother', model: 'MFC-L2750DW', seri: `E78${bayi.n}${rnd(10000, 99999)}`, sb: rnd(6000, 15000), toner: 18, ad: 'Black Toner' },
+      { marka: 'Pantum', model: 'Pantum M7100DW', seri: `CA2${bayi.n}${rnd(100000, 999999)}`, sb: rnd(6000, 15000), toner: 18, ad: 'Black Toner' },
     ];
     kayitsiz.forEach((k, i) => satirlar.push({
       ip: `192.168.1.${60 + i}`, marka: k.marka, model: k.model, seri: k.seri, deviceId: null,
