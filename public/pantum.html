@@ -170,8 +170,10 @@
       document.getElementById('wa').href = 'https://wa.me/905526961703?text=' + encodeURIComponent(METIN[d].wa);
     }
     for (var i = 0; i < dugmeler.length; i++) dugmeler[i].addEventListener('click', function () { uygula(this.getAttribute('data-sec')); });
-    // Salon Türkçe: telefon İngilizce olsa da Türkçe açılır; İngilizce yalnız seçilince.
-    uygula(new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'tr');
+    // Salon Türkçe: telefon İngilizce olsa da Türkçe açılır. Çince telefon
+    // (Pantum merkezinden gelenler) ve ?lang=en İngilizce açar.
+    var istek = new URLSearchParams(location.search).get('lang');
+    uygula(istek === 'en' || (!istek && /^zh/i.test(navigator.language || '')) ? 'en' : 'tr');
 
     var form = document.getElementById('form');
     var durum = document.getElementById('durum');

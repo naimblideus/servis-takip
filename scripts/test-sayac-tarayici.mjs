@@ -504,6 +504,55 @@ if (process.platform !== 'win32') {
         && sayi(enHtml, 'sayac') === '166,578' && /data-kod="SIKISMA">Paper jam</.test(enHtml), { sayac: sayi(enHtml, 'sayac') });
       rmSync(rk, { recursive: true, force: true });
       if (kotu) kotu.close();
+
+      // ── PANTUM: bayi toplantısında en çok görülecek marka. Kurum numarası
+      // 40093 (IANA: Zhuhai Seine Technology). Sarf adları sade ("Toner",
+      // "Drum"); drum parça ömrüne, toner toner ölçüsüne düşmeli.
+      const PANTUM_MIB = {
+        '1.3.6.1.2.1.1.1.0': { t: 'str', v: 'Pantum Printer' },
+        '1.3.6.1.2.1.1.2.0': { t: 'oid', v: '1.3.6.1.4.1.40093.1.1' },
+        '1.3.6.1.2.1.25.3.2.1.3.1': { t: 'str', v: 'M7100DW' },
+        [`${PRT}.5.1.1.17.1`]: { t: 'str', v: 'CA2B012345' },
+        [`${PRT}.10.2.1.4.1.1`]: { t: 'cnt', v: 23456 },
+        [`${PRT}.11.1.1.6.1.1`]: { t: 'str', v: 'Toner' },
+        [`${PRT}.11.1.1.6.1.2`]: { t: 'str', v: 'Drum' },
+        [`${PRT}.11.1.1.8.1.1`]: { t: 'int', v: 100 },
+        [`${PRT}.11.1.1.8.1.2`]: { t: 'int', v: 100 },
+        [`${PRT}.11.1.1.9.1.1`]: { t: 'int', v: 9 },
+        [`${PRT}.11.1.1.9.1.2`]: { t: 'int', v: 64 },
+        [`${PRT}.12.1.1.4.1.1`]: { t: 'str', v: 'black' },
+        '1.3.6.1.2.1.25.3.2.1.5.1': { t: 'int', v: 2 },
+      };
+      const pantum = await ajan('127.0.0.6', port, PANTUM_MIB).catch(() => null);
+      if (pantum) {
+        const pk = await new Promise((ok) => {
+          const c = spawn(psKabuk, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', betik,
+            '-Kuru', '-Hedef', '127.0.0.6', '-Port', String(port), '-ZamanAsimi', '700', '-Dil', 'tr']);
+          let o = '', e = '';
+          c.stdout.on('data', (d) => { o += d; });
+          c.stderr.on('data', (d) => { e += d; });
+          c.on('close', (kod) => ok({ kod, o, e }));
+        });
+        let pj = null;
+        try { pj = JSON.parse(pk.o.split(/\r?\n/).map((x) => x.trim()).filter((x) => x.startsWith('{')).pop()); } catch { /* aşağıda */ }
+        const pc = pj?.cihazlar?.find((c) => c.ip === '127.0.0.6');
+        t('★ Pantum: betik seri, model, sayaç ve sarfı okudu', pc?.seri === 'CA2B012345' && pc?.model === 'M7100DW' && pc?.toplam === 23456 && pc?.sarf?.length === 2, pc);
+        const pg = pc ? taramaGovdesiAyikla({ ...pj, cihazlar: [pc] }).cihazlar[0] : null;
+        t('★ Pantum: sunucu markayı kurum numarasından tanıyor', !!pg && saf.marka(pg) === 'Pantum', pg?.sysObjectID);
+        const ps = pg ? cihazSonucu(pg, []) : null;
+        t('★ Pantum: sistemde yoksa "eklenmeyi bekliyor", toner %9 ölçüldü, drum parça ömründe', ps?.durum === 'ESLESMEDI' && ps?.olcum?.siyah === 9 && ps?.parca === 64, { durum: ps?.durum, olcum: ps?.olcum, parca: ps?.parca });
+        mkdirSync(join(rk, 'pantum'), { recursive: true });
+        const pr = await new Promise((ok) => {
+          const c = spawn(psKabuk, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', betik,
+            '-Sessiz', '-RaporKlasoru', join(rk, 'pantum'), '-Dil', 'tr', '-Hedef', '127.0.0.6', '-Port', String(port), '-ZamanAsimi', '700']);
+          c.on('close', (kod) => ok(kod));
+        });
+        const ph = readdirSync(join(rk, 'pantum')).find((x) => x.endsWith('.html'));
+        const phtml = ph ? readFileSync(join(rk, 'pantum', ph), 'utf8') : '';
+        t('★ Pantum ücretsiz rapor: "Pantum M7100DW" adıyla, toneri "az"', pr === 0 && phtml.includes('Pantum M7100DW') && /class="olcu az" data-yuzde="9"/.test(phtml), { kod: pr, var: !!ph });
+        pantum.close();
+        rmSync(join(rk, 'pantum'), { recursive: true, force: true });
+      }
     }
   }
 }

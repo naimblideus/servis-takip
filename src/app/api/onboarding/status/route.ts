@@ -23,6 +23,9 @@ export async function GET() {
   }
 
   const t = user.tenantId;
+  // Demo bayisinde kurulum rehberi açılmaz: veriler hazır, ziyaretçi kurulum
+  // yapmaya değil değeri görmeye geldi (panelde demo turu var, DemoTuru.tsx).
+  const tenant = await prisma.tenant.findUnique({ where: { id: t }, select: { demo: true } });
   const [customers, devices, tickets, parts, invoices, payments] = await Promise.all([
     prisma.customer.count({ where: { tenantId: t } }),
     prisma.device.count({ where: { tenantId: t } }),
@@ -33,7 +36,7 @@ export async function GET() {
   ]);
 
   return NextResponse.json({
-    onboarded: user.onboardedAt !== null,
+    onboarded: user.onboardedAt !== null || Boolean(tenant?.demo),
     userName: user.name,
     steps: {
       hasCustomers: customers > 0,

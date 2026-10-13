@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ucHatasi } from '@/lib/uc-hata';
+import { istemciIp } from '@/lib/istemci-ip';
 import { kayitDogrula, denemeDurumu, kayitAc, etkinlikBul, sinirdaTalep, type Etkinlik, type KayitVerisi } from '@/lib/kayit';
 
 export const dynamic = 'force-dynamic';
@@ -8,16 +9,6 @@ export const dynamic = 'force-dynamic';
 /** Satış WhatsApp'ı ayarlı değilse ana sayfadaki numara. */
 const VARSAYILAN_WHATSAPP = '905526961703';
 
-/**
- * İstemci IP'si. Önce vekilin yazdığı X-Real-IP: X-Forwarded-For'un ilk
- * değerini istemci kendisi gönderebilir, hız sınırını öyle atlatırdı.
- */
-function ipAdresi(req: Request): string | null {
-  const gercek = req.headers.get('x-real-ip');
-  if (gercek) return gercek.trim().slice(0, 60);
-  const xff = req.headers.get('x-forwarded-for');
-  return xff ? xff.split(',').pop()!.trim().slice(0, 60) : null;
-}
 
 /** GET /api/kayit[?k=kod] — kayıt açık mı, kapalıysa hangi WhatsApp'a yazılacak, kod hangi etkinliğin. */
 export async function GET(req: Request) {
@@ -51,7 +42,7 @@ export async function POST(req: Request) {
   if (govde && typeof govde === 'object' && (govde as Record<string, unknown>).web_sitesi) {
     return NextResponse.json({ ok: true });
   }
-  const ip = ipAdresi(req);
+  const ip = istemciIp(req);
   const etk = etkinlikBul(govde && typeof govde === 'object' ? (govde as Record<string, unknown>).kod : null);
   const izin = ip ? denemeDurumu(ip, Date.now(), etk) : 'TAMAM';
   if (izin === 'DENEME') return ucHatasi('KAYIT_SINIR', 429);

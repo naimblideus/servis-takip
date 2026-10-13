@@ -21,11 +21,16 @@
 const tokenAdresi = () => process.env.BILDIRIM_TOKEN_URL || 'https://oauth2.googleapis.com/token';
 const gmailKoku = () => process.env.BILDIRIM_GMAIL_KOK || 'https://gmail.googleapis.com';
 
-export function bildirimAyarli(): boolean {
+/** Gmail ile gönderim mümkün mü (alıcıdan bağımsız: şifre sıfırlama da bunu kullanır). */
+export function gmailAyarli(): boolean {
   return Boolean(
     process.env.BILDIRIM_GMAIL_CLIENT_ID && process.env.BILDIRIM_GMAIL_CLIENT_SECRET
-    && process.env.BILDIRIM_GMAIL_REFRESH_TOKEN && process.env.BILDIRIM_EPOSTA,
+    && process.env.BILDIRIM_GMAIL_REFRESH_TOKEN,
   );
+}
+
+export function bildirimAyarli(): boolean {
+  return gmailAyarli() && Boolean(process.env.BILDIRIM_EPOSTA);
 }
 
 /** Panel bağlantıları için sitenin adresi. */
@@ -70,8 +75,17 @@ const tekSatir = (s: string) => s.replace(/[\r\n]+/g, ' ').trim();
  */
 export async function sahibeEposta(konu: string, satirlar: (string | null | undefined)[]): Promise<'gonderildi' | 'kapali' | 'hata'> {
   if (!bildirimAyarli()) return 'kapali';
+  return epostaGonder(process.env.BILDIRIM_EPOSTA ?? '', konu, satirlar);
+}
+
+/**
+ * Herhangi bir alıcıya düz metin e-posta (platform sahibinin Gmail'inden).
+ * Şu an tek kullanıcısı şifre sıfırlama bağlantısı. Asla fırlatmaz.
+ */
+export async function epostaGonder(aliciHam: string, konu: string, satirlar: (string | null | undefined)[]): Promise<'gonderildi' | 'kapali' | 'hata'> {
+  if (!gmailAyarli()) return 'kapali';
   try {
-    const alici = tekSatir(process.env.BILDIRIM_EPOSTA ?? '');
+    const alici = tekSatir(aliciHam);
     const govde = b64(satirlar.filter((s): s is string => s !== null && s !== undefined).join('\r\n')).match(/.{1,76}/g)?.join('\r\n') ?? '';
     const ileti = [
       `To: ${alici}`,

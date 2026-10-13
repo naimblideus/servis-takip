@@ -174,6 +174,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).role = token.role;
         (session.user as any).tenantId = token.tenantId;
         (session.user as any).tenantName = token.tenantName;
+        // Herkese açık demo: panel kurulum rehberi yerine demo turunu gösterir.
+        (session.user as any).demo = Boolean(token.demo);
       }
       return session;
     },

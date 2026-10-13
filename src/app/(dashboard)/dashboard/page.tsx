@@ -8,6 +8,7 @@ import { getStatusLabel, getStatusColor } from '@/lib/utils';
 import { openWhatsApp, reminderMessage, telUrl } from '@/lib/share';
 import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import DemoTuru from '@/components/DemoTuru';
 
 interface StuckTicket {
   id: string;
@@ -160,6 +161,9 @@ export default function DashboardPage() {
           {t.pano.yeniFis}
         </Link>
       </div>
+
+      {/* Herkese açık demo: değeri gösteren dört ekrana kısa yol (DemoTuru.tsx). */}
+      {(session?.user as any)?.demo && <DemoTuru ariza={ariza} toner={stats?.tonerBitiyor || 0} />}
 
       {/* Stat Cards
           TELEFONDA TEK SÜTUN: iki sütunda kart içi metne yalnız 56 px kalıyordu

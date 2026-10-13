@@ -1528,6 +1528,21 @@ model PlatformSettings {
 // zamanlayıcısı (lib/zamanlayici.ts) hem Coolify görevi aynı ucu çağırabilir.
 // İş başlamadan önce dönemi SAHİPLENİR (lib/zamanlanmis-is.ts): aynı dönemde
 // ikinci çağrı çalışmaz — müşteriye aynı hatırlatma iki kez gitmez.
+// ŞİFRE SIFIRLAMA — e-postaya giden tek kullanımlık bağlantı (lib/sifre-sifirlama.ts).
+// Jeton saklanmaz, yalnız SHA-256 özeti. Bağlantı e-postaya bağlı: aynı adres
+// birden çok bayide kullanıcıysa hepsinin şifresi birlikte yenilenir.
+model SifreSifirlama {
+  id         String    @id @default(cuid())
+  eposta     String // küçük harf
+  tokenOzeti String    @unique
+  bitis      DateTime
+  kullanildi DateTime?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  @@index([eposta, createdAt])
+}
+
 model ZamanlanmisIs {
   anahtar   String    @id // 'faturalar', 'hatirlatma', 'demo'...
   donem     String // '2026-10' (aylık) ya da '2026-10-10' (günlük), İstanbul saatiyle

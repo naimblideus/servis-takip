@@ -172,7 +172,11 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="sifre" className="mb-2 block text-[13px] font-medium text-white/60">{t.giris.sifre}</label>
+              <div className="mb-2 flex items-baseline justify-between">
+                <label htmlFor="sifre" className="block text-[13px] font-medium text-white/60">{t.giris.sifre}</label>
+                <a href="/sifremi-unuttum"
+                  className="text-[13px] text-teal-300/80 transition hover:text-teal-200">{t.giris.sifremiUnuttum}</a>
+              </div>
               <div className="relative">
                 <input id="sifre" type={sifreGoster ? 'text' : 'password'} value={password}
                   onChange={(e) => setPassword(e.target.value)}
