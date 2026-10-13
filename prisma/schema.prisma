@@ -1079,8 +1079,11 @@ model TonerChange {
   // verimi. İlk değişimde referans yok, bu yüzden null.
   observedYield Int?
   partId        String? // Takılan kartuş (maliyet ve marka için)
-  source        String // ELLE | FIS | GOC
+  source        String // ELLE | FIS | GOC | TARAYICI
   note          String?
+  // Tarayıcının gördüğü değişimi bayi "bizden aldı, kaydı eksikti" diye
+  // işaretledi: kaçan toner listesinden düşer (lib/kacan-toner.ts).
+  bizdenAlindi  Boolean  @default(false)
   createdAt     DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)

@@ -1408,6 +1408,31 @@ async function kur(bayi) {
       },
     });
     console.log(`  ağ tarayıcı: ${ana.name} ağında ${satirlar.length} yazıcı · ${agUyari} uyarı · ${kayitsiz.length} yazıcı eklenmeyi bekliyor`);
+
+    // ── KAÇAN TONER (lib/kacan-toner.ts) ──────────────────────────────────
+    // Tarayıcı, toneri bugün dolu görünen makinelerde tonerin birkaç hafta
+    // önce bitmeye yakından doluya sıçradığını görmüş; bayi o arada toner
+    // vermemiş (fiş, sevk, satış yok) → müşteri başka yerden almış. Değişim,
+    // makinenin son (fişli) değişiminden sonraya konur ki "bayi verdi"
+    // sayılmasın; 7 günden eski olmalı ki liste onu göstersin.
+    let kacan = 0;
+    for (let i = 0; i < agCihazlari.length && kacan < 3; i++) {
+      if (DURUMLAR[i % DURUMLAR.length].siyah < 44) continue;
+      const d = agCihazlari[i];
+      const son = await p.tonerChange.findFirst({ where: { deviceId: d.id, channel: 'BLACK' }, orderBy: { changedAt: 'desc' }, select: { changedAt: true, counterValue: true } });
+      const sonAn = son?.changedAt.getTime() ?? gunOnce(60).getTime();
+      const an = Math.min(gunOnce(8 + kacan * 5).getTime(), sonAn + 18 * 86400000);
+      if (an - sonAn < 5 * 86400000 || an > gunOnce(8).getTime()) continue;
+      const sayac = Math.max((son?.counterValue ?? 0) + 1, (d.counterBlack ?? 0) - rnd(300, 900));
+      await p.tonerChange.create({
+        data: {
+          tenantId: tenant.id, deviceId: d.id, channel: 'BLACK', counterValue: sayac, changedAt: new Date(an),
+          observedYield: null, partId: null, source: 'TARAYICI', note: `%${rnd(4, 9)} → %${rnd(93, 98)}`,
+        },
+      });
+      kacan++;
+    }
+    console.log(`  kaçan toner: ${kacan} değişim tarayıcıda görüldü, bayiden toner gitmemiş`);
   }
 
   // ── ÖZET ──────────────────────────────────────────────────────────────

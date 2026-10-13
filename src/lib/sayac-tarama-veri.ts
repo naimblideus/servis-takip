@@ -517,7 +517,7 @@ export async function cihazDurumlari(tenantId: string, simdi = new Date()) {
         id: true, brand: true, model: true, serialNo: true, publicCode: true, location: true,
         olcumAt: true, olcumSiyah: true, olcumRenkli: true, cihazUyarilari: true, uyariAt: true,
         olcumParca: true, olcumSarf: true,
-        customer: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, phone: true } },
         serviceTickets: {
           where: { deletedAt: null, status: { notIn: ['DELIVERED', 'CANCELLED'] } },
           orderBy: { createdAt: 'desc' },
@@ -534,7 +534,8 @@ export async function cihazDurumlari(tenantId: string, simdi = new Date()) {
     seri: d.serialNo,
     kod: d.publicCode,
     konum: d.location,
-    musteri: d.customer ? { id: d.customer.id, ad: d.customer.name } : null,
+    // Telefon: "müşteriye yaz" düğmesi (bayi basar; müşteriye kendiliğinden mesaj gitmez).
+    musteri: d.customer ? { id: d.customer.id, ad: d.customer.name, tel: d.customer.phone ?? null } : null,
     olcumAt: d.olcumAt,
     olcumSiyah: d.olcumSiyah,
     olcumRenkli: d.olcumRenkli,

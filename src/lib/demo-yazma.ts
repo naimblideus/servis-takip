@@ -36,6 +36,8 @@ const YAZMA_KAPALI_ONEKLER = [
   '/api/customers/portal-toplu',
   '/api/invoices/e-belge',
   '/api/abonelik',
+  // "Bizden aldı" işareti: demoda bir ziyaretçi basınca kaçan toner listesi herkese boşalırdı.
+  '/api/kacan-toner',
 ];
 // Tarayıcı anahtarı (/api/sayac/tarayici/ayar) burada YOK: ucun kendi demo
 // cevabı ziyaretçiyi ücretsiz taramaya yönlendiriyor, o daha iyi bir cevap.

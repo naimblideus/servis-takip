@@ -240,6 +240,30 @@ export const tr = {
     talepMetin: 'Bu ağdan bugün çok sayıda hesap açıldı, o yüzden hesabınızı otomatik açamadık. Hesabınızı bugün biz açıp giriş bilgisini WhatsApp’tan göndereceğiz.',
   },
 
+  // Ağ Tarayıcı → Cihaz durumu → "Müşteriye yaz": bayinin bastığı hazır WhatsApp metni.
+  // Müşteri aramadan bayinin araması; mesajı her zaman bayi gönderir.
+  cihazHaber: {
+    servis: 'Merhaba {ad}, {cihaz} makinenizin servis istediğini gördük ({uyari}). Teknisyenimizi yönlendiriyoruz; uygun saatinizi yazar mısınız? {bayi}',
+    toner: 'Merhaba {ad}, {cihaz} makinenizin toneri bitmek üzere. Yenisini bitmeden getirelim mi? {bayi}',
+    parca: 'Merhaba {ad}, {cihaz} makinenizde {parca} ömrünü doldurmak üzere. Baskı kalitesi düşmeden değiştirelim mi? {bayi}',
+  },
+
+  // Kaçan Gelir'in üstü: müşteri toneri başka yerden aldı (lib/kacan-toner.ts)
+  kacanToner: {
+    baslik: 'Başka yerden alınan toner',
+    ozet: '{n} toner değişimi sizden alınmadı',
+    tutarOzet: 'yaklaşık {tutar} kaçan satış',
+    aciklama: 'Ağ Tarayıcı izlediği {n} makinede tonerin dolduğunu gördü, ama o makineye ya da müşteriye sizden toner gitmemiş (sevk, servis fişi ve cari satış kontrol edildi). Müşteri toneri başka yerden almış olabilir.',
+    yok: 'Son 4 ayda izlenen {n} makinede başka yerden alınan toner görülmedi.',
+    izlenmiyor: 'Ağ Tarayıcı müşterinizin ağında çalışınca, toneri sizden almayan müşteriler burada görünür.',
+    tarayiciyaGit: 'Ağ Tarayıcı',
+    musteriYok: 'Müşteri bilinmiyor',
+    tahmin: 'Tahmin: {parca} fiyatıyla',
+    whatsapp: 'WhatsApp’tan yaz',
+    bizden: 'Bizden aldı',
+    musteriMesaji: 'Merhaba {ad}, {cihaz} makinenizin toner ihtiyacını bundan sonra biz karşılayalım: toner bitmeden haber verip getiriyoruz. Fiyat için bu mesaja cevap yazabilirsiniz. {bayi}',
+  },
+
   // Herkese açık demoda panelin üstü (components/DemoTuru.tsx)
   demoTuru: {
     ust: 'Demo turu',
@@ -251,7 +275,7 @@ export const tr = {
     sarfAlt: 'Hangi makinenin toneri kaç gün sonra bitiyor; tonerin gerçek verimi ölçülmüş.',
     sarfSayi: '{n} makinenin toneri bitmek üzere; stoktan tek onayla gönderin.',
     kacanBaslik: 'Kaçan gelir',
-    kacanAlt: 'Faturası kesilmeyen sayaç ve okunmayan makine: masada kalan para.',
+    kacanAlt: 'Toneri başka yerden alan müşteri, faturası kesilmeyen sayaç: masada kalan para.',
     karBaslik: 'Zarar eden sözleşme',
     karAlt: 'Sayfa fiyatı toner maliyetinin altında kalan makineler, kırmızıyla.',
     not: 'Bu hesaptaki bütün firmalar ve rakamlar örnektir.',
@@ -2301,6 +2325,7 @@ export const tr = {
     fisAc: 'Servis fişi aç',
     fisAcik: 'Açık fiş: {no}',
     tonerGonder: 'Toner gönder →',
+    musteriyeYaz: 'Müşteriye yaz',
     fisSorun: 'Cihaz bildirdi: {uyarilar}',
     uyari: {
       SERVIS_GEREKLI: 'Servis istiyor',

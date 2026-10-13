@@ -11,7 +11,9 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useT, useBicim, useDil } from '@/lib/i18n/client';
+import { useT, useBicim, useDil, useMusteriDili } from '@/lib/i18n/client';
+import { useSession } from 'next-auth/react';
+import { waUrl, waGecerliMi } from '@/lib/share';
 import { doldur } from '@/lib/i18n/sozluk';
 import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, PARCA_KRITIK, parcaKategorisi, type UyariKodu, type UyariTuru } from '@/lib/sayac-tarama';
 
@@ -39,7 +41,7 @@ interface Tarama {
 }
 interface DikkatCihazi {
   id: string; etiket: string; seri: string; kod: string; konum: string | null;
-  musteri: { id: string; ad: string } | null;
+  musteri: { id: string; ad: string; tel?: string | null } | null;
   olcumAt: string; olcumSiyah: number | null; olcumRenkli: number | null;
   olcumParca: number | null; parcaAd: string | null;
   uyarilar: UyariKodu[]; uyariAt: string | null;
@@ -95,6 +97,10 @@ export default function SayacTarayiciPage() {
   const tt = t.tarayici;
   const b = useBicim();
   const { dil } = useDil();
+  // Müşteriye giden hazır metin bayinin dilinde (useMusteriDili).
+  const md = useMusteriDili();
+  const { data: oturum } = useSession();
+  const bayiAdi = ((oturum?.user as any)?.tenantName as string | undefined) ?? '';
   const [ayar, setAyar] = useState<{ anahtarVar: boolean; otomatik: boolean; otomatikFis?: boolean } | null>(null);
   const [liste, setListe] = useState<Liste | null>(null);
   const [acik, setAcik] = useState<string | null>(null);
@@ -347,6 +353,20 @@ export default function SayacTarayiciPage() {
                         <Link href="/sarf" style={{ padding: '0.4rem 0.75rem', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                           {tt.tonerGonder}
                         </Link>
+                      )}
+                      {/* Müşteri aramadan bayi haber verir: WhatsApp hazır metinle açılır, gönderen bayidir. */}
+                      {(servis || sarf || parcaAz) && waGecerliMi(c.musteri?.tel) && (
+                        <a href={waUrl(c.musteri?.tel, doldur(
+                          servis ? md.sz.cihazHaber.servis : sarf ? md.sz.cihazHaber.toner : md.sz.cihazHaber.parca,
+                          {
+                            ad: c.musteri?.ad ?? '', cihaz: c.etiket, bayi: bayiAdi,
+                            uyari: c.uyarilar.filter((u) => UYARI_TURU[u] === 'SERVIS').map((u) => (md.sz.tarayici.uyari as Record<string, string>)[u] ?? u).join(', '),
+                            parca: c.parcaAd ?? '',
+                          },
+                        ))} target="_blank" rel="noopener"
+                          style={{ padding: '0.4rem 0.75rem', background: '#16a34a', color: 'white', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          {tt.musteriyeYaz}
+                        </a>
                       )}
                     </div>
                   </li>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import KacanToner from '@/components/KacanToner';
 
 interface Item {
   id: string; brand: string; model: string; serialNo: string; location: string | null;
@@ -124,6 +125,9 @@ export default function KacanGelirPage() {
       </div>
 
       {msg && <div style={{ margin: '1rem 0 0', padding: '0.7rem 1rem', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '0.88rem', color: '#15803d' }}>{msg}</div>}
+
+      {/* Başka yerden alınan toner: bayinin en sessiz kaybı (lib/kacan-toner.ts). */}
+      <div style={{ margin: '1rem 0 0' }}><KacanToner /></div>
 
       <div style={{ display: 'flex', gap: 10, margin: '1rem 0', flexWrap: 'wrap' }}>
         <div style={{ flex: 2, minWidth: 200, background: 'linear-gradient(135deg,#7f1d1d,#dc2626)', color: 'white', borderRadius: 12, padding: '0.9rem 1.1rem' }}>

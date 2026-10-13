@@ -230,6 +230,27 @@ export const en: Sozluk = {
     talepMetin: 'Many accounts were opened from this network today, so we could not open yours automatically. We will open it today and send your sign-in details on WhatsApp.',
   },
 
+  cihazHaber: {
+    servis: 'Hello {ad}, we noticed your {cihaz} is asking for service ({uyari}). We are sending our technician; what time suits you? {bayi}',
+    toner: 'Hello {ad}, the toner in your {cihaz} is about to run out. Shall we bring a new one before it does? {bayi}',
+    parca: 'Hello {ad}, the {parca} in your {cihaz} is near the end of its life. Shall we replace it before print quality drops? {bayi}',
+  },
+
+  kacanToner: {
+    baslik: 'Toner bought elsewhere',
+    ozet: '{n} toner changes were not bought from you',
+    tutarOzet: 'about {tutar} in lost sales',
+    aciklama: 'The network scanner saw the toner refilled on {n} machines it watches, but no toner went from you to that machine or customer (shipments, service tickets and account sales were checked). The customer may have bought it elsewhere.',
+    yok: 'No toner bought elsewhere on the {n} machines watched in the last 4 months.',
+    izlenmiyor: 'Once the network scanner runs on your customer\'s network, customers who buy toner elsewhere show up here.',
+    tarayiciyaGit: 'Network scanner',
+    musteriYok: 'Unknown customer',
+    tahmin: 'Estimate: at the {parca} price',
+    whatsapp: 'Message on WhatsApp',
+    bizden: 'Bought from us',
+    musteriMesaji: 'Hello {ad}, let us take care of the toner for your {cihaz} from now on: we tell you before it runs out and bring it over. Reply to this message for a price. {bayi}',
+  },
+
   demoTuru: {
     ust: 'Demo tour',
     baslik: 'See in two minutes what this system earns you',
@@ -240,7 +261,7 @@ export const en: Sozluk = {
     sarfAlt: 'How many days each machine has left, with the real yield of every toner measured.',
     sarfSayi: '{n} machines are about to run out of toner; send it from stock in one step.',
     kacanBaslik: 'Lost revenue',
-    kacanAlt: 'Unbilled meter readings and machines nobody read: money left on the table.',
+    kacanAlt: 'Customers buying toner elsewhere, unbilled meter readings: money left on the table.',
     karBaslik: 'Loss-making contracts',
     karAlt: 'Machines whose page price is below the toner cost, in red.',
     not: 'Every company and figure in this account is an example.',
@@ -2235,6 +2256,7 @@ export const en: Sozluk = {
     fisAc: 'Open service ticket',
     fisAcik: 'Open ticket: {no}',
     tonerGonder: 'Send toner →',
+    musteriyeYaz: 'Message the customer',
     fisSorun: 'Reported by the device: {uyarilar}',
     uyari: {
       SERVIS_GEREKLI: 'Service requested',
