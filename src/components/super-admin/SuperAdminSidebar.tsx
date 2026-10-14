@@ -2,14 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database } from 'lucide-react';
-import { useT } from '@/lib/i18n/client';
+import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database, PhoneCall } from 'lucide-react';
+import { useT, useDil } from '@/lib/i18n/client';
+import { aktivasyonMetni } from '@/lib/aktivasyon-metin';
 import type { Sozluk } from '@/lib/i18n/sozluk';
 
 // Etiket sözlükten ÇAĞRI ANINDA okunuyor: modül düzeyinde sabitlenseydi ilk
 // yüklendiği dilde donar, kullanıcı dili değiştirince menü Türkçe kalırdı.
-const menu = (sz: Sozluk) => [
+const menu = (sz: Sozluk, dil: string) => [
     { href: '/super-admin/dashboard', label: sz.superAdmin.menu.panel, icon: LayoutDashboard },
+    // Deneme hesaplarından bugün aranacaklar (etiketi kendi metin dosyasından).
+    { href: '/super-admin/aktivasyon', label: aktivasyonMetni(dil).menu, icon: PhoneCall },
     { href: '/super-admin/tenants', label: sz.superAdmin.menu.isletmeler, icon: Building2 },
     // Ağın veri ürettiğini gösteren panel — veri katmanının sağlık göstergesi
     { href: '/super-admin/veri-kapsami', label: sz.superAdmin.menu.veriKapsami, icon: Database },
@@ -22,7 +25,8 @@ const menu = (sz: Sozluk) => [
 export default function SuperAdminSidebar() {
     const pathname = usePathname();
     const sz = useT();
-    const navItems = menu(sz);
+    const { dil } = useDil();
+    const navItems = menu(sz, dil);
 
     const handleLogout = async () => {
         await fetch('/api/super-admin/login', { method: 'DELETE' });
