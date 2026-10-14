@@ -38,6 +38,10 @@ export async function POST(req: Request) {
         phone: body.phone,
         address: body.address || null,
         taxNo: body.taxNo || null,
+        // Yeni müşteri formu e-postayı soruyor ama burada YAZILMIYORDU: bayi
+        // doldurdu, kayıt e-postasız oluştu (e-Fatura/ekstre gönderimi boşa).
+        // Küçük harfle: eşleştirme ve tekrar kontrolü harf duyarsız olsun.
+        email: typeof body.email === 'string' && body.email.trim() ? body.email.trim().toLowerCase() : null,
         consent: body.consent ?? false,
       },
     });

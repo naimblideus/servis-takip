@@ -111,7 +111,7 @@ export default function SatisPage() {
       <div style={{ marginBottom: '1rem' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{t.satis.baslik}</h1>
         <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-          Ürünü okut → sepete düşer → müşteri + ödeme seç → tamamla. Stok otomatik düşer, muhasebeye işlenir.
+          {t.satis.alt}
         </p>
       </div>
 

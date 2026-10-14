@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { paylasimliWhatsappAcik } from '@/lib/whatsapp-inbound';
 import { effectiveModules } from '@/lib/modules';
 import Sidebar from '@/components/Sidebar';
+import DemoBaglantiKoruma from '@/components/DemoBaglantiKoruma';
 import AileSekmeleri from '@/components/AileSekmeleri';
 import DenemeSeridi from '@/components/DenemeSeridi';
 import { doldur } from '@/lib/i18n/sozluk';
@@ -134,6 +135,8 @@ export default async function DashboardLayout({
       </main>
       <BottomNav modules={modules} />
       <Onboarding />
+      {/* Ortak demoda WhatsApp/arama bağlantıları gerçek biçimli numaralara gitmesin; metni göster. */}
+      {(session.user as { demo?: boolean } | undefined)?.demo && <DemoBaglantiKoruma />}
     </div>
     </LocaleProvider>
   );

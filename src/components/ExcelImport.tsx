@@ -1,8 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useT } from '@/lib/i18n/client';
+import { useT, useBicim, useDil } from '@/lib/i18n/client';
 import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
+import { xlsxOku, satirlarCsv } from '@/lib/xlsx-oku';
+import { sablonCsv } from '@/lib/ice-aktar-sablon';
+import { yedekli } from '@/lib/sozluk-yedek';
 
 const alanEtiketleri = (t: Sozluk): Record<string, string> => ({
   customerName: t.excelAktar.alanMusteri,
@@ -52,6 +55,8 @@ const uyariMetni = (t: Sozluk, u: { kod: string; n: number; ornek?: string; isim
 
 export default function ExcelImport() {
   const t = useT();
+  const b = useBicim();
+  const { dil } = useDil();
   const FIELD_LABEL = alanEtiketleri(t);
   const FIELD_KEYS = Object.keys(FIELD_LABEL);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,11 +72,31 @@ export default function ExcelImport() {
   const pick = async (f: File | null) => {
     if (!f) return;
     setErr(null); setResult(null); setPreview(null); setEncodingNote(null);
-    if (!/\.(csv|txt)$/i.test(f.name)) {
-      setErr(t.excelAktar.csvOlmayanDosya);
+    const xlsx = /\.xlsx$/i.test(f.name);
+    if (!xlsx && !/\.(csv|txt)$/i.test(f.name)) {
+      // .xls (eski ikili biçim) okunamıyor: Excel'de .xlsx ya da CSV olarak kaydedilmeli.
+      setErr(yedekli(t.excelAktar, 'desteklenmeyenDosya', t.excelAktar.csvOlmayanDosya));
       return;
     }
     if (f.size > 15 * 1024 * 1024) { setErr(t.excelAktar.dosyaBuyuk); return; }
+
+    // XLSX: bayinin elindeki dosya neredeyse hep bu. "Önce CSV'ye çevirin"
+    // demek aktarmamak demekti. İlk sayfa okunup aynı CSV yoluna veriliyor —
+    // sunucu, eşleme ve önizleme CSV ile birebir aynı. Sayı hücreleri Türk
+    // biçimine (ondalık virgül) çevrilir: "0.125" binlik sanılıp 125 olmasın.
+    if (xlsx) {
+      let metin: string;
+      try {
+        metin = satirlarCsv(await xlsxOku(await f.arrayBuffer(), { ondalikVirgul: true }));
+      } catch {
+        setErr(t.excelAktar.okunamadi);
+        return;
+      }
+      if (!metin.trim()) { setErr(t.excelAktar.hataBosDosya); return; }
+      setCsv(metin); setFileName(f.name);
+      await runPreview(metin, null);
+      return;
+    }
 
     // KODLAMA: Excel'in düz "CSV" çıktısı UTF-8 DEĞİL (Türkçe'de windows-1254) — Türkçe karakterler bozulur.
     // Önce katı UTF-8 dene; geçersizse windows-1254'e düş.
@@ -120,6 +145,19 @@ export default function ExcelImport() {
       else setResult(d);
     } catch { setErr(t.excelAktar.sunucuYok); }
     setBusy(false);
+  };
+
+  /** Örnek şablon — tarayıcıda üretilir (sunucu yok). Başlıklar eşleyicinin tanıdığı yazımlar. */
+  const sablonIndir = () => {
+    const blob = new Blob([sablonCsv(dil === 'en' ? 'en' : 'tr')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = dil === 'en' ? 'customer-device-template.csv' : 'musteri-cihaz-sablonu.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const changeMap = (i: number, v: string) => {
@@ -180,13 +218,21 @@ export default function ExcelImport() {
         <div onClick={() => inputRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition
             ${fileName ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-emerald-400 hover:bg-gray-50'}`}>
-          <input ref={inputRef} type="file" accept=".csv,.txt" className="hidden"
+          <input ref={inputRef} type="file" accept=".csv,.txt,.xlsx" className="hidden"
             onChange={(e) => { pick(e.target.files?.[0] || null); e.target.value = ''; }} />
           <div className="text-3xl mb-2">{fileName ? '📄' : '📊'}</div>
-          <p className="font-medium text-gray-700">{fileName || t.excelAktar.csvSecin}</p>
+          <p className="font-medium text-gray-700">{fileName || yedekli(t.excelAktar, 'dosyaSecin', t.excelAktar.csvSecin)}</p>
           <p className="text-xs text-gray-400 mt-2">
             {t.excelAktar.ipucuOn} <b>{t.excelAktar.ipucuVurgu}</b> {t.excelAktar.ipucuSon}
           </p>
+        </div>
+
+        {/* Örnek şablon: boş ekranda "hangi kolonlar?" sorusunun cevabı. */}
+        <div className="mt-3 text-center">
+          <button type="button" onClick={sablonIndir}
+            className="px-3 py-1.5 bg-white border border-emerald-300 text-emerald-800 rounded-lg text-xs font-semibold hover:bg-emerald-50">
+            {yedekli(t.excelAktar, 'sablonIndir', t.genel.excelIndir)}
+          </button>
         </div>
 
         {err && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{err}</div>}
@@ -239,7 +285,10 @@ export default function ExcelImport() {
                   <table className="w-full text-xs">
                     <thead className="bg-gray-50">
                       <tr>
-                        {[t.excelAktar.ornekMusteri, t.excelAktar.alanTelefon, t.excelAktar.ornekMarkaModel, t.excelAktar.alanSeriNo, t.excelAktar.alanKonum, t.excelAktar.ornekSayac].map((h) => (
+                        {/* Kiralık + aylık kira kolonları da görünür: eşleme yanlışsa
+                            ("Kiralık" kolonu kira tutarı sanılırsa) kiralık filo
+                            sessizce kirasız aktarılıyordu — burada fark edilsin. */}
+                        {[t.excelAktar.ornekMusteri, t.excelAktar.alanTelefon, t.excelAktar.ornekMarkaModel, t.excelAktar.alanSeriNo, t.excelAktar.alanKonum, t.excelAktar.ornekSayac, t.excelAktar.alanKiralik, t.excelAktar.alanKira].map((h) => (
                           <th key={h} className="px-2 py-2 text-left font-semibold text-gray-600">{h}</th>
                         ))}
                       </tr>
@@ -253,6 +302,8 @@ export default function ExcelImport() {
                           <td className="px-2 py-1.5 font-mono">{s.serialNo || '—'}</td>
                           <td className="px-2 py-1.5">{s.location || '—'}</td>
                           <td className="px-2 py-1.5 font-mono">{s.counterBlack ?? '—'}</td>
+                          <td className="px-2 py-1.5">{s.isRental ? t.genel.evet : t.genel.hayir}</td>
+                          <td className="px-2 py-1.5 font-mono">{s.monthlyRent != null ? b.para(Number(s.monthlyRent)) : '—'}</td>
                         </tr>
                       ))}
                     </tbody>

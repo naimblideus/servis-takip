@@ -24,14 +24,33 @@ export async function PATCH(
 
     try {
         const body = await req.json();
+        const email = body.email ? String(body.email).trim().toLowerCase() : '';
+        // Kullanıcılar ekranı e-postayı HER kayıtta gönderiyor; yalnız gerçekten
+        // değişiyorsa "giriş bilgisi değişikliği" sayılır (ad düzeltmek demoda
+        // da serbest kalsın).
+        const emailDegisiyor = !!email && email !== String(target.email).trim().toLowerCase();
         // Demoda giriş bilgisi ve kullanıcı kapatma değişmez (lib/demo-koruma.ts).
-        if ((body.password || body.email || body.isActive === false) && await demoBayiMi(me.tenantId)) {
+        if ((body.password || emailDegisiyor || body.isActive === false) && await demoBayiMi(me.tenantId)) {
             return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
         }
         const updateData: any = {};
         if (body.name) updateData.name = body.name;
-        if (body.email) updateData.email = body.email;
-        if (body.role) updateData.role = body.role;
+        if (email) {
+            // Küçük harfle sakla + bayi içinde büyük/küçük harf duyarsız
+            // benzersizlik (bkz. api/users POST). Kendisi hariç; ILIKE değil
+            // lower()= — "_" ILIKE'ta joker.
+            const cakisan = await prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "tenantId" = ${me.tenantId} AND lower("email") = ${email} AND "id" <> ${id} LIMIT 1`;
+            if (cakisan.length) return ucHatasi('BU_E_POSTA_BU_ISLETMEDE', 400);
+            updateData.email = email;
+        }
+        // Yetki yükseltme kapısı: bu uçtan yalnız bayi-içi roller verilebilir.
+        // Eskiden gövdedeki rol olduğu gibi yazılıyordu; bayi yöneticisi kendi
+        // ekibinden birini SUPER_ADMIN yapıp bütün bayileri yönetebilirdi.
+        // POST (kullanıcı ekleme) zaten aynı listeyle sınırlıydı.
+        if (body.role && body.role !== target.role) {
+            if (!['ADMIN', 'TECHNICIAN', 'FRONT_DESK'].includes(body.role)) return NextResponse.json({ error: 'Yetkisiz' }, { status: 403 });
+            updateData.role = body.role;
+        }
         if (body.isActive !== undefined) updateData.isActive = body.isActive;
         if (body.password) {
             if (body.password.length < 6) return ucHatasi('SIFRE_EN_AZ_6_KARAKTER', 400);

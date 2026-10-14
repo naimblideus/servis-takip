@@ -114,6 +114,20 @@ const PATTERNS: { key: FieldKey; re: RegExp }[] = [
   { key: 'taxOffice', re: /(vergi dairesi|vergi d\.|v\.d\.|^vd$)/i },
   { key: 'district', re: /(ilce|district|semt)/i },
   { key: 'city', re: /^(il|sehir|city|province)$/i },
+  // KİRA — ölçülmüş hata: eskiden aylık kira kalıbı /(kira|aylik|rent)/ idi
+  // ve "Kiralık" kolonunu (evet/hayır) KİRA TUTARI sanıyordu; asıl "Aylık
+  // Kira" kolonu boşta kalıyordu. Sonuç: kiralık filo "kiralık değil" ve
+  // kirasız aktarılıyordu → kira faturası kesilmiyor, Sayaç Turu'nda yok.
+  // İkisi de artık TAM başlık kalıbı (normalleşmiş biçimde: ı→i, küçük
+  // harf) ve "Kiralık Cihaz" model kalıbına (/cihaz/) düşmesin diye burada.
+  { key: 'isRental', re: /^(kiralik|kiralik mi|kiralik cihaz|kiralik cihaz mi|kirada mi|kirada|kira mi|kira durumu|rental|is rental|rented)\s*\??\s*(\(.*\))?$/i },
+  { key: 'monthlyRent', re: /(aylik kira|kira bedeli|kira ucreti|kira tutari|kira fiyati|aylik aidat|^aidat|^kira\s*(\(.*\)|tl|₺)?$|monthly rent|rent amount|^rent\s*(\(.*\))?$)/i },
+  // FİYAT, SAYAÇ ve KONUM kalıplarından ÖNCE: sayaç kalıbı /s\/?b/ "S/B
+  // Fiyat"ı, konum kalıbı /birim/ "S/B Birim Fiyatı"nı yakalıyordu — sayfa
+  // fiyatı sayaç ya da konum kolonuna yazılırdı. Fiyat kalıbı renk + "fiyat/
+  // ücret/birim" ister, yani "S/B Sayaç"ı yemez.
+  { key: 'pricePerColor', re: /(renkli.*(fiyat|ucret|birim)|(fiyat|birim).*renkli|colou?r.*(price|fiyat))/i },
+  { key: 'pricePerBlack', re: /((siyah|s\/?b|mono).*(fiyat|ucret|birim)|(fiyat|birim).*(siyah|s\/?b)|(black|mono).*price|^sayfa (birim )?fiyati?$)/i },
   // Bayi kolona "Ünvan" yazdıysa bu onun beyanı: orada tescilli unvan var.
   // Tahmin etmiyoruz, yazdığını okuyoruz.
   { key: 'legalName', re: /(unvan|ticari ad|tescilli|legal)/i },
@@ -127,10 +141,6 @@ const PATTERNS: { key: FieldKey; re: RegExp }[] = [
   { key: 'location', re: /(konum|kat|oda|yer|bolum|bölüm|departman|birim|lokasyon|location)/i },
   { key: 'counterColor', re: /(renkli.*(sayac|sayaç|counter)|(sayac|sayaç|counter).*renkli|color.*count|renkli sayaç)/i },
   { key: 'counterBlack', re: /(siyah|s\/?b\b|mono|black|sayac|sayaç|counter)/i },
-  { key: 'monthlyRent', re: /(kira|aylik|aylık|rent)/i },
-  { key: 'pricePerColor', re: /(renkli.*(fiyat|ucret|ücret|birim)|(fiyat|birim).*renkli)/i },
-  { key: 'pricePerBlack', re: /((siyah|s\/?b|mono).*(fiyat|ucret|ücret|birim)|(fiyat|birim).*(siyah|s\/?b))/i },
-  { key: 'isRental', re: /(kiralik|kiralık|rental|kira mi|kira mı)/i },
 ];
 
 /** Başlık satırından { kolonIndex -> alan } eşlemesi çıkarır (ilk eşleşen kazanır, aynı alan 2 kez atanmaz) */

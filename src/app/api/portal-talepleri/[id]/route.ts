@@ -3,7 +3,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
-import { generateTicketNumber } from '@/lib/ticket-number';
+import { fisNumarasiylaOlustur } from '@/lib/ticket-number';
 import { createReading, ReadingError } from '@/lib/readings';
 
 /**
@@ -40,11 +40,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // ── ARIZA → servis fişi ──
     if (talep.tur === 'ARIZA') {
       if (!talep.deviceId) return ucHatasi('CIHAZSIZ_BILDIRIMDEN_FIS_ACILAMAZ', 400);
-      const ticketNumber = await generateTicketNumber(tenantId);
-      const fis = await prisma.serviceTicket.create({
+      // Numara çakışırsa yeni numarayla yeniden dener (lib/ticket-number); ham 500 dönmez.
+      const fis = await fisNumarasiylaOlustur(tenantId, (ticketNumber) => prisma.serviceTicket.create({
         data: {
           tenantId,
-          deviceId: talep.deviceId,
+          deviceId: talep.deviceId!,
           customerId: talep.customerId,
           ticketNumber,
           createdByUserId: user.id,
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           notes: 'Müşteri panelinden gelen arıza bildirimi.',
         },
         select: { id: true, ticketNumber: true },
-      });
+      }));
       // AŞAMA GEÇMİŞİ: müşteri panelinden gelen bildirimle açıldığını kaynak
       // alanı söylüyor — bayi sonradan "bunu kim açtı" diye sormasın.
       await kaydetAsama({

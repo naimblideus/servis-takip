@@ -22,6 +22,12 @@ interface Kayit {
   tarih: string; not: string | null; tutar: number | null; parca: string | null;
 }
 
+/** Tarayıcının yazdığı "%8 → %97" notunu dilin yüzde biçimiyle göster (EN: "8% → 97%"). */
+function notBicimi(not: string, b: { yuzde: (n: number) => string }): string {
+  const m = /^%(\d+) → %(\d+)$/.exec(not.trim());
+  return m ? `${b.yuzde(Number(m[1]))} → ${b.yuzde(Number(m[2]))}` : not;
+}
+
 export default function KacanToner() {
   const t = useT();
   const k = t.kacanToner;
@@ -29,7 +35,7 @@ export default function KacanToner() {
   const m = useMusteriDili();
   const { data: session } = useSession();
   const bayi = ((session?.user as any)?.tenantName as string | undefined) ?? '';
-  const [veri, setVeri] = useState<{ kayitlar: Kayit[]; adet: number; tutar: number; izlenenCihaz: number } | null>(null);
+  const [veri, setVeri] = useState<{ kayitlar: Kayit[]; adet: number; tutar: number; izlenenCihaz: number; izlemeGun?: number | null } | null>(null);
   const [hata, setHata] = useState('');
 
   const yukle = useCallback(async () => {
@@ -65,7 +71,11 @@ export default function KacanToner() {
     return (
       <div className="card">
         <p className="font-bold text-gray-900">{k.baslik}</p>
-        <p className="mt-0.5 text-sm text-gray-500">{doldur(k.yok, { n: veri.izlenenCihaz })}</p>
+        <p className="mt-0.5 text-sm text-gray-500">
+          {veri.izlemeGun != null && veri.izlemeGun < 120
+            ? doldur(k.yokYeni, { n: veri.izlenenCihaz, gun: veri.izlemeGun })
+            : doldur(k.yok, { n: veri.izlenenCihaz })}
+        </p>
       </div>
     );
   }
@@ -94,7 +104,7 @@ export default function KacanToner() {
                 <Link href={`/devices/${x.deviceId}`} className="hover:underline">{x.cihaz}</Link>
                 <span className="text-gray-400"> · {x.seri}</span>
                 <span className="text-gray-400"> · {b.tarih(x.tarih)}</span>
-                {x.not && <span className="text-gray-400"> · {x.not}</span>}
+                {x.not && <span className="text-gray-400"> · {notBicimi(x.not, b)}</span>}
               </p>
               {x.parca && <p className="text-xs text-gray-400">{doldur(k.tahmin, { parca: x.parca })}</p>}
             </div>

@@ -35,13 +35,17 @@ const CEVRIMDISI = '/cevrimdisi.html';
 // listeyi elle tutmak eskimeye davetiye çıkarır.
 const ONCEDEN = [CEVRIMDISI, '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
 
+// skipWaiting YOK: yeni sürüm, sayfadaki "Güncelle" (HEMEN_GUNCELLE) ya da
+// bütün sekmeler kapanınca devralır. Kendiliğinden devralma açık sayfanın
+// altından kontrolcüyü değiştiriyordu. İlk kurulum zaten beklemeden açılır.
+// Sayfalar ağdan geldiği için (aşağıda) bekleyen sürüm bayiyi eski koda
+// kilitlemez; yalnız önbellekli statik dosyalar ve çevrimdışı sayfa onun.
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(KABUK)
       .then((c) => c.addAll(ONCEDEN))
       // Tek bir dosya bulunamazsa kurulum tamamen düşmesin.
-      .catch(() => undefined)
-      .then(() => self.skipWaiting()),
+      .catch(() => undefined),
   );
 });
 

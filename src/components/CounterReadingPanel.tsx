@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import { renkliMi, sayacGirisiTamam, gonderilecekRenkli } from '@/lib/renkli-cihaz';
+import { yedekli } from '@/lib/sozluk-yedek';
 
 // Fotoğrafı tarayıcıda küçült (max ~1100px, JPEG ~0.6) -> küçük base64 (DB'de saklanır)
 function downscaleImage(file: File): Promise<string> {
@@ -71,6 +73,11 @@ interface DeviceInfo {
     monthlyRent: number;
     pricePerBlack: number | null;
     pricePerColor: number | null;
+    // Uç ileride döndürürse kullanılır (Sayaç Turu'ndaki renkli ölçütünün girdileri).
+    hasColor?: boolean;
+    includedColor?: number | null;
+    overagePriceColor?: number | null;
+    counterColor?: number | null;
 }
 
 interface Pricing {
@@ -109,6 +116,9 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
     const [editReading, setEditReading] = useState<Reading | null>(null);
     const [editForm, setEditForm] = useState({ counterBlack: '', counterColor: '' });
     const [editSaving, setEditSaving] = useState(false);
+    // Siyah-beyaz görünen cihazda renkli kutuyu kullanıcı elle açabilsin:
+    // renkli paketi/fiyatı henüz girilmemiş renkli cihaz kilitli kalmasın.
+    const [renkliElle, setRenkliElle] = useState(false);
 
     const load = async () => {
         const res = await fetch(`/api/devices/${deviceId}/readings`);
@@ -123,8 +133,20 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
 
     useEffect(() => { load(); }, []);
 
+    // ── RENKLİ Mİ? ── Sayaç Turu ile aynı ölçüt (lib/renkli-cihaz.ts). Pantum
+    // modellerinin çoğu siyah-beyaz; eskiden renkli kutusu ZORUNLUYDU ve boş
+    // kalınca "Ekle" hiç açılmıyordu. Bilinen renkli sayaç = son okumaların
+    // en büyüğü (cihazın kendi alanı bu uçtan gelmiyor).
+    const bilinenRenkli = readings.reduce((m, r) => Math.max(m, Number(r.counterColor) || 0), device?.counterColor ?? 0);
+    const renkli = renkliElle || device?.hasColor === true || renkliMi({
+        includedColor: device?.includedColor, pricePerColor: device?.pricePerColor,
+        overagePriceColor: device?.overagePriceColor, counterColor: bilinenRenkli,
+    });
+    // Siyah-beyaz cihazda gönderilecek renkli = en SON okumanınki (düşüş sayılmasın).
+    const sonRenkli = readings[0]?.counterColor ?? device?.counterColor ?? 0;
+
     const save = async () => {
-        if (!form.counterBlack || !form.counterColor) return;
+        if (!sayacGirisiTamam(renkli, form.counterBlack, form.counterColor)) return;
         // Düşüş soruldu ama sebep seçilmediyse gönderme: sebepsiz onay,
         // sistemin kendi kendine karar vermesi demek olurdu.
         if (dususSoruluyor && !resetTur) return;
@@ -136,7 +158,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 counterBlack: parseInt(form.counterBlack),
-                counterColor: parseInt(form.counterColor),
+                counterColor: gonderilecekRenkli(renkli, form.counterColor, sonRenkli),
                 includeMonthlyRent: form.includeMonthlyRent,
                 photo: photo || undefined,
                 ...(resetTur ? { reset: true, resetTur } : {}),
@@ -160,7 +182,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
             // Düşüşte hata kutusu göstermek yerine SEBEBİ soruyoruz — bayinin
             // burada yapacağı iş bu.
             if (d.code === 'COUNTER_DECREASE') setDususSoruluyor(true);
-            else alert('Hata: ' + d.error);
+            else alert(doldur(t.fisler.hata, { n: d.error || t.genel.hata }));
         }
         setSaving(false);
     };
@@ -175,8 +197,8 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
             await load();
             router.refresh();
         } else {
-            const d = await res.json();
-            alert('Hata: ' + d.error);
+            const d = await res.json().catch(() => ({}));
+            alert(doldur(t.fisler.hata, { n: d.error || t.genel.hata }));
         }
         setDeleting(null);
     };
@@ -192,14 +214,15 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
     };
 
     const saveEdit = async () => {
-        if (!editReading || !editForm.counterBlack || !editForm.counterColor) return;
+        if (!editReading || !sayacGirisiTamam(renkli, editForm.counterBlack, editForm.counterColor)) return;
         setEditSaving(true);
         const res = await fetch(`/api/devices/${deviceId}/readings?readingId=${editReading.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 counterBlack: parseInt(editForm.counterBlack),
-                counterColor: parseInt(editForm.counterColor),
+                // Siyah-beyaz cihazda kutu yok: okumanın kendi renkli değeri aynen kalır.
+                counterColor: gonderilecekRenkli(renkli, editForm.counterColor, editReading.counterColor),
             }),
         });
         if (res.ok) {
@@ -207,8 +230,8 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
             await load();
             router.refresh();
         } else {
-            const d = await res.json();
-            alert('Hata: ' + d.error);
+            const d = await res.json().catch(() => ({}));
+            alert(doldur(t.fisler.hata, { n: d.error || t.genel.hata }));
         }
         setEditSaving(false);
     };
@@ -259,6 +282,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                     </div>
                                 )}
                             </div>
+                            {renkli && (
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.4rem' }}>
                                     {t.fisDetay.renkliSayac}
@@ -275,6 +299,7 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                                     </div>
                                 )}
                             </div>
+                            )}
                         </div>
 
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -290,13 +315,13 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                             </button>
                             <button
                                 onClick={saveEdit}
-                                disabled={!editForm.counterBlack || !editForm.counterColor || editSaving}
+                                disabled={!sayacGirisiTamam(renkli, editForm.counterBlack, editForm.counterColor) || editSaving}
                                 style={{
                                     flex: 1, padding: '0.6rem', border: 'none',
                                     borderRadius: '0.5rem', cursor: 'pointer',
                                     backgroundColor: '#0ea5e9', color: 'white',
                                     fontWeight: '600', fontSize: '0.875rem',
-                                    opacity: (!editForm.counterBlack || !editForm.counterColor || editSaving) ? 0.6 : 1,
+                                    opacity: (!sayacGirisiTamam(renkli, editForm.counterBlack, editForm.counterColor) || editSaving) ? 0.6 : 1,
                                 }}
                             >
                                 {editSaving ? t.genel.kaydediliyor : t.fisPanel.kaydet}
@@ -336,15 +361,25 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                         <input type="number" style={inp} placeholder={t.sayacPanel.ornekSiyah} value={form.counterBlack} onChange={e => setForm({ ...form, counterBlack: e.target.value })} />
                         {form.counterBlack && <div style={{ fontSize: '0.7rem', color: '#0ea5e9', fontWeight: '600', marginTop: '0.2rem' }}>{b.sayi(Number(form.counterBlack))}</div>}
                     </div>
+                    {/* Renkli kutu yalnız renkli cihazda. Siyah-beyazda küçük bir
+                        "+ Renkli Sayaç" bağlantısı kalır: renkli paketi henüz
+                        tanımlanmamış renkli cihaz kilitli kalmasın. */}
+                    {renkli ? (
                     <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '0.3rem' }}>{t.sayacPanel.renkliSayac}</label>
                         <input type="number" style={inp} placeholder={t.sayacPanel.ornekRenkli} value={form.counterColor} onChange={e => setForm({ ...form, counterColor: e.target.value })} />
                         {form.counterColor && <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', marginTop: '0.2rem' }}>{b.sayi(Number(form.counterColor))}</div>}
                     </div>
+                    ) : (
+                    <button type="button" onClick={() => setRenkliElle(true)}
+                        style={{ height: 37, padding: '0 0.6rem', background: 'transparent', border: 'none', color: '#7c3aed', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                        + {t.sayacPanel.renkliSayac}
+                    </button>
+                    )}
                     {device?.isRental && device.monthlyRent > 0 && (
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}>
                             <input type="checkbox" checked={form.includeMonthlyRent} onChange={e => setForm({ ...form, includeMonthlyRent: e.target.checked })} />
-                            Aylık aidat dahil
+                            {yedekli(t.sayacPanel, 'aidatDahil', t.sayacPanel.aylikAidat)}
                         </label>
                     )}
                     <div>
@@ -362,10 +397,10 @@ export default function CounterReadingPanel({ deviceId }: { deviceId: string }) 
                             </label>
                         )}
                     </div>
-                    <button onClick={save} disabled={!form.counterBlack || !form.counterColor || saving} style={{
+                    <button onClick={save} disabled={!sayacGirisiTamam(renkli, form.counterBlack, form.counterColor) || saving} style={{
                         padding: '0.5rem 1.25rem', backgroundColor: '#0ea5e9', color: 'white',
                         border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600',
-                        opacity: (!form.counterBlack || !form.counterColor || saving) ? 0.6 : 1, fontSize: '0.875rem',
+                        opacity: (!sayacGirisiTamam(renkli, form.counterBlack, form.counterColor) || saving) ? 0.6 : 1, fontSize: '0.875rem',
                         height: '37px',
                     }}>
                         {saving ? '...' : t.sayacPanel.ekle}

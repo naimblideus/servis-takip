@@ -35,10 +35,11 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
   const [hata, setHata] = useState('');
   const [mesgul, setMesgul] = useState(false);
   const [kod, setKod] = useState(ilkKod);
-  const [talepAlindi, setTalepAlindi] = useState(false);
+  const [talepAlindi, setTalepAlindi] = useState<false | 'ag' | 'yogun'>(false);
 
   useEffect(() => {
-    const k = new URLSearchParams(window.location.search).get('k') ?? '';
+    // Adreste kod yoksa sunucunun çerezden bulduğu (page.tsx): demodan gelen Pantum bayisi.
+    const k = new URLSearchParams(window.location.search).get('k') || ilkKod;
     setKod(k);
     fetch(`/api/kayit${k ? `?k=${encodeURIComponent(k)}` : ''}`).then((r) => r.json()).then(setDurum)
       .catch(() => setDurum((d) => d ?? { acik: true, whatsapp: VARSAYILAN_WHATSAPP }));
@@ -51,10 +52,18 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
     e.preventDefault();
     setMesgul(true);
     setHata('');
-    const r = await fetch('/api/kayit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...f, kod }) });
+    // Salon Wi-Fi'ı koparsa: düğme "açılıyor…"da takılı kalmasın, formu yeniden doldurtmayalım.
+    let r: Response;
+    try {
+      r = await fetch('/api/kayit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...f, kod }) });
+    } catch {
+      setHata(t.giris.hataAg);
+      setMesgul(false);
+      return;
+    }
     const j = await r.json().catch(() => ({}));
     if (r.status === 202 && j.talep) {
-      setTalepAlindi(true);
+      setTalepAlindi(j.sebep === 'yogun' ? 'yogun' : 'ag');
       setMesgul(false);
       return;
     }
@@ -63,8 +72,8 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
       setMesgul(false);
       return;
     }
-    const g = await signIn('credentials', { email: j.eposta ?? f.eposta.trim().toLowerCase(), password: f.sifre, redirect: false });
-    if (g?.error) {
+    const g = await signIn('credentials', { email: j.eposta ?? f.eposta.trim().toLowerCase(), password: f.sifre, redirect: false }).catch(() => null);
+    if (!g || g.error) {
       setHata(k.girisHata);
       setMesgul(false);
       return;
@@ -108,7 +117,7 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
           {talepAlindi ? (
             <div role="status" className="mt-8 rounded-xl border border-teal-400/25 bg-teal-400/[0.06] p-5">
               <p className="text-[17px] font-bold text-white">{k.talepBaslik}</p>
-              <p className="mt-2 text-[15px] leading-relaxed text-white/70">{k.talepMetin}</p>
+              <p className="mt-2 text-[15px] leading-relaxed text-white/70">{talepAlindi === 'yogun' ? k.talepMetinYogun : k.talepMetin}</p>
               <a href={whatsapp} className="mt-4 inline-block rounded-xl bg-teal-500 px-5 py-3 text-[15px] font-bold text-[#04121a] transition hover:bg-teal-400">
                 {k.whatsapp}
               </a>
@@ -200,7 +209,7 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
           <ul className="mt-8 space-y-4">
             {k.panelMaddeler.map((m) => (
               <li key={m} className="flex gap-3 text-[16px] leading-snug text-white/75">
-                <span aria-hidden="true" className="mt-[3px] text-teal-300">✓</span>{m}
+                <span aria-hidden="true" className="mt-[3px] text-teal-300">✓</span>{doldur(m, { gun: durum?.denemeGun ?? 14 })}
               </li>
             ))}
           </ul>

@@ -51,6 +51,13 @@ export async function GET() {
       else tarihler.set(o.deviceId, [o.readingDate]);
     }
 
+    // Herhangi bir yoldan (elle, fotoğraf, tarayıcı) son okuma: otomatik gönderim
+    // durmuş ama sayaç başka yoldan geliyorsa "faturaya girmiyor" denmez.
+    const sonOkumalar = await prisma.counterReading.groupBy({
+      by: ['deviceId'], where: { tenantId, deviceId: { in: cihazlar.map((c) => c.id) } }, _max: { readingDate: true },
+    });
+    const sonOkuma = new Map(sonOkumalar.map((o) => [o.deviceId, o._max.readingDate]));
+
     const simdi = new Date();
     const satirlar = cihazlar.map((c) => {
       const d = cihazDurumu(tarihler.get(c.id) ?? [], simdi);
@@ -68,6 +75,8 @@ export async function GET() {
         araGun: d.araGun,
         gonderimSayisi: d.gonderimSayisi,
         aciklama: d.aciklama,
+        aciklamaKod: d.aciklamaKod,
+        sonOkumaGun: (() => { const t = sonOkuma.get(c.id); return t ? Math.floor((simdi.getTime() - t.getTime()) / 86_400_000) : null; })(),
         _sira: siraAnahtari(d),
       };
     });

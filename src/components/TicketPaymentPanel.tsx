@@ -49,7 +49,15 @@ export default function TicketPaymentPanel({
         setLoading(false);
     };
 
-    useEffect(() => { load(); }, []);
+    // Toplam fişin başka panelinden değişebilir (parça eklenince 950 → 1.900).
+    // Eskiden yalnız ilk açılışta yükleniyordu; "Kalan" eski tutarı gösteriyor,
+    // teknisyen müşteriden eksik para alıyordu. Sunucudan gelen toplam her
+    // değiştiğinde (router.refresh) hem tutarı hem ödemeleri tazele.
+    useEffect(() => {
+        setTotalCost(initialTotalCost);
+        load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ticketId, initialTotalCost]);
 
     const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
     const remaining = totalCost - totalPaid;

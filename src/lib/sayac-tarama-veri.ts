@@ -10,7 +10,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { Prisma, type FaultCategory } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { createReading, ReadingError } from '@/lib/readings';
+import { createReading, ReadingError, sonOkumalar } from '@/lib/readings';
 import { degisimKaydet } from '@/lib/verim-ogrenme';
 import { generateTicketNumber } from '@/lib/ticket-number';
 import { kaydetAsama } from '@/lib/ticket-asama';
@@ -19,8 +19,8 @@ import { normalizeBrandModel } from '@/lib/device-brands';
 import {
   cihazSonucu, tekrarlariAyikla, taramaOzeti, ilerlemeDurumu, tonerDegistiMi,
   dikkatSirasi, TONER_KRITIK, DURUM_TAZE_MS, SESSIZ_MS, TARAYICI_SURUMU,
-  olayFarki, fisAcacakOlaylar, UYARI_KATEGORISI, PARCA_KRITIK, seriEsle, seriNormal,
-  type CihazSonucu, type TaramaGovdesi, type TaramaOzeti, type UyariKodu, type SarfKalemi,
+  olayFarki, fisAcacakOlaylar, UYARI_KATEGORISI, PARCA_KRITIK, seriEsle, seriNormal, karsilastirmaSayaci,
+  type CihazSonucu, type TaramaGovdesi, type TaramaOzeti, type UyariKodu, type SarfKalemi, type SistemCihazi,
 } from '@/lib/sayac-tarama';
 
 export const KAYNAK_TARAMA = 'AG_TARAMA' as const;
@@ -46,11 +46,20 @@ export async function anahtarlaBayi(anahtar: string | null | undefined) {
   });
 }
 
-async function sistemCihazlari(tenantId: string) {
-  return prisma.device.findMany({
-    where: { tenantId },
+/**
+ * Bayinin cihazları, taramanın karşılaştıracağı sayaçla: SON OKUMA (yoksa
+ * kart — lib/sayac-tarama karsilastirmaSayaci). Fark okuma katmanında son
+ * okumadan hesaplanıyor; burada kart kullanılsaydı ekrandaki "+N" ile onayda
+ * faturalanan fark ayrı sayılardan çıkardı. Son okumalar tek sorguda
+ * (lib/readings sonOkumalar — faturanın kullandığı aynı satır).
+ */
+async function sistemCihazlari(tenantId: string, ids?: readonly string[]): Promise<SistemCihazi[]> {
+  const cihazlar = await prisma.device.findMany({
+    where: { tenantId, ...(ids ? { id: { in: [...ids] } } : {}) },
     select: { id: true, serialNo: true, reportedSerial: true, counterBlack: true, counterColor: true },
   });
+  const son = await sonOkumalar(tenantId, cihazlar.map((c) => c.id));
+  return cihazlar.map((c) => ({ ...c, ...karsilastirmaSayaci(c, son.get(c.id)) }));
 }
 
 type BayiKaydi = NonNullable<Awaited<ReturnType<typeof prisma.tenant.findUnique>>>;
@@ -287,7 +296,8 @@ export type OnayCevabi =
  *     iki okuma olurdu.
  *   · GÜNCEL SAYAÇ. Tarama ile onay arasında teknisyen elle okuma girmiş
  *     olabilir. Karar taramadaki "son okuma"ya göre değil, sistemdeki
- *     ŞİMDİKİ sayaca göre yeniden verilir.
+ *     ŞİMDİKİ son okumaya göre yeniden verilir — yazılacak farkın
+ *     hesaplandığı satır (kart değil; bkz. sistemCihazlari).
  */
 export async function taramaOnayla(tenantId: string, id: string): Promise<OnayCevabi> {
   const kayit = await prisma.sayacTaramasi.findFirst({
@@ -304,12 +314,7 @@ export async function taramaOnayla(tenantId: string, id: string): Promise<OnayCe
 
   const eski = (Array.isArray(kayit.sonuc) ? kayit.sonuc : []) as unknown as CihazSonucu[];
   const ids = eski.filter((s) => s.durum === 'YAZILABILIR' && s.deviceId).map((s) => s.deviceId as string);
-  const guncel = new Map(
-    (ids.length
-      ? await prisma.device.findMany({ where: { tenantId, id: { in: ids } }, select: { id: true, counterBlack: true, counterColor: true } })
-      : []
-    ).map((d) => [d.id, d]),
-  );
+  const guncel = new Map((ids.length ? await sistemCihazlari(tenantId, ids) : []).map((d) => [d.id, d]));
   const tenant = ids.length ? await prisma.tenant.findUnique({ where: { id: tenantId } }) : null;
 
   const yeni: CihazSonucu[] = [];

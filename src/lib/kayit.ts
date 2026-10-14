@@ -108,6 +108,19 @@ const ETKINLIKLER: Readonly<Record<string, { ad: string; bas: string; bit: strin
   },
 };
 
+/**
+ * Etkinlik sayfası (/pantum) kodu bu çereze de yazar: bayi oradan önce demoya
+ * girip demo ekranındaki "hesap aç" bağlantısıyla (kodsuz /kayit) gelse de
+ * toplantının teklifini alır. Kod geçerliliğine yine etkinlikBul karar verir.
+ */
+export const ETKINLIK_CEREZI = 'etk';
+
+/** Adresteki/gövdedeki kod önce; yoksa çerezdeki. */
+export function etkinlikKodu(...adaylar: unknown[]): string {
+  for (const a of adaylar) if (typeof a === 'string' && a.trim()) return a.trim().slice(0, 40);
+  return '';
+}
+
 export function etkinlikBul(kod: unknown, simdi = Date.now()): Etkinlik | null {
   if (typeof kod !== 'string') return null;
   const k = kod.trim().toLowerCase();
@@ -196,7 +209,11 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
   if (ayar && !ayar.kayitAcik) return { durum: 'KAPALI' };
 
   const saatOnce = new Date(Date.now() - 3_600_000);
-  const sonSaat = await prisma.tenant.count({ where: { createdAt: { gte: saatOnce }, adminNotes: { startsWith: KAYIT_NOTU } } });
+  // Kodsuz kaydın saatlik tavanı etkinlik kayıtlarını SAYMAZ: toplantı günü
+  // salondan gelen yüzlerce Pantum kaydı, siteden gelen sıradan ziyaretçiyi
+  // "çok yoğun" diye talebe düşürüyordu.
+  const etkinlikDisi = etk ? {} : { NOT: Object.values(ETKINLIKLER).map((e) => ({ adminNotes: { contains: `· ${e.ad}` } })) };
+  const sonSaat = await prisma.tenant.count({ where: { createdAt: { gte: saatOnce }, adminNotes: { startsWith: KAYIT_NOTU }, ...etkinlikDisi } });
   if (sonSaat >= saatlikAzami(etk)) return { durum: 'YOGUN' };
 
   if (suren.has(veri.eposta)) return { durum: 'EPOSTA_VAR' };
@@ -212,9 +229,12 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
     const ham = generateSlug(veri.firma) || 'bayi';
     const taban = /^demo(-|$)/.test(ham) ? `bayi-${ham}`.slice(0, 50) : ham;
     const dolu = await prisma.tenant.findFirst({ where: { slug: taban }, select: { id: true } });
-    const slug = dolu ? `${taban.slice(0, 43)}-${randomBytes(3).toString('hex')}` : taban;
+    const rastgele = () => `${taban.slice(0, 43)}-${randomBytes(3).toString('hex')}`;
+    let slug = dolu ? rastgele() : taban;
 
-    const { tenant, user } = await createTenant({
+    // Aynı firmadan iki çalışan aynı masada aynı anda kaydolursa ikisi de aynı
+    // adı alıp biri benzersizlik hatasıyla 500 görüyordu: adı değiştirip yeniden dene.
+    const ac = () => createTenant({
       name: veri.firma,
       slug,
       ownerName: veri.ad,
@@ -227,6 +247,17 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
       password: veri.sifre,
       adminNotes: `${KAYIT_NOTU}${veri.il ? ` · ${veri.il}` : ''}${etk ? ` · ${etk.ad}` : ''}`,
     });
+    let acilan: Awaited<ReturnType<typeof createTenant>> | null = null;
+    for (let deneme = 0; !acilan; deneme++) {
+      try {
+        acilan = await ac();
+      } catch (e) {
+        const hata = e as { code?: string; meta?: { target?: unknown } };
+        if (deneme < 3 && hata?.code === 'P2002' && String(hata.meta?.target ?? '').includes('slug')) { slug = rastgele(); continue; }
+        throw e;
+      }
+    }
+    const { tenant, user } = acilan;
 
     if (ip) sayac(hesaplar, ip, 86_400_000, Date.now()).push(Date.now());
     await writeAudit({

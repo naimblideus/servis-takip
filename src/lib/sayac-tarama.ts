@@ -264,8 +264,33 @@ export interface SistemCihazi {
   id: string;
   serialNo: string;
   reportedSerial: string | null;
+  /**
+   * Taramanın karşılaştırdığı sayaç: cihazın SON OKUMASI, okuması hiç yoksa
+   * cihaz kartı (karsilastirmaSayaci). Kartın kendisi değil — bkz. aşağısı.
+   */
   counterBlack: number | null;
   counterColor: number | null;
+}
+
+/**
+ * TARAMANIN KARŞILAŞTIRDIĞI SAYAÇ — tek kural.
+ *
+ * Fatura farkı cihazın SON SAYAÇ OKUMASINDAN hesaplanır (lib/readings
+ * createReading), cihaz kartındaki sayaçtan değil. Kart normalde okumayla
+ * birlikte güncellenir ama ayrışabilir (toplu içe aktarma, kartın elle
+ * düzeltilmesi, eski veri). Ayrıştığında taramayı kartla karşılaştırmak,
+ * bayiye faturayı belirleyen sayıdan BAŞKA bir sayı göstermekti: ekranda
+ * "Son okuma 41.995 (+377)", onayda 1.748 sayfa faturalandı. Ekrandaki son
+ * okuma, "+N", durum kararı ve onaydaki güncel değer hep buradan çıkar.
+ * Okuması hiç olmayan cihazda (zincirin başı) kart kullanılır.
+ */
+export function karsilastirmaSayaci(
+  kart: { counterBlack: number | null; counterColor: number | null },
+  sonOkuma: { counterBlack: number; counterColor: number } | null | undefined,
+): { counterBlack: number | null; counterColor: number | null } {
+  return sonOkuma
+    ? { counterBlack: sonOkuma.counterBlack, counterColor: sonOkuma.counterColor }
+    : { counterBlack: kart.counterBlack, counterColor: kart.counterColor };
 }
 
 /** Seriyi bayinin cihazlarıyla eşler: etiketteki seri ya da cihazın bildirdiği. */
@@ -339,7 +364,10 @@ export function sarfYuzdesi(s: SarfHam): number | null {
 }
 
 /**
- * Bir cihazın taramadaki kararı. `cihazlar` bayinin sistemdeki cihazları.
+ * Bir cihazın taramadaki kararı. `cihazlar` bayinin sistemdeki cihazları;
+ * sayaçları son okumadır (karsilastirmaSayaci). `sonSiyah`/`sonRenkli`
+ * ekrandaki "Son okuma"dır ve "+N" ondan hesaplanır: onayda faturalanan fark
+ * da aynı sayıdan çıkar.
  *
  * Tek renkli cihazda renkli sayaç DEĞİŞMEZ: sistemdeki son renkli değer
  * aynen korunur (fark 0). Sıfıra çekilseydi sayaç "geriledi" sayılırdı.

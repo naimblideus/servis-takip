@@ -33,7 +33,7 @@ export default function CihazKarlilikPage() {
 
   return (
     <div style={{ padding: '1.5rem 1.25rem 3rem', maxWidth: 1000, margin: '0 auto' }}>
-      <div style={{ fontSize: 10.5, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>Rapor</div>
+      <div style={{ fontSize: 10.5, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 700, color: '#8A93AB' }}>{sz.karlilik.ust}</div>
       <h1 style={{ fontSize: '1.7rem', fontWeight: 800, letterSpacing: '-.022em', margin: '.3rem 0 .35rem', color: '#0B1533' }}>{sz.karlilik.baslik}</h1>
       <p style={{ color: '#5B6479', fontSize: '.9rem', margin: '0 0 1.2rem', lineHeight: 1.55 }}>
         {sz.karlilik.altOn} <b>{sz.karlilik.altVurgu}</b>{sz.karlilik.altSon}

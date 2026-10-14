@@ -39,6 +39,14 @@ interface Ticket {
 
 type SortKey = 'ticketNumber' | 'customer' | 'status' | 'createdAt';
 
+// İLK 50 FİŞ ÇİZİLİR, gerisi düğmeyle 50'şer gelir. Ölçüldü — telefonda
+// 326 fişin hepsi çizilince sayfa ~42.000 px oluyordu; bayi listenin sonuna
+// hiç inmiyor, en yenilere bakıyor. Sıralama BÜTÜN liste üzerinde yapılır,
+// kesme ondan sonra: "en yeni 50" gerçekten en yeni 50'dir.
+const SAYFA = 50;
+
+const kartStili: React.CSSProperties = { backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' };
+
 export default function TicketTable({ tickets, onDelete, filtreliMi = false }: { tickets: Ticket[]; onDelete?: (id: string, num: string) => void; filtreliMi?: boolean }) {
     const router = useRouter();
     // `sz`: satır döngüsü fişi `t` adıyla taşıyor, gölgelenmesin.
@@ -46,6 +54,7 @@ export default function TicketTable({ tickets, onDelete, filtreliMi = false }: {
     const b = useBicim();
     const [sortKey, setSortKey] = useState<SortKey>('createdAt');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+    const [gorunen, setGorunen] = useState(SAYFA);
 
     const toggleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -79,8 +88,91 @@ export default function TicketTable({ tickets, onDelete, filtreliMi = false }: {
 
     const arrow = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕';
 
+    // Durum/öncelik etiketi ve rengi: tablo da telefon kartı da AYNI yerden.
+    const durumu = (t: Ticket) => ({ label: (sz.durum.fisKisa as Record<string, string>)[t.status] ?? t.status, ...(statusRenk[t.status] ?? { color: '#f3f4f6', text: '#374151' }) });
+    const onceligi = (t: Ticket) => ({ label: (sz.durum.oncelik as Record<string, string>)[t.priority] ?? t.priority, color: priorityRenk[t.priority] ?? '#6b7280' });
+    const durumCipi = (st: { color: string; text: string }): React.CSSProperties => ({ backgroundColor: st.color, color: st.text, padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' });
+
+    // BOŞ LİSTE TABLOSUZ çizilir. Mesaj 44rem'lik tablonun ortasına
+    // hizalanınca telefonda sağdan kesiliyordu ("Bu filtreye uyan fiş yok"
+    // yarım okunuyordu); düz kutuda her genişlikte ortada durur.
+    if (tickets.length === 0) {
+        return (
+            <div style={{ ...kartStili, padding: '2.5rem 1.5rem', textAlign: 'center', color: '#6b7280' }}>
+                {/* Filtre sonucu boş olmakla HİÇ fiş olmaması aynı şey değil.
+                    Yeni bayiye "bulunamadı" demek hata gibi okunur. */}
+                {filtreliMi ? (
+                    <>
+                        <div style={{ fontSize: '1.4rem', marginBottom: '0.35rem' }}>🔍</div>
+                        <div style={{ fontWeight: 600, color: '#111827', marginBottom: '0.15rem' }}>{sz.fisler.tablo.filtreBos}</div>
+                        <div style={{ fontSize: '0.85rem' }}>{sz.fisler.tablo.filtreBosAlt}</div>
+                    </>
+                ) : (
+                    <>
+                        <div style={{ fontSize: '1.4rem', marginBottom: '0.35rem' }}>🧾</div>
+                        <div style={{ fontWeight: 600, color: '#111827', marginBottom: '0.15rem' }}>{sz.fisler.tablo.yok}</div>
+                        <div style={{ fontSize: '0.85rem', marginBottom: '0.9rem' }}>{sz.fisler.tablo.yokAlt}</div>
+                        <a href="/tickets/new" style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            minHeight: '2.5rem', padding: '0 1rem', backgroundColor: '#1e3a5f', color: 'white',
+                            borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
+                        }}>{sz.fisler.tablo.ilkFis}</a>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    const satirlar = sorted.slice(0, gorunen);
+    const kalan = sorted.length - satirlar.length;
+
     return (
-        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+        <>
+        {/* ── TELEFON: kart listesi ── 44rem'lik tabloda telefonda yalnız "Fiş No"
+            ile "Müşteri / Cihaz" görünüyor, durum ve tarih için yana kaydırmak
+            gerekiyordu. Kartta bayinin baktığı üç şey üç satırda: hangi fiş ve
+            ne durumda · kimin hangi makinesi · ne arızası, ne zaman. Kartın
+            tamamı fişe gider (satırdaki gibi). Yazdır/sil fiş detayında var;
+            telefonda listede sil düğmesi, kaydırırken yanlış basılacak hedef olur. */}
+        <div className="md:hidden" style={{ ...kartStili, overflow: 'hidden' }}>
+            {satirlar.map((t, i) => {
+                const st = durumu(t);
+                const pr = onceligi(t);
+                return (
+                    <Link
+                        key={t.id}
+                        href={`/tickets/${t.id}`}
+                        className="active:bg-blue-50"
+                        style={{ display: 'block', padding: '0.75rem 0.9rem', borderTop: i === 0 ? 'none' : '1px solid #e5e7eb', textDecoration: 'none', color: 'inherit' }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                                <span style={{ fontFamily: 'monospace', fontWeight: '600', fontSize: '0.85rem', color: '#2563eb', whiteSpace: 'nowrap' }}>{t.ticketNumber}</span>
+                                {/* Öncelik yalnız sıradan değilse: "Acil" kartta görünmeli, "Normal" gürültü. */}
+                                {(t.priority === 'URGENT' || t.priority === 'HIGH') && (
+                                    <span style={{ color: pr.color, fontSize: '0.72rem', fontWeight: '700', whiteSpace: 'nowrap' }}>{pr.label}</span>
+                                )}
+                            </span>
+                            <span style={{ ...durumCipi(st), flexShrink: 0, whiteSpace: 'nowrap' }}>{st.label}</span>
+                        </div>
+                        <div style={{ marginTop: '0.3rem', fontSize: '0.875rem', fontWeight: '500', color: '#111827', overflowWrap: 'anywhere' }}>
+                            {t.device.customer.name}
+                            {t.device.isRental && (
+                                <span style={{ marginLeft: '0.375rem', backgroundColor: '#ede9fe', color: '#6d28d9', fontSize: '0.65rem', fontWeight: '700', padding: '0.1rem 0.4rem', borderRadius: '9999px', verticalAlign: 'middle' }}>{sz.fisler.tablo.kiralik}</span>
+                            )}
+                            <span style={{ color: '#6b7280', fontWeight: '400' }}> · {t.device.brand} {t.device.model}</span>
+                        </div>
+                        <div style={{ marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', fontSize: '0.78rem', color: '#6b7280' }}>
+                            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.issueText || '—'}</span>
+                            <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{b.tarih(t.createdAt)}</span>
+                        </div>
+                    </Link>
+                );
+            })}
+        </div>
+
+        {/* ── MASAÜSTÜ: tablo ── (md ve üstü) */}
+        <div className="hidden md:block" style={{ ...kartStili, overflowX: 'auto' }}>
             <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                 <thead>
                     <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
@@ -95,9 +187,9 @@ export default function TicketTable({ tickets, onDelete, filtreliMi = false }: {
                     </tr>
                 </thead>
                 <tbody>
-                    {sorted.map((t, i) => {
-                        const st = { label: (sz.durum.fisKisa as Record<string, string>)[t.status] ?? t.status, ...(statusRenk[t.status] ?? { color: '#f3f4f6', text: '#374151' }) };
-                        const pr = { label: (sz.durum.oncelik as Record<string, string>)[t.priority] ?? t.priority, color: priorityRenk[t.priority] ?? '#6b7280' };
+                    {satirlar.map((t, i) => {
+                        const st = durumu(t);
+                        const pr = onceligi(t);
                         const hasCounter = t.device.counterBlack != null || t.device.counterColor != null;
                         return (
                             <tr
@@ -143,7 +235,7 @@ export default function TicketTable({ tickets, onDelete, filtreliMi = false }: {
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.issueText}</td>
                                 <td style={{ padding: '0.75rem 1rem' }}>
-                                    <span style={{ backgroundColor: st.color, color: st.text, padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>{st.label}</span>
+                                    <span style={durumCipi(st)}>{st.label}</span>
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem' }}>
                                     <span style={{ color: pr.color, fontSize: '0.8rem', fontWeight: '600' }}>{pr.label}</span>
@@ -174,32 +266,26 @@ export default function TicketTable({ tickets, onDelete, filtreliMi = false }: {
                             </tr>
                         );
                     })}
-                    {tickets.length === 0 && (
-                        <tr><td colSpan={8} style={{ padding: '2.5rem 1.5rem', textAlign: 'center', color: '#6b7280' }}>
-                            {/* Filtre sonucu boş olmakla HİÇ fiş olmaması aynı şey değil.
-                                Yeni bayiye "bulunamadı" demek hata gibi okunur. */}
-                            {filtreliMi ? (
-                                <>
-                                    <div style={{ fontSize: '1.4rem', marginBottom: '0.35rem' }}>🔍</div>
-                                    <div style={{ fontWeight: 600, color: '#111827', marginBottom: '0.15rem' }}>{sz.fisler.tablo.filtreBos}</div>
-                                    <div style={{ fontSize: '0.85rem' }}>{sz.fisler.tablo.filtreBosAlt}</div>
-                                </>
-                            ) : (
-                                <>
-                                    <div style={{ fontSize: '1.4rem', marginBottom: '0.35rem' }}>🧾</div>
-                                    <div style={{ fontWeight: 600, color: '#111827', marginBottom: '0.15rem' }}>{sz.fisler.tablo.yok}</div>
-                                    <div style={{ fontSize: '0.85rem', marginBottom: '0.9rem' }}>{sz.fisler.tablo.yokAlt}</div>
-                                    <a href="/tickets/new" style={{
-                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                        minHeight: '2.5rem', padding: '0 1rem', backgroundColor: '#1e3a5f', color: 'white',
-                                        borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
-                                    }}>{sz.fisler.tablo.ilkFis}</a>
-                                </>
-                            )}
-                        </td></tr>
-                    )}
                 </tbody>
             </table>
         </div>
+
+        {/* Daha fazla: kalan fişlerden 50'si daha. Sayaç "kaçını görüyorum"
+            sorusunu cevaplar; liste kesik görünmesin. */}
+        {kalan > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.875rem' }}>
+                <button
+                    type="button"
+                    onClick={() => setGorunen(n => n + SAYFA)}
+                    style={{
+                        minHeight: '2.75rem', padding: '0 1.25rem', backgroundColor: 'white', color: '#1e3a5f',
+                        border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer',
+                        fontSize: '0.875rem', fontWeight: '600',
+                    }}
+                >+{b.sayi(Math.min(SAYFA, kalan))} {sz.genel.dahaFazla}</button>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{b.sayi(satirlar.length)} / {b.sayi(sorted.length)}</span>
+            </div>
+        )}
+        </>
     );
 }

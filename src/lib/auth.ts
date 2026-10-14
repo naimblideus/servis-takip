@@ -50,6 +50,42 @@ export const AKTIF_SSO = {
   microsoft: Boolean(process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET),
 };
 
+/**
+ * YANLIŞ ŞİFRE SINIRI — e-posta başına 15 dakikada 10 yanlış deneme.
+ *
+ * IP'ye değil e-postaya bağlı: toplantı salonunda yüzlerce kişi aynı otel
+ * IP'sinden giriyor, IP sınırı herkesi birden kilitlerdi. Bellekte (tek
+ * sunucu). Doğru şifre sayacı sıfırlar. Kilitliyken doğru şifre de reddedilir
+ * (yoksa sınır tahmini durdurmaz); 15 dakika sonra kendiliğinden açılır.
+ */
+const GIRIS_HATA_AZAMI = 10;
+const GIRIS_HATA_PENCERE = 15 * 60_000;
+const girisHatalari = new Map<string, { n: number; bas: number }>();
+
+function girisKilitli(eposta: string, simdi = Date.now()): boolean {
+  const k = girisHatalari.get(eposta);
+  if (!k) return false;
+  if (simdi - k.bas > GIRIS_HATA_PENCERE) { girisHatalari.delete(eposta); return false; }
+  return k.n >= GIRIS_HATA_AZAMI;
+}
+
+function girisHatasi(eposta: string, demo: boolean, simdi = Date.now()): void {
+  if (demo) return;
+  if (girisHatalari.size > 20_000) girisHatalari.clear();
+  const k = girisHatalari.get(eposta);
+  if (!k || simdi - k.bas > GIRIS_HATA_PENCERE) girisHatalari.set(eposta, { n: 1, bas: simdi });
+  else k.n++;
+}
+
+function girisBasarili(eposta: string): void {
+  girisHatalari.delete(eposta);
+}
+
+/** Testler için. */
+export function girisSiniriniSifirla(): void {
+  girisHatalari.clear();
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     ...ssoSaglayicilari,
@@ -62,20 +98,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        // Büyük/küçük harf duyarsız: kayıt e-postayı küçültüyor (lib/kayit), giriş
+        // birebir arıyordu; "Ali@Firma.com" yazan bayiye doğru şifreyle "hatalı"
+        // deniyordu. ILIKE değil lower()=lower(): e-postadaki "_" ILIKE'ta joker.
+        const eposta = String(credentials.email).trim().toLowerCase().slice(0, 200);
+        if (girisKilitli(eposta)) return null;
+
         // E-posta bayi bazında benzersiz (@@unique([tenantId, email])) — yani AYNI
         // e-posta iki bayide olabilir. findFirst yalnız birini döndürdüğü için
         // ikinci bayideki kullanıcı hiç giremezdi. Şifresi tutan adayı arıyoruz.
-        const adaylar = await prisma.user.findMany({
-          where: { email: credentials.email as string, isActive: true },
-          include: { tenant: true },
-        });
-        if (adaylar.length === 0) return null;
+        const kimlikler = await prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE lower("email") = ${eposta} AND "isActive" = true`;
+        const adaylar = kimlikler.length
+          ? await prisma.user.findMany({ where: { id: { in: kimlikler.map((k) => k.id) } }, include: { tenant: true } })
+          : [];
+        if (adaylar.length === 0) { girisHatasi(eposta, false); return null; }
 
         let user: (typeof adaylar)[number] | null = null;
         for (const aday of adaylar) {
           if (await bcrypt.compare(credentials.password as string, aday.passwordHash)) { user = aday; break; }
         }
-        if (!user) return null;
+        // Herkese açık demo kilitlenmez: şifresi giriş sayfasında yazılı, kilit
+        // yalnız yüzlerce ziyaretçiyi dışarıda bırakırdı.
+        if (!user) { girisHatasi(eposta, adaylar.some((a) => (a as any).tenant?.demo)); return null; }
+        girisBasarili(eposta);
 
         // ── İKİ ADIMLI DOĞRULAMA ──
         // Açıksa şifre TEK BAŞINA yetmez: geçerli TOTP kodu ya da tek-kullanımlık kurtarma kodu şart.

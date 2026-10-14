@@ -164,7 +164,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Herkese açık demo: değeri gösteren dört ekrana kısa yol (DemoTuru.tsx). */}
-      {(session?.user as any)?.demo && <DemoTuru ariza={ariza} toner={stats?.tonerBitiyor || 0} />}
+      {(session?.user as any)?.demo && <DemoTuru ariza={ariza} />}
       {/* Yeni hesap, henüz müşteri yok: kurulumu birlikte yapalım (KurulumKarti.tsx). */}
       <KurulumKarti />
 

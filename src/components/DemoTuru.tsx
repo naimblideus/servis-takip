@@ -10,17 +10,29 @@
  * altında o ekranın tek cümlelik vaadi var. Yalnız demo bayisinde çizilir.
  */
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
-export default function DemoTuru({ ariza, toner }: { ariza: number; toner: number }) {
+export default function DemoTuru({ ariza }: { ariza: number }) {
   const t = useT();
   const k = t.demoTuru;
+  // /pantum'dan gelen bayiye toplantının teklifi (30 gün): sunucu etkinlik çerezine
+  // bakıp söyler (api/kayit GET); /kayit da aynı çerezle teklifi açar.
+  const [gun, setGun] = useState<number | null>(null);
+  useEffect(() => {
+    fetch('/api/kayit').then((r) => r.json())
+      .then((j) => { if (typeof j?.denemeGun === 'number') setGun(j.denemeGun); })
+      .catch(() => {});
+  }, []);
   const duraklar = [
     { href: '/sayac-tarayici#durum', ikon: '📡', baslik: k.tarayiciBaslik, alt: ariza > 0 ? doldur(k.tarayiciSayi, { n: ariza }) : k.tarayiciAlt },
-    { href: '/sarf', ikon: '🧴', baslik: k.sarfBaslik, alt: toner > 0 ? doldur(k.sarfSayi, { n: toner }) : k.sarfAlt },
+    // Sayı yok: panodaki sayı (tarayıcının bildirdiği) ile Sarf'taki "≤14 günde bitecek"
+    // farklı ölçüler; "1 makine" deyip açılan sayfada 11 göstermek hata gibi duruyordu.
+    { href: '/sarf', ikon: '🧴', baslik: k.sarfBaslik, alt: k.sarfAlt },
     { href: '/kacan-gelir', ikon: '💸', baslik: k.kacanBaslik, alt: k.kacanAlt },
-    { href: '/cihaz-karlilik', ikon: '📉', baslik: k.karBaslik, alt: k.karAlt },
+    // "Sayfa fiyatı toner maliyetinin altında" kırmızısı sözleşme kârlılığında; cihaz kârlılığı parça maliyetine bakıyor.
+    { href: '/sozlesmeler/karlilik', ikon: '📉', baslik: k.karBaslik, alt: k.karAlt },
   ];
   return (
     <section className="rounded-2xl border border-[#1D3E7E]/15 bg-[#EEF2FA] p-4 sm:p-5">
@@ -40,7 +52,9 @@ export default function DemoTuru({ ariza, toner }: { ariza: number; toner: numbe
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[.8rem] text-gray-500">{k.not}</p>
-        <a href="/kayit" className="rounded-lg bg-[#1D3E7E] px-3.5 py-2 text-[.82rem] font-bold text-white transition hover:bg-[#16326a]">{k.kayit}</a>
+        <a href="/kayit" className="rounded-lg bg-[#1D3E7E] px-3.5 py-2 text-[.82rem] font-bold text-white transition hover:bg-[#16326a]">
+          {gun ? doldur(k.kayitGun, { gun }) : k.kayit}
+        </a>
       </div>
     </section>
   );

@@ -9,7 +9,7 @@
  * onaylamak. Karşılaştırma ekranın asıl işi: bayi SNMP sayacının kendi
  * fatura sayacıyla aynı şeyi saydığını burada GÖRMEDEN otomatiği açmamalı.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useT, useBicim, useDil, useMusteriDili } from '@/lib/i18n/client';
 import { useSession } from 'next-auth/react';
@@ -116,8 +116,26 @@ export default function SayacTarayiciPage() {
   };
   const [acik, setAcik] = useState<string | null>(null);
   const [mesgul, setMesgul] = useState(false);
-  const [bilgi, setBilgi] = useState<string | null>(null);
-  const [hata, setHata] = useState<string | null>(null);
+  const [bilgi, bilgiYaz] = useState<string | null>(null);
+  const [hata, hataYaz] = useState<string | null>(null);
+  // MESAJ GÖRÜNÜR OLSUN. Kutular sayfanın tepesinde; telefonda "Tarayıcıyı
+  // indir", "N okumayı kaydet", "N yazıcıyı ekle" ~1400 px aşağıda kalıyor,
+  // sonuç ekran dışına yazılınca düğme hiçbir şey yapmamış gibi görünüyordu.
+  // Her yeni mesaj sayacı artırır, etki kutuyu ekrana kaydırır. Sayaç şart:
+  // aynı metin ikinci kez gelince durum değişmez, kaydırma da olmazdı.
+  const [mesajNo, setMesajNo] = useState(0);
+  const mesajKutusu = useRef<HTMLDivElement>(null);
+  const setBilgi = useCallback((v: string | null) => { bilgiYaz(v); if (v) setMesajNo((n) => n + 1); }, []);
+  const setHata = useCallback((v: string | null) => { hataYaz(v); if (v) setMesajNo((n) => n + 1); }, []);
+  useEffect(() => {
+    const k = mesajKutusu.current;
+    if (!mesajNo || !k) return;
+    // Zaten görünüyorsa (masaüstünde çoğu zaman) sayfa yerinden oynamasın.
+    // Pay: telefonda üstte 56 px'lik çubuk, altta sekme çubuğu var.
+    const r = k.getBoundingClientRect();
+    if (r.top >= 60 && r.bottom <= window.innerHeight - 80) return;
+    k.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [mesajNo]);
   // Taramadan cihaz ekleme: müşteri listesi yalnız gerektiğinde çekilir;
   // işareti KALDIRILAN seriler ve seçilen müşteri tarama başına tutulur.
   const [musteriler, setMusteriler] = useState<{ id: string; name: string }[] | null>(null);
@@ -183,7 +201,13 @@ export default function SayacTarayiciPage() {
     setMesgul(false);
   };
 
+  const demo = Boolean((oturum?.user as { demo?: boolean } | undefined)?.demo);
   const onayla = async (id: string) => {
+    if (demo) {
+      const tr = liste?.taramalar.find((x) => x.id === id);
+      setHata(null); setBilgi(doldur(t.demoOnizleme.okuma, { n: tr?.sonuc.filter((s) => s.durum === 'YAZILABILIR').length ?? 0 }));
+      return;
+    }
     setMesgul(true); setHata(null); setBilgi(null);
     const r = await fetch(`/api/sayac/tarayici/${id}`, { method: 'POST' });
     const j = await r.json().catch(() => ({}));
@@ -227,6 +251,7 @@ export default function SayacTarayiciPage() {
     const cik = cikarilan[tr.id] ?? [];
     const seriler = eklenebilir(tr).map((s) => s.seri as string).filter((s) => !cik.includes(s));
     if (!customerId || !seriler.length) return;
+    if (demo) { setHata(null); setBilgi(doldur(t.demoOnizleme.cihaz, { n: seriler.length })); return; }
     setMesgul(true); setHata(null); setBilgi(null);
     const r = await fetch(`/api/sayac/tarayici/${tr.id}/cihaz`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ customerId, seriler }),
@@ -302,14 +327,30 @@ export default function SayacTarayiciPage() {
   };
   const durum = liste?.durum;
   const bilgisayarlar = liste?.bilgisayarlar ?? [];
+  // Demoda "tarayıcı indirilemez" mesajı ücretsiz tarama adresini yazıyor;
+  // adres düz metin kalınca telefonda kopyalanıp yazılmıyor. Dokunulur bağlantı
+  // olur, demo sekmesi açık kalsın diye yeni sekmede açılır.
+  const baglantili = (metin: string) => {
+    const m = /\S*\/ucretsiz-tarama/.exec(metin);
+    if (!m) return metin;
+    return (
+      <>
+        {metin.slice(0, m.index)}
+        <a href="/ucretsiz-tarama" target="_blank" rel="noopener" style={{ color: 'inherit', fontWeight: 700, textDecoration: 'underline' }}>{m[0]}</a>
+        {metin.slice(m.index + m[0].length)}
+      </>
+    );
+  };
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: 1100 }}>
       <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{tt.baslik}</h1>
       <p style={{ color: '#6b7280', margin: '0.3rem 0 1.25rem', maxWidth: 760 }}>{tt.alt}</p>
 
-      {hata && <div role="alert" style={{ ...kart, background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>{hata}</div>}
-      {bilgi && <div role="status" style={{ ...kart, background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>{bilgi}</div>}
+      <div ref={mesajKutusu}>
+        {hata && <div role="alert" style={{ ...kart, background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>{baglantili(hata)}</div>}
+        {bilgi && <div role="status" style={{ ...kart, background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>{baglantili(bilgi)}</div>}
+      </div>
 
       {/* ── Cihaz durumu ── Bayinin her sabah bakacağı yer: hangi makine
           servis istiyor, hangisinin toneri bitiyor. Cihazın kendi söylediği;

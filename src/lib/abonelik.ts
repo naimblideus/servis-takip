@@ -52,13 +52,18 @@ export interface PlatformOdeme {
   whatsapp: string | null;
 }
 
+/** Satış WhatsApp'ı ayarlı değilse kullanılan numara (ana sayfa, kayıt, şifre yardımıyla aynı). */
+export const VARSAYILAN_SATIS_WHATSAPP = '905526961703';
+
 /** Platform ayarındaki ödeme bilgisi, gösterilmeden önce yeniden doğrulanır. */
 export function platformOdeme(ps: { odemeIban?: string | null; odemeHesapAdi?: string | null; satisWhatsapp?: string | null } | null | undefined): PlatformOdeme {
   const iban = ps?.odemeIban && ibanGecerli(ps.odemeIban) ? ibanBicimle(ps.odemeIban) : null;
   return {
     iban,
     hesapAdi: iban ? hesapAdiTemizle(ps?.odemeHesapAdi) : null,
-    whatsapp: whatsappNumarasi(ps?.satisWhatsapp),
+    // Platformda satış numarası girilmemişse ana sayfadaki numara: "bizimle iletişime
+    // geçin" deyip hiçbir yol göstermeyen abonelik/kilit ekranı çıkmaz sokaktı.
+    whatsapp: whatsappNumarasi(ps?.satisWhatsapp) ?? VARSAYILAN_SATIS_WHATSAPP,
   };
 }
 

@@ -39,5 +39,9 @@ export function sozluk(dil: Dil | string | null | undefined): Sozluk {
  * boş metin, eksik parametreden kötüdür.
  */
 export function doldur(metin: string, degerler: Record<string, string | number>): string {
-  return metin.replace(/\{(\w+)\}/g, (_, k) => (k in degerler ? String(degerler[k]) : `{${k}}`));
+  return metin
+    // Tekil/çoğul: {n|machine is|machines are} — n 1 ise ilki. İngilizcede "1 machines"
+    // yazılmasın diye; Türkçede sayıdan sonra isim çoğul olmadığı için tr.ts kullanmaz.
+    .replace(/\{(\w+)\|([^|{}]*)\|([^{}]*)\}/g, (_, k, tek, cok) => (Number(degerler[k]) === 1 ? tek : cok))
+    .replace(/\{(\w+)\}/g, (_, k) => (k in degerler ? String(degerler[k]) : `{${k}}`));
 }

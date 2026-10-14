@@ -55,7 +55,7 @@ export async function GET() {
     type Satir = {
       id: string; brand: string; model: string; serialNo: string;
       location: string | null; aylikKira: number;
-      durum: string; gun: number; aciklama: string;
+      durum: string; gun: number; aciklama: string; yuzde: number | null;
     };
     const musteriler = new Map<string, { id: string; ad: string; telefon: string; cihazlar: Satir[]; aylikKira: number }>();
     let toplam = 0;
@@ -71,13 +71,13 @@ export async function GET() {
 
       const anahtar = c.customer?.id ?? 'yok';
       const grup = musteriler.get(anahtar) ?? {
-        id: c.customer?.id ?? '', ad: c.customer?.name ?? 'Müşterisiz cihaz',
+        id: c.customer?.id ?? '', ad: c.customer?.name ?? '',
         telefon: c.customer?.phone ?? '', cihazlar: [], aylikKira: 0,
       };
       grup.cihazlar.push({
         id: c.id, brand: c.brand, model: c.model, serialNo: c.serialNo,
         location: c.location, aylikKira: kira,
-        durum: sonuc.durum, gun: sonuc.gun, aciklama: sonuc.aciklama,
+        durum: sonuc.durum, gun: sonuc.gun, aciklama: sonuc.aciklama, yuzde: sonuc.yuzde ?? null,
       });
       grup.aylikKira += kira;
       musteriler.set(anahtar, grup);

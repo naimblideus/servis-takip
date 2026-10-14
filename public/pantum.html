@@ -64,7 +64,7 @@
     </div>
   </div>
 
-  <p class="etiket">Pantum Premium Partners Meeting 2026</p>
+  <p class="etiket" lang="en">Pantum Premium Partners Meeting 2026</p>
   <h1>
     <span data-dil="tr">Kiraladığınız makinelerin sayacı, toneri ve servisi tek ekranda</span>
     <span data-dil="en">Meter readings, toner and service for every machine you rent, on one screen</span>
@@ -163,7 +163,7 @@
 
   <p class="alt">
     <span data-dil="tr">Ağınızdaki makineleri önce kendiniz görmek isterseniz: <a href="/ucretsiz-tarama">ücretsiz ağ taraması</a> (bilgisayardan). · <a href="/gizlilik">Gizlilik</a></span>
-    <span data-dil="en">Want to see your own machines first? <a href="/ucretsiz-tarama">Free network scan</a> (on a computer). · <a href="/gizlilik">Privacy</a></span>
+    <span data-dil="en">Want to see your own machines first? <a href="/ucretsiz-tarama">Free network scan</a> (on a computer). · <a href="/gizlilik#en">Privacy</a></span>
   </p>
 </main>
 <script>
@@ -175,17 +175,26 @@
       en: { wa: 'Hello, I saw Nextus Servis at the Pantum meeting and would like to know more.', tamam: 'Got it, thank you. We will call you today.', eksik: 'Please enter your name, company and mobile number.', hata: 'Could not send. Please message us on WhatsApp.' }
     };
     var dil = 'tr';
-    function uygula(d) {
+    // kaydet: uygulamanın dil çerezini de yaz (src/lib/i18n/sozluk DIL_CEREZI = 'dil').
+    // Yoksa İngilizce okuyan misafir demoya/kayda geçince ekran Türkçe açılıyordu.
+    function uygula(d, kaydet) {
       dil = d;
       kok.lang = d;
+      document.title = d === 'en' ? 'Nextus Servis for Pantum dealers' : 'Pantum bayileri için Nextus Servis';
+      if (kaydet) document.cookie = 'dil=' + d + '; path=/; max-age=31536000; samesite=lax';
       for (var i = 0; i < dugmeler.length; i++) dugmeler[i].setAttribute('aria-pressed', dugmeler[i].getAttribute('data-sec') === d ? 'true' : 'false');
       document.getElementById('wa').href = 'https://wa.me/905526961703?text=' + encodeURIComponent(METIN[d].wa);
     }
-    for (var i = 0; i < dugmeler.length; i++) dugmeler[i].addEventListener('click', function () { uygula(this.getAttribute('data-sec')); });
+    for (var i = 0; i < dugmeler.length; i++) dugmeler[i].addEventListener('click', function () { uygula(this.getAttribute('data-sec'), true); });
     // Salon Türkçe: telefon İngilizce olsa da Türkçe açılır. Çince telefon
     // (Pantum merkezinden gelenler) ve ?lang=en İngilizce açar.
+    // Etkinlik çerezi (lib/kayit ETKINLIK_CEREZI): bayi önce demoya girip
+    // oradan kaydolursa da toplantının teklifini (30 gün, 5 kullanıcı) alsın.
+    document.cookie = 'etk=pantum; path=/; max-age=2592000; samesite=lax';
     var istek = new URLSearchParams(location.search).get('lang');
-    uygula(istek === 'en' || (!istek && /^zh/i.test(navigator.language || '')) ? 'en' : 'tr');
+    var ilk = istek === 'en' || (!istek && /^zh/i.test(navigator.language || '')) ? 'en' : 'tr';
+    // Varsayılan Türkçe açılış mevcut çerezi ezmez; İngilizce (adres ya da Çince telefon) yazılır.
+    uygula(ilk, ilk === 'en' || istek === 'tr');
 
     // Deneme süresi, kullanıcı sayısı ve sayaç sunucudaki etkinlik ayarından
     // (lib/kayit ETKINLIKLER): sayfadaki sabit "30" yalnız betik gelmezse görünür.

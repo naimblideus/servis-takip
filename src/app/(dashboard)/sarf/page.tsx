@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import ContactActions from '@/components/ContactActions';
 import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
@@ -130,6 +131,8 @@ function ChannelLine({ f, name, t, b }: { f: Forecast | null; name: string; t: S
   if (f.needsSetup) txt = t.sarf.bekliyor;
   else if (f.olculdu && f.daysLeft == null) txt = doldur(t.sarf.olculenYuzde, { yuzde: f.remainingPct ?? 0 });
   else if (f.daysLeft == null) txt = doldur(t.sarf.gunTahminiYok, { yuzde: f.remainingPct ?? 0 });
+  // Bir günden az kaldıysa "~0 gün sonra" değil "bugün yarın".
+  else if (f.daysLeft <= 0) txt = doldur(t.sarf.gunBugun, { yuzde: f.remainingPct ?? 0, kalan: b.sayi(f.remaining ?? 0) });
   else txt = doldur(f.olculdu ? t.sarf.gunSonraOlcum : t.sarf.gunSonra, { gun: f.daysLeft, yuzde: f.remainingPct ?? 0, kalan: b.sayi(f.remaining ?? 0) });
   const s = sev(f.needsSetup ? null : f.daysLeft ?? (f.olculdu ? yuzdeGunu(f.remainingPct) : null));
   return (
@@ -153,7 +156,7 @@ function siparisMesaji(i: Item, mt: Sozluk): string {
   if (i.kanallar?.BLACK?.yolda || i.kanallar?.COLOR?.yolda) return doldur(mt.sarf.mesajYolda, { cihaz });
   const gun =
     i.soonestDaysLeft != null && !i.needsSetup
-      ? doldur(mt.sarf.mesajGun, { cihaz, gun: i.soonestDaysLeft })
+      ? (i.soonestDaysLeft <= 0 ? doldur(mt.sarf.mesajBugun, { cihaz }) : doldur(mt.sarf.mesajGun, { cihaz, gun: i.soonestDaysLeft }))
       : i.enAzYuzde != null
         ? doldur(mt.sarf.mesajYuzde, { cihaz, yuzde: i.enAzYuzde })
         : doldur(mt.sarf.mesajYakinda, { cihaz });
@@ -186,6 +189,8 @@ function VerimKaynagi({ v, ad, t, b }: { v?: Item['verimSb']; ad: string; t: Soz
 
 export default function SarfPage() {
   const t = useT();
+  const { data: oturum } = useSession();
+  const demo = Boolean((oturum?.user as { demo?: boolean } | undefined)?.demo);
   const b = useBicim();
   // Sipariş mesajını müşteri okuyor: bayinin dili geçerli.
   const musteri = useMusteriDili();
@@ -218,6 +223,8 @@ export default function SarfPage() {
 
   // ── TONER SEVKİ ─────────────────────────────────────────────────
   const sevkGonder = async (sevkler: { deviceId: string; channel: Kanal; partId: string | null }[]) => {
+    // Ortak demo: göndermek "toner bitiyor" listesini herkes için boşaltır (lib/demo-yazma).
+    if (demo) { setBilgi({ metin: t.demoOnizleme.toner, hata: false }); return; }
     setMesgul(true); setBilgi(null);
     try {
       const r = await fetch('/api/toner-sevk', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sevkler }) });
@@ -240,7 +247,7 @@ export default function SarfPage() {
     setMesgul(true); setBilgi(null);
     try {
       const r = await fetch(`/api/toner-sevk/${id}`, { method: 'DELETE' });
-      setBilgi(r.ok ? { metin: t.sarf.iptalEdildi, hata: false } : { metin: t.sarf.sevkHata.CIHAZ_YOK, hata: true });
+      setBilgi(r.ok ? { metin: t.sarf.iptalEdildi, hata: false } : { metin: (await r.json().catch(() => ({})))?.error || t.sarf.sevkHata.CIHAZ_YOK, hata: true });
       await yukle();
     } finally {
       setMesgul(false);
@@ -281,7 +288,8 @@ export default function SarfPage() {
           olan bütün cihazlar tek düğmeyle "yolda" olur; stok düşer. */}
       {hazir > 0 && hazirSevkler.length > 0 && (
         <div style={{ background: '#fefce8', border: '1px solid #fde68a', color: '#713f12', borderRadius: 10, padding: '0.6rem 0.9rem', marginTop: '0.6rem', fontSize: '0.84rem', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <span><b>{doldur(t.sarf.hazirVurgu, { n: hazirSevkler.length })}</b> {t.sarf.hazirSon}</span>
+          {/* Cihaz sayısı: renkli makinede siyah + renkli ayrı kanal, ama "N cihaz" cihazı sayar. */}
+          <span><b>{doldur(t.sarf.hazirVurgu, { n: new Set(hazirSevkler.map((s) => s.deviceId)).size })}</b> {t.sarf.hazirSon}</span>
           <button type="button" disabled={mesgul} onClick={hepsiniGonder}
             style={{ padding: '0.4rem 0.9rem', borderRadius: 8, border: 'none', background: mesgul ? '#94a3b8' : '#a16207', color: 'white', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             {doldur(t.sarf.hepsiniGonder, { n: hazirSevkler.length })}

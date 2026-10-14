@@ -116,9 +116,19 @@ console.log('\nDemoda yazma kuralı (aynı anda yüz ziyaretçi)\n');
   const y = dy.demoYazmaYasak;
   t('★ her silme kapalı', y('DELETE', '/api/customers/abc') && y('DELETE', '/api/tickets/trash') && y('delete', '/api/devices/x'));
   t('★ ayarlar, kullanıcılar, içe aktarım, yedek kapalı', y('PUT', '/api/settings') && y('PATCH', '/api/users/u1') && y('POST', '/api/users')
-    && y('POST', '/api/import/sheet') && y('POST', '/api/backup/restore') && y('POST', '/api/devices/bulk-settings') && y('POST', '/api/fix-phones'));
-  t('★ demonun amacı açık: fiş, sayaç, fatura, cihaz, müşteri ekleme', !y('POST', '/api/tickets') && !y('POST', '/api/readings/bulk') && !y('POST', '/api/invoices')
-    && !y('POST', '/api/devices') && !y('POST', '/api/customers') && !y('PATCH', '/api/tickets/t1'));
+    && y('POST', '/api/import/sheet') && y('POST', '/api/backup/restore') && y('POST', '/api/fix-phones'));
+  t('★ demonun amacı açık: fiş, sayaç, cihaz, müşteri ekleme, tahsilat', !y('POST', '/api/tickets') && !y('POST', '/api/readings/bulk')
+    && !y('POST', '/api/devices') && !y('POST', '/api/customers') && !y('PATCH', '/api/tickets/t1') && !y('POST', '/api/invoices/inv1/payments'));
+  // Vitrin: biri basınca herkes için tükenen işler (Kaçan Gelir ₺0, tarama "tek tıkla ekle" kaybolur, toner listesi boşalır).
+  t('★ vitrini tüketen işler kapalı: toplu fatura, tarama onayı, taramadan cihaz, toner sevki', y('POST', '/api/invoices') && y('POST', '/api/sayac/tarayici/tr1')
+    && y('POST', '/api/sayac/tarayici/tr1/cihaz') && y('POST', '/api/toner-sevk'));
+  t('★ Bayi Pazarı ortak yüzü kapalı: ilan, pazar adı, mesaj', y('POST', '/api/market/listings') && y('PATCH', '/api/market/listings/l1') && y('PATCH', '/api/market/profile')
+    && y('POST', '/api/market/messages'));
+  t('★ firma ayarının öbür kapıları kapalı: hedef marj, tarayıcı otomatikleri', y('POST', '/api/sozlesmeler/karlilik') && y('PATCH', '/api/sayac/tarayici/ayar'));
+  t('WhatsApp: toplu gönderim kapalı, gelen kutusu (fotoğraftan sayaç) açık', y('POST', '/api/whatsapp/bulk') && !y('POST', '/api/whatsapp/inbox'));
+  t('toplu zam/ayar önizlemesi açık (uygulama uçta kapalı)', !y('POST', '/api/devices/bulk-price') && !y('POST', '/api/devices/bulk-settings')
+    && /!dryRun && await demoBayiMi/.test(readFileSync(join(KOK, 'src/app/api/devices/bulk-price/route.ts'), 'utf8'))
+    && /dryRun[\s\S]{0,200}demoBayiMi/.test(readFileSync(join(KOK, 'src/app/api/devices/bulk-settings/route.ts'), 'utf8')));
   t('okuma, giriş/çıkış ve dil seçimi her zaman açık', !y('GET', '/api/settings') && !y('HEAD', '/api/users') && !y('POST', '/api/auth/callback/credentials')
     && !y('POST', '/api/auth/signout') && !y('POST', '/api/locale') && !y('DELETE', '/api/auth/session'));
   t('API dışı yollar kurala girmiyor', !y('POST', '/login') && !y('DELETE', '/dashboard'));

@@ -33,7 +33,13 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json();
-        const { name, email, password, role = 'TECHNICIAN' } = body;
+        const { name, password, role = 'TECHNICIAN' } = body;
+        // E-POSTA KÜÇÜK HARFLE saklanır. Giriş artık lower(email) ile arıyor;
+        // "Ali@Firma.com" ile "ali@firma.com" aynı kişi. Olduğu gibi saklanınca
+        // aynı bayide iki ayrı kullanıcı açılabiliyordu (benzersizlik birebir
+        // karşılaştırıyordu) ve giriş hangisinin şifresini deneyeceğini
+        // bilemiyordu.
+        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
 
         if (!name || !email || !password) {
             return ucHatasi('AD_E_POSTA_VE_SIFRE', 400);
@@ -55,9 +61,12 @@ export async function POST(req: Request) {
             return ucHatasi('PLAN_LIMITINIZ_KULLANICI_DOLDU_DAHA', 403, { deger: { p1: tenant.maxUsers } });
         }
 
-        // E-posta benzersizliği bu tenant içinde (aynı e-posta başka bayide olabilir)
-        const existing = await prisma.user.findFirst({ where: { email, tenantId: me.tenantId } });
-        if (existing) return ucHatasi('BU_E_POSTA_BU_ISLETMEDE', 400);
+        // E-posta benzersizliği bu tenant içinde (aynı e-posta başka bayide olabilir).
+        // Büyük/küçük harf DUYARSIZ — eski kayıtlar karışık harfle saklanmış
+        // olabilir. ILIKE (Prisma mode:'insensitive') DEĞİL lower()=: ILIKE'ta
+        // "_" joker, "a_b@x.com" "axb@x.com"u da bulurdu.
+        const existing = await prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "tenantId" = ${me.tenantId} AND lower("email") = ${email} LIMIT 1`;
+        if (existing.length) return ucHatasi('BU_E_POSTA_BU_ISLETMEDE', 400);
 
         const hashedPassword = await bcrypt.hash(password, 12);
 

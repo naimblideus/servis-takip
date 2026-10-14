@@ -3,7 +3,7 @@
 // Mükerrer engeli faturalama ile AYNI bayraklar: CounterReading.billed + Device.lastInvoicedPeriod.
 // Böylece bu yol ile "Bu Dönemi Faturala" yolu birbirini çift saymaz.
 import { prisma } from '@/lib/prisma';
-import { counterOverage, periodOf, sayfaUcretliMi, fiyatTabani } from '@/lib/invoicing';
+import { counterOverage, periodOf, sayfaUcretliMi, fiyatTabani, kiraKesilir, kiraIsaretiKosulu } from '@/lib/invoicing';
 import type { Prisma } from '@prisma/client';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -64,7 +64,7 @@ async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: s
     }
 
     // Kira: dönem başına 1 kez (lastInvoicedPeriod ile mükerrer engeli). Yalnız kiralık.
-    if (d.isRental && Number(d.monthlyRent) > 0 && d.lastInvoicedPeriod !== period) {
+    if (kiraKesilir(d, period, end)) {
       rent += Number(d.monthlyRent);
       rentDetail.push({ device: label, amount: Number(d.monthlyRent) });
       rentDeviceIds.push(d.id);
@@ -117,7 +117,7 @@ export async function commitPeriodCharges(tenantId: string, customerId: string) 
       ? await tx.device.updateMany({
           where: {
             tenantId, id: { in: c.rentDeviceIds },
-            OR: [{ lastInvoicedPeriod: null }, { lastInvoicedPeriod: { not: c.period } }],
+            ...kiraIsaretiKosulu(c.period),
           },
           data: { lastInvoicedPeriod: c.period },
         })

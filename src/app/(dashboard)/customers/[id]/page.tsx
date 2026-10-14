@@ -125,7 +125,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ fontWeight: '600' }}>{doldur(sz.musteri.sonFisler, { n: allTickets.length })}</h2>
-          <Link href="/tickets/new" style={{
+          {/* Müşteriyi taşı: fiş ekranı onu seçili açar (cihaz için ?musteri= gibi). */}
+          <Link href={`/tickets/new?musteri=${customer.id}`} style={{
             backgroundColor: '#3b82f6', color: 'white', padding: '0.4rem 0.875rem',
             borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500'
           }}>{sz.fisler.yeni}</Link>

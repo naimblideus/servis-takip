@@ -69,7 +69,7 @@ export async function GET() {
 
     const okumalar: {
       id: string; deviceId: string; brand: string; model: string; serialNo: string;
-      musteriId: string | null; musteri: string; telefon: string;
+      musteriId: string | null; musteri: string | null; telefon: string; durum?: string;
       tarih: string; kaynak: string; sayfa: number; tutar: number;
       kat: number | null; gun: number; beklenen: number | null; aciklama: string;
     }[] = [];
@@ -94,7 +94,7 @@ export async function GET() {
         id: o.id, deviceId: o.deviceId,
         brand: o.device.brand, model: o.device.model, serialNo: o.device.serialNo,
         musteriId: o.device.customer?.id ?? null,
-        musteri: o.device.customer?.name ?? 'Müşterisiz cihaz',
+        musteri: o.device.customer?.name ?? null,
         telefon: o.device.customer?.phone ?? '',
         tarih: o.readingDate.toISOString(),
         kaynak: o.source,
@@ -105,6 +105,8 @@ export async function GET() {
         // kısa aralıklı okumalarda kendi içinde tutarsız bir cümle üretiyordu.
         gun: sonuc.gun,
         beklenen: sonuc.beklenen,
+        // Cümle ekranda kurulur (dil): durum + sayılar yeter. aciklama eski istemciler için.
+        durum: sonuc.durum,
         aciklama: sonuc.aciklama,
       });
     }

@@ -618,7 +618,7 @@ async function kur(bayi) {
     let renkli = c.counterColor - c.aylikRenkli * 12;
     if (sb < 0) sb = 500;
     if (renkli < 0) renkli = 0;
-    let oncekiSb = sb, oncekiRenkli = renkli;
+    let oncekiSb = sb, oncekiRenkli = renkli, oncekiTarih = null;
 
     // ÜÇ CİHAZIN SAYACI İKİ AYDIR GELMİYOR. "Sayacı gelmeyen cihaz" kartı
     // bu ürünün en sessiz para kaybını yakalıyor: okunmayan sayaç
@@ -647,21 +647,30 @@ async function kur(bayi) {
           billed: true, createdAt: tarih,
         },
       });
-      oncekiSb = Math.max(0, sb); oncekiRenkli = Math.max(0, renkli);
+      oncekiSb = Math.max(0, sb); oncekiRenkli = Math.max(0, renkli); oncekiTarih = tarih;
       okuma++;
     }
-    // Cihazın güncel sayacı = son okuma + bu ayın kısmi kullanımı
+    // ── CİHAZ KARTI = SON OKUMA ──────────────────────────────────────────
+    // Kart eskiden "son okuma + bu ayın kısmi kullanımı" yazılıyordu ama o
+    // kısmi kullanımın OKUMASI yoktu. Fatura farkı son okumadan hesaplanıyor
+    // (lib/readings); kart önde durunca Ağ Tarayıcı "+377" gösterdi, onay
+    // 1.748 sayfa faturaladı. Sistem makinenin sayacını ancak bir okuma
+    // gelince öğrenir: kart son okumadır.
+    //
+    // Makinenin KENDİ sayacı (fiziksel) bu ay basmaya devam etti: bu ayın
+    // okuması ve ağ taraması onu okur. Yalnız bellekte; karta okumayla girer.
     const gecenGun = BUGUN.getDate();
     const kismi = Math.round((c.aylikSb * gecenGun) / 30);
     const kismiR = Math.round((c.aylikRenkli * gecenGun) / 30);
     await p.device.update({
       where: { id: c.id },
-      data: { counterBlack: sb + kismi, counterColor: renkli + kismiR },
+      data: { counterBlack: oncekiSb, counterColor: oncekiRenkli },
     });
-    c.counterBlack = sb + kismi;
-    c.counterColor = renkli + kismiR;
-    c.sonFaturalananSb = sb;
-    c.sonFaturalananRenkli = renkli;
+    c.counterBlack = oncekiSb;
+    c.counterColor = oncekiRenkli;
+    c.sonOkumaTarih = oncekiTarih;
+    c.makineSb = oncekiSb + kismi;
+    c.makineRenkli = oncekiRenkli + kismiR;
   }
   console.log(`  ${okuma} sayaç okuması (12 ay)`);
 
@@ -671,13 +680,17 @@ async function kur(bayi) {
   for (const c of cihazlar) {
     if (sessizCihazlar.has(c.id)) { bekleyen++; continue; }
     if (rnd(0, 100) < 55) {
-      const t2 = gunOnce(rnd(1, 6));
+      let t2 = gunOnce(rnd(1, 6));
+      // Ayın ilk günlerinde t2 geçen ayın son okumasının ÖNÜNE düşebilir;
+      // sıra bozulursa "son okuma" bu okuma olmaz ve kart ondan ayrışır.
+      if (c.sonOkumaTarih && t2 <= c.sonOkumaTarih) t2 = new Date(c.sonOkumaTarih.getTime() + 3600000);
+      // Okuma makinenin kendi sayacını getirir; fark son okumadan (kart).
       await p.counterReading.create({
         data: {
           tenantId: tenant.id, deviceId: c.id, readingDate: t2,
-          counterBlack: c.counterBlack, counterColor: c.counterColor,
-          deltaBlack: Math.max(0, c.counterBlack - (c.sonFaturalananSb ?? 0)),
-          deltaColor: Math.max(0, c.counterColor - (c.sonFaturalananRenkli ?? 0)),
+          counterBlack: c.makineSb, counterColor: c.makineRenkli,
+          deltaBlack: Math.max(0, c.makineSb - c.counterBlack),
+          deltaColor: Math.max(0, c.makineRenkli - c.counterColor),
           monthlyRent: Number(c.monthlyRent),
           // Bu ay da cihazın KENDİ kanalı geçerli — burada rastgele seçmek,
           // yukarıda kurulan tutarlılığı son ayda bozardı.
@@ -685,6 +698,11 @@ async function kur(bayi) {
           billed: false, createdAt: t2,
         },
       });
+      // Okuma geldi: kart onunla birlikte ilerler (createReading de böyle yapar).
+      await p.device.update({ where: { id: c.id }, data: { counterBlack: c.makineSb, counterColor: c.makineRenkli } });
+      c.counterBlack = c.makineSb;
+      c.counterColor = c.makineRenkli;
+      c.sonOkumaTarih = t2;
     } else bekleyen++;
   }
   console.log(`  bu ayın okuması: ${bekleyen} makine bekliyor · ${sessizCihazlar.size} makinenin sayacı 2 aydır gelmiyor`);
@@ -725,21 +743,31 @@ async function kur(bayi) {
     let supheliYazildi = 0;
     if (aday) {
       const sicrama = Math.max(9000, aday.aylikSb * 8);
-      const yeniSb = aday.counterBlack + sicrama;
-      const t3 = gunOnce(2);
-      const asim = Math.max(0, sicrama - (aday.includedBlack || 0));
+      // Makinenin sayacı + sıçrama; fark SON OKUMADAN (kart). Bu ay okuması
+      // olmayan makinede fark bu ayın kısmi kullanımını da içerir.
+      const yeniSb = aday.makineSb + sicrama;
+      const yeniRenkli = aday.makineRenkli;
+      const farkSb = Math.max(0, yeniSb - aday.counterBlack);
+      const farkRenkli = Math.max(0, yeniRenkli - aday.counterColor);
+      // Son okumadan SONRA olmalı: önüne düşerse "son okuma" bu satır olmaz.
+      let t3 = gunOnce(2);
+      if (aday.sonOkumaTarih && t3 <= aday.sonOkumaTarih) t3 = new Date(aday.sonOkumaTarih.getTime() + 3600000);
+      const asim = Math.max(0, farkSb - (aday.includedBlack || 0));
       await p.counterReading.create({
         data: {
           tenantId: tenant.id, deviceId: aday.id, readingDate: t3,
-          counterBlack: yeniSb, counterColor: aday.counterColor,
-          deltaBlack: sicrama, deltaColor: 0,
-          calculatedCost: Math.round(asim * Number(aday.pricePerBlack) * 100) / 100,
+          counterBlack: yeniSb, counterColor: yeniRenkli,
+          deltaBlack: farkSb, deltaColor: farkRenkli,
+          calculatedCost: Math.round((asim * Number(aday.pricePerBlack) + farkRenkli * Number(aday.pricePerColor || 0)) * 100) / 100,
           monthlyRent: 0,
           source: 'CIHAZ_EPOSTA',
           billed: false, createdAt: t3,
         },
       });
-      await p.device.update({ where: { id: aday.id }, data: { counterBlack: yeniSb } });
+      await p.device.update({ where: { id: aday.id }, data: { counterBlack: yeniSb, counterColor: yeniRenkli } });
+      aday.counterBlack = aday.makineSb = yeniSb;
+      aday.counterColor = aday.makineRenkli = yeniRenkli;
+      aday.sonOkumaTarih = t3;
       supheliYazildi = 1;
     }
     console.log(`  kaçan gelir: ${unutulan} geçmiş dönem okuması faturalanmamış · ${supheliYazildi} şüpheli okuma`);
@@ -792,7 +820,9 @@ async function kur(bayi) {
         const fis = await p.serviceTicket.create({
           data: {
             tenantId: tenant.id, deviceId: c.id, customerId: c.customerId,
-            ticketNumber: `${bayi.onEk}-T${String(++tonerFisNo).padStart(4, '0')}`,
+            // Uygulamanın kendi biçimi (lib/ticket-number: SF-<sıra>): demoda açılan
+            // yeni fiş bu sıranın devamı olsun, "SF-1" diye en baştan başlamasın.
+            ticketNumber: `SF-${++tonerFisNo}`,
             status: 'DELIVERED', priority: 'NORMAL',
             createdByUserId: patron.id, assignedUserId: teknisyen.id,
             // SARF DEĞİŞİMİ, arıza değil. 'TONER' yazılsaydı bu 230 fiş
@@ -919,7 +949,7 @@ async function kur(bayi) {
       const fis = await p.serviceTicket.create({
         data: {
           tenantId: tenant.id, deviceId: c.id, customerId: c.customerId,
-          ticketNumber: `${bayi.onEk}-${String(++fisNo).padStart(4, '0')}`,
+          ticketNumber: `SF-${tonerFisNo + ++fisNo}`,
           status: kapali ? secim(['DELIVERED', 'READY']) : secim(['NEW', 'IN_SERVICE', 'WAITING_FOR_PART']),
           priority: secim(['LOW', 'NORMAL', 'NORMAL', 'HIGH']),
           createdByUserId: patron.id, assignedUserId: teknisyen.id,
@@ -1113,7 +1143,11 @@ async function kur(bayi) {
       const fatura = await p.customerInvoice.create({
         data: {
           tenantId: tenant.id, customerId: m.id,
-          invoiceNumber: `${bayi.onEk}-FAT-${d.getFullYear()}-${String(++faturaNo).padStart(5, '0')}`,
+          // Uygulamanın kendi biçimi (lib/invoicing nextInvoiceNumber): sayaç
+          // önce artar sonra kullanılır, yıl faturanın yılı. Sonda bayinin
+          // sayacı son numaraya çekiliyor: ziyaretçinin kestiği ilk fatura
+          // "SF-FAT-…-00002" diye başka biçimde en baştan başlamasın.
+          invoiceNumber: `SF-FAT-${tarih.getFullYear()}-${String(++faturaNo).padStart(5, '0')}`,
           period: per, invoiceDate: tarih,
           dueDate: new Date(tarih.getTime() + 15 * 86400000),
           status: odendi ? 'PAID' : 'OPEN',
@@ -1151,7 +1185,9 @@ async function kur(bayi) {
       }
     }
   }
-  console.log(`  ${faturaSayisi} fatura (12 ay) + tahsilatlar`);
+  // Yeni fatura bu sıranın devamı: nextInvoiceNumber sayacı artırıp kullanıyor.
+  await p.tenant.update({ where: { id: tenant.id }, data: { nextInvoiceSeq: faturaNo } });
+  console.log(`  ${faturaSayisi} fatura (12 ay) + tahsilatlar · sonraki fatura no ${faturaNo + 1}`);
 
   // ── BU HAFTANIN TAHSİLATLARI ──────────────────────────────────────────
   // Açık faturaların birkaçı son günlerde ödeniyor. Olmasaydı pano
@@ -1347,7 +1383,10 @@ async function kur(bayi) {
   {
     const ana = musteriler[0];
     const agCihazlari = await p.device.findMany({
-      where: { tenantId: tenant.id, customerId: ana.id },
+      // Yalnız bu kurulumun makineleri: aynı anda demoya cihaz açıp silen bir
+      // test (test-sayac-olcek, test-seri-ogrenme) taramaya girip kurulumu
+      // "kayıt bulunamadı" ile yarıda kesiyordu.
+      where: { tenantId: tenant.id, customerId: ana.id, id: { in: cihazlar.map((c) => c.id) } },
       orderBy: { serialNo: 'asc' },
       select: { id: true, brand: true, model: true, serialNo: true, counterBlack: true, counterColor: true },
     });
@@ -1364,14 +1403,25 @@ async function kur(bayi) {
       { siyah: 33, renk: 70, uyarilar: [] },
     ];
     const satirlar = [];
+    const makine = new Map(cihazlar.map((c) => [c.id, c]));
     for (let i = 0; i < agCihazlari.length; i++) {
       const d = agCihazlari[i];
       const durum = DURUMLAR[i % DURUMLAR.length];
       const renkli = (d.counterColor ?? 0) > 0;
-      // Sayaç son okumanın ÜSTÜNDE olmalı; altında kalırsa onay "geriledi" der.
+      // ── "SON OKUMA" UYGULAMANIN KURALIYLA ──
+      // Ekrandaki son okuma ve "+N" faturayı belirleyen sayıdır: cihazın SON
+      // OKUMASI, okuması hiç yoksa kart (lib/sayac-tarama karsilastirmaSayaci).
+      // Burada kart yazılıyordu; kart okumadan ayrışınca ekran "+377" dedi,
+      // onay 1.748 sayfa faturaladı.
       const son = await p.counterReading.findFirst({ where: { deviceId: d.id }, orderBy: { readingDate: 'desc' }, select: { counterBlack: true, counterColor: true } });
-      const sb = Math.max(son?.counterBlack ?? 0, d.counterBlack ?? 0) + rnd(180, 900);
-      const rk = renkli ? Math.max(son?.counterColor ?? 0, d.counterColor ?? 0) + rnd(60, 400) : (d.counterColor ?? 0);
+      const sonSiyah = son ? son.counterBlack : d.counterBlack;
+      const sonRenkli = son ? son.counterColor : d.counterColor;
+      // Tarama makinenin KENDİ sayacını okur: son okumadan bu yana basılanla
+      // birlikte. Son okumanın ÜSTÜNDE olmalı; altında kalırsa onay "geriledi" der.
+      const m = makine.get(d.id);
+      const sb = Math.max(sonSiyah ?? 0, m?.makineSb ?? 0) + rnd(180, 900);
+      // Tek renkli makinede renkli sayaç değişmez: son okumadaki değer (cihazSonucu kuralı).
+      const rk = renkli ? Math.max(sonRenkli ?? 0, m?.makineRenkli ?? 0) + rnd(60, 400) : (sonRenkli ?? 0);
       const kalemler = [
         { ad: 'Black Toner', yuzde: durum.siyah, tur: 'TONER' },
         ...(renkli ? [{ ad: 'Cyan Toner', yuzde: durum.renk, tur: 'TONER' }] : []),
@@ -1393,7 +1443,7 @@ async function kur(bayi) {
       satirlar.push({
         ip: `192.168.1.${21 + i}`, marka: d.brand, model: d.model, seri: d.serialNo, deviceId: d.id,
         toplam: sb + (renkli ? rk : 0), siyah: sb, renkli: rk, ayrim: renkli ? 'DOGRULANDI' : 'TEK_RENK', sebep: null,
-        sonSiyah: d.counterBlack, sonRenkli: d.counterColor, durum: 'YAZILABILIR',
+        sonSiyah, sonRenkli, durum: 'YAZILABILIR',
         sarf: kalemler.map((k) => ({ ad: k.ad, yuzde: k.yuzde })), uyarilar: durum.uyarilar, olcum,
         durumOkundu: true, kalemler, parca,
       });

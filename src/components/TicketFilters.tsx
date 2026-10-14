@@ -89,8 +89,14 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
         cursor: 'pointer',
         outline: 'none',
         minWidth: '150px',
+        maxWidth: '100%',
     };
 
+    // TELEFON (360 px): iki tarih kutusu 145'er px sabitken ikinci kutu
+    // ekranın sağından taşıyordu; arama kutusu 200 px alt sınırla "Ara"
+    // düğmesini yarıya kadar dışarı itiyordu. Kutular artık yalnız DARALIYOR
+    // (büyümüyor): masaüstünde yine 145 / 200 px, dar ekranda etiket ve düğme
+    // yerinde kalır, aradaki kutu satıra sığacak kadar küçülür.
     const dateInp: React.CSSProperties = {
         padding: '0.5rem 0.75rem',
         border: '1px solid #e5e7eb',
@@ -99,6 +105,8 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
         backgroundColor: 'white',
         outline: 'none',
         width: '145px',
+        flex: '0 1 145px',
+        minWidth: 0,
     };
 
     const searchInp: React.CSSProperties = {
@@ -108,8 +116,12 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
         fontSize: '0.875rem',
         backgroundColor: 'white',
         outline: 'none',
-        minWidth: '200px',
+        width: '100%',
+        minWidth: 0,
     };
+
+    // Grup kutusu satırdan geniş olamaz: taşacağı yerde içindeki kutu daralır.
+    const grup: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.375rem', minWidth: 0, maxWidth: '100%' };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -132,8 +144,8 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
 
             {/* Satır 2: Tarih Aralığı + Müşteri Arama */}
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500' }}>{t.fisler.filtre.tarih}</span>
+                <div style={grup}>
+                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500', whiteSpace: 'nowrap' }}>{t.fisler.filtre.tarih}</span>
                     <input
                         type="date"
                         style={dateInp}
@@ -151,9 +163,11 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                     />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500' }}>{t.fisler.filtre.musteri}</span>
-                    <div style={{ position: 'relative' }}>
+                <div style={grup}>
+                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500', whiteSpace: 'nowrap' }}>{t.fisler.filtre.musteri}</span>
+                    {/* Masaüstünde 200 px (eski genişlik); telefonda daralır ki
+                        "Ara" düğmesi aynı satırda, ekranın içinde kalsın. */}
+                    <div style={{ position: 'relative', width: '200px', flex: '0 1 200px', minWidth: 0 }}>
                         <input
                             type="text"
                             style={{ ...searchInp, paddingRight: customerInput ? '2rem' : '0.75rem' }}
@@ -179,6 +193,7 @@ export default function TicketFilters({ currentStatus, currentPriority, currentA
                         style={{
                             padding: '0.5rem 0.75rem', backgroundColor: '#3b82f6', color: 'white',
                             border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500',
+                            flexShrink: 0, whiteSpace: 'nowrap',
                         }}
                     >{t.fisler.filtre.ara}</button>
                 </div>

@@ -5,14 +5,18 @@ import ServiceWorkerKurulum from '@/components/ServiceWorkerKurulum';
 import { sunucuDili } from '@/lib/i18n/sunucu';
 import { LocaleProvider } from '@/lib/i18n/client';
 
-export const metadata: Metadata = {
-  title: 'Nextus Servis - Yazıcı Servis Yönetimi',
-  description: 'Yazıcı ve fotokopi servis takip sistemi',
-  applicationName: 'Nextus Servis',
-  manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Nextus Servis' },
-  icons: { icon: '/icon-512.png', apple: '/apple-touch-icon.png' },
-};
+// Sekme başlığı ve paylaşım önizlemesi kullanıcının dilinde (İngilizce bakan Pantum misafiri).
+export async function generateMetadata(): Promise<Metadata> {
+  const en = (await sunucuDili()) === 'en';
+  return {
+    title: en ? 'Nextus Servis - Printer Service Management' : 'Nextus Servis - Yazıcı Servis Yönetimi',
+    description: en ? 'Service tracking for printer and copier dealers' : 'Yazıcı ve fotokopi servis takip sistemi',
+    applicationName: 'Nextus Servis',
+    manifest: '/manifest.webmanifest',
+    appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Nextus Servis' },
+    icons: { icon: '/icon-512.png', apple: '/apple-touch-icon.png' },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#0F2253',

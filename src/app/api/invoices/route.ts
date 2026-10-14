@@ -4,8 +4,23 @@ import { prisma } from '@/lib/prisma';
 import { buildInvoiceForCustomerPeriod, periodOf } from '@/lib/invoicing';
 import { docToken } from '@/lib/doc-token';
 import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
+import { ucHatasi } from '@/lib/uc-hata';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * Faturalaması şu an süren bayiler. Doğruluk buna DAYANMIYOR: aynı müşteri
+ * için iki fatura işlemi veritabanı kilidiyle sıraya giriyor ve ikincisi
+ * boş çıkıyor (lib/invoicing). Bu küme yalnız ikinci basışa hemen "şu an
+ * çalışıyor" demek için: yoksa ikinci istek bütün müşterileri bir daha
+ * dolaşır ve "0 fatura" der — bayi faturaların kesilmediğini sanar.
+ * Oturum düzeyli veritabanı kilidi kullanılmadı: Prisma bağlantı havuzunda
+ * kilidin alındığı ve bırakıldığı bağlantının aynı olacağı garanti değil.
+ * Canlıda tek Node süreci var (Coolify); globalThis, Next rotaları ayrı
+ * paketlese de tek kopya kalsın diye.
+ */
+const FATURALAMA_SURUYOR: Set<string> =
+  ((globalThis as { __faturalamaSuruyor?: Set<string> }).__faturalamaSuruyor ??= new Set());
 
 // GET /api/invoices — Müşteri faturaları listesi + özet
 export async function GET(req: Request) {
@@ -102,26 +117,35 @@ export async function POST(req: Request) {
   }
   const period = body.period || periodOf();
 
-  const customers = await prisma.customer.findMany({
-    where: { tenantId: user.tenantId },
-    select: { id: true },
-  });
+  // Aynı bayide faturalama zaten sürüyorsa ikinciyi başlatma (bkz. FATURALAMA_SURUYOR).
+  // Denetleme ile ekleme arasında await YOK: iki istek aynı anda giremez.
+  const tenantId = user.tenantId;
+  if (FATURALAMA_SURUYOR.has(tenantId)) return ucHatasi('FATURALAMA_SURUYOR', 409);
+  FATURALAMA_SURUYOR.add(tenantId);
+  try {
+    const customers = await prisma.customer.findMany({
+      where: { tenantId },
+      select: { id: true },
+    });
 
-  let created = 0;
-  let total = 0;
-  let errors = 0;
-  for (const c of customers) {
-    try {
-      const inv = await buildInvoiceForCustomerPeriod(user.tenantId, c.id, period, 'AUTO_MONTHLY');
-      if (inv) {
-        created++;
-        total += Number(inv.totalAmount);
+    let created = 0;
+    let total = 0;
+    let errors = 0;
+    for (const c of customers) {
+      try {
+        const inv = await buildInvoiceForCustomerPeriod(tenantId, c.id, period, 'AUTO_MONTHLY');
+        if (inv) {
+          created++;
+          total += Number(inv.totalAmount);
+        }
+      } catch (e: any) {
+        errors++;
+        console.error('INVOICE MANUAL ERROR:', e?.message);
       }
-    } catch (e: any) {
-      errors++;
-      console.error('INVOICE MANUAL ERROR:', e?.message);
     }
-  }
 
-  return NextResponse.json({ ok: true, period, created, total: round2(total), errors });
+    return NextResponse.json({ ok: true, period, created, total: round2(total), errors });
+  } finally {
+    FATURALAMA_SURUYOR.delete(tenantId);
+  }
 }

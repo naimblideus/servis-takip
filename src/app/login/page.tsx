@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useT } from '@/lib/i18n/client';
+import { useT, useDil } from '@/lib/i18n/client';
+import { doldur } from '@/lib/i18n/sozluk';
 import DilSecici from '@/components/DilSecici';
 import Monogram from '@/components/Monogram';
 
@@ -26,6 +27,14 @@ const DEMO_SIFRE = 'demo1234';
 export default function LoginPage() {
   const router = useRouter();
   const t = useT();
+  const { dil } = useDil();
+  // /pantum'dan (etkinlik çerezi) gelene etkinliğin deneme süresi (api/kayit GET).
+  const [denemeGun, setDenemeGun] = useState<number | null>(null);
+  useEffect(() => {
+    fetch('/api/kayit').then((r) => r.json())
+      .then((j) => { if (typeof j?.denemeGun === 'number') setDenemeGun(j.denemeGun); })
+      .catch(() => {});
+  }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [hata, setHata] = useState('');
@@ -87,6 +96,7 @@ export default function LoginPage() {
     if (!k) return '';
     if (k === 'sifre') return t.giris.hataSifre;
     if (k === 'kod') return t.giris.hataKod;
+    if (k === 'ag') return t.giris.hataAg;
     return (t.giris.ssoHata as Record<string, string>)[k] ?? t.giris.hataSso;
   };
 
@@ -107,9 +117,17 @@ export default function LoginPage() {
       } catch { /* kontrol başarısızsa normal girişe devam et */ }
     }
 
-    const result = await signIn('credentials', {
-      email, password, totp: totp.trim(), redirect: false,
-    });
+    // Salon Wi-Fi'ı koparsa signIn atar; düğme "Giriş yapılıyor…"da takılı kalmasın.
+    let result: Awaited<ReturnType<typeof signIn>> | undefined;
+    try {
+      result = await signIn('credentials', {
+        email, password, totp: totp.trim(), redirect: false,
+      });
+    } catch {
+      setHata('ag');
+      setLoading(false);
+      return;
+    }
 
     if (result?.error) {
       setHata(needsTotp ? 'kod' : 'sifre');
@@ -135,7 +153,7 @@ export default function LoginPage() {
               ekran burası; dili panele girmeden seçebilmeli. */}
           <DilSecici />
           <a
-            href="/?demo=1#fiyat"
+            href={dil === 'en' ? '/en#fiyatlandirma' : '/#fiyatlandirma'}
             className="rounded-full border border-white/12 px-4 py-2 text-[13px] font-medium text-white/70 transition hover:border-white/25 hover:text-white"
           >
             {t.giris.fiyatlar}
@@ -260,7 +278,7 @@ export default function LoginPage() {
           {/* Hesabı olmayan: siteden 14 günlük deneme hesabı (/kayit). */}
           <p className="mt-8 text-center text-[14px] text-white/50">
             {t.giris.hesapYok}{' '}
-            <a href="/kayit" className="font-semibold text-teal-300 transition hover:text-teal-200">{t.giris.denemeBaslat}</a>
+            <a href="/kayit" className="font-semibold text-teal-300 transition hover:text-teal-200">{denemeGun ? doldur(t.kayit.baslikGun, { gun: denemeGun }) : t.giris.denemeBaslat}</a>
           </p>
 
           <a href="/" className="mt-4 block text-center text-[13px] text-white/35 transition hover:text-white/70">

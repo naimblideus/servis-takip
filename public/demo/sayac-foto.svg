@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" width="640" height="480">
+  <!-- Demo: müşterinin WhatsApp'tan gönderdiği sayaç fotoğrafının yerine (seed DEMO-MEDIA-*). Gerçek fotoğraf değil. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f47"/><stop offset="1" stop-color="#23272e"/></linearGradient>
+    <linearGradient id="e" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfe6c8"/><stop offset="1" stop-color="#b4d2aa"/></linearGradient>
+  </defs>
+  <rect width="640" height="480" fill="#8a8f96"/>
+  <rect x="40" y="50" width="560" height="380" rx="26" fill="url(#g)"/>
+  <rect x="80" y="92" width="480" height="250" rx="10" fill="url(#e)" stroke="#1d2126" stroke-width="6"/>
+  <g font-family="Consolas, 'Courier New', monospace" fill="#1f2a1c">
+    <text x="104" y="136" font-size="26" font-weight="700">SAYAÇ / COUNTER</text>
+    <line x1="104" y1="150" x2="536" y2="150" stroke="#1f2a1c" stroke-width="2"/>
+    <text x="104" y="198" font-size="28">Toplam</text>
+    <text x="536" y="198" font-size="34" font-weight="700" text-anchor="end">48.215</text>
+    <text x="104" y="246" font-size="28">S/B</text>
+    <text x="536" y="246" font-size="34" font-weight="700" text-anchor="end">48.215</text>
+    <text x="104" y="294" font-size="28">Renkli</text>
+    <text x="536" y="294" font-size="34" font-weight="700" text-anchor="end">0</text>
+  </g>
+  <circle cx="120" cy="388" r="16" fill="#16a34a"/>
+  <rect x="470" y="372" width="90" height="32" rx="8" fill="#4b5059"/>
+</svg>

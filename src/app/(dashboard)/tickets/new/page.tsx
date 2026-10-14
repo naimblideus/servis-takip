@@ -246,7 +246,8 @@ export default function NewTicketPage() {
       const d = await r.json();
       if (!d.customer) { setScanMsg({ text: sz.fisYeni.musteriBulunamadi, ok: false }); return; }
       scanCustomerRef.current = d.customer.id; // bu müşteri-değişimi okutmadan geldi
-      setSelectedCustomer({ id: d.customer.id, name: d.customer.name, phone: d.customer.phone, address: null });
+      // Adres de gelsin: cihaz sayfasından/barkoddan açılan fişte müşteri adresi "-" görünüyordu.
+      setSelectedCustomer({ id: d.customer.id, name: d.customer.name, phone: d.customer.phone, address: d.customer.address ?? null });
       setCustomerSearch(d.customer.name);
       setShowDropdown(false);
       setForm(f => ({ ...f, customerId: d.customer.id }));
@@ -298,8 +299,20 @@ export default function NewTicketPage() {
 
   useEffect(() => {
     fetch('/api/customers').then(r => r.json()).then((data: any) => {
-      const list = Array.isArray(data) ? data : data.customers || [];
+      const list: Customer[] = Array.isArray(data) ? data : data.customers || [];
       setCustomers(list);
+      // Müşteri sayfasındaki "+ Yeni Fiş" müşteriyi taşır (?musteri=), tıpkı
+      // "+ Yeni Cihaz" gibi: bayi az önce içinden çıktığı müşteriyi yeniden
+      // aramasın. ?cihaz= varsa o kazanır (cihaz müşteriyi zaten belirler).
+      const q = new URLSearchParams(window.location.search);
+      const id = q.get('musteri');
+      const c = id && !q.get('cihaz') ? list.find((x) => x.id === id) : null;
+      // Liste gelmeden barkod okutulduysa okutulan müşteri kazanır.
+      if (c && !scanCustomerRef.current) {
+        setSelectedCustomer(c);
+        setCustomerSearch(c.name);
+        setForm(f => ({ ...f, customerId: c.id }));
+      }
     });
   }, []);
 

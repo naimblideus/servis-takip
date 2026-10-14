@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { counterOverage, fiyatTabani, SAYFA_UCRETLI_CIHAZ } from '@/lib/invoicing';
+import { counterOverage, fiyatTabani, SAYFA_UCRETLI_CIHAZ, kiraKesilir } from '@/lib/invoicing';
 import { oturumKullanicisi } from '@/lib/api-auth';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -111,7 +111,7 @@ export async function GET() {
     const prev = prevSums.get(d.id) || { b: 0, c: 0 };
     const ch = counterOverage(d, s.b, s.c, fiyatTabani(d, tenant), prev.b, prev.c);
     const counterAmount = ch.total; // aşım tutarı (dahil paket düşülmüş)
-    const rentUncut = d.isRental && Number(d.monthlyRent) > 0 && d.lastInvoicedPeriod !== period;
+    const rentUncut = kiraKesilir(d, period, end);
     const rentAmount = rentUncut ? round2(Number(d.monthlyRent)) : 0;
     if (counterAmount <= 0 && rentAmount <= 0) continue;
 

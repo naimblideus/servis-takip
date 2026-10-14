@@ -38,6 +38,8 @@ interface FiloSatiri {
   gonderimSayisi: number;
   aciklama: string;
   aciklamaKod?: { kod: string; ara?: number; sessiz?: number; gun?: number };
+  /** Herhangi bir yoldan son okuma kaç gün önce (otomatik-durum ucu). */
+  sonOkumaGun?: number | null;
 }
 
 /** Sunucudan gelen kodu kullanıcının dilinde cümleye çevirir. */
@@ -195,11 +197,26 @@ export default function SayacEpostaPage() {
             </div>
           </div>
 
-          {ozet.durdu > 0 && (
-            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              <b>{doldur(t.sayacEposta.durduUyariVurgu, { n: ozet.durdu })}</b> {t.sayacEposta.durduUyariSon}
-            </p>
-          )}
+          {(() => {
+            // "Faturaya girmiyor" yalnız başka yoldan da okunmayan (35+ gün) cihaz için doğru.
+            const durdu = filo.filter((f) => f.durum === 'DURDU');
+            const okunmayan = durdu.filter((f) => f.sonOkumaGun == null || f.sonOkumaGun > 35).length;
+            const elle = durdu.length - okunmayan;
+            return (
+              <>
+                {okunmayan > 0 && (
+                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                    <b>{doldur(t.sayacEposta.durduUyariVurgu, { n: okunmayan })}</b> {t.sayacEposta.durduUyariSon}
+                  </p>
+                )}
+                {elle > 0 && (
+                  <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    {doldur(t.sayacEposta.durduElle, { n: elle })}
+                  </p>
+                )}
+              </>
+            );
+          })()}
 
           {ozet.otomatik === 0 && (
             <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

@@ -92,6 +92,8 @@ export async function GET(
             monthlyRent: Number(device.monthlyRent),
             pricePerBlack: device.pricePerBlack !== null ? Number(device.pricePerBlack) : null,
             pricePerColor: device.pricePerColor !== null ? Number(device.pricePerColor) : null,
+            // Renkli sayaç alanı yalnız renkli cihazda (readings/bulk ile aynı kural; Pantum'un çoğu tek renkli).
+            hasColor: (device.includedColor ?? 0) > 0 || device.pricePerColor != null || device.overagePriceColor != null || (device.counterColor ?? 0) > 0,
         } : null,
         pricing: {
             pricePerBlack: effectiveBlackPrice,

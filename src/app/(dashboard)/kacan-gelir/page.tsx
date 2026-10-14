@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import KacanToner from '@/components/KacanToner';
@@ -26,8 +27,9 @@ interface Summary { counterTotal: number; rentTotal: number; grandTotal: number;
 interface GecmisDonem { donem: string; okuma: number; cihaz: number; tutar: number; }
 interface Supheli {
   id: string; deviceId: string; brand: string; model: string; serialNo: string;
-  musteriId: string | null; musteri: string; tarih: string; kaynak: string;
+  musteriId: string | null; musteri: string | null; tarih: string; kaynak: string;
   sayfa: number; tutar: number; kat: number | null; gun: number; beklenen: number | null; aciklama: string;
+  durum?: string;
 }
 
 
@@ -76,7 +78,17 @@ export default function KacanGelirPage() {
   // Dönem verilirse O DÖNEM kesilir. Geçmiş ayı bu ayın faturasına eklemek
   // yerine kendi ayında kesmek şart: dahil paket dönem başına tanımlı, taşınan
   // sayfa hem kendi ayının paketini yer hem tutarı kaydırır.
+  const { data: oturum } = useSession();
+  const demo = Boolean((oturum?.user as { demo?: boolean } | undefined)?.demo);
+
   const runBilling = async (hedefDonem?: string) => {
+    // Ortak demo: kesmek vitrini herkes için boşaltır; ne olacağını söyle (lib/demo-yazma).
+    if (demo) {
+      setMsg(hedefDonem
+        ? doldur(t.demoOnizleme.faturaGecmis, { donem: hedefDonem })
+        : doldur(t.demoOnizleme.fatura, { musteri: summary.customerCount, tutar: fmt(summary.grandTotal) }));
+      return;
+    }
     // Şüpheli okuma varsa onay metni bunu SAYIYLA söylüyor. "Uyarı bir yerde
     // duruyordu" yetmez: yanlış fatura müşteride teknik hata değil güven
     // kaybı yaratır, ve o noktadan sonra düzeltmenin bedeli bir müşteridir.
@@ -102,7 +114,7 @@ export default function KacanGelirPage() {
         }));
         load();
       }
-      else setMsg('❌ ' + (d.error || 'Hata'));
+      else setMsg('❌ ' + (d.error || t.genel.hata));
     } catch { setMsg('❌ ' + t.sayacTuru.sunucuYok); }
     setRunning(false);
   };
@@ -134,6 +146,12 @@ export default function KacanGelirPage() {
           <div style={{ fontSize: '0.72rem', opacity: 0.85, fontWeight: 700 }}>{t.kacanGelir.toplamRiskteki}</div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800 }}>{fmt(summary.grandTotal)}</div>
           <div style={{ fontSize: '0.74rem', opacity: 0.9, marginTop: 2 }}>{doldur(t.kacanGelir.cihazMusteri, { cihaz: summary.deviceCount, musteri: summary.customerCount })}</div>
+          {/* Büyük rakam şüpheli okumayı da içeriyor; sayfa kendisiyle çelişmesin, açıkça söylesin. */}
+          {supheli.toplam > 0 && (
+            <div style={{ fontSize: '0.72rem', marginTop: 6, background: 'rgba(255,255,255,.14)', borderRadius: 8, padding: '0.3rem 0.5rem' }}>
+              {doldur(t.kacanGelir.supheliIcinde, { n: supheli.toplam, tutar: fmt(supheli.tutar) })}
+            </div>
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 130, background: 'white', border: '1px solid #fde68a', borderRadius: 12, padding: '0.9rem 1.1rem' }}>
           <div style={{ fontSize: '0.72rem', color: '#92400e', fontWeight: 700 }}>{t.kacanGelir.sayacAsimi}</div>
@@ -193,14 +211,18 @@ export default function KacanGelirPage() {
               <Link key={o.id} href={`/devices/${o.deviceId}`}
                 style={{ display: 'block', background: 'white', border: '1px solid #fed7aa', borderRadius: 10, padding: '0.55rem 0.7rem', textDecoration: 'none', color: 'inherit' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.86rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 700 }}>{o.musteri} <span style={{ fontWeight: 400, color: '#6b7280' }}>· {o.brand} {o.model} · SN {o.serialNo}</span></span>
+                  <span style={{ fontWeight: 700 }}>{o.musteri ?? t.genel.musterisizCihaz} <span style={{ fontWeight: 400, color: '#6b7280' }}>· {o.brand} {o.model} · SN {o.serialNo}</span></span>
                   <span style={{ color: '#9a3412', fontWeight: 800, whiteSpace: 'nowrap' }}>{fmt(o.tutar)}</span>
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#7c2d12', marginTop: 2 }}>{o.aciklama}</div>
+                <div style={{ fontSize: '0.74rem', color: '#7c2d12', marginTop: 2 }}>
+                  {o.durum === 'SUPHELI_KAT' && o.kat !== null && o.beklenen !== null
+                    ? doldur(t.kacanGelir.supheliKat, { gun: o.gun, beklenen: b.sayi(o.beklenen), sayfa: b.sayi(o.sayfa), kat: Math.round(o.kat) })
+                    : doldur(t.kacanGelir.supheliMutlak, { sayfa: b.sayi(o.sayfa) })}
+                </div>
               </Link>
             ))}
             {supheli.okumalar.length > 8 && (
-              <div style={{ fontSize: '0.74rem', color: '#9a3412' }}>+{supheli.okumalar.length - 8} okuma daha</div>
+              <div style={{ fontSize: '0.74rem', color: '#9a3412' }}>{doldur(t.kacanGelir.dahaOkuma, { n: supheli.okumalar.length - 8 })}</div>
             )}
           </div>
         </div>

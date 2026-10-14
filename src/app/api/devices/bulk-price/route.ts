@@ -3,6 +3,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { writeAudit, istekIp } from '@/lib/audit';
+import { demoBayiMi } from '@/lib/demo-koruma';
 
 // TOPLU ZAM — kiralık cihazların kira ve/veya sayfa fiyatlarını tek işlemde günceller.
 // dryRun=true → sadece ÖNİZLEME (eski → yeni), hiçbir şey yazılmaz.
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest) {
     const { customerId, mode, value, fields, dryRun } = body as {
       customerId?: string; mode: 'percent' | 'amount'; value: number; fields: Field[]; dryRun?: boolean;
     };
+    // Ortak demo: önizleme açık, uygulama kapalı (lib/demo-yazma notu).
+    if (!dryRun && await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
 
     const val = Number(value);
     if (!Number.isFinite(val) || val === 0) {

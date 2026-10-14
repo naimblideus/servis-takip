@@ -3,6 +3,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { writeAudit, istekIp } from '@/lib/audit';
+import { demoBayiMi } from '@/lib/demo-koruma';
 import { ayarPlani, AYAR_ALANLARI, type AyarAlani, type AyarCihazi } from '@/lib/toplu-ayar';
 
 export const dynamic = 'force-dynamic';
@@ -70,6 +71,8 @@ export async function POST(req: NextRequest) {
 
     const plan = ayarPlani(girdi, { degerler, yalnizBos, yalnizKiralik });
     if (b?.dryRun) return NextResponse.json({ ...plan, uygulandi: false });
+    // Ortak demo: önizleme açık, uygulama kapalı (lib/demo-yazma notu).
+    if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
     if (!plan.satirlar.length) return ucHatasi('GUNCELLENECEK_CIHAZ_YOK', 400);
 
     // Tek transaction: yarım kalmış bir ayar listesi, hiç yapılmamışdan kötüdür.

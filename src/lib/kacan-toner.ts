@@ -71,17 +71,21 @@ const ekle = (m: Map<string, Date[]>, k: string, d: Date) => { const l = m.get(k
 
 export async function kacanTonerler(tenantId: string, simdi = new Date()): Promise<{
   kayitlar: KacanToner[]; adet: number; tutar: number; izlenenCihaz: number;
+  /** İlk tarayıcı ölçümünden bu yana gün; tarayıcı yeniyse "görülmedi" iddiası kurulmaz. */
+  izlemeGun: number | null;
 }> {
   const enEski = new Date(simdi.getTime() - GERIYE_GUN * GUN);
   const enYeni = new Date(simdi.getTime() - SONRA_GUN * GUN);
   const izlenenCihaz = await prisma.device.count({ where: { tenantId, olcumAt: { gte: new Date(simdi.getTime() - 30 * GUN) } } });
+  const ilkTarama = await prisma.sayacTaramasi.findFirst({ where: { tenantId }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }).catch(() => null);
+  const izlemeGun = ilkTarama ? Math.floor((simdi.getTime() - ilkTarama.createdAt.getTime()) / GUN) : null;
 
   const adaylar = await prisma.tonerChange.findMany({
     where: { tenantId, source: 'TARAYICI', partId: null, bizdenAlindi: false, changedAt: { gte: enEski, lte: enYeni } },
     orderBy: { changedAt: 'desc' },
     include: { device: { select: { id: true, brand: true, model: true, serialNo: true, customer: { select: { id: true, name: true, phone: true } } } } },
   });
-  if (!adaylar.length) return { kayitlar: [], adet: 0, tutar: 0, izlenenCihaz };
+  if (!adaylar.length) return { kayitlar: [], adet: 0, tutar: 0, izlenenCihaz, izlemeGun };
 
   const cihazlar = [...new Set(adaylar.map((a) => a.deviceId))];
   const musteriler = [...new Set(adaylar.map((a) => a.device.customer?.id).filter((x): x is string => !!x))];
@@ -121,7 +125,7 @@ export async function kacanTonerler(tenantId: string, simdi = new Date()): Promi
     return en;
   };
   const kacanlar = adaylar.filter((a) => !bayiVerdiMi({ changedAt: a.changedAt, deviceId: a.deviceId, customerId: a.device.customer?.id ?? null, onceki: onceki(a) }, kanit));
-  if (!kacanlar.length) return { kayitlar: [], adet: 0, tutar: 0, izlenenCihaz };
+  if (!kacanlar.length) return { kayitlar: [], adet: 0, tutar: 0, izlenenCihaz, izlemeGun };
 
   // Tutar: o makineye en son takılan toner; yoksa aynı modelde en son takılan.
   const takilanlar = await prisma.tonerChange.findMany({
@@ -157,5 +161,5 @@ export async function kacanTonerler(tenantId: string, simdi = new Date()): Promi
     };
   });
   const tutar = Math.round(kayitlar.reduce((t, k) => t + (k.tutar ?? 0), 0) * 100) / 100;
-  return { kayitlar, adet: kayitlar.length, tutar, izlenenCihaz };
+  return { kayitlar, adet: kayitlar.length, tutar, izlenenCihaz, izlemeGun };
 }

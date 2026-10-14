@@ -18,7 +18,8 @@ export async function GET(req: Request) {
 
   const device = await prisma.device.findFirst({
     where: { tenantId: user.tenantId, OR: [{ publicCode: code }, { serialNo: code }, { barcode: code }] },
-    include: { customer: { select: { id: true, name: true, phone: true } } },
+    // Adres de: fiş ekranı müşteri adresini buradan gösteriyor ("-" kalıyordu).
+    include: { customer: { select: { id: true, name: true, phone: true, address: true } } },
   });
   if (!device) return ucHatasi('CIHAZ_BULUNAMADI_2', 404, { deger: { p1: code } });
 

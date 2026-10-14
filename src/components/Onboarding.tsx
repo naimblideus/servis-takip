@@ -50,7 +50,10 @@ const ZINCIR_IKON = ['👤', '🖨️', '🧾', '💰'];
 const GUNLUK_IKON = ['🧾', '🔢', '💰'];
 
 export default function Onboarding() {
-  const { status: authStatus } = useSession();
+  const { status: authStatus, data: oturum } = useSession();
+  // Ortak açık demo: herkes aynı hesabı geziyor; "ilk müşterini ekle"
+  // listesi orada kimsenin işine yaramaz, yalnız ekranı kapatır.
+  const demo = Boolean((oturum?.user as { demo?: boolean } | undefined)?.demo);
   const pathname = usePathname();
   const router = useRouter();
   const t = useT();
@@ -190,14 +193,20 @@ export default function Onboarding() {
       {/* Yazdırma sırasında onboarding ASLA görünmesin (etiket/fatura vb. baskısına binmesin) */}
       <style>{`
         @media print { .gs-noprint { display: none !important; } }
-        /* Yüzen rehber butonu — MASAÜSTÜ */
-        .gs-fab { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1500; }
+        /* Yüzen rehber butonu — MASAÜSTÜ.
+           KATMAN 39: sayfa içeriğinin (en çok z-20) üstünde, bütün örtülerin
+           ALTINDA — mobil üst çubuk ve menü örtüsü 40, alt sekme çubuğu 45,
+           menü çekmecesi 50, hızlı işlem sayfası 50/51, pencereler 50+.
+           Eskiden 1500'dü: hızlı işlem sayfasının, menünün ve açılan
+           pencerelerin üstünde yüzüyordu. */
+        .gs-fab { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 39; }
         /* MOBİL: alt sekme çubuğunun ÜSTÜNE al (çakışmasın) ve küçült — yer kaplamasın */
         @media (max-width: 767px) {
           .gs-fab { right: .8rem; bottom: calc(5rem + env(safe-area-inset-bottom)); }
           .gs-fab-text { display: none; }
           .gs-fab-btn { padding: .6rem .8rem !important; }
-          .gs-panel { max-height: 62vh !important; }
+          /* Panel üst çubuğun (z 40) altına girmesin: başlık ve ✕ görünür kalsın. */
+          .gs-panel { max-height: 62vh !important; max-height: min(62vh, calc(100dvh - 23rem)) !important; }
         }
       `}</style>
 
@@ -242,8 +251,11 @@ export default function Onboarding() {
         </div>
       )}
 
-      {/* ═══════════ YÜZEN BAŞLANGIÇ REHBERİ ═══════════ */}
-      {!hidden && !showWizard && (
+      {/* ═══════════ YÜZEN BAŞLANGIÇ REHBERİ ═══════════
+          Demoda ve bütün adımlar bitince ÇİZİLMEZ: iş bitmişken köşedeki düğme
+          yalnız altındaki düğmeyi (fiş listesinde "Ara") örtüyordu. Panel o an
+          açıksa kapanana kadar durur, tebrik görünsün. */}
+      {!hidden && !showWizard && !demo && (!allDone || panelOpen) && (
         <div className="gs-noprint gs-fab" style={{ fontFamily: 'inherit' }}>
           {/* Panel */}
           {panelOpen && (

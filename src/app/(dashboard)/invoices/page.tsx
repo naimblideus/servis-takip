@@ -79,6 +79,7 @@ export default function InvoicesPage() {
 
   const runBilling = async () => {
     setPreflight(null);
+    if ((session?.user as { demo?: boolean } | undefined)?.demo) { setMsg(t.demoOnizleme.faturaGenel); return; }
     setRunning(true); setMsg(null);
     try {
       const res = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
@@ -176,30 +177,35 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {/* Özet kartlar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+      {/* Özet kartlar — TUTAR HER GENİŞLİKTE TAM GÖRÜNÜR. Telefonda iki
+          sütunda text-2xl tutar kartın dışına taşıyor, overflow-hidden onu
+          kesiyordu ("₺2,908,742.3", "₺257.484,2…"). Şimdi: 420 px altında tek
+          sütun, 4 sütun yalnız lg'de; rakam kartın genişliğine göre küçülür
+          (12cqi, 1rem–1.5rem; geniş ekranda eski 1.5rem). Yine de sığmazsa
+          kesilmez, alt satıra kırılır. */}
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="@container bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-gray-300" />
           <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">{t.faturalar.toplamFatura}</p><span>🧾</span></div>
-          <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{summary.count}</p>
+          <p className="text-[length:clamp(1rem,12cqi,1.5rem)] leading-[1.333] [overflow-wrap:anywhere] font-bold text-gray-900 mt-1 tabular-nums">{summary.count}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">{doldur(t.faturalar.adetOdendi, { n: summary.paidCount })}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+        <div className="@container bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-400" />
           <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">{t.faturalar.toplamTutar}</p><span>💼</span></div>
-          <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{fmt(summary.total)}</p>
+          <p className="text-[length:clamp(1rem,12cqi,1.5rem)] leading-[1.333] [overflow-wrap:anywhere] font-bold text-gray-900 mt-1 tabular-nums">{fmt(summary.total)}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">{t.faturalar.kdvDahilCiro}</p>
         </div>
-        <div className="bg-white rounded-xl border border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+        <div className="@container bg-white rounded-xl border border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
           <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">{t.faturalar.acikBakiye}</p><span>⏳</span></div>
-          <p className="text-2xl font-bold text-blue-600 mt-1 tabular-nums">{fmt(summary.open)}</p>
+          <p className="text-[length:clamp(1rem,12cqi,1.5rem)] leading-[1.333] [overflow-wrap:anywhere] font-bold text-blue-600 mt-1 tabular-nums">{fmt(summary.open)}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">{t.faturalar.tahsilEdilecek}</p>
         </div>
-        <div className="bg-white rounded-xl border border-red-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+        <div className="@container bg-white rounded-xl border border-red-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
           <div className="flex items-center justify-between"><p className="text-xs text-gray-500 font-medium">{t.faturalar.vadesiGecen}</p><span>🔴</span></div>
-          <p className="text-2xl font-bold text-red-600 mt-1 tabular-nums">{fmt(summary.overdue)}</p>
+          <p className="text-[length:clamp(1rem,12cqi,1.5rem)] leading-[1.333] [overflow-wrap:anywhere] font-bold text-red-600 mt-1 tabular-nums">{fmt(summary.overdue)}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">{t.faturalar.gecikmisTutar}</p>
         </div>
       </div>

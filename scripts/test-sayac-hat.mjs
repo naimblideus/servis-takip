@@ -112,9 +112,9 @@ const bayi = await p.tenant.findFirst({
   select: { id: true, name: true, sayacEpostaKodu: true },
 });
 // Kartı son okumayla AYNI olan cihazlar seçilir: renkli sayaç taşınırken son
-// okumanın değeri kullanılır. Demo bayisinde kart bilerek ileride ("son okuma
-// + bu ayın kısmi kullanımı", seed-bayi-demo); öyle bir cihazda "renkli artmadı"
-// karşılaştırması anlamsız olurdu. En az bir renkli cihaz bulunur.
+// okumanın değeri kullanılır. Demo kurulumunda kart artık son okumadır
+// (seed-bayi-demo); süzgeç, ayrışmış bir kartta "renkli artmadı"
+// karşılaştırması anlamsız olmasın diye duruyor. En az bir renkli cihaz bulunur.
 const adaylar = await p.device.findMany({
   where: { tenantId: bayi.id, isRental: true },
   select: { id: true, serialNo: true, counterBlack: true, counterColor: true },

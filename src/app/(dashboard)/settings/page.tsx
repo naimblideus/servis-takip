@@ -98,7 +98,8 @@ export default function SettingsPage() {
             body: JSON.stringify(takvim),
         });
         setTakvimKayit(false);
-        setTakvimMsg(res.ok ? t.ayarlar.takvimKaydedildi : t.ayarlar.takvimHata);
+        const cevap = res.ok ? null : await res.json().catch(() => null);
+        setTakvimMsg(res.ok ? t.ayarlar.takvimKaydedildi : (cevap?.error ?? t.ayarlar.takvimHata));
         setTimeout(() => setTakvimMsg(''), 4000);
     };
 

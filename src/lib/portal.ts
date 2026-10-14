@@ -88,7 +88,7 @@ export function durumEtiketi(dil: Dil, status: string): string {
  * müşteri "yükleniyor" ekranına bakmasın.
  */
 export async function portalVerisi(m: PortalMusteri) {
-  const [firma, cihazlar, acikFis, kapaliFis, faturalar, odemeler, faturaToplami, talepler] = await Promise.all([
+  const [firma, cihazlar, acikFis, kapaliFis, faturalar, odemeler, faturaToplami, talepler, cariGruplar] = await Promise.all([
     prisma.tenant.findUnique({
       where: { id: m.tenantId },
       select: {
@@ -146,7 +146,8 @@ export async function portalVerisi(m: PortalMusteri) {
     }),
     prisma.customerInvoice.findMany({
       // Silinen fatura müşteriye görünmemeli, bakiyeye de girmemeli
-      where: { tenantId: m.tenantId, customerId: m.id, deletedAt: null },
+      // Taslak ve iptal fatura müşteriye gösterilmez (bakiye de saymıyor).
+      where: { tenantId: m.tenantId, customerId: m.id, deletedAt: null, status: { notIn: ['DRAFT', 'CANCELLED'] } },
       select: {
         id: true, invoiceNumber: true, invoiceDate: true, dueDate: true,
         totalAmount: true, paidAmount: true, status: true,
@@ -161,8 +162,11 @@ export async function portalVerisi(m: PortalMusteri) {
     // BAKİYE TÜM FATURALARDAN. Liste ekranda 24 ile sınırlı ama bakiyeyi o
     // listeden toplamak, 24'ten eski ödenmemiş faturayı borçtan DÜŞÜRÜR —
     // müşteriye olduğundan az borç göstermek en kötü hata türü.
+    // Taslak (henüz kesilmemiş) ve iptal fatura borç değildir; bayinin
+    // ekstresi (musteri-bakiye.ts → ekstre) de onları saymıyor. İkisi aynı
+    // faturaları görmek zorunda, yoksa müşteri ile bayi farklı sayı okur.
     prisma.customerInvoice.aggregate({
-      where: { tenantId: m.tenantId, customerId: m.id, deletedAt: null },
+      where: { tenantId: m.tenantId, customerId: m.id, deletedAt: null, status: { notIn: ['DRAFT', 'CANCELLED'] } },
       _sum: { totalAmount: true, paidAmount: true },
       _count: true,
     }),
@@ -171,6 +175,16 @@ export async function portalVerisi(m: PortalMusteri) {
       select: { id: true, tur: true, durum: true, createdAt: true, aciklama: true, notu: true },
       orderBy: { createdAt: 'desc' },
       take: 10,
+    }),
+    // CARİYE İŞLENMİŞ SERVİS BORCU (AccountEntry SATIŞ − TAHSİLAT). Teslim
+    // edilip carisine işlenen fiş faturaya DÖNÜŞMEZ (invoiceId boş kalır),
+    // borcu yalnız burada durur. Eskiden portal yalnız faturaları topluyordu:
+    // bayinin ekstresi ₺2.230 derken müşteri ₺1.280 görüyordu — olduğundan
+    // az borç göstermek, yukarıdaki kuralın tam çiğnendiği yer.
+    prisma.accountEntry.groupBy({
+      by: ['type'],
+      where: { tenantId: m.tenantId, customerId: m.id },
+      _sum: { amount: true },
     }),
   ]);
 
@@ -197,6 +211,10 @@ export async function portalVerisi(m: PortalMusteri) {
 
   const faturaToplam = TL(faturaToplami._sum.totalAmount);
   const odenen = TL(faturaToplami._sum.paidAmount);
+  const cari = (tip: string) => TL(cariGruplar.find((g) => g.type === tip)?._sum.amount);
+  const servisBorc = cari('SALE') - cari('PAYMENT');
+  // Bayinin ekstresiyle AYNI hesap: Σ borç − Σ alacak (servis + fatura).
+  const toplamBorc = Math.round((servisBorc + faturaToplam - odenen) * 100) / 100;
 
   return {
     // Ekran bunları okuyup metinleri ve tutarları doğru dilde çiziyor.
@@ -263,8 +281,9 @@ export async function portalVerisi(m: PortalMusteri) {
       kalan: TL(f.totalAmount) - TL(f.paidAmount),
       durum: f.status,
     })) : [],
-    // Bakiye faturalar üzerinden: "ne kadar borcum var" en sık gelen telefon.
-    bakiye: mali ? Math.max(0, faturaToplam - odenen) : null,
+    // "Ne kadar borcum var" en sık gelen telefon — cevabı bayinin ekstresiyle
+    // aynı olmalı: servis cari borcu + açık fatura kalanı.
+    bakiye: mali ? Math.max(0, toplamBorc) : null,
     tahsilatToplam: mali ? TL(odemeler._sum.amount) : null,
     // "Nasıl öderim": bakiyenin hemen altında. Mali bilgiler kapalıysa yok.
     odeme: firma ? odemeKarti(firma, m.name, mali) : null,

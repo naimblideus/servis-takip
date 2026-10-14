@@ -236,9 +236,16 @@ export default function TicketPartsPanel({ ticketId }: Props) {
 
     const removePart = async (ticketPartId: string) => {
         if (!confirm(sz.parcalar.cikarSor)) return;
-        await fetch(`/api/tickets/${ticketId}/parts?ticketPartId=${ticketPartId}`, {
+        const r = await fetch(`/api/tickets/${ticketId}/parts?ticketPartId=${ticketPartId}`, {
             method: 'DELETE',
         });
+        // Reddedilen silme (ör. demoda 403) sessiz kalmasın: "Çıkar"a basıp
+        // hiçbir şey olmaması, teknisyene parçanın çıktığını sandırıyordu.
+        if (!r.ok) {
+            const d = await r.json().catch(() => ({}));
+            alert(doldur(sz.fisler.hata, { n: d.error || sz.genel.hata }));
+            return;
+        }
         await load();
         // Toplam güncelle
         const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);
@@ -250,11 +257,15 @@ export default function TicketPartsPanel({ ticketId }: Props) {
     const updateTicketPart = async (tpId: string, field: 'unitPrice' | 'quantity', value: string) => {
         const numVal = parseFloat(value);
         if (isNaN(numVal) || numVal < 0) return;
-        await fetch(`/api/parts/ticket-parts/${tpId}`, {
+        const r = await fetch(`/api/parts/ticket-parts/${tpId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ [field]: numVal }),
         });
+        if (!r.ok) {
+            const d = await r.json().catch(() => ({}));
+            alert(doldur(sz.fisler.hata, { n: d.error || sz.genel.hata }));
+        }
         await load();
         // Toplam güncelle
         const tpRes = await fetch(`/api/tickets/${ticketId}/parts`);

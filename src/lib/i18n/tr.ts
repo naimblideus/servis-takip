@@ -24,6 +24,8 @@ export const tr = {
   },
 
   genel: {
+    siteBaslik: 'Nextus Servis - Yazıcı Servis Yönetimi',
+    musterisizCihaz: 'Müşterisiz cihaz',
     kaydet: 'Kaydet',
     kaydediliyor: 'Kaydediliyor…',
     iptal: 'Vazgeç',
@@ -175,6 +177,7 @@ export const tr = {
     hataSifre: 'E-posta veya şifre hatalı!',
     hataKod: 'Doğrulama kodu hatalı veya süresi geçti. Uygulamadaki güncel kodu girin.',
     hataSso: 'Kurumsal giriş tamamlanamadı.',
+    hataAg: 'Bağlantı koptu. İnternetinizi kontrol edip tekrar deneyin.',
     veyaKurum: 'veya kurum hesabınızla',
     microsoft: 'Microsoft ile giriş',
     google: 'Google ile giriş',
@@ -232,7 +235,7 @@ export const tr = {
     whatsapp: 'WhatsApp’tan yazın, hesabınızı hemen açalım',
     panelBaslik: 'Sayaç, servis, toner ve tahsilat tek yerde.',
     panelMaddeler: [
-      '14 gün boyunca bütün özellikler açık',
+      '{gun} gün boyunca bütün özellikler açık',
       'Kredi kartı istenmez, taahhüt yok',
       'Müşteri ve cihaz listenizi Excel’den aktarın',
       'Ağdaki yazıcıları tarayıcıyla bulun, tek tıkla ekleyin',
@@ -241,6 +244,7 @@ export const tr = {
     // Aynı ağdan çok kayıt (ör. etkinlik salonu): hesap yerine talep alındı.
     talepBaslik: 'Bilgileriniz bize ulaştı',
     talepMetin: 'Bu ağdan bugün çok sayıda hesap açıldı, o yüzden hesabınızı otomatik açamadık. Hesabınızı bugün biz açıp giriş bilgisini WhatsApp’tan göndereceğiz.',
+    talepMetinYogun: 'Şu an çok sayıda bayi aynı anda kaydoluyor, hesabınızı otomatik açamadık. Hesabınızı bugün biz açıp giriş bilgisini WhatsApp’tan göndereceğiz.',
   },
 
   // Ağ Tarayıcı → Cihaz durumu → "Müşteriye yaz": bayinin bastığı hazır WhatsApp metni.
@@ -252,12 +256,34 @@ export const tr = {
   },
 
   // Kaçan Gelir'in üstü: müşteri toneri başka yerden aldı (lib/kacan-toner.ts)
+  // Demoda WhatsApp/arama bağlantısı açılmaz; müşteriye gidecek metin gösterilir (components/DemoBaglantiKoruma).
+  demoBaglanti: {
+    waBaslik: 'Demoda WhatsApp açılmaz',
+    waMetin: 'Demodaki müşteri numaraları örnek. Kendi hesabınızda bu düğmeye basınca müşteriniz WhatsApp’ta şu mesajı alır, siz yalnız Gönder’e dokunursunuz:',
+    telBaslik: 'Demoda arama yapılmaz',
+    telMetin: 'Demodaki müşteri numaraları örnek. Kendi hesabınızda bu düğme müşterinizi tek dokunuşla arar.',
+    kapat: 'Kapat',
+    hesapAc: 'Kendi hesabımı açayım',
+  },
+
+  // Ortak demoda vitrini tüketen işler yapılmaz; ne olacağı söylenir (lib/demo-yazma DEMO_VITRIN).
+  demoOnizleme: {
+    fatura: 'Demoda fatura kesilmez: demoyu aynı anda birçok kişi kullanıyor. Kendi hesabınızda bu düğme {musteri} müşterinin bu dönem faturasını ({tutar}) tek tıkla keser.',
+    faturaGecmis: 'Demoda fatura kesilmez. Kendi hesabınızda {donem} dönemi kendi ayında, tek tıkla kesilir.',
+    faturaGenel: 'Demoda fatura kesilmez: demoyu aynı anda birçok kişi kullanıyor. Kendi hesabınızda bu düğme bu dönemin bütün faturalarını tek tıkla keser.',
+    okuma: 'Demoda kaydedilmez. Kendi hesabınızda {n} okuma tek tıkla sayaca yazılır ve faturaya girer.',
+    cihaz: 'Demoda eklenmez. Kendi hesabınızda {n} yazıcı marka, model, seri ve sayacıyla tek tıkla cihaz olur.',
+    toner: 'Demoda gönderilmez. Kendi hesabınızda toner stoktan düşer, sevk kaydı açılır; takılınca verimi ölçülür.',
+    hesapAc: 'Kendi hesabınızı açın',
+  },
+
   kacanToner: {
     baslik: 'Başka yerden alınan toner',
     ozet: '{n} toner değişimi sizden alınmadı',
     tutarOzet: 'yaklaşık {tutar} kaçan satış',
     aciklama: 'Ağ Tarayıcı izlediği {n} makinede tonerin dolduğunu gördü, ama o makineye ya da müşteriye sizden toner gitmemiş (sevk, servis fişi ve cari satış kontrol edildi). Müşteri toneri başka yerden almış olabilir.',
     yok: 'Son 4 ayda izlenen {n} makinede başka yerden alınan toner görülmedi.',
+    yokYeni: '{n} makine {gun} gündür izleniyor. Başka yerden alınan toner, değişimden 7 gün sonra burada görünür.',
     izlenmiyor: 'Ağ Tarayıcı müşterinizin ağında çalışınca, toneri sizden almayan müşteriler burada görünür.',
     tarayiciyaGit: 'Ağ Tarayıcı',
     musteriYok: 'Müşteri bilinmiyor',
@@ -292,13 +318,13 @@ export const tr = {
     tarayiciSayi: 'Şu an {n} makine servis istiyor; müşteri daha aramadı.',
     sarfBaslik: 'Toner bitmeden haber',
     sarfAlt: 'Hangi makinenin toneri kaç gün sonra bitiyor; tonerin gerçek verimi ölçülmüş.',
-    sarfSayi: '{n} makinenin toneri bitmek üzere; stoktan tek onayla gönderin.',
     kacanBaslik: 'Kaçan gelir',
     kacanAlt: 'Toneri başka yerden alan müşteri, faturası kesilmeyen sayaç: masada kalan para.',
     karBaslik: 'Zarar eden sözleşme',
     karAlt: 'Sayfa fiyatı toner maliyetinin altında kalan makineler, kırmızıyla.',
     not: 'Bu hesaptaki bütün firmalar ve rakamlar örnektir.',
     kayit: 'Kendi makinelerinizle 14 gün ücretsiz',
+    kayitGun: 'Kendi makinelerinizle {gun} gün ücretsiz',
   },
 
   // Şifremi unuttum (/sifremi-unuttum) ve yeni şifre (/sifre-yenile)
@@ -626,9 +652,12 @@ export const tr = {
     gun: '{n} gün',
     dahaAra: '+{n} müşteri daha — arama kutusundan bul',
     musteriDaha: '+{n} müşteri daha',
-    durgunBaslik: '📉 {n} makinenin sayacı geliyor ama ARTMIYOR',
+    durgunBaslik: '📉 {n} makinenin sayacı artmıyor ya da kullanımı belirgin düştü',
+    durgunAciklama: '{gun} gündür sayaç geliyor ama HİÇ artmamış — makine kullanılmıyor, bozuk ya da taşınmış olabilir.',
+    dususAciklama: 'Kullanım kendi ortalamasının %{yuzde} altına düşmüş — müşteri başka makineye geçmiş olabilir.',
+    kanalDurduAciklama: '{gun} gündür hiçbir cihazdan sayaç e-postası gelmedi (normalde {tipik} günde bir gelirdi). Köprü durmuş olabilir — tek tek cihazları değil, önce kanalı kontrol edin.',
     durgunRisk: 'aylık {tutar} kira risk altında',
-    durgunAlt: 'Kira kesiliyor ama makine basmıyor. Ya müşteri kullanmıyor (yenilemede iptal gelir), ya makine bozuk/fişte değil, ya da başka ofise taşınmış. Müşteriyi arayın.',
+    durgunAlt: 'Kira kesiliyor ama makine basmıyor ya da eskisinden çok az basıyor. Müşteri kullanmıyor olabilir (yenilemede iptal gelir), makine bozuk/fişte değil ya da başka ofise taşınmış. Müşteriyi arayın.',
     cihazDaha: '+{n} cihaz daha',
     musteriAraYer: 'Müşteri ara…',
     musteriYok: 'Henüz müşteri eklenmemiş',
@@ -1713,6 +1742,7 @@ export const tr = {
     siyahSatir: '⚫ Siyah: {adet} × {birim}',
     renkliSatir: '🟣 Renkli: {adet} × {birim}',
     aylikAidat: '📅 Aylık Aidat',
+    aidatDahil: 'Aylık aidat dahil',
     toplamSatir: 'TOPLAM: {n}',
     okumaYok: 'Henüz sayaç okuma yok',
     sutunSiyah: 'S. Sayaç',
@@ -2143,6 +2173,7 @@ export const tr = {
   // Barkodla satış.
   satis: {
     baslik: '🛒 Barkodla Satış',
+    alt: 'Ürünü okut → sepete düşer → müşteri + ödeme seç → tamamla. Stok otomatik düşer, muhasebeye işlenir.',
     musteriZorunlu: 'Müşteri *',
     musteriAraYer: 'Müşteri ara…',
     bulunamadi: 'Bulunamadı',
@@ -2416,6 +2447,7 @@ export const tr = {
 
   // Cihaz kârlılığı.
   karlilik: {
+    ust: 'Rapor',
     baslik: 'Cihaz Kârlılığı',
     altOn: 'Kiralık cihaz başına',
     altVurgu: 'gelir − parça maliyeti',
@@ -2442,6 +2474,10 @@ export const tr = {
 
   // Kaçan gelir — kazanılmış ama faturalanmamış tutar.
   kacanGelir: {
+    supheliKat: 'Bu makine normalde {gun} günde ~{beklenen} sayfa basıyor; bu okumada {sayfa} sayfa geldi ({kat} katı). Yanlış cihazın raporu ya da hatalı okuma olabilir.',
+    supheliMutlak: 'Tek okumada {sayfa} sayfa eklendi — bu tek dönemde olağandışı. Sayacı ve cihazın doğru eşleştiğini kontrol edin.',
+    dahaOkuma: '+{n} okuma daha',
+    supheliIcinde: 'Bu rakamın içinde {n} şüpheli okuma var ({tutar}); faturalamadan önce aşağıdan kontrol edin.',
     baslik: '💸 Kaçan Gelir — Bu Dönem',
     altOn: 'döneminde',
     altVurgu: 'kazanılmış ama henüz faturalanmamış',
@@ -2503,6 +2539,7 @@ export const tr = {
     bekliyor: 'toner değişimi bekliyor',
     gunTahminiYok: '≈%{yuzde} kaldı · gün tahmini için en az 2 okuma gerek',
     gunSonra: '~{gun} gün sonra bitiyor · ≈%{yuzde} kaldı ({kalan} sf)',
+    gunBugun: 'bugün yarın bitiyor · ≈%{yuzde} kaldı ({kalan} sf)',
     verimKaynagi: '{ad} verimi {n} sayfa · {aciklama}',
     cihazaGit: 'Cihaz →',
     verimSbAd: 'S/B',
@@ -2513,6 +2550,7 @@ export const tr = {
     verimPopulasyon: 'diğer bayilerde ölçüldü ({n} toner)',
     // Müşteriye giden sipariş mesajı (bayinin dilinde).
     mesajGun: '{cihaz} cihazınızın toneri yaklaşık {gun} gün sonra bitiyor.',
+    mesajBugun: '{cihaz} cihazınızın toneri bitmek üzere; yenisini bugün getirelim mi?',
     mesajYakinda: '{cihaz} cihazınızın toneri yakında yenilenmeli.',
     mesajLink: '\n\nCihazınıza uyan tonerleri görüp sipariş verebilirsiniz:\n{link}',
     mesajYuzde: '{cihaz} cihazınızın toneri %{yuzde} seviyesinde; yenisini göndermemizi ister misiniz?',
@@ -3067,6 +3105,9 @@ export const tr = {
     ustBaslik: 'Elinizdeki müşteri/cihaz listesini aktarın — kolonları sistem kendi tanır, siz sadece kontrol edersiniz.',
     csvSecin: 'CSV dosyasını seçin',
     csvOlmayanDosya: 'Lütfen CSV dosyası seçin. Excel’de: Dosya → Farklı Kaydet → “CSV UTF-8 (virgülle ayrılmış)”.',
+    sablonIndir: '⬇️ Örnek şablonu indir (CSV)',
+    dosyaSecin: 'Excel (.xlsx) ya da CSV dosyasını seçin',
+    desteklenmeyenDosya: 'Lütfen Excel (.xlsx) ya da CSV dosyası seçin. Eski .xls dosyasını Excel’de açıp “Excel Çalışma Kitabı (.xlsx)” olarak kaydedin.',
     dosyaBuyuk: 'Dosya çok büyük (en fazla 15 MB).',
     kodlamaDuzeltildi: 'Dosya UTF-8 değildi (Excel’in eski CSV biçimi) — Türkçe karakterler otomatik düzeltildi. Önizlemede kontrol edin.',
     kodlamaTaninmadi: 'Dosya kodlaması tanınamadı — Türkçe karakterlerde bozulma olabilir. Excel’de “CSV UTF-8” olarak kaydedip tekrar deneyin.',
@@ -4570,11 +4611,11 @@ export const tr = {
     TARAMA_BULUNAMADI: 'Tarama bulunamadı.',
     TARAMA_ZATEN_ONAYLANDI: 'Bu tarama zaten onaylanmış.',
     TARAMA_SECIM_GECERSIZ: 'Eklenecek yazıcıları ve müşteriyi seçin.',
-    DEMO_HESABINDA_KAPALI: 'Demo hesabında bu işlem kapalı. Kendi hesabınızı 14 gün ücretsiz açabilirsiniz: nextusservis.com/kayit',
+    DEMO_HESABINDA_KAPALI: 'Demo hesabında bu işlem kapalı: demoyu aynı anda birçok kişi kullanıyor. Kendi ücretsiz deneme hesabınızda açık — nextusservis.com/kayit',
     DEMO_TARAYICI_KAPALI: 'Demo hesabında tarayıcı indirilemez. Kendi ağınızı ücretsiz taramak için: nextusservis.com/ucretsiz-tarama',
     KAYIT_ALAN_EKSIK: 'Firma adı, adınız, cep telefonu ve e-posta gerekli.',
     KAYIT_EPOSTA_GECERSIZ: 'E-posta adresi geçerli görünmüyor.',
-    KAYIT_TELEFON_GECERSIZ: 'Cep telefonu numarasını 05xx xxx xx xx biçiminde yazın.',
+    KAYIT_TELEFON_GECERSIZ: 'Türkiye cep numarası yazın: 05xx xxx xx xx. Yurt dışından mı geldiniz? Demoyu açın ya da WhatsApp’tan yazın.',
     KAYIT_SIFRE_KISA: 'Şifre en az 8 karakter olmalı.',
     KAYIT_ONAY_YOK: 'Devam etmek için gizlilik metnini onaylayın.',
     KAYIT_EPOSTA_VAR: 'Bu e-postayla açılmış bir hesap var. Giriş yapın; şifrenizi unuttuysanız giriş sayfasındaki “Şifremi unuttum” ile yenileyin.',
@@ -4651,6 +4692,7 @@ export const tr = {
     ILAN_AKTIF_DEGIL: 'İlan aktif değil',
     ILAN_BULUNAMADI: 'İlan bulunamadı',
     ISLEM_CAKISMASI_TEKRAR_DENEYIN: 'İşlem çakışması, tekrar deneyin',
+    FATURALAMA_SURUYOR: 'Faturalama şu an çalışıyor, birkaç saniye sonra tekrar deneyin.',
     ISLETME_BULUNAMADI: 'İşletme bulunamadı',
     SIFRE_EN_AZ_6_KARAKTER: 'Şifre en az 6 karakter',
     SIFRE_EN_AZ_6_KARAKTER_2: 'Şifre en az 6 karakter olmalı',
@@ -4731,7 +4773,8 @@ export const tr = {
     durdu: 'Gönderiyordu, durdu',
     hicGondermedi: 'Hiç göndermedi',
     durduUyariVurgu: '{n} cihaz',
-    durduUyariSon: 'daha önce otomatik gönderiyordu, artık göndermiyor. Bu cihazların sayacı son bilinen değerde duruyor; aradaki sayfalar faturaya girmiyor.',
+    durduUyariSon: 'daha önce otomatik gönderiyordu, artık göndermiyor ve başka yoldan da okunmuyor. Bu cihazların sayacı son bilinen değerde duruyor; aradaki sayfalar faturaya girmiyor.',
+    durduElle: '{n} cihaz otomatik göndermeyi bıraktı ama sayacı elle ya da fotoğrafla okunuyor; faturaya giriyor.',
     hicUyari: 'Hiçbir cihaz otomatik sayaç göndermiyor. Cihazın web arayüzünde e-posta/bildirim ayarlarına size özel adresi tanımlayınca sayaçlar kendiliğinden düşer — kimse gezmez, kimse fotoğraf beklemez.',
     sekmeIs: 'Yapılacaklar ({n})',
     sekmeCalisan: 'Çalışanlar ({n})',

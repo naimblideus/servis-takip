@@ -3,6 +3,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
+import { ekstre } from '@/lib/musteri-bakiye';
 
 // Müşteri cari hesap detayı
 export async function GET(
@@ -56,6 +57,20 @@ export async function GET(
 
     const unpaidTotal = unpaidTickets.reduce((s, t) => s + t.remaining, 0);
 
+    // ── CARİ EKSTRE ÖZETİ — basılı ekstreyle AYNI KAYNAK ────────────────
+    // Müşteri sayfasındaki "Cari Hesap Ekstresi" kutusu eskiden kasa
+    // hareketlerinin (FinancialTransaction INCOME) toplamını "Toplam Borç"
+    // diye gösteriyordu: gerçek borç ₺2.230 iken ekranda "Toplam Borç ₺1.000
+    // · Bakiye ₺1.000" (yeşil) — yani TAHSİLAT borç diye okunuyordu, açık
+    // faturalar hiç sayılmıyordu. Basılı ekstre (/accounting/<id>/print) ve
+    // panodaki "Borçlu Müşteriler" doğru sayıyı musteri-bakiye.ts'den alıyor;
+    // bu kutu da artık oradan: borç = Σ borç satırı, alacak = Σ tahsilat,
+    // kalan = borç − alacak. Üç ekran aynı sayıyı söylemek zorunda.
+    const satirlar = await ekstre(user.tenantId, customerId);
+    const kurus = (n: number) => Math.round(n * 100) / 100;
+    const borc = kurus(satirlar.filter((s) => s.tip === 'BORC').reduce((t, s) => t + s.tutar, 0));
+    const alacak = kurus(satirlar.filter((s) => s.tip === 'ODEME').reduce((t, s) => t + s.tutar, 0));
+
     return NextResponse.json({
         customer,
         transactions,
@@ -64,6 +79,10 @@ export async function GET(
             totalExpense,
             unpaidTotal,
             net: totalIncome - totalExpense,
+            // Ekstre özeti (ekranın gösterdiği gerçek)
+            borc,
+            alacak,
+            kalan: kurus(borc - alacak),
         },
         unpaidTickets,
     });

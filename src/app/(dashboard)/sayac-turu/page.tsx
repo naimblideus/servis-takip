@@ -66,7 +66,7 @@ export default function SayacTuruPage() {
     esikGun: number; toplam: number; aylikRiskTutari: number;
     musteriler: { id: string; ad: string; telefon: string; aylikKira: number;
       cihazlar: { id: string; brand: string; model: string; serialNo: string;
-        durum: string; gun: number; aciklama: string }[] }[];
+        durum: string; gun: number; aciklama: string; yuzde?: number | null }[] }[];
   } | null>(null);
   useEffect(() => {
     fetch('/api/sayac/durgun').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setDurgun(d); }).catch(() => {});
@@ -191,7 +191,9 @@ export default function SayacTuruPage() {
               {t.sayacTuru.kanalDurdu}
             </div>
             <p style={{ margin: '.3rem 0 .6rem', fontSize: '.8rem', lineHeight: 1.5, color: '#fecaca' }}>
-              {eksik.kanal.aciklama}
+              {eksik.kanal.gecenGun != null && eksik.kanal.tipikGun != null
+                ? doldur(t.sayacTuru.kanalDurduAciklama, { gun: eksik.kanal.gecenGun, tipik: Math.max(1, Math.round(eksik.kanal.tipikGun)) })
+                : eksik.kanal.aciklama}
             </p>
             <Link href="/sayac-eposta"
               style={{ display: 'inline-block', minHeight: 40, lineHeight: '40px', padding: '0 .9rem', background: '#fff', color: '#7f1d1d', borderRadius: 10, textDecoration: 'none', fontWeight: 800, fontSize: '.82rem' }}>
@@ -257,13 +259,17 @@ export default function SayacTuruPage() {
                   onClick={() => m.id && load({ id: m.id, name: m.ad, phone: m.telefon } as Cust)}
                   style={{ textAlign: 'left', background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '.55rem .7rem', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '.86rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 700, color: '#0B1533' }}>{m.ad}</span>
+                    <span style={{ fontWeight: 700, color: '#0B1533' }}>{m.ad || t.genel.musterisizCihaz}</span>
                     <span style={{ color: '#92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>
                       {doldur(t.sayacTuru.cihazSayisi, { n: m.cihazlar.length })}{m.aylikKira > 0 ? ` · ${b.para(m.aylikKira, 0)}${t.cihazlar.aylik}` : ''}
                     </span>
                   </div>
                   <div style={{ fontSize: '.72rem', color: '#5B6479', marginTop: 2 }}>
-                    {m.cihazlar[0]?.brand} {m.cihazlar[0]?.model} — {m.cihazlar[0]?.aciklama}
+                    {m.cihazlar[0]?.brand} {m.cihazlar[0]?.model} — {m.cihazlar[0]?.durum === 'DURGUN'
+                      ? doldur(t.sayacTuru.durgunAciklama, { gun: m.cihazlar[0].gun })
+                      : m.cihazlar[0]?.durum === 'DUSUS' && m.cihazlar[0].yuzde != null
+                        ? doldur(t.sayacTuru.dususAciklama, { yuzde: m.cihazlar[0].yuzde })
+                        : m.cihazlar[0]?.aciklama}
                     {m.cihazlar.length > 1 ? `  · ${doldur(t.sayacTuru.cihazDaha, { n: m.cihazlar.length - 1 })}` : ''}
                   </div>
                 </button>

@@ -108,11 +108,12 @@
   (function () {
     var kok = document.documentElement;
     var dugmeler = document.querySelectorAll('[data-sec]');
-    function uygula(dil) {
+    function uygula(dil, kaydet) {
       kok.lang = dil;
+      if (kaydet) document.cookie = 'dil=' + dil + '; path=/; max-age=31536000; samesite=lax';
       for (var i = 0; i < dugmeler.length; i++) dugmeler[i].setAttribute('aria-pressed', dugmeler[i].getAttribute('data-sec') === dil ? 'true' : 'false');
     }
-    for (var i = 0; i < dugmeler.length; i++) dugmeler[i].addEventListener('click', function () { uygula(this.getAttribute('data-sec')); });
+    for (var i = 0; i < dugmeler.length; i++) dugmeler[i].addEventListener('click', function () { uygula(this.getAttribute('data-sec'), true); });
     var istek = new URLSearchParams(location.search).get('lang');
     uygula(istek === 'en' || (!istek && !/^tr/i.test(navigator.language || 'tr')) ? 'en' : 'tr');
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) document.getElementById('telefon').style.display = 'block';

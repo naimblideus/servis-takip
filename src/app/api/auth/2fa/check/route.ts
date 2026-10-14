@@ -8,16 +8,19 @@ import { rateLimit, clientIp, tooMany } from '@/lib/rate-limit';
 // GÜVENLİK: şifre doğrulanmadan asla bilgi vermez (hesap var mı sızdırmaz) ve oturum AÇMAZ.
 export async function POST(req: NextRequest) {
   try {
-    const rl = rateLimit(`2fa-check:${clientIp(req)}`, 10, 60_000);
-    if (!rl.ok) return NextResponse.json(tooMany(rl.retryAfter), { status: 429 });
-
     const { email, password } = await req.json();
     if (!email || !password) return NextResponse.json({ needsTotp: false });
+    const eposta = String(email).trim().toLowerCase().slice(0, 200);
 
-    const user = await prisma.user.findFirst({
-      where: { email: String(email), isActive: true },
-      select: { passwordHash: true, totpEnabled: true },
-    });
+    // IP + e-posta: toplantı salonunda herkes aynı otel IP'sinde; yalnız IP'ye
+    // bağlı sınır dakikada 10 kişiden sonra 2FA sorusunu atlatıyordu.
+    const rl = rateLimit(`2fa-check:${clientIp(req)}:${eposta}`, 10, 60_000);
+    if (!rl.ok) return NextResponse.json(tooMany(rl.retryAfter), { status: 429 });
+
+    // Giriş (lib/auth) ile aynı eşleşme: büyük/küçük harf duyarsız, ILIKE değil.
+    const satir = await prisma.$queryRaw<{ passwordHash: string; totpEnabled: boolean }[]>`
+      SELECT "passwordHash", "totpEnabled" FROM "User" WHERE lower("email") = ${eposta} AND "isActive" = true LIMIT 1`;
+    const user = satir[0];
     // Kullanıcı yoksa da aynı cevabı ver — hesap varlığı sızmasın
     if (!user) return NextResponse.json({ needsTotp: false });
 

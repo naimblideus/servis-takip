@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { downloadMedia } from '@/lib/whatsapp-out';
@@ -23,6 +25,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       select: { mediaId: true },
     });
     if (!msg?.mediaId) return NextResponse.json({ error: 'Bu mesajda medya yok' }, { status: 404 });
+
+    // Demo tohumunun örnek fotoğrafı (scripts/seed-bayi-demo DEMO-MEDIA-*): Meta'da
+    // yok; indirmeye çalışınca 502 ve kırık resim çıkıyordu.
+    if (msg.mediaId.startsWith('DEMO-')) {
+      const svg = await readFile(join(process.cwd(), 'public', 'demo', 'sayac-foto.svg'));
+      return new NextResponse(new Uint8Array(svg), { headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'private, max-age=3600' } });
+    }
 
     const r = await downloadMedia(msg.mediaId);
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 502 });

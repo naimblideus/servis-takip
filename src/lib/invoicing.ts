@@ -141,6 +141,37 @@ interface LineInput {
   lineTotal: number;
 }
 
+/**
+ * KİRA BU DÖNEM KESİLİR Mİ — fatura, dönem kesimi ve Kaçan Gelir'in ortak kuralı.
+ *
+ * Cihazın `lastInvoicedPeriod`u kirasının kesildiği SON dönemdir ('YYYY-AA';
+ * metin karşılaştırması sıralı). Eskiden kural "son dönem bu dönem değilse"
+ * idi: geçmiş bir dönemi kesmek ("2026-07 dönemini kes") her kiralık cihaza
+ * o ayın kirasını İKİNCİ kez yazıyor, işareti de geriye çekip bu ayın kirasını
+ * yeniden "kesilmemiş" gösteriyordu. Doğrusu: yalnız işaretten SONRAKİ dönem
+ * kesilir, işaret asla geri gitmez (kiraIsaretiKosulu).
+ *
+ * Cihaz dönem bittikten sonra kurulduysa o dönemin kirası yoktur.
+ */
+export type KiraCihazi = {
+  isRental: boolean;
+  monthlyRent: unknown;
+  lastInvoicedPeriod: string | null;
+  createdAt?: Date | null;
+};
+
+export function kiraKesilir(d: KiraCihazi, period: string, donemSonu?: Date): boolean {
+  if (!d.isRental || !(Number(d.monthlyRent) > 0)) return false;
+  if ((d.lastInvoicedPeriod ?? '') >= period) return false;
+  if (donemSonu && d.createdAt && d.createdAt >= donemSonu) return false;
+  return true;
+}
+
+/** updateMany koşulu: işaret yalnız ileri gider (eşzamanlı iki kesimde de). */
+export const kiraIsaretiKosulu = (period: string) => ({
+  OR: [{ lastInvoicedPeriod: null }, { lastInvoicedPeriod: { lt: period } }],
+});
+
 /** Per-tenant atomik fatura numarası: SF-FAT-2026-00001 */
 async function nextInvoiceNumber(tx: Tx, tenantId: string): Promise<string> {
   const t = await tx.tenant.update({
@@ -249,6 +280,18 @@ export async function buildInvoiceForCustomerPeriod(
   const { start, end } = periodRange(period);
 
   return prisma.$transaction(async (tx) => {
+    // MÜŞTERİ FATURA KİLİDİ — işlemin İLK ifadesi olmak zorunda.
+    // "Bu Dönemi Faturala" aynı anda iki sekmeden / iki yöneticiden (ya da
+    // herkese açık demoda) basılınca her işlem okumaları ve kira işaretini
+    // ötekinin yazmasından ÖNCE okuyordu: dönemde müşteri başına 3 fatura,
+    // kira ve aşım 3 kez kesildi. Kilit işlem bitene kadar ikinciyi bekletir;
+    // ikinci, birincinin billed / lastInvoicedPeriod / invoiceId işaretlerini
+    // görür, satır çıkmaz, null döner. Bu yüzden bütün okumalar kilitten SONRA.
+    // Anahtar dönemsiz (bayi + müşteri): iş emri satırları döneme bağlı değil;
+    // aynı müşteride iki FARKLI dönem aynı anda kesilirse (gece işi Eylül'ü,
+    // yönetici Ekim'i) aynı fiş iki faturaya girerdi.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId}), hashtext(${`fatura:${customerId}`}))`;
+
     const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) throw new Error('Tenant bulunamadı');
 
@@ -306,8 +349,8 @@ export async function buildInvoiceForCustomerPeriod(
           });
       }
 
-      // b) Sabit kira — dönem başına 1 kez (çift kira engeli)
-      if (device.isRental && Number(device.monthlyRent) > 0 && device.lastInvoicedPeriod !== period) {
+      // b) Sabit kira — dönem başına 1 kez; geçmiş dönem kesimi kirayı tekrar yazmaz (kiraKesilir)
+      if (kiraKesilir(device, period, end)) {
         lines.push({
           tenantId,
           kind: 'RENTAL',
@@ -373,7 +416,7 @@ export async function buildInvoiceForCustomerPeriod(
     if (readingIdsToBill.length)
       await tx.counterReading.updateMany({ where: { id: { in: readingIdsToBill } }, data: { billed: true } });
     if (deviceRentToMark.length)
-      await tx.device.updateMany({ where: { id: { in: deviceRentToMark } }, data: { lastInvoicedPeriod: period } });
+      await tx.device.updateMany({ where: { id: { in: deviceRentToMark }, ...kiraIsaretiKosulu(period) }, data: { lastInvoicedPeriod: period } });
     if (ticketIdsToMark.length)
       await tx.serviceTicket.updateMany({
         where: { id: { in: ticketIdsToMark } },
@@ -381,7 +424,10 @@ export async function buildInvoiceForCustomerPeriod(
       });
 
     return invoice;
-  });
+    // Kilit beklemesi işlem süresine sayılır: öndeki müşterinin faturası çok
+    // cihazlıysa bekleyen işlem varsayılan 5 sn'de boşuna düşmesin. Bekleyen
+    // işlemler bağlantı tuttuğu için havuzdan bağlantı alma süresi de uzun.
+  }, { timeout: 30_000, maxWait: 10_000 });
 }
 
 /**

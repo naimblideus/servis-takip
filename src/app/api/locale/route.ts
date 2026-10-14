@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
 
   const oturum = await auth().catch(() => null);
   const kullaniciId = (oturum?.user as any)?.id as string | undefined;
-  if (kullaniciId) {
+  // Herkese açık demoda hesap ORTAK: kalıcı tercih yazılırsa bir ziyaretçinin
+  // İngilizcesi, çerezi olmayan herkese (sonraki Türk bayiye) İngilizce açılırdı.
+  // Demoda dil yalnız bu tarayıcının çerezinde kalır.
+  if (kullaniciId && !(oturum?.user as any)?.demo) {
     // Kalıcı tercih; başarısızlığı yutuyoruz — çerez zaten yazıldı.
     await prisma.user.update({ where: { id: kullaniciId }, data: { locale: dil } }).catch(() => {});
   }

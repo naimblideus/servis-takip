@@ -21,8 +21,8 @@ export async function POST(req: Request) {
   if (govde?.web_sitesi) return NextResponse.json({ ok: true });
   const sonuc = await sifirlamaIste(govde?.eposta, istemciIp(req), await sunucuDili());
   if (sonuc.durum === 'GECERSIZ') return ucHatasi('KAYIT_EPOSTA_GECERSIZ', 400);
-  if (sonuc.durum === 'SINIR') return ucHatasi('KAYIT_SINIR', 429);
-  if (sonuc.durum === 'EPOSTA_KAPALI') {
+  // Sınır e-posta gönderimini korur; kişi yine de yardımsız kalmasın: WhatsApp yolu.
+  if (sonuc.durum === 'SINIR' || sonuc.durum === 'EPOSTA_KAPALI') {
     const ayar = await prisma.platformSettings.findFirst({ select: { satisWhatsapp: true } });
     return NextResponse.json({ ok: true, kanal: 'whatsapp', whatsapp: (ayar?.satisWhatsapp ?? '').replace(/\D/g, '') || VARSAYILAN_WHATSAPP });
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
+import { demoBayiMi } from '@/lib/demo-koruma';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { findCustomerByPhone } from '@/lib/whatsapp-inbound';
@@ -124,6 +125,8 @@ export async function POST(req: NextRequest) {
     if (!msg) return ucHatasi('MESAJ_BULUNAMADI', 404);
 
     if (action === 'handled') {
+      // Ortak demo: "ilgilenildi" örnek mesajı herkesin gelen kutusundan kaldırırdı.
+      if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
       await prisma.whatsAppMessage.update({ where: { id: msg.id }, data: { handled: handled !== false } });
       return NextResponse.json({ ok: true });
     }

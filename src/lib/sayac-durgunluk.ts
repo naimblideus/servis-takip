@@ -53,8 +53,10 @@ export interface DurgunlukSonucu {
   gunlukOrtalama: number;
   /** Cihazın kendi geçmişindeki günlük ortalaması (kıyas tabanı). */
   gecmisGunlukOrtalama: number | null;
-  /** Bayiye gösterilecek tek cümle. */
+  /** Bayiye gösterilecek tek cümle (Türkçe; ekran dilde durum + sayılardan kurar). */
   aciklama: string;
+  /** DUSUS: kendi ortalamasının yüzde kaç altında. */
+  yuzde?: number;
 }
 
 /** Bu süreden kısa aralıkta karar verilmez — ay ortasında yanlış alarm olur. */
@@ -125,7 +127,7 @@ export function durgunlukDegerlendir(okumalar: OkumaNoktasi[]): DurgunlukSonucu 
     if (sonHiz < gecmisGunlukOrtalama * DUSUS_ORANI) {
       const yuzde = Math.round((1 - sonHiz / gecmisGunlukOrtalama) * 100);
       return {
-        durum: 'DUSUS', gun: Math.round(araGun), toplamSayfa,
+        durum: 'DUSUS', gun: Math.round(araGun), toplamSayfa, yuzde,
         gunlukOrtalama: Number(gunlukOrtalama.toFixed(1)),
         gecmisGunlukOrtalama: Number(gecmisGunlukOrtalama.toFixed(1)),
         aciklama: `Kullanım kendi ortalamasının %${yuzde} altına düşmüş — müşteri başka makineye geçmiş olabilir.`,

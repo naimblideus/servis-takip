@@ -93,9 +93,12 @@ export default async function TicketsPage({
     }),
   ]);
 
+  // Kutular listeyle AYNI kümeyi sayar. Teknisyen açılışta yalnız kendine
+  // atanan fişleri görüyor; kutular bayinin bütün fişlerini sayınca "Toplam
+  // 326" yazan kutunun altında 12 fişlik liste duruyordu.
   const allCounts = await prisma.serviceTicket.groupBy({
     by: ['status'],
-    where: { tenantId: user.tenantId, deletedAt: null } as any,
+    where: { tenantId: user.tenantId, deletedAt: null, ...(kendiIsleri ? { assignedUserId: user.id } : {}) } as any,
     _count: true,
   });
 
@@ -117,10 +120,13 @@ export default async function TicketsPage({
   const printHref = `/tickets/toplu-yazdir${printParams.toString() ? `?${printParams.toString()}` : ''}`;
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>{kendiIsleri ? sz.menuAile.islerim : sz.fisler.baslik}</h1>
+    // TELEFON (360 px): 2rem kenar boşluğu + başlığın yanına sıkışan dört
+    // düğme sayfayı 383 px'e taşırıyordu. Boşluk ekranla küçülür, düğmeler
+    // sığmazsa başlığın altına iner.
+    <div style={{ padding: 'clamp(1rem, 4vw, 2rem)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem 1rem', marginBottom: '1.5rem' }}>
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 6vw, 1.875rem)', fontWeight: 'bold' }}>{kendiIsleri ? sz.menuAile.islerim : sz.fisler.baslik}</h1>
           <p style={{ color: '#6b7280' }}>
             {kendiIsleri
               ? doldur(sz.fisler.sanaAtanan, { n: tickets.length })
@@ -154,15 +160,16 @@ export default async function TicketsPage({
       </div>
 
       {/* Stat Kartlar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.25rem' }}>
+      {/* Üç kutu telefonda da yan yana: boşluk ve rakam ekranla küçülür. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'clamp(0.5rem, 2.5vw, 1rem)', marginBottom: '1.25rem' }}>
         {[
           { label: sz.fisler.kart.toplam, value: total, color: '#6b7280', href: '/tickets' },
           { label: sz.fisler.kart.acik, value: open, color: '#f59e0b', href: '/tickets?status=IN_SERVICE' },
           { label: sz.fisler.kart.hazir, value: ready, color: '#10b981', href: '/tickets?status=READY' },
         ].map(c => (
-          <Link key={c.label} href={c.href} style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.25rem', textAlign: 'center', textDecoration: 'none' }}>
-            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: c.color }}>{c.value}</div>
-            <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{c.label}</div>
+          <Link key={c.label} href={c.href} style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: 'clamp(0.75rem, 3vw, 1.25rem) clamp(0.4rem, 2vw, 1.25rem)', textAlign: 'center', textDecoration: 'none', minWidth: 0 }}>
+            <div style={{ fontSize: 'clamp(1.5rem, 7vw, 2rem)', fontWeight: 'bold', color: c.color }}>{c.value}</div>
+            <div style={{ fontSize: 'clamp(0.75rem, 3.2vw, 0.875rem)', color: '#6b7280', lineHeight: 1.3 }}>{c.label}</div>
           </Link>
         ))}
       </div>

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import { normalizeBrandModel } from '@/lib/device-brands';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { ucHatasi } from '@/lib/uc-hata';
 
 function generatePublicCode() {
   return 'DEV-' + randomBytes(3).toString('hex').toUpperCase();
@@ -31,6 +32,10 @@ export async function POST(req: Request) {
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const body = await req.json();
+    // Müşteri bu bayinin mi: yoksa başka bayinin müşteri kimliğini bilen biri onun
+    // altına cihaz bağlayıp, cihaz listesinden müşterinin bütün bilgisini okuyabiliyordu.
+    const musteri = await prisma.customer.findFirst({ where: { id: String(body.customerId ?? ''), tenantId: user.tenantId }, select: { id: true } });
+    if (!musteri) return ucHatasi('MUSTERI_BULUNAMADI', 404);
     // Marka/model ters girilmişse düzelt, yazımı kanonikleştir ("canon" -> "Canon").
     // Marka tanınmıyorsa dokunulmaz.
     const nz = normalizeBrandModel(body.brand, body.model);

@@ -3,6 +3,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { bakimPlani, bakimYapildi } from '@/lib/bakim-veri';
 import { prisma } from '@/lib/prisma';
+import { demoBayiMi } from '@/lib/demo-koruma';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +74,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (islem === 'varsayilan') {
+      // Filo geneli eşik firma ayarıdır; ortak demoda biri 1 sayfa yazınca bütün filo "gecikti" görünürdü.
+      if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
       const sayfa = esik(b?.sayfa);
       const ay = esik(b?.ay);
       if (sayfa === undefined && b?.sayfa !== undefined) return ucHatasi('GECERSIZ_MIKTAR', 400);

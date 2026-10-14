@@ -483,10 +483,10 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
       {/* ── Backdrop (mobilde menü açıkken) ── */}
       {open && <div className="md:hidden fixed inset-0 bg-black/50 z-40 print:hidden" onClick={close} />}
 
-      {/* ── Sidebar / Drawer ── */}
+      {/* ── Sidebar / Drawer ── masaüstünde ekrana yapışık (uzun sayfada menü kaybolmaz), menü kendi içinde kayar. */}
       <div
         id="app-sidebar"
-        className={`w-64 bg-gray-900 min-h-screen flex flex-col print:hidden sa-drawer ${open ? 'sa-open' : ''}`}
+        className={`w-64 bg-gray-900 min-h-screen md:h-screen md:sticky md:top-0 md:self-start flex flex-col print:hidden sa-drawer ${open ? 'sa-open' : ''}`}
       >
         {/* Logo + mobil kapat */}
         <div className="p-6 border-b border-gray-700">

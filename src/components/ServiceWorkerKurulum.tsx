@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useT } from '@/lib/i18n/client';
 
 /**
@@ -18,6 +18,14 @@ import { useT } from '@/lib/i18n/client';
  * KÜÇÜK ve KAPATILABİLİR bir şerit çıkıyor — kendiliğinden yenilemiyoruz,
  * çünkü bayi tam o an bir fişi dolduruyor olabilir.
  *
+ * ── YENİLEME YALNIZ "GÜNCELLE" İLE ────────────────────────────────────────
+ * İlk ziyarette service worker kurulup clients.claim() yapınca tarayıcı
+ * 'controllerchange' atar; bu bileşen onu "yeni sürüm devraldı" sanıp
+ * sayfayı yeniliyordu. QR'ı okutan her bayi ilk kez geldiği için kayıt
+ * formu yazılırken siliniyor, gönderilen kayıt yarıda kalıyordu (hesap
+ * açılıyor, giriş yapılmıyor). Artık yalnız kullanıcı şeritteki
+ * "Güncelle"ye bastıysa yenilenir.
+ *
  * ── GELİŞTİRMEDE KAPALI ──────────────────────────────────────────────────
  * Geliştirme sunucusunda service worker, HMR'ı ve tazelemeyi bozar.
  * Yalnız üretimde kaydedilir; geliştirmede varsa da kaldırılır.
@@ -26,6 +34,7 @@ export default function ServiceWorkerKurulum() {
   const t = useT();
   const [yeniSurum, setYeniSurum] = useState<ServiceWorker | null>(null);
   const [gizlendi, setGizlendi] = useState(false);
+  const guncelleIstendi = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
@@ -64,10 +73,11 @@ export default function ServiceWorkerKurulum() {
       // desteği olmaz), ama sebebi konsolda görünsün.
       .catch((e) => console.warn('[sw] kayıt başarısız:', e?.message || e));
 
-    // Yeni sürüm devralınca sayfayı bir kez tazele.
+    // Kullanıcının istediği yeni sürüm devralınca sayfayı bir kez tazele.
+    // İlk kurulumdaki devralma (clients.claim) yenilemez: bkz. üstteki not.
     let tazelendi = false;
     const devralindi = () => {
-      if (tazelendi) return;
+      if (!guncelleIstendi.current || tazelendi) return;
       tazelendi = true;
       window.location.reload();
     };
@@ -102,7 +112,7 @@ export default function ServiceWorkerKurulum() {
       <span>{t.surum.hazir}</span>
       <button
         type="button"
-        onClick={() => yeniSurum.postMessage('HEMEN_GUNCELLE')}
+        onClick={() => { guncelleIstendi.current = true; yeniSurum.postMessage('HEMEN_GUNCELLE'); }}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           minHeight: '2.25rem', padding: '0 0.9rem',

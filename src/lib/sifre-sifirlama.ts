@@ -55,8 +55,10 @@ export type IstekSonucu =
 export async function sifirlamaIste(ham: unknown, ip: string | null, dil: 'tr' | 'en', simdi = Date.now()): Promise<IstekSonucu> {
   const eposta = (typeof ham === 'string' ? ham : '').trim().toLowerCase().slice(0, 120);
   if (!EPOSTA.test(eposta)) return { durum: 'GECERSIZ' };
-  if (ip && !sayac(ipIstekleri, ip, 15 * 60_000, 5, simdi)) return { durum: 'SINIR' };
+  // E-posta kapalıyken sınır gereksiz (yalnız WhatsApp'a yönlendiriliyor) ve
+  // salonun ortak IP'sinde altıncı kişiyi yardımsız bırakıyordu.
   if (!gmailAyarli()) return { durum: 'EPOSTA_KAPALI' };
+  if (ip && !sayac(ipIstekleri, ip, 15 * 60_000, 5, simdi)) return { durum: 'SINIR' };
   // Adres sınırı dolunca da "TAMAM": sınır, adresin kayıtlı olup olmadığını ele vermesin.
   if (!sayac(adresIstekleri, eposta, 60 * 60_000, 3, simdi)) return { durum: 'TAMAM' };
 

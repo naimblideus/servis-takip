@@ -6,8 +6,9 @@ import { Priority } from '@prisma/client';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 import { parseFaultCategory, faultCategoryFromLegacyText } from '@/lib/fault-categories';
 import { createReading, ReadingError } from '@/lib/readings';
-import { generateTicketNumber } from '@/lib/ticket-number';
+import { fisNumarasiylaOlustur, fisNumarasiCakismasi } from '@/lib/ticket-number';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { ucHatasi } from '@/lib/uc-hata';
 
 
 /** Bayinin "üzerinde çalışılan" saydığı durumlar — teslim/iptal hariç. */
@@ -87,31 +88,38 @@ export async function POST(req: Request) {
     const device = await prisma.device.findFirst({ where: { id: body.deviceId, tenantId: user.tenantId } });
     if (!device) return NextResponse.json({ error: 'Device not found' }, { status: 404 });
 
-    const ticketNumber = await generateTicketNumber(user.tenantId);
-
     // Arıza kategorisi: önce gönderilen kod, olmazsa eski şablon metninden eşle.
     // Hiçbiri tutmuyorsa null bırakılır — rastgele bir kategori YAZILMAZ.
     const faultCategory =
       parseFaultCategory(body.faultCategory) ??
       faultCategoryFromLegacyText(body.issueTemplate);
 
-    const ticket = await prisma.serviceTicket.create({
-      data: {
-        tenantId: user.tenantId,
-        deviceId: body.deviceId,
-        customerId: device.customerId,
-        ticketNumber,
-        issueTemplate: body.issueTemplate || null,
-        faultCategory,
-        issueText: body.issueText,
-        actionText: body.actionText || null,
-        notes: body.notes || null,
-        assignedUserId: body.assignedUserId || null,
-        createdByUserId: user.id,
-        totalCost: body.totalCost ? parseFloat(body.totalCost) : 0,
-        priority: (body.priority || 'NORMAL') as Priority,
-      },
-    });
+    // FİŞ NUMARASI: aynı anda açılan fişler aynı numarayı alıp benzersizlik
+    // kuralına takılıyordu (8 eşzamanlı istekte 6'sı 500). Numara alma ve
+    // yazma artık birlikte; numara başkasına geçtiyse yeni numarayla yeniden
+    // denenir (lib/ticket-number).
+    const ticket = await fisNumarasiylaOlustur(user.tenantId, (ticketNumber) =>
+      prisma.serviceTicket.create({
+        data: {
+          tenantId: user.tenantId,
+          deviceId: body.deviceId,
+          customerId: device.customerId,
+          ticketNumber,
+          issueTemplate: body.issueTemplate || null,
+          faultCategory,
+          issueText: body.issueText,
+          actionText: body.actionText || null,
+          notes: body.notes || null,
+          // Teknisyen sahadan kendi telefonuyla fiş açtıysa iş onundur: atanmazsa
+          // "İşlerim" boş kalıyor, fiş kimsenin listesinde görünmüyordu.
+          // Seçim yapıldıysa (yönetici başkasına atadıysa) o geçerli.
+          assignedUserId: body.assignedUserId || (user.role === 'TECHNICIAN' ? user.id : null),
+          createdByUserId: user.id,
+          totalCost: body.totalCost ? parseFloat(body.totalCost) : 0,
+          priority: (body.priority || 'NORMAL') as Priority,
+        },
+      }),
+    );
 
     // AŞAMA GEÇMİŞİ: fişin ilk adımı. Bu satır yazılmazsa çizelge "ne zaman
     // açıldı" bilgisini fişin createdAt'inden türetmek zorunda kalır.
@@ -162,7 +170,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ...ticket, counterWarning, counterError });
   } catch (e: any) {
-    console.error('TICKET CREATE ERROR:', e.message);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    // Ham Prisma/veritabanı mesajı kullanıcıya GİTMEZ: tablo ve alan adlarını
+    // sızdırıyor, bayiye de hiçbir şey anlatmıyordu. Ayrıntı sunucu günlüğünde.
+    console.error('TICKET CREATE ERROR:', e?.message);
+    if (fisNumarasiCakismasi(e)) return ucHatasi('ISLEM_CAKISMASI_TEKRAR_DENEYIN', 409);
+    return ucHatasi('EKLENIRKEN_HATA_OLUSTU', 500);
   }
 }

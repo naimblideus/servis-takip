@@ -47,6 +47,8 @@ try {
       join(KOK, 'src/lib/fault-categories.ts'), join(KOK, 'src/lib/stok-maliyet.ts'), join(KOK, 'src/lib/device-brands.ts'),
       join(KOK, 'src/lib/toner.ts'), join(KOK, 'src/lib/ticket-number.ts'), join(KOK, 'src/lib/ticket-asama.ts'),
       join(KOK, 'src/lib/i18n/sozluk.ts'), join(KOK, 'src/lib/i18n/tr.ts'), join(KOK, 'src/lib/i18n/en.ts'),
+      // invoicing'in kira kuralı (yeni dosya; yoksa derleme listesi bozulmasın)
+      ...(existsSync(join(KOK, 'src/lib/kira-donemi.ts')) ? [join(KOK, 'src/lib/kira-donemi.ts')] : []),
       '--outDir', g, '--module', 'esnext', '--target', 'es2022',
       '--moduleResolution', 'bundler', '--skipLibCheck',
     ], { stdio: 'pipe' });
@@ -147,6 +149,18 @@ const kyoOzel = (bs = 90000, renk = 30000, orta = 0) => ({
   t('★ aynı makine iki IP ile görünürse ikincisi yazılmaz', iki[0].durum === 'YAZILABILIR' && iki[1].durum === 'BIRDEN_FAZLA', iki.map((x) => x.durum));
   const oz = taramaOzeti(iki);
   t('özet sayıyor', oz.bulunan === 2 && oz.eslesen === 2 && oz.yazilabilir === 1, oz);
+}
+{
+  // Karşılaştırılan sayaç SON OKUMA: fatura farkı ondan hesaplanıyor. Kart
+  // okumanın önündeyse (ya da gerisindeyse) ekran ile fatura ayrışmamalı.
+  const { karsilastirmaSayaci } = saf;
+  const kart = { counterBlack: 42372 - 377, counterColor: 9000 };
+  const son = { counterBlack: 40624, counterColor: 8000 };
+  t('★ karşılaştırma sayacı son okuma (kart farklı olsa da)', JSON.stringify(karsilastirmaSayaci(kart, son)) === '{"counterBlack":40624,"counterColor":8000}');
+  t('okuması hiç olmayan cihazda kart', JSON.stringify(karsilastirmaSayaci(kart, null)) === JSON.stringify(kart) && karsilastirmaSayaci({ counterBlack: null, counterColor: null }, undefined).counterBlack === null);
+  const s = cihazSonucu(cihaz({ seri: 'OFS00003', renkler: ['black'], toplam: 42372, ozel: {} }),
+    [{ id: 'c', serialNo: 'OFS00003', reportedSerial: null, ...karsilastirmaSayaci(kart, son) }]);
+  t('★ "Son okuma" ve "+N" son okumadan: 42.372 − 40.624 = +1.748 (kartla +377 görünürdü)', s.durum === 'YAZILABILIR' && s.sonSiyah === 40624 && s.siyah - s.sonSiyah === 1748, s);
 }
 {
   t('ilerleme: yeni cihaz (hiç okuma yok) yazılabilir', ilerlemeDurumu(10, 0, null, null) === 'YAZILABILIR');
@@ -608,7 +622,7 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
     duzelt('stok-maliyet.js', ortak);
     duzelt('fault-categories.js', ortak);
     duzelt('readings.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"]]);
-    duzelt('invoicing.js', ortak);
+    duzelt('invoicing.js', [...ortak, ["'@/lib/kira-donemi'", "'./kira-donemi.js'"]]);
     veri = await import(pathToFileURL(join(g, 'sayac-tarama-veri.js')).href);
   } catch (e) {
     console.log('  ✗ veri katmanı derlenemedi —', e?.message);
@@ -677,6 +691,7 @@ if (veri) {
     const d = Object.fromEntries(r1.sonuclar.map((s) => [s.seri, s.durum]));
     t('durumlar doğru', d.LJD1Z12345 === 'YAZILABILIR' && d.PHBQ123456 === 'YAZILABILIR' && d['GER-1'] === 'GERILEDI' && d['CANON-7'] === 'AYRIM_YOK' && d['SISTEMDE-YOK'] === 'ESLESMEDI', d);
     t('özet kaydedildi', r1.ozet.yazilabilir === 2 && r1.ozet.eslesen === 4, r1.ozet);
+    t('okuması hiç olmayan cihazda karşılaştırma kartla (GER-1: 99.999)', r1.sonuclar.find((s) => s.seri === 'GER-1')?.sonSiyah === 99999);
 
     // ── onay
     const o1 = await taramaOnayla(bayiId, r1.id);
@@ -695,9 +710,10 @@ if (veri) {
     const [a, b] = await Promise.all([taramaOnayla(bayiId, r2.id), taramaOnayla(bayiId, r2.id)]);
     t('★ aynı anda iki onay: yalnız biri yazıyor', [a.durum, b.durum].sort().join() === 'TAMAM,ZATEN' && (await okumaSayisi()) === 3, [a.durum, b.durum]);
 
-    // ── tarama ile onay arasında elle okuma
+    // ── tarama ile onay arasında elle okuma (gerçek yoldan: okuma + kart)
     const r3 = await taramaKaydet(bayiId, taramaGovdesiAyikla({ bilgisayar: 'X', taranan: 1, cihazlar: [cihaz({ ozel: kyoOzel(97000, 32000), toplam: 129000 })] }), false);
-    await p.device.update({ where: { id: kyId }, data: { counterBlack: 98000, counterColor: 33000 } });
+    const { createReading } = await import(pathToFileURL(join(g, 'readings.js')).href);
+    await createReading({ tenantId: bayiId, deviceId: kyId, counterBlack: 98000, counterColor: 33000, source: 'ELLE' });
     const o3 = await taramaOnayla(bayiId, r3.id);
     t('★ onay GÜNCEL sayaca bakıyor: arada girilen okumadan düşük tarama yazılmıyor',
       o3.durum === 'TAMAM' && o3.ozet.yazilan === 0 && (o3.ozet.durumlar.GERILEDI ?? 0) === 1 && (await okumaSayisi()) === 3, o3);
@@ -934,6 +950,34 @@ if (veri) {
     t('★ parça ömrü kartta (drum %6) ve bütün kalemler saklandı', o4.olcumParca === 6 && Array.isArray(o4.olcumSarf) && o4.olcumSarf.length === 2, o4);
     const dur4 = (await cihazDurumlari(bayiId)).cihazlar.find((c) => c.id === olay4);
     t('★ drumı biten cihaz dikkat listesinde, parçanın adıyla', dur4?.olcumParca === 6 && dur4?.parcaAd === 'Drum Unit', dur4);
+
+    // ── KART ≠ SON OKUMA: ekrandaki "+N" faturalanan farkın ta kendisi
+    // Demoda görüldü: kart "son okuma + bu ayın kısmi kullanımı" taşıyordu.
+    // Ekran kartla karşılaştırıp "+377" dedi, onay son okumadan 1.748 sayfa
+    // faturaladı. Kart bilerek farklı tutuluyor: önde (İLERİ) ve geride (GERİ).
+    {
+      const ileriId = await cihazYap('KART-ILERI', { counterBlack: 41995, counterColor: 0 });
+      const geriId = await cihazYap('KART-GERI', { counterBlack: 30000, counterColor: 0 });
+      await gecmis(ileriId, 40624, 0);
+      await gecmis(geriId, 40000, 0);
+      const tek = (ip, seri, toplam) => cihaz({ ip, seri, renkler: ['black'], toplam, ozel: {}, sysObjectID: '1.3.6.1.4.1.1602.4.7', model: 'imageRUNNER 2425' });
+      const rk = await taramaKaydet(bayiId, taramaGovdesiAyikla({ bilgisayar: 'KART-PC', taranan: 2, cihazlar: [
+        tek('10.0.2.1', 'KART-ILERI', 42372), tek('10.0.2.2', 'KART-GERI', 35000),
+      ] }), false);
+      const ileri = rk.sonuclar.find((s) => s.seri === 'KART-ILERI');
+      const geri = rk.sonuclar.find((s) => s.seri === 'KART-GERI');
+      t('★ "Son okuma" kart değil son okuma; +N = 42.372 − 40.624 = 1.748', ileri?.durum === 'YAZILABILIR' && ileri.sonSiyah === 40624 && ileri.siyah - ileri.sonSiyah === 1748,
+        ileri && { durum: ileri.durum, son: ileri.sonSiyah, siyah: ileri.siyah });
+      t('★ kart geride kalmış: son okumanın altındaki tarama GERILEDI (kartla "+5.000" görünürdü, onay reddedilirdi)', geri?.durum === 'GERILEDI' && geri.sonSiyah === 40000,
+        geri && { durum: geri.durum, son: geri.sonSiyah });
+      const ok = await taramaOnayla(bayiId, rk.id);
+      const yazilan = await p.counterReading.findFirst({ where: { deviceId: ileriId, source: 'AG_TARAMA' }, select: { deltaBlack: true, counterBlack: true } });
+      t('★ onayda yazılan fark ekranda gösterilen +N ile aynı (1.748)', ok.durum === 'TAMAM' && ok.ozet.yazilan === 1 && yazilan?.deltaBlack === ileri.siyah - ileri.sonSiyah && yazilan?.counterBlack === 42372,
+        { ok, yazilan });
+      t('geride kalan karta okuma yazılmadı', (await p.counterReading.count({ where: { deviceId: geriId, source: 'AG_TARAMA' } })) === 0);
+      const sonuc = (await p.sayacTaramasi.findUnique({ where: { id: rk.id }, select: { sonuc: true } })).sonuc;
+      t('onaydan sonra kayıttaki "son okuma" da son okumadan', sonuc.find((s) => s.seri === 'KART-ILERI')?.sonSiyah === 40624 && sonuc.find((s) => s.seri === 'KART-GERI')?.sonSiyah === 40000, sonuc.map((s) => [s.seri, s.durum, s.sonSiyah]));
+    }
 
     // ── HTTP
     const SUNUCU = process.env.TEST_SUNUCU || 'http://localhost:3002';

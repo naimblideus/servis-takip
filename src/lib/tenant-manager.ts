@@ -47,12 +47,17 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
     const slug = input.slug || generateSlug(input.name);
 
     // Şifre: kayıtta kullanıcınınki; süper admin açıyorsa geçici şifre üretilir.
+    // Maliyet 10 (OWASP alt sınırı): bcryptjs saf JS, sunucunun tek iş
+    // parçacığında çalışıyor. 12'de bir özet ~0,3 sn işlemci yiyordu; toplantıda
+    // sahneden duyurudan sonra gelen 30 kayıtlık dalgada herkes ~10 sn bekledi,
+    // kayıtların %7-10'u 500 aldı. 10'da ~70 ms.
     const tempPassword = input.password ? '' : generateTempPassword();
-    const passwordHash = await bcrypt.hash(input.password || tempPassword, 12);
+    const passwordHash = await bcrypt.hash(input.password || tempPassword, 10);
 
-    // Tenant + admin user tek transaction'da oluştur
-    const result = await prisma.$transaction(async (tx) => {
-        const tenant = await tx.tenant.create({
+    // Tenant + admin + abonelik geçmişi TEK yazma ifadesinde (iç içe create;
+    // veritabanı kendi işleminde yapar). Etkileşimli $transaction'ın 5 sn
+    // zamanlayıcısı yük altında doluyor ve hesabı yarıda bırakıyordu.
+    const tenant = await prisma.tenant.create({
             data: {
                 name: input.name,
                 slug,
@@ -76,34 +81,31 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
                 storageLimitMB: limits.storageLimitMB,
                 adminNotes: input.adminNotes,
                 logo: input.logo,
+                // Fatura sayacı "önce artır, sonra kullan" (lib/invoicing); şemanın
+                // varsayılanı 1 olduğu için yeni bayinin ilk faturası 00002 çıkıyordu.
+                nextInvoiceSeq: 0,
+                users: {
+                    create: {
+                        email: input.email,
+                        passwordHash,
+                        name: input.ownerName,
+                        role: 'ADMIN',
+                        isActive: true,
+                    },
+                },
+                subscriptionHistory: {
+                    create: {
+                        plan,
+                        action: 'created',
+                        notes: `Yeni işletme oluşturuldu. Deneme süresi: ${trialDays} gün`,
+                    },
+                },
             } as any,
+            include: { users: { take: 1 } },
         });
+    const { users, ...tenantAlanlari } = tenant as any;
 
-        const user = await tx.user.create({
-            data: {
-                tenantId: tenant.id,
-                email: input.email,
-                passwordHash,
-                name: input.ownerName,
-                role: 'ADMIN',
-                isActive: true,
-            },
-        });
-
-        // Abonelik geçmişi
-        await (tx as any).subscriptionHistory.create({
-            data: {
-                tenantId: tenant.id,
-                plan,
-                action: 'created',
-                notes: `Yeni işletme oluşturuldu. Deneme süresi: ${trialDays} gün`,
-            },
-        });
-
-        return { tenant, user };
-    });
-
-    return { ...result, tempPassword };
+    return { tenant: tenantAlanlari, user: users[0], tempPassword };
 }
 
 /**

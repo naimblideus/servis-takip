@@ -83,13 +83,16 @@ export default function ListingDetail({ params }: { params: Promise<{ id: string
     setOrdering(false);
   };
 
+  // Yanıt okunur: demoda (403) ya da hatada kullanıcı sebebini görsün, "oldu" sanmasın.
   const setStatus = async (status: string) => {
-    await fetch(`/api/market/listings/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+    const r = await fetch(`/api/market/listings/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+    if (!r.ok) { alert((await r.json().catch(() => ({})))?.error || t.genel.hata); return; }
     loadListing();
   };
   const remove = async () => {
     if (!confirm(t.pazar.kaldirOnay)) return;
-    await fetch(`/api/market/listings/${id}`, { method: 'DELETE' });
+    const r = await fetch(`/api/market/listings/${id}`, { method: 'DELETE' });
+    if (!r.ok) { alert((await r.json().catch(() => ({})))?.error || t.genel.hata); return; }
     router.push('/market/ilanlarim');
   };
 
@@ -136,7 +139,8 @@ export default function ListingDetail({ params }: { params: Promise<{ id: string
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1rem', flexWrap: 'wrap', gap: 10 }}>
             <span className="mk-price" style={{ fontSize: '1.75rem' }}>{fmt(l.price)}</span>
             <span style={{ fontSize: '.82rem', color: 'var(--ink2)', textAlign: 'right' }}>
-              {doldur(t.pazar.adetKisa, { n: l.quantity })}{l.unit ? ` ${l.unit}` : ''} · <b style={{ color: 'var(--ink)' }}>{l.sellerName}</b>
+              {/* Birim varsa sayıyla birlikte o yazılır ("24 kutu"); yoksa "24 adet". "24 adet adet" olmasın. */}
+              {l.unit ? `${l.quantity} ${l.unit}` : doldur(t.pazar.adetKisa, { n: l.quantity })} · <b style={{ color: 'var(--ink)' }}>{l.sellerName}</b>
               {l.sellerRating ? ` · ⭐ ${l.sellerRating} (${l.sellerRatingCount})` : ''}{l.city ? ` · ${l.city}` : ''}
             </span>
           </div>

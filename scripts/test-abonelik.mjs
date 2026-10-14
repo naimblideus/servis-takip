@@ -63,7 +63,8 @@ t('numara yoksa bağlantı yok', whatsappLinki(null, 'x') === null);
   t('platform ödeme bilgisi biçimli', p.iban === 'TR33 0006 1005 1978 6457 8413 26' && p.hesapAdi === 'Nextus Teknoloji' && p.whatsapp === '905321234567', p);
   const bozuk = platformOdeme({ odemeIban: 'TR330006100519786457841327', odemeHesapAdi: 'X', satisWhatsapp: null });
   t('★ kayıtta bozulmuş IBAN bayiye GÖSTERİLMİYOR', bozuk.iban === null && bozuk.hesapAdi === null, bozuk);
-  t('ayar kaydı hiç yoksa boş', JSON.stringify(platformOdeme(null)) === JSON.stringify({ iban: null, hesapAdi: null, whatsapp: null }));
+  // WhatsApp hiç boş dönmez: abonelik/kilit ekranı iletişim yolu göstermeden kalmasın (ana sayfa numarası).
+  t('ayar kaydı hiç yoksa IBAN boş, WhatsApp varsayılan numara', JSON.stringify(platformOdeme(null)) === JSON.stringify({ iban: null, hesapAdi: null, whatsapp: '905526961703' }), platformOdeme(null));
 }
 
 // ── TUTAR ────────────────────────────────────────────────────────────────

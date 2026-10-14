@@ -6,6 +6,7 @@ import { openWhatsApp, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 import { FAULT_CATEGORIES, QUICK_FAULT_CODES } from '@/lib/fault-categories';
 import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import { fisDuzenGovdesi, type FisDuzenTamponu } from '@/lib/fis-duzenleme';
 
 // Fişin "kapandığı" durumlar — arıza kategorisi en geç burada sorulur.
 const CLOSING_STATUSES = ['READY', 'DELIVERED'];
@@ -88,19 +89,44 @@ export default function TicketStatusPanel({
         if (data?.cari?.synced) setCariMsg(doldur(t.fisPanel.cariIslendi, { n: bic.para(Number(data.cari.amount)) }));
         else setCariMsg(null);
     };
-    const [assignedUserId, setAssignedUserId] = useState(currentAssignedUserId);
-    const [paymentStatus, setPaymentStatus] = useState(currentPaymentStatus);
-    const [totalCost, setTotalCost] = useState(currentTotalCost.toFixed(2));
-    const [issueText, setIssueText] = useState(currentIssueText);
-    const [actionText, setActionText] = useState(currentActionText);
-    const [notes, setNotes] = useState(currentNotes);
     const toLocalInput = (iso: string) => {
         const d = new Date(iso);
         if (isNaN(d.getTime())) return '';
         const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
         return local.toISOString().slice(0, 16);
     };
-    const [createdAt, setCreatedAt] = useState(toLocalInput(currentCreatedAt));
+    // ── DÜZENLEME TAMPONU ────────────────────────────────────────────────
+    // Panelin alanları yalnız bir TAMPON: panel her açıldığında sunucudaki
+    // son hâlden (props) yeniden doldurulur. Eskiden ilk render'da bir kez
+    // kopyalanıyordu; fişe parça eklenince toplam 950 → 1.900 olsa da tampon
+    // 950'de kalıyor, Kaydet onu geri yazıyordu (ölçülmüş para kaybı).
+    const sunucudan = (): FisDuzenTamponu => ({
+        assignedUserId: currentAssignedUserId,
+        paymentStatus: currentPaymentStatus,
+        totalCost: currentTotalCost.toFixed(2),
+        issueText: currentIssueText,
+        actionText: currentActionText,
+        notes: currentNotes,
+        createdAt: toLocalInput(currentCreatedAt),
+    });
+    const [acilis, setAcilis] = useState<FisDuzenTamponu>(sunucudan);
+    const [assignedUserId, setAssignedUserId] = useState(acilis.assignedUserId);
+    const [paymentStatus, setPaymentStatus] = useState(acilis.paymentStatus);
+    const [totalCost, setTotalCost] = useState(acilis.totalCost);
+    // Tutar kutusuna kullanıcı yazdı mı — yazmadıysa Kaydet tutarı GÖNDERMEZ;
+    // tutar parçalardan arka planda değişiyor, eski kopyası asla geri yazılmaz.
+    const [toplamElle, setToplamElle] = useState(false);
+    const [issueText, setIssueText] = useState(acilis.issueText);
+    const [actionText, setActionText] = useState(acilis.actionText);
+    const [notes, setNotes] = useState(acilis.notes);
+    const [createdAt, setCreatedAt] = useState(acilis.createdAt);
+    // Panel AÇIKKEN parça eklenirse (masaüstünde parça paneli aynı ekranda)
+    // tutar kutusu da güncellensin — kullanıcı kutuya yazmadıysa.
+    const [sonToplam, setSonToplam] = useState(currentTotalCost);
+    if (sonToplam !== currentTotalCost) {
+        setSonToplam(currentTotalCost);
+        if (!toplamElle) setTotalCost(currentTotalCost.toFixed(2));
+    }
 
     // Arıza kategorisi: fiş kapanırken tek dokunuşla sorulur (modal yok, ayrı kaydet yok)
     const [sayacB, setSayacB] = useState(reading ? String(reading.counterBlack) : '');
@@ -171,24 +197,47 @@ export default function TicketStatusPanel({
         // panelde tutuyoruz, yoksa "kaydettim ama sayaç gitmemiş" olurdu.
         const sayacOk = await sayacKaydet();
         if (!sayacOk) { setLoading(false); return; }
-        const res = await fetch(`/api/tickets/${ticketId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                assignedUserId,
-                paymentStatus,
-                totalCost,
-                issueText,
-                actionText,
-                notes,
-                createdAt: createdAt ? new Date(createdAt).toISOString() : undefined,
-            }),
-        });
-        const data = await res.json().catch(() => null);
-        applyCari(data);
+        // Yalnız DEĞİŞEN alanlar gider; tutar yalnız kutuya yazıldıysa.
+        const govde = fisDuzenGovdesi(acilis, {
+            assignedUserId, paymentStatus, totalCost, issueText, actionText, notes, createdAt,
+        }, toplamElle);
+        if (Object.keys(govde).length > 0) {
+            const res = await fetch(`/api/tickets/${ticketId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(govde),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                alert(doldur(t.fisler.hata, { n: data?.error || t.genel.hata }));
+                setLoading(false);
+                return;
+            }
+            applyCari(data);
+        }
         router.refresh();
         setShowPanel(false);
         setLoading(false);
+    };
+
+    /** Düzenle: açarken tamponu sunucudaki SON hâlden doldur. */
+    const paneliAcKapa = () => {
+        if (!showPanel) {
+            const s = sunucudan();
+            setAcilis(s);
+            setAssignedUserId(s.assignedUserId);
+            setPaymentStatus(s.paymentStatus);
+            setTotalCost(s.totalCost);
+            setToplamElle(false);
+            setIssueText(s.issueText);
+            setActionText(s.actionText);
+            setNotes(s.notes);
+            setCreatedAt(s.createdAt);
+            setSayacB(reading ? String(reading.counterBlack) : '');
+            setSayacR(reading ? String(reading.counterColor) : '');
+            setSayacHata(null); setSayacNot(null);
+        }
+        setShowPanel(!showPanel);
     };
 
     const inp: React.CSSProperties = {
@@ -224,7 +273,7 @@ export default function TicketStatusPanel({
                 <div style={{ width: '100%', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>{t.fisPanel.bildirelimMi}</span>
                     <span style={{ display: 'flex', gap: '0.4rem' }}>
-                        <button onClick={() => { openWhatsApp(customerPhone, statusMessage(notifyStatus, { dil: musteri.dil, birim: musteri.b.birim, tenantName, customerName, deviceName, ticketNumber, actionText, totalCost: Number(totalCost) })); setNotifyStatus(null); }}
+                        <button onClick={() => { openWhatsApp(customerPhone, statusMessage(notifyStatus, { dil: musteri.dil, birim: musteri.b.birim, tenantName, customerName, deviceName, ticketNumber, actionText: currentActionText, totalCost: currentTotalCost })); setNotifyStatus(null); }}
                             style={{ padding: '0.4rem 0.8rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.4rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{t.fisPanel.whatsappBildir}</button>
                         <button onClick={() => setNotifyStatus(null)} style={{ padding: '0.4rem 0.6rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer' }}>{t.genel.kapat}</button>
                     </span>
@@ -302,7 +351,7 @@ export default function TicketStatusPanel({
 
             {/* Düzenle Butonu */}
             <button
-                onClick={() => setShowPanel(!showPanel)}
+                onClick={paneliAcKapa}
                 style={{
                     padding: '0.4rem 1rem', backgroundColor: 'white',
                     border: '1px solid #d1d5db', borderRadius: '0.5rem',
@@ -437,7 +486,7 @@ export default function TicketStatusPanel({
                             <input
                                 type="number" step="0.01" style={inp}
                                 value={totalCost}
-                                onChange={e => setTotalCost(e.target.value)}
+                                onChange={e => { setTotalCost(e.target.value); setToplamElle(true); }}
                             />
                         </div>
 

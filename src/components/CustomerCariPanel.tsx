@@ -18,7 +18,8 @@ interface Transaction {
 interface CariData {
     customer: { id: string; name: string; phone: string };
     transactions: Transaction[];
-    balance: { totalIncome: number; totalExpense: number; unpaidTotal: number; net: number };
+    // borc/alacak/kalan: basılı ekstreyle aynı kaynak (musteri-bakiye.ts → ekstre)
+    balance: { totalIncome: number; totalExpense: number; unpaidTotal: number; net: number; borc: number; alacak: number; kalan: number };
     unpaidTickets: { id: string; ticketNumber: string; totalCost: number; paymentStatus: string; createdAt: string }[];
 }
 
@@ -31,10 +32,15 @@ export default function CustomerCariPanel({ customerId }: { customerId: string }
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(`/api/accounting/customer/${customerId}`).then(r => r.json()).then(d => {
-            setData(d);
-            setLoading(false);
-        }).catch(() => setLoading(false));
+        // Uç yalnız yöneticiye açık: teknisyende 403 {error} dönüyor. Eskiden
+        // o gövde veri sanılıp `balance.…` okununca bütün müşteri sayfası
+        // çöküyordu. Yanıt ok değilse kutu hiç çizilmez.
+        fetch(`/api/accounting/customer/${customerId}`)
+            .then(r => (r.ok ? r.json() : null))
+            .then(d => {
+                setData(d && d.balance ? d : null);
+                setLoading(false);
+            }).catch(() => setLoading(false));
     }, [customerId]);
 
     if (loading) return <div style={{ padding: '1rem', color: '#9ca3af', fontSize: '0.875rem' }}>{sz.cariPanel.yukleniyor}</div>;
@@ -51,18 +57,23 @@ export default function CustomerCariPanel({ customerId }: { customerId: string }
                     sığmıyordu (ölçüldü: "Net Bakiye ₺21.150,93" 127 px'lik
                     kutuda, sayfa 53 px yana kayıyordu). Telefonda alt alta,
                     masaüstünde yine üç kart yan yana. */}
+                {/* Basılı ekstrenin (/accounting/<id>/print) özetiyle AYNI üç kutu,
+                    AYNI kaynak: toplam borç · toplam tahsilat · kalan. Eskiden
+                    ilk kutu tahsilatı "Toplam Borç" diye gösteriyordu. Kalan
+                    sıfırın altındaysa müşterinin avansı var: "Bakiye" etiketiyle
+                    mutlak değer — basılı ekstre de öyle yazıyor. */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(8.5rem,1fr))', gap: '0.75rem' }}>
+                    <div style={{ backgroundColor: '#f9fafb', borderRadius: '0.5rem', padding: '0.75rem', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#374151' }}>{sz.belge.ekstre.toplamBorc}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#111827' }}>{b.para(balance.borc)}</div>
+                    </div>
                     <div style={{ backgroundColor: '#ecfdf5', borderRadius: '0.5rem', padding: '0.75rem', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#065f46' }}>{sz.belge.ekstre.toplamBorc}</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#10b981' }}>{b.para(balance.totalIncome)}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#065f46' }}>{sz.belge.ekstre.toplamTahsilat}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#059669' }}>{b.para(balance.alacak)}</div>
                     </div>
-                    <div style={{ backgroundColor: '#fef2f2', borderRadius: '0.5rem', padding: '0.75rem', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#991b1b' }}>{sz.cariPanel.odenmemis}</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ef4444' }}>{b.para(balance.unpaidTotal)}</div>
-                    </div>
-                    <div style={{ backgroundColor: balance.net >= 0 ? '#f0fdf4' : '#fef2f2', borderRadius: '0.5rem', padding: '0.75rem', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#374151' }}>{sz.belge.ekstre.bakiye}</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: balance.net >= 0 ? '#10b981' : '#ef4444' }}>{b.para(balance.net)}</div>
+                    <div style={{ backgroundColor: balance.kalan > 0 ? '#fef2f2' : '#f0fdf4', borderRadius: '0.5rem', padding: '0.75rem', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.75rem', color: balance.kalan > 0 ? '#991b1b' : '#374151' }}>{balance.kalan > 0 ? sz.belge.ekstre.kalanBorc : sz.belge.ekstre.bakiye}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: balance.kalan > 0 ? '#dc2626' : '#059669' }}>{b.para(Math.abs(balance.kalan))}</div>
                     </div>
                 </div>
             </div>
@@ -126,7 +137,7 @@ export default function CustomerCariPanel({ customerId }: { customerId: string }
 
             {transactions.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '1.5rem', color: '#9ca3af', fontSize: '0.875rem' }}>
-                    Henüz işlem kaydı yok
+                    {sz.genel.kayitYok}
                 </div>
             )}
         </div>
