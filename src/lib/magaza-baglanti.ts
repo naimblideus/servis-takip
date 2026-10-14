@@ -17,6 +17,12 @@ export interface MagazaBilgi {
   slug: string;
   domain: string | null;
   aktif: boolean;
+  /**
+   * Mağazanın çalışan bir adresi var mı (kendi alan adı ya da platform taban
+   * adresi). Kendiliğinden kurulan mağaza alan adı bağlanana kadar adressiz:
+   * o sürede bağlantı basılırsa geliştirme adresine (localhost) gider.
+   */
+  adresli: boolean;
   /** Vitrin kök adresi — https://magaza.bayi.com veya https://<slug>.<taban> */
   url: string;
 }
@@ -68,7 +74,10 @@ export async function bayiMagazasi(servisTenantId: string): Promise<MagazaBilgi 
       LIMIT 1
     `;
     if (!r[0]) return null;
-    return { ...r[0], url: tabanUrl(r[0].slug, r[0].domain) };
+    const adresli = !!r[0].domain || !!process.env.SHOP_BASE_DOMAIN || process.env.NODE_ENV !== 'production';
+    // Adressiz mağaza müşteriye ulaşamaz: "yayında" sayılmaz, böylece portal
+    // ve QR sayfası ona kırık bağlantı basmaz (ikisi de `aktif`e bakıyor).
+    return { ...r[0], aktif: r[0].aktif && adresli, adresli, url: tabanUrl(r[0].slug, r[0].domain) };
   } catch {
     return null;
   }

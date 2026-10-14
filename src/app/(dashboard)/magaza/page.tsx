@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { oturumKullanicisi } from '@/lib/api-auth';
+import { oturumKullanicisi, yoneticiMi } from '@/lib/api-auth';
+import { magazaKurulumMetni } from '@/lib/magaza-kurulum-metin';
+import { MagazaIste } from './MagazaIste';
+import { PanelGiris } from './PanelGiris';
 import { bayiMagazasi, magazaKiraciId } from '@/lib/magaza-baglanti';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
@@ -24,7 +27,8 @@ export default async function MagazaSayfasi() {
   const user = await oturumKullanicisi(session);
   if (!user) return null;
 
-  const { sz } = await sunucuBicimi(user);
+  const { sz, dil } = await sunucuBicimi(user);
+  const km = magazaKurulumMetni(dil);
   const magaza = await bayiMagazasi(user.tenantId);
 
   // Mağaza kurulmamışsa tanıtım + kurulum yönergesi göster.
@@ -46,12 +50,9 @@ export default async function MagazaSayfasi() {
           </ul>
         </div>
 
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '1rem', marginTop: 12 }}>
-          <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.9rem' }}>{sz.magaza.kurulmadiBaslik}</div>
-          <p style={{ color: '#92400e', fontSize: '0.85rem', margin: '0.35rem 0 0', lineHeight: 1.6 }}>
-            {sz.magaza.kurulmadiAlt}
-          </p>
-        </div>
+        {/* "İletişime geçin" deyip bırakmak yerine tek dokunuş: mağaza
+            kendiliğinden kurulur, platform sahibine talep düşer. */}
+        <MagazaIste yonetici={yoneticiMi(user)} />
       </div>
     );
   }
@@ -99,9 +100,11 @@ export default async function MagazaSayfasi() {
         <div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{sz.magaza.baslik}</h1>
           <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-            {magaza.aktif ? sz.magaza.yayinda : sz.magaza.yayindaDegil} · {magaza.domain ?? magaza.url.replace(/^https?:\/\//, '')}
+            {magaza.aktif ? sz.magaza.yayinda : sz.magaza.yayindaDegil} ·{' '}
+            {magaza.adresli ? (magaza.domain ?? magaza.url.replace(/^https?:\/\//, '')) : km.adresBaglaniyor}
           </p>
         </div>
+        {magaza.adresli && (
         <a
           href={magaza.url}
           target="_blank"
@@ -113,9 +116,20 @@ export default async function MagazaSayfasi() {
         >
           {sz.magaza.magazayiAc}
         </a>
+        )}
       </div>
 
-      {!magaza.aktif && (
+      {/* Panel girişi: yalnız yönetici ve adresi olan mağaza (adressiz davet açılmaz). */}
+      {magaza.adresli && yoneticiMi(user) && <PanelGiris />}
+
+      {!magaza.adresli && (
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '0.9rem 1rem', marginTop: 14 }}>
+          <div style={{ fontWeight: 700, color: '#1e3a8a', fontSize: '0.88rem' }}>{km.adresBaglaniyor}</div>
+          <p style={{ color: '#1e3a8a', fontSize: '0.83rem', margin: '0.3rem 0 0' }}>{km.adresBaglaniyorAlt}</p>
+        </div>
+      )}
+
+      {!magaza.aktif && magaza.adresli && (
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '0.9rem 1rem', marginTop: 14 }}>
           <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.88rem' }}>{sz.magaza.yayindaDegilBaslik}</div>
           <p style={{ color: '#92400e', fontSize: '0.83rem', margin: '0.3rem 0 0' }}>

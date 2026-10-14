@@ -37,7 +37,7 @@ export interface TalepGirdisi {
 
 /** Platform sahibine giden e-posta: kimi, nereden, nasıl aramalı. */
 /** landing: iletişim formu · kayit: hesap açıldı · kayit-sinir: sınıra takıldı, hesabı biz açacağız. */
-export type TalepKaynagi = 'landing' | 'kayit' | 'kayit-sinir';
+export type TalepKaynagi = 'landing' | 'kayit' | 'kayit-sinir' | 'magaza';
 
 function bildirimMetni(veri: TalepGirdisi, kaynak: TalepKaynagi) {
   const firma = kirp(veri.firma) ?? kirp(veri.ad) ?? 'Adsız';
@@ -49,13 +49,17 @@ function bildirimMetni(veri: TalepGirdisi, kaynak: TalepKaynagi) {
     ? `Yeni deneme hesabı: ${firma}${il ? ` (${il})` : ''}`
     : kaynak === 'kayit-sinir'
       ? `HESABI SİZ AÇIN: ${firma}${il ? ` (${il})` : ''}`
-      : `Siteden talep: ${firma}`;
+      : kaynak === 'magaza'
+        ? `MAĞAZA İSTEDİ: ${firma}${il ? ` (${il})` : ''}`
+        : `Siteden talep: ${firma}`;
   const satirlar = [
     kaynak === 'kayit'
       ? `${kirp(veri.ad) ?? 'Bir servis'} siteden deneme hesabı açtı. Bugün arayın; kurulumda (müşteri/cihaz listesi, ağ tarayıcı) yardım edin.`
       : kaynak === 'kayit-sinir'
         ? `${kirp(veri.ad) ?? 'Bir servis'} deneme hesabı açmak istedi ama aynı ağdan çok kayıt geldiği için hesap otomatik açılmadı. Süper admin → Bayiler → Yeni bayi ile açın, giriş bilgisini WhatsApp'tan gönderin. Ekranda "hesabınızı biz açacağız" yazdı.`
-        : 'Ana sayfadaki formdan talep geldi.',
+        : kaynak === 'magaza'
+          ? `${kirp(veri.ad) ?? 'Bir bayi'} Servis panelindeki Mağaza ekranından "Mağazamı kurun"a bastı. Bugün arayın: adres, yasal bilgiler ve yayına alma.`
+          : 'Ana sayfadaki formdan talep geldi.',
     etkinlik ? `Etkinlik: ${etkinlik}` : null,
     '',
     `Firma: ${firma}`,
@@ -65,7 +69,7 @@ function bildirimMetni(veri: TalepGirdisi, kaynak: TalepKaynagi) {
     wa ? `WhatsApp: ${wa}` : null,
     kirp(veri.eposta, 120) ? `E-posta: ${kirp(veri.eposta, 120)}` : null,
     kirp(veri.cihazSayisi ?? veri.cihaz, 40) ? `Cihaz sayısı: ${kirp(veri.cihazSayisi ?? veri.cihaz, 40)}` : null,
-    kaynak === 'landing' && kirp(veri.mesaj, 2000) ? `\nMesaj:\n${kirp(veri.mesaj, 2000)}` : null,
+    (kaynak === 'landing' || kaynak === 'magaza') && kirp(veri.mesaj, 2000) ? `\n${kaynak === 'magaza' ? 'Kurulum' : 'Mesaj'}:\n${kirp(veri.mesaj, 2000)}` : null,
     '',
     `Talepler: ${siteAdresi()}/super-admin/talepler`,
   ];
