@@ -16,6 +16,7 @@ import { useT } from '@/lib/i18n/client';
 import DilSecici from '@/components/DilSecici';
 import Monogram from '@/components/Monogram';
 import { ILLER_ALFABETIK } from '@/lib/iller';
+import { doldur } from '@/lib/i18n/sozluk';
 
 const BOS = { firma: '', ad: '', telefon: '', eposta: '', sifre: '', il: '', onay: false, web_sitesi: '' };
 
@@ -24,7 +25,7 @@ export default function KayitSayfasi() {
   const k = t.kayit;
   const router = useRouter();
   const [f, setF] = useState(BOS);
-  const [durum, setDurum] = useState<{ acik: boolean; whatsapp: string; etkinlik?: string | null } | null>(null);
+  const [durum, setDurum] = useState<{ acik: boolean; whatsapp: string; etkinlik?: string | null; denemeGun?: number; kullanici?: number } | null>(null);
   const [hata, setHata] = useState('');
   const [mesgul, setMesgul] = useState(false);
   const [kod, setKod] = useState('');
@@ -88,7 +89,12 @@ export default function KayitSayfasi() {
               {durum.etkinlik}
             </div>
           )}
-          <h1 className="text-[30px] font-bold leading-tight tracking-tight">{k.baslik}</h1>
+          <h1 className="text-[30px] font-bold leading-tight tracking-tight">
+            {durum?.denemeGun ? doldur(k.baslikGun, { gun: durum.denemeGun }) : k.baslik}
+          </h1>
+          {durum?.denemeGun && durum?.kullanici ? (
+            <p className="mt-2 text-[15px] font-semibold text-teal-200">{doldur(k.etkinlikAvantaj, { gun: durum.denemeGun, kullanici: durum.kullanici })}</p>
+          ) : null}
           <p className="mt-2 text-[15px] leading-relaxed text-white/45">{k.alt}</p>
 
           {talepAlindi ? (

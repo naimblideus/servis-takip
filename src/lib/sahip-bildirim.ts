@@ -75,8 +75,20 @@ const tekSatir = (s: string) => s.replace(/[\r\n]+/g, ' ').trim();
  */
 export async function sahibeEposta(konu: string, satirlar: (string | null | undefined)[]): Promise<'gonderildi' | 'kapali' | 'hata'> {
   if (!bildirimAyarli()) return 'kapali';
+  // Saatte en çok SAHIP_SAATLIK_AZAMI: Gmail'in günlük gönderim sınırı (~500)
+  // dolarsa bayilerin şifre sıfırlama e-postaları da gitmez. Fazlası
+  // Talepler ekranında ve sabah özetinde zaten var.
+  const simdi = Date.now();
+  while (sahipGonderimleri.length && simdi - sahipGonderimleri[0] > 3_600_000) sahipGonderimleri.shift();
+  if (sahipGonderimleri.length >= SAHIP_SAATLIK_AZAMI) return 'kapali';
+  sahipGonderimleri.push(simdi);
   return epostaGonder(process.env.BILDIRIM_EPOSTA ?? '', konu, satirlar);
 }
+
+const SAHIP_SAATLIK_AZAMI = 30;
+const sahipGonderimleri: number[] = [];
+/** Testler için. */
+export function sahipSiniriniSifirla(): void { sahipGonderimleri.length = 0; }
 
 /**
  * Herhangi bir alıcıya düz metin e-posta (platform sahibinin Gmail'inden).

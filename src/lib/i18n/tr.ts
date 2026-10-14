@@ -202,6 +202,9 @@ export const tr = {
   },
   kayit: {
     baslik: '14 gün ücretsiz deneyin',
+    // Etkinlik kodlu kayıt (?k=pantum): deneme süresi ve avantaj etkinlikten gelir.
+    baslikGun: '{gun} gün ücretsiz deneyin',
+    etkinlikAvantaj: '{gun} gün ücretsiz · {kullanici} kullanıcı · kurulumu biz yapıyoruz',
     alt: 'Hesabınız hemen açılır. Kredi kartı istenmez, taahhüt yok.',
     firma: 'Firma adı',
     firmaYer: 'Örnek Fotokopi',
@@ -262,6 +265,22 @@ export const tr = {
     whatsapp: 'WhatsApp’tan yaz',
     bizden: 'Bizden aldı',
     musteriMesaji: 'Merhaba {ad}, {cihaz} makinenizin toner ihtiyacını bundan sonra biz karşılayalım: toner bitmeden haber verip getiriyoruz. Fiyat için bu mesaja cevap yazabilirsiniz. {bayi}',
+  },
+
+  // Yeni hesabın panelinde, müşteri yokken (components/KurulumKarti.tsx)
+  kurulumKarti: {
+    baslik: 'Kurulumu birlikte yapalım',
+    alt: 'Kaçan sayaç, kaçan toner ve makinenin kendi bildirdiği arıza, müşterileriniz ve makineleriniz içeri girince görünür. Hangisi kolayınıza gelirse:',
+    gonderBaslik: 'Listenizi gönderin, biz yükleyelim',
+    gonderAlt: 'Excel dosyası ya da defterin fotoğrafı yeter. WhatsApp’tan gönderin; ekibimiz yükleyip sizi arar.',
+    gonderDugme: 'Listeyi WhatsApp’tan gönder',
+    excelBaslik: 'Excel’den kendiniz aktarın',
+    excelAlt: 'Müşteri ve makine listenizi dosyadan tek seferde alın; aynı dosyayı tekrar yüklemek kayıtları çoğaltmaz.',
+    excelDugme: 'Veri aktarmaya git',
+    ekipBaslik: 'Ekibinizi ekleyin',
+    ekipAlt: 'Teknisyenleriniz telefondan servis fişi açsın, sayaç girsin.',
+    ekipDugme: 'Kullanıcı ekle',
+    waMesaj: 'Merhaba, {firma} olarak Nextus Servis hesabımı açtım. Müşteri ve makine listemi gönderiyorum, sisteme yükler misiniz?',
   },
 
   // Herkese açık demoda panelin üstü (components/DemoTuru.tsx)

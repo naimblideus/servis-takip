@@ -79,11 +79,33 @@ export function kayitDogrula(ham: unknown): { ok: true; veri: KayitVerisi } | { 
 }
 
 // ── ETKİNLİK ───────────────────────────────────────────────────────────
-export interface Etkinlik { kod: string; ad: string }
+export interface Etkinlik {
+  kod: string;
+  ad: string;
+  /** Salon günleri: yüzlerce kişi aynı Wi-Fi'dan kaydolur, sınırlar en geniş. */
+  salon: boolean;
+  /** Etkinlikten gelen bayinin deneme süresi ve kullanıcı sayısı. */
+  denemeGun: number;
+  kullanici: number;
+}
 
-/** Basılı QR'larda geçen kodlar. Bitiş sonrası kod yok sayılır (sıradan kayıt). */
-const ETKINLIKLER: Readonly<Record<string, { ad: string; bas: string; bit: string }>> = {
-  pantum: { ad: 'Pantum Premium Partners Meeting 2026', bas: '2026-10-01', bit: '2026-12-31' },
+/**
+ * Basılı QR'larda geçen kodlar. `bas`–`bit`: kod geçerli (etiket + geniş
+ * sınır); `salonBas`–`salonBit`: toplantı günleri (en geniş sınır). Bitiş
+ * sonrası kod yok sayılır (sıradan kayıt).
+ *
+ * DENEME 30 GÜN, 5 KULLANICI (Pantum): bayinin en çok etkilendiği değer
+ * (başka yerden alınan toner) tarayıcı bir toner değişimini yakalayınca
+ * görünür; bu birkaç hafta sürer, 14 günlük deneme ondan önce bitiyordu.
+ * 5 kullanıcı: bayi teknisyenlerini de ekleyip sistemi ekibiyle denesin.
+ */
+const ETKINLIKLER: Readonly<Record<string, { ad: string; bas: string; bit: string; salonBas: string; salonBit: string; denemeGun: number; kullanici: number }>> = {
+  pantum: {
+    ad: 'Pantum Premium Partners Meeting 2026',
+    bas: '2026-10-01', bit: '2026-12-31',
+    salonBas: '2026-10-16', salonBit: '2026-10-19',
+    denemeGun: 30, kullanici: 5,
+  },
 };
 
 export function etkinlikBul(kod: unknown, simdi = Date.now()): Etkinlik | null {
@@ -92,9 +114,13 @@ export function etkinlikBul(kod: unknown, simdi = Date.now()): Etkinlik | null {
   const e = Object.prototype.hasOwnProperty.call(ETKINLIKLER, k) ? ETKINLIKLER[k] : null;
   if (!e) return null;
   // Gün sonuna kadar geçerli (İstanbul, UTC+3).
-  const bas = Date.parse(`${e.bas}T00:00:00+03:00`);
-  const bit = Date.parse(`${e.bit}T23:59:59+03:00`);
-  return simdi >= bas && simdi <= bit ? { kod: k, ad: e.ad } : null;
+  const gunBas = (g: string) => Date.parse(`${g}T00:00:00+03:00`);
+  const gunSon = (g: string) => Date.parse(`${g}T23:59:59+03:00`);
+  if (simdi < gunBas(e.bas) || simdi > gunSon(e.bit)) return null;
+  return {
+    kod: k, ad: e.ad, denemeGun: e.denemeGun, kullanici: e.kullanici,
+    salon: simdi >= gunBas(e.salonBas) && simdi <= gunSon(e.salonBit),
+  };
 }
 
 // ── HIZ SINIRI (bellekte; tek sunucu) ──────────────────────────────────
@@ -102,10 +128,22 @@ const DENEME_PENCERE = 10 * 60_000;
 const DENEME_AZAMI = 5;
 const GUNLUK_HESAP_AZAMI = 3;
 const SAATLIK_GENEL_AZAMI = 20;
-/** Etkinlik kodlu kayıtta: salon kalabalığı tek IP'den gelir. */
+/** Etkinlik kodlu kayıtta (toplantı dışı günler): ofisten okutulan QR. */
 const ETKINLIK_DENEME_AZAMI = 30;
 const ETKINLIK_GUNLUK_HESAP_AZAMI = 40;
 const ETKINLIK_SAATLIK_GENEL_AZAMI = 150;
+/**
+ * Salon günleri: yüzlerce bayi aynı otel Wi-Fi'ından (tek IP), sahneden bir
+ * duyurudan sonra aynı on dakikada kaydolabilir. Hedef 400+ hesap; sınır
+ * bunların hiçbirini talebe düşürmeyecek kadar geniş, bot dalgasına karşı
+ * yine bir tavan.
+ */
+const SALON_DENEME_AZAMI = 300;
+const SALON_GUNLUK_HESAP_AZAMI = 600;
+const SALON_SAATLIK_GENEL_AZAMI = 400;
+const denemeAzami = (etk: Etkinlik | null) => (etk?.salon ? SALON_DENEME_AZAMI : etk ? ETKINLIK_DENEME_AZAMI : DENEME_AZAMI);
+const gunlukAzami = (etk: Etkinlik | null) => (etk?.salon ? SALON_GUNLUK_HESAP_AZAMI : etk ? ETKINLIK_GUNLUK_HESAP_AZAMI : GUNLUK_HESAP_AZAMI);
+const saatlikAzami = (etk: Etkinlik | null) => (etk?.salon ? SALON_SAATLIK_GENEL_AZAMI : etk ? ETKINLIK_SAATLIK_GENEL_AZAMI : SAATLIK_GENEL_AZAMI);
 const denemeler = new Map<string, number[]>();
 const hesaplar = new Map<string, number[]>();
 
@@ -123,10 +161,10 @@ function sayac(m: Map<string, number[]>, ip: string, pencere: number, simdi: num
 export function denemeDurumu(ip: string, simdi = Date.now(), etk: Etkinlik | null = null): 'TAMAM' | 'DENEME' | 'GUNLUK' {
   if (denemeler.size > 5000) denemeler.clear();
   const l = sayac(denemeler, ip, DENEME_PENCERE, simdi);
-  if (l.length >= (etk ? ETKINLIK_DENEME_AZAMI : DENEME_AZAMI)) return 'DENEME';
+  if (l.length >= denemeAzami(etk)) return 'DENEME';
   // GUNLUK da sayılır: sınırdaki talep yolu da deneme sınırına tabi (talep yağmuru olmasın).
   l.push(simdi);
-  if (sayac(hesaplar, ip, 86_400_000, simdi).length >= (etk ? ETKINLIK_GUNLUK_HESAP_AZAMI : GUNLUK_HESAP_AZAMI)) return 'GUNLUK';
+  if (sayac(hesaplar, ip, 86_400_000, simdi).length >= gunlukAzami(etk)) return 'GUNLUK';
   return 'TAMAM';
 }
 
@@ -159,7 +197,7 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
 
   const saatOnce = new Date(Date.now() - 3_600_000);
   const sonSaat = await prisma.tenant.count({ where: { createdAt: { gte: saatOnce }, adminNotes: { startsWith: KAYIT_NOTU } } });
-  if (sonSaat >= (etk ? ETKINLIK_SAATLIK_GENEL_AZAMI : SAATLIK_GENEL_AZAMI)) return { durum: 'YOGUN' };
+  if (sonSaat >= saatlikAzami(etk)) return { durum: 'YOGUN' };
 
   if (suren.has(veri.eposta)) return { durum: 'EPOSTA_VAR' };
   suren.add(veri.eposta);
@@ -184,7 +222,8 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
       email: veri.eposta,
       city: veri.il ?? undefined,
       plan: 'trial',
-      trialDays: ayar?.defaultTrialDays ?? 14,
+      trialDays: etk?.denemeGun ?? ayar?.defaultTrialDays ?? 14,
+      ...(etk ? { maxUsers: etk.kullanici } : {}),
       password: veri.sifre,
       adminNotes: `${KAYIT_NOTU}${veri.il ? ` · ${veri.il}` : ''}${etk ? ` · ${etk.ad}` : ''}`,
     });
@@ -197,16 +236,33 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
       ipAddress: ip,
     });
     // Satış ekibi arasın: Talepler ekranı + sahibine anında e-posta + CRM.
-    // Hesap açılmışken bu adımın hatası ziyaretçiye yansımaz.
+    // Hesap açılmışken bu adımın hatası ziyaretçiye yansımaz. Etkinlik
+    // kaydında anında e-posta YOK: salonda yüzlerce kayıt Gmail'in günlük
+    // gönderim sınırını doldurur, şifre sıfırlama e-postaları durur. Bunlar
+    // Talepler ekranında ve sabah özetinde.
     await talepKaydet({
       firma: veri.firma, ad: veri.ad, telefon: veri.telefon, eposta: veri.eposta, il: veri.il,
-      mesaj: `Siteden 14 günlük deneme hesabı açtı${veri.il ? ` (${veri.il})` : ''}${etk ? ` — ${etk.ad}` : ''}. Kurulum için arayın.`,
+      mesaj: `Siteden ${etk?.denemeGun ?? ayar?.defaultTrialDays ?? 14} günlük deneme hesabı açtı${veri.il ? ` (${veri.il})` : ''}${etk ? ` — ${etk.ad}` : ''}. Kurulum için arayın.`,
       ...(etk ? { utm_source: etk.kod, utm_campaign: etk.ad } : {}),
-    }, 'kayit').catch((e) => console.error('[kayit] talep yazılamadı:', (e as Error).message));
+    }, 'kayit', { sessiz: Boolean(etk) }).catch((e) => console.error('[kayit] talep yazılamadı:', (e as Error).message));
     return { durum: 'TAMAM', tenantId: tenant.id };
   } finally {
     suren.delete(veri.eposta);
   }
+}
+
+/**
+ * Etkinlikten açılan hesap sayısı — /pantum'daki "bu toplantıda N bayi"
+ * yazısı ve ekibin sayacı. Yalnız gerçek sayı; 30 saniye bellekte tutulur
+ * (salonda yüz telefon aynı anda sayfayı açınca veritabanı yorulmasın).
+ */
+const sayacOnbellek = new Map<string, { at: number; n: number }>();
+export async function etkinlikHesapSayisi(etk: Etkinlik, simdi = Date.now()): Promise<number> {
+  const o = sayacOnbellek.get(etk.kod);
+  if (o && simdi - o.at < 30_000) return o.n;
+  const n = await prisma.tenant.count({ where: { adminNotes: { startsWith: KAYIT_NOTU, contains: `· ${etk.ad}` }, demo: false, deletedAt: null } });
+  sayacOnbellek.set(etk.kod, { at: simdi, n });
+  return n;
 }
 
 /**

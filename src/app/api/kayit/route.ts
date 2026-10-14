@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ucHatasi } from '@/lib/uc-hata';
 import { istemciIp } from '@/lib/istemci-ip';
-import { kayitDogrula, denemeDurumu, kayitAc, etkinlikBul, sinirdaTalep, type Etkinlik, type KayitVerisi } from '@/lib/kayit';
+import { kayitDogrula, denemeDurumu, kayitAc, etkinlikBul, sinirdaTalep, etkinlikHesapSayisi, type Etkinlik, type KayitVerisi } from '@/lib/kayit';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +18,8 @@ export async function GET(req: Request) {
     acik: ayar ? ayar.kayitAcik : true,
     whatsapp: (ayar?.satisWhatsapp ?? '').replace(/\D/g, '') || VARSAYILAN_WHATSAPP,
     etkinlik: etk?.ad ?? null,
+    // Etkinliğe özel deneme: sayfadaki "30 gün ücretsiz · 5 kullanıcı" satırı.
+    ...(etk ? { denemeGun: etk.denemeGun, kullanici: etk.kullanici, hesap: await etkinlikHesapSayisi(etk) } : {}),
   });
 }
 

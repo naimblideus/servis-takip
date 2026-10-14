@@ -193,6 +193,8 @@ export const en: Sozluk = {
   },
   kayit: {
     baslik: 'Try it free for 14 days',
+    baslikGun: 'Try it free for {gun} days',
+    etkinlikAvantaj: '{gun} days free · {kullanici} users · we do the setup',
     alt: 'Your account opens right away. No credit card, no commitment.',
     firma: 'Company name',
     firmaYer: 'Example Copy Service',
@@ -249,6 +251,21 @@ export const en: Sozluk = {
     whatsapp: 'Message on WhatsApp',
     bizden: 'Bought from us',
     musteriMesaji: 'Hello {ad}, let us take care of the toner for your {cihaz} from now on: we tell you before it runs out and bring it over. Reply to this message for a price. {bayi}',
+  },
+
+  kurulumKarti: {
+    baslik: 'Let us set it up together',
+    alt: 'Unbilled readings, toner bought elsewhere and faults the machines report show up once your customers and machines are in. Pick whatever is easiest:',
+    gonderBaslik: 'Send us your list, we load it',
+    gonderAlt: 'An Excel file or a photo of your notebook is enough. Send it on WhatsApp; our team loads it and calls you.',
+    gonderDugme: 'Send the list on WhatsApp',
+    excelBaslik: 'Import from Excel yourself',
+    excelAlt: 'Bring in your customer and machine list from a file in one go; uploading the same file again does not duplicate records.',
+    excelDugme: 'Go to data import',
+    ekipBaslik: 'Add your team',
+    ekipAlt: 'Let your technicians open service tickets and enter meter readings from their phones.',
+    ekipDugme: 'Add a user',
+    waMesaj: 'Hello, I opened a Nextus Servis account for {firma}. I am sending my customer and machine list; could you load it for me?',
   },
 
   demoTuru: {

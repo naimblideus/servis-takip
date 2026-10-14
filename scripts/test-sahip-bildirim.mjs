@@ -105,6 +105,15 @@ const r4 = await bil.sahibeEposta('iptal edilmiş jeton', ['x']);
 t('jeton reddedilince bir kez yenileyip gönderiyor', r4 === 'gonderildi' && jetonIstegi === 2, { r4, jetonIstegi });
 sonrakiGmail = [500];
 t('★ Gmail hata verirse fırlatmıyor ("hata" döner)', (await bil.sahibeEposta('x', ['y'])) === 'hata');
+{
+  // Saatlik tavan: Gmail'in günlük sınırı (~500) dolmasın, şifre sıfırlamaya yer kalsın.
+  bil.sahipSiniriniSifirla();
+  let son = '';
+  const once = alinan.length;
+  for (let i = 0; i < 31; i++) son = await bil.sahibeEposta(`tavan ${i}`, ['x']);
+  t('★ sahibe e-posta saatte en çok 30 (31.\'si gitmez, akış durmaz)', son === 'kapali' && alinan.length - once === 30, { son, giden: alinan.length - once });
+  bil.sahipSiniriniSifirla();
+}
 t('WhatsApp bağlantısı: cep evet, sabit hat hayır', bil.whatsappBaglantisi('0532 111 22 33') === 'https://wa.me/905321112233' && bil.whatsappBaglantisi('0212 555 55 55') === null);
 
 // ── KAYNAK ───────────────────────────────────────────────────────────────

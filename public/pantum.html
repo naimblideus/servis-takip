@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pantum bayileri için Nextus Servis</title>
-<meta name="description" content="Yazıcı ve fotokopi bayileri için servis takip programı: sayaç toplama, kira faturası, toner tahmini, servis fişi. Pantum dahil bütün markalarla çalışır. 14 gün ücretsiz.">
+<meta name="description" content="Yazıcı ve fotokopi bayileri için servis takip programı: sayaç toplama, kira faturası, toner tahmini, servis fişi. Pantum dahil bütün markalarla çalışır. Toplantıya özel 30 gün ücretsiz.">
 <meta name="robots" content="noindex">
 <link rel="icon" href="/favicon.ico">
 <style>
@@ -21,6 +21,8 @@
   h1 { margin: 14px 0 12px; font-size: clamp(28px, 7vw, 42px); line-height: 1.15; letter-spacing: -.02em; color: #fff; }
   .giris { margin: 0; color: var(--soluk); font-size: 17px; }
   .eylemler { display: grid; gap: 10px; margin-top: 24px; }
+  .sayac { margin: 18px 0 0; padding: 10px 14px; border-radius: 12px; background: rgba(20,184,166,.1); border: 1px solid rgba(20,184,166,.3); color: #ccfbf1; font-size: 15px; }
+  .sayac[hidden] { display: none; }
   .eylem { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-radius: 14px; text-decoration: none; font-weight: 800; font-size: 17px; }
   .eylem small { display: block; font-weight: 500; font-size: 13.5px; opacity: .8; margin-top: 2px; }
   .eylem.ana { background: var(--vurgu); color: var(--vurgu-koyu); }
@@ -72,6 +74,11 @@
     <span data-dil="en">Nextus Servis is service software built for printer and copier dealers. It collects meter readings, works out the rental invoice and warns you before toner runs out. It works with every brand, Pantum included.</span>
   </p>
 
+  <p class="sayac" id="sayac" hidden>
+    <span data-dil="tr">Bu toplantıda şu ana kadar <b data-hesap></b> bayi hesabını açtı.</span>
+    <span data-dil="en"><b data-hesap></b> dealers at this meeting have opened their account so far.</span>
+  </p>
+
   <div class="eylemler">
     <a class="eylem ana" href="/demo">
       <span><span data-dil="tr">Demoyu şimdi açın</span><span data-dil="en">Open the demo now</span>
@@ -79,8 +86,8 @@
       <span class="ok" aria-hidden="true">→</span>
     </a>
     <a class="eylem ikinci" href="/kayit?k=pantum">
-      <span><span data-dil="tr">14 gün ücretsiz deneyin</span><span data-dil="en">Try it free for 14 days</span>
-        <small><span data-dil="tr">Kendi hesabınız, bütün özellikler açık, kart istenmez</span><span data-dil="en">Your own account, every feature on, no card</span></small></span>
+      <span><span data-dil="tr"><span data-gun>30</span> gün ücretsiz deneyin</span><span data-dil="en">Try it free for <span data-gun>30</span> days</span>
+        <small><span data-dil="tr"><span data-kullanici>5</span> kullanıcı, kurulumu biz yapıyoruz, kart istenmez</span><span data-dil="en"><span data-kullanici>5</span> users, we do the setup, no card</span></small></span>
       <span class="ok" aria-hidden="true">→</span>
     </a>
     <a class="eylem wa" id="wa" href="https://wa.me/905526961703">
@@ -129,8 +136,8 @@
     </div>
   </div>
   <p class="fiyat">
-    <span data-dil="tr"><b>Paketler aylık ₺1.749'dan başlar</b> (KDV hariç). 14 gün boyunca bütün özellikler açık, kredi kartı istenmez. <a href="/#fiyatlandirma" style="color:#fff">Fiyatların tamamı</a></span>
-    <span data-dil="en"><b>Plans start at ₺1,749 a month</b> (excl. VAT). Every feature is on for 14 days, no credit card. <a href="/en#fiyatlandirma" style="color:#fff">All prices</a></span>
+    <span data-dil="tr"><b>Paketler aylık ₺1.749'dan başlar</b> (KDV hariç). Toplantıya özel <span data-gun>30</span> gün bütün özellikler açık, kredi kartı istenmez. <a href="/#fiyatlandirma" style="color:#fff">Fiyatların tamamı</a></span>
+    <span data-dil="en"><b>Plans start at ₺1,749 a month</b> (excl. VAT). For this meeting every feature is on for <span data-gun>30</span> days, no credit card. <a href="/en#fiyatlandirma" style="color:#fff">All prices</a></span>
   </p>
 
   <h2><span data-dil="tr">Sizi arayalım</span><span data-dil="en">We'll call you</span></h2>
@@ -179,6 +186,22 @@
     // (Pantum merkezinden gelenler) ve ?lang=en İngilizce açar.
     var istek = new URLSearchParams(location.search).get('lang');
     uygula(istek === 'en' || (!istek && /^zh/i.test(navigator.language || '')) ? 'en' : 'tr');
+
+    // Deneme süresi, kullanıcı sayısı ve sayaç sunucudaki etkinlik ayarından
+    // (lib/kayit ETKINLIKLER): sayfadaki sabit "30" yalnız betik gelmezse görünür.
+    // Sayaç yalnız gerçek sayıdır ve en az 10 olunca gösterilir.
+    function sayacYenile() {
+      fetch('/api/kayit?k=pantum').then(function (r) { return r.json(); }).then(function (d) {
+        if (d.denemeGun) document.querySelectorAll('[data-gun]').forEach(function (e) { e.textContent = d.denemeGun; });
+        if (d.kullanici) document.querySelectorAll('[data-kullanici]').forEach(function (e) { e.textContent = d.kullanici; });
+        if (typeof d.hesap === 'number' && d.hesap >= 10) {
+          document.querySelectorAll('[data-hesap]').forEach(function (e) { e.textContent = d.hesap; });
+          document.getElementById('sayac').hidden = false;
+        }
+      }).catch(function () {});
+    }
+    sayacYenile();
+    setInterval(sayacYenile, 60000);
 
     var form = document.getElementById('form');
     var durum = document.getElementById('durum');

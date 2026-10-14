@@ -9,6 +9,7 @@ import { openWhatsApp, reminderMessage, telUrl } from '@/lib/share';
 import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import DemoTuru from '@/components/DemoTuru';
+import KurulumKarti from '@/components/KurulumKarti';
 
 interface StuckTicket {
   id: string;
@@ -164,6 +165,8 @@ export default function DashboardPage() {
 
       {/* Herkese açık demo: değeri gösteren dört ekrana kısa yol (DemoTuru.tsx). */}
       {(session?.user as any)?.demo && <DemoTuru ariza={ariza} toner={stats?.tonerBitiyor || 0} />}
+      {/* Yeni hesap, henüz müşteri yok: kurulumu birlikte yapalım (KurulumKarti.tsx). */}
+      <KurulumKarti />
 
       {/* Stat Cards
           TELEFONDA TEK SÜTUN: iki sütunda kart içi metne yalnız 56 px kalıyordu

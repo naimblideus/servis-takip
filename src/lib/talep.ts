@@ -52,7 +52,7 @@ function bildirimMetni(veri: TalepGirdisi, kaynak: TalepKaynagi) {
       : `Siteden talep: ${firma}`;
   const satirlar = [
     kaynak === 'kayit'
-      ? `${kirp(veri.ad) ?? 'Bir servis'} siteden 14 günlük deneme hesabı açtı. Bugün arayın; kurulumda (müşteri/cihaz listesi, ağ tarayıcı) yardım edin.`
+      ? `${kirp(veri.ad) ?? 'Bir servis'} siteden deneme hesabı açtı. Bugün arayın; kurulumda (müşteri/cihaz listesi, ağ tarayıcı) yardım edin.`
       : kaynak === 'kayit-sinir'
         ? `${kirp(veri.ad) ?? 'Bir servis'} deneme hesabı açmak istedi ama aynı ağdan çok kayıt geldiği için hesap otomatik açılmadı. Süper admin → Bayiler → Yeni bayi ile açın, giriş bilgisini WhatsApp'tan gönderin. Ekranda "hesabınızı biz açacağız" yazdı.`
         : 'Ana sayfadaki formdan talep geldi.',
@@ -105,7 +105,7 @@ async function crmeAktar(veri: TalepGirdisi, kaynak: TalepKaynagi, leadId: strin
  * ve CRM hataları yutulur, talep kayıtlı kalır. `kaynak` talebin hangi
  * kapıdan geldiğini söyler.
  */
-export async function talepKaydet(veri: TalepGirdisi, kaynak: TalepKaynagi): Promise<{ id: string }> {
+export async function talepKaydet(veri: TalepGirdisi, kaynak: TalepKaynagi, secenek: { sessiz?: boolean } = {}): Promise<{ id: string }> {
   const lead = await prisma.lead.create({
     data: {
       firma: kirp(veri.firma),
@@ -121,6 +121,7 @@ export async function talepKaydet(veri: TalepGirdisi, kaynak: TalepKaynagi): Pro
   });
 
   const { konu, satirlar } = bildirimMetni(veri, kaynak);
-  await Promise.allSettled([sahibeEposta(konu, satirlar), crmeAktar(veri, kaynak, lead.id)]);
+  // sessiz: talep yine kayıtlı ve CRM'e gider; yalnız anında e-posta atılmaz (etkinlik kaydı).
+  await Promise.allSettled([secenek.sessiz ? Promise.resolve('kapali') : sahibeEposta(konu, satirlar), crmeAktar(veri, kaynak, lead.id)]);
   return lead;
 }

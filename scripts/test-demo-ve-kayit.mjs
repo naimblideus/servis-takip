@@ -96,8 +96,15 @@ console.log('\nEtkinlik kodu (salonda herkes aynı Wi-Fi)\n');
     && etkinlikBul('bilinmeyen', ekim17) === null && etkinlikBul('__proto__', ekim17) === null && etkinlikBul('constructor', ekim17) === null && etkinlikBul(null, ekim17) === null);
   hizSiniriniSifirla();
   const etk = etkinlikBul('pantum', ekim17);
-  const kodlu = Array.from({ length: 31 }, () => denemeDurumu('7.7.7.7', ekim17, etk));
-  t('★ etkinlik kodlu: aynı IP\'den 10 dakikada 30 deneme, 31.\'si bot sayılır', kodlu.slice(0, 30).every((x) => x === 'TAMAM') && kodlu[30] === 'DENEME', kodlu.slice(28));
+  t('★ toplantı günü salon modu: 30 gün deneme, 5 kullanıcı', etk?.salon === true && etk?.denemeGun === 30 && etk?.kullanici === 5, etk);
+  const ekim25 = Date.parse('2026-10-25T10:00:00+03:00');
+  t('toplantıdan sonra kod geçerli ama salon değil (ofisten okutulan QR)', etkinlikBul('pantum', ekim25)?.salon === false && etkinlikBul('pantum', Date.parse('2026-10-15T23:00:00+03:00'))?.salon === false);
+  const salon = Array.from({ length: 301 }, () => denemeDurumu('7.7.7.7', ekim17, etk));
+  t('★ salon: aynı Wi-Fi\'dan 10 dakikada 300 deneme, 301.\'si bot sayılır', salon.slice(0, 300).every((x) => x === 'TAMAM') && salon[300] === 'DENEME', salon.slice(298));
+  hizSiniriniSifirla();
+  const ofis = etkinlikBul('pantum', ekim25);
+  const kodlu = Array.from({ length: 31 }, () => denemeDurumu('7.7.7.8', ekim25, ofis));
+  t('etkinlik kodlu (salon dışı): 10 dakikada 30 deneme, 31.\'si bot sayılır', kodlu.slice(0, 30).every((x) => x === 'TAMAM') && kodlu[30] === 'DENEME', kodlu.slice(28));
   const kodsuz = Array.from({ length: 6 }, () => denemeDurumu('8.8.8.8', ekim17, null));
   t('kodsuz sınır değişmedi (5 deneme)', kodsuz.slice(0, 5).every((x) => x === 'TAMAM') && kodsuz[5] === 'DENEME', kodsuz);
   hizSiniriniSifirla();
@@ -159,6 +166,9 @@ const etkinlikSayfasi = oku('public/pantum.html');
 t('★ etkinlik sayfası: kısa adres, kodlu kayıt, etiketli talep', /source: '\/pantum', destination: '\/pantum\.html'/.test(oku('next.config.ts'))
   && etkinlikSayfasi.includes('href="/kayit?k=pantum"') && etkinlikSayfasi.includes('href="/demo"') && /utm_source: 'pantum'/.test(etkinlikSayfasi)
   && kayit.etkinlikBul('pantum', Date.parse('2026-10-17T10:00:00+03:00')) !== null);
+t('★ etkinlik sayfası: gün/kullanıcı sunucudan, sayaç yalnız gerçek sayı ve en az 10', /data-gun/.test(etkinlikSayfasi) && /d\.hesap >= 10/.test(etkinlikSayfasi) && !/14 gün/.test(etkinlikSayfasi));
+t('★ yeni hesabın panelinde "kurulumu birlikte yapalım" (müşteri yokken, demoda değil)', /<KurulumKarti \/>/.test(oku('src/app/(dashboard)/dashboard/page.tsx'))
+  && /hasCustomers/.test(oku('src/components/KurulumKarti.tsx')) && /if \(!goster \|\| demo\) return null/.test(oku('src/components/KurulumKarti.tsx')));
 
 const tohum = oku('scripts/seed-bayi-demo.mjs');
 {
@@ -303,6 +313,10 @@ if (!yerel) {
     const s7 = await kayitAc(veri(7), '10.0.0.7', etk);
     const b7 = await p.tenant.findUnique({ where: { id: s7.tenantId } });
     const l7 = await p.lead.findFirst({ where: { eposta: TEST_EPOSTA(7) } });
+    const gun7 = (b7.trialEndsAt - Date.now()) / 86_400_000;
+    t('★ toplantıdan açılan hesap: 30 gün deneme, 5 kullanıcı', gun7 > 29 && gun7 <= 30 && b7.maxUsers === 5, { gun7, maxUsers: b7.maxUsers });
+    t('★ canlı sayaç toplantıdan açılan hesabı sayıyor', (await kayit.etkinlikHesapSayisi(etk, Date.now() + 60_000)) >= 1);
+    t('★ etkinlik kaydı sahibine tek tek e-posta atmıyor (Gmail sınırı şifre sıfırlamaya kalsın)', /\{ sessiz: Boolean\(etk\) \}/.test(oku('src/lib/kayit.ts')));
     t('★ etkinlik kodlu kayıt: bayi notunda ve talepte etkinlik adı', s7.durum === 'TAMAM' && b7.adminNotes.includes(etk.ad)
       && l7?.kaynak === 'pantum' && l7?.kampanya === etk.ad, { not: b7?.adminNotes, kaynak: l7?.kaynak });
 
@@ -356,6 +370,7 @@ if (!durumIstegi) {
   t('bal küpü: "tamam" der ama hesap açmaz', bal?.status === 200 && (await p.user.count({ where: { email: TEST_EPOSTA(5) } })) === 0);
   const ek = await (await istek('/api/kayit?k=pantum'))?.json().catch(() => ({}));
   t('GET /api/kayit?k=pantum etkinlik adını veriyor (sayfadaki rozet)', ek?.etkinlik === 'Pantum Premium Partners Meeting 2026', ek);
+  t('★ GET /api/kayit?k=pantum deneme süresi, kullanıcı ve gerçek sayaç', ek?.denemeGun === 30 && ek?.kullanici === 5 && typeof ek?.hesap === 'number', ek);
   const ps = await istek('/pantum');
   t('/pantum oturumsuz açılıyor', ps?.status === 200 && /Pantum Premium Partners Meeting 2026/.test(await ps.text()), ps?.status);
   if (yerel && dj.acik) {
