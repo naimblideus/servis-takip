@@ -28,7 +28,23 @@ interface Kalem {
   id: string;
   qty: number;
   unitPrice: number;
+  /**
+   * Satırın KDV DAHİL tutarı. Varsa olduğu gibi yazılır: cari KDV dahil
+   * tutulur (kira, sayaç ve servis fişi de öyle). Eski mağaza sürümü bunu
+   * göndermez; o zaman qty × unitPrice kullanılır.
+   */
+  amount?: number;
   name?: string;
+}
+
+/**
+ * STOK HAREKETİ OLMAYAN SATIR — kargo ve serviste karşılığı olmayan ürün
+ * (mağazada elle eklenmiş kâğıt gibi). Stoktan düşülmez ama müşterinin
+ * carisine SATIŞ olarak yazılır; yazılmazsa sipariş toplamı ile cari ayrışır.
+ */
+interface EkKalem {
+  name: string;
+  amount: number;
 }
 
 export async function POST(req: Request) {
@@ -43,6 +59,7 @@ export async function POST(req: Request) {
     paid?: boolean;
     method?: string;
     items?: Kalem[];
+    ekKalemler?: EkKalem[];
   };
   try {
     body = await req.json();
@@ -52,10 +69,16 @@ export async function POST(req: Request) {
 
   const { tenantId, customerId, siparisNo, paid, method } = body;
   const items = Array.isArray(body.items) ? body.items : [];
+  const ekKalemler = (Array.isArray(body.ekKalemler) ? body.ekKalemler : [])
+    .map((e) => ({ name: String(e?.name ?? '').trim().slice(0, 160), amount: Number(e?.amount) }))
+    .filter((e) => e.name && Number.isFinite(e.amount) && e.amount > 0)
+    .slice(0, 50);
 
   if (!tenantId || !customerId || !siparisNo)
     return NextResponse.json({ error: 'tenantId, customerId ve siparisNo zorunlu' }, { status: 400 });
-  if (!items.length) return NextResponse.json({ error: 'Kalem yok' }, { status: 400 });
+  // Yalnız stoksuz satırlardan (ör. elle eklenmiş ürün + kargo) oluşan sipariş
+  // de kapanabilmeli: stok hareketi yok ama cari borcu var.
+  if (!items.length && !ekKalemler.length) return NextResponse.json({ error: 'Kalem yok' }, { status: 400 });
 
   const tenant = await prisma.tenant.findFirst({
     where: { id: tenantId, isActive: true, isSuspended: false, deletedAt: null },
@@ -96,7 +119,10 @@ export async function POST(req: Request) {
         for (const it of items) {
           const qty = Math.max(1, Math.floor(it.qty) || 1);
           const unitPrice = Math.max(0, Number(it.unitPrice) || 0);
-          const amount = round2(qty * unitPrice);
+          // Mağaza satırın KDV dahil tutarını gönderiyorsa o yazılır: birim ×
+          // adet yeniden hesaplanınca siparişle kuruş farkı çıkabilir.
+          const verilen = Number(it.amount);
+          const amount = it.amount != null && Number.isFinite(verilen) && verilen >= 0 ? round2(verilen) : round2(qty * unitPrice);
 
           if (it.kind === 'PART') {
             const part = await tx.part.findFirst({ where: { id: it.id, tenantId } });
@@ -133,6 +159,13 @@ export async function POST(req: Request) {
           } else {
             throw new Error('Geçersiz ürün türü');
           }
+        }
+
+        // Stoksuz satırlar ve kargo: stok hareketi yok, cari satışı var.
+        for (const e of ekKalemler) {
+          const amount = round2(e.amount);
+          lines.push({ name: e.name, qty: 1, amount });
+          total += amount;
         }
 
         total = round2(total);
