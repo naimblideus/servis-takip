@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import { MARKA_ONERILERI } from '@/lib/device-brands';
 
 interface Customer {
   id: string;
@@ -44,7 +45,18 @@ export default function NewDevicePage() {
   const customerSearchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/customers').then(r => r.json()).then(setCustomers);
+    fetch('/api/customers').then(r => r.json()).then((liste: Customer[]) => {
+      setCustomers(liste);
+      // Müşteri sayfasındaki "+ Yeni Cihaz" müşteriyi taşır (?musteri=): bayi az önce
+      // içinden çıktığı müşteriyi yeniden aramasın.
+      const id = new URLSearchParams(window.location.search).get('musteri');
+      const c = id && Array.isArray(liste) ? liste.find((x) => x.id === id) : null;
+      if (c) {
+        setSelectedCustomer(c);
+        setCustomerSearch(`${c.name} — ${c.phone}`);
+        setForm((f) => ({ ...f, customerId: c.id }));
+      }
+    });
   }, []);
 
   // Dış tıklama ile dropdown'ı kapat
@@ -182,9 +194,12 @@ export default function NewDevicePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label style={lbl}>{t.stok.marka}</label>
-              <input required style={inp} value={form.brand}
+              <input required style={inp} value={form.brand} list="marka-onerileri" autoComplete="off"
                 onChange={e => setForm({ ...form, brand: e.target.value })}
                 placeholder={t.cihaz.markaYer} />
+              <datalist id="marka-onerileri">
+                {MARKA_ONERILERI.map((m) => <option key={m} value={m} />)}
+              </datalist>
             </div>
             <div>
               <label style={lbl}>{t.stok.model}</label>

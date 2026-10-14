@@ -33,6 +33,9 @@ const DISPLAY: Record<string, string> = {
   nashuatec: 'Nashuatec', gestetner: 'Gestetner', infotec: 'Infotec',
 };
 
+/** Cihaz formundaki marka önerileri (datalist): ekranda görünen düzgün yazımlar, tekil, alfabetik. */
+export const MARKA_ONERILERI: readonly string[] = [...new Set(Object.values(DISPLAY))].sort((a, b) => a.localeCompare(b, 'tr'));
+
 const fold = (s: unknown): string =>
   String(s ?? '')
     .toLocaleLowerCase('tr')

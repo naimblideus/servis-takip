@@ -275,6 +275,43 @@ console.log('\n★ EKRANLARDA GÖMÜLÜ TÜRKÇE METİN YOK\n');
   t('★ ekranlarda gömülü Türkçe metin yok', kalinti.length === 0, kalinti.slice(0, 6));
 }
 
+// ── KALIN KELİMEDEN SONRA BİTİŞİK METİN ──────────────────────────────────
+// Cümle üç parçadan kuruluyor: On + <b>Vurgu</b> + Son. Bileşen </b>{…Son}
+// diye bitişik yazınca Son'un başındaki boşluk sözlükte olmalı; Türkçesi
+// harfle başlarsa ekranda "faturalarınıgörecek", "gerekeceğinitahmin" çıkıyordu
+// (İngilizcesi noktalamayla başladığı için orada görünmüyordu).
+{
+  console.log('\nKalın kelimeden sonra boşluk\n');
+  const dosyalar = [];
+  const gez2 = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, e.name);
+      if (e.isDirectory()) gez2(p); else if (e.name.endsWith('.tsx')) dosyalar.push(p);
+    }
+  };
+  gez2(join(KOK, 'src'));
+  const bitisik = [];
+  let bakilan = 0;
+  for (const f of dosyalar) {
+    const s = readFileSync(f, 'utf8');
+    for (const m of s.matchAll(/<\/(?:b|strong)>\{([\w.]+)\}/g)) {
+      if (!/Son$/.test(m[1])) continue;
+      let yol = m[1].split('.');
+      // Takma ad: const z = sz.superAdmin.kapsam;
+      if (yol.length === 2) {
+        const tak = s.match(new RegExp(`const ${yol[0]} = \\w+\\.([\\w.]+);`));
+        yol = tak ? [...tak[1].split('.'), yol[1]] : yol.slice(1);
+      } else yol = yol.slice(1);
+      const deger = yol.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), tr);
+      if (typeof deger !== 'string') continue;
+      bakilan++;
+      if (/^[A-Za-zÇĞİÖŞÜçğıöşü0-9({]/.test(deger)) bitisik.push(`${f.replace(/\\/g, '/').split('/src/')[1]} · ${yol.join('.')}`);
+    }
+  }
+  t(`${bakilan} kalın+devam cümlesi tarandı`, bakilan >= 10, bakilan);
+  t('★ kalın kelimeden sonra gelen Türkçe metin bitişik değil', bitisik.length === 0, bitisik.slice(0, 6));
+}
+
 if (existsSync(g)) rmSync(g, { recursive: true, force: true });
 console.log(`\n${gecti} geçti, ${kaldi} kaldı\n`);
 process.exit(kaldi ? 1 : 0);

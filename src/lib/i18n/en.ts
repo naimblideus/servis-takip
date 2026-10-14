@@ -2197,6 +2197,9 @@ export const en: Sozluk = {
     baslik: '📡 Network scanner',
     alt: 'Reads the meters of the printers and copiers on the customer network from the devices themselves. No setting on the device changes and nothing is installed on the customer computer.',
     indirBaslik: 'Download the scanner',
+    telefonNot: 'You are on a phone. The scanner runs on a Windows computer: open this page on your computer and download it there.',
+    telefonPaylas: 'Send this page to my computer',
+    telefonKopyalandi: 'Link copied; send it to your computer.',
     adimlar: [
       'Download the scanner. The file carries a key that belongs to you.',
       'Take the file to a Windows computer on the customer network (USB stick or e-mail).',

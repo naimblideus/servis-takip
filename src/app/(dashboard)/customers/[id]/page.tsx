@@ -98,7 +98,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                 border: '1px solid #c7d2fe'
               }}>{sz.musteri.dokum}</Link>
             )}
-            <Link href="/devices/new" style={{
+            <Link href={`/devices/new?musteri=${customer.id}`} style={{
               backgroundColor: '#3b82f6', color: 'white', padding: '0.4rem 0.875rem',
               borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500'
             }}>{sz.musteri.yeniCihaz}</Link>

@@ -103,6 +103,17 @@ export default function SayacTarayiciPage() {
   const bayiAdi = ((oturum?.user as any)?.tenantName as string | undefined) ?? '';
   const [ayar, setAyar] = useState<{ anahtarVar: boolean; otomatik: boolean; otomatikFis?: boolean } | null>(null);
   const [liste, setListe] = useState<Liste | null>(null);
+  // Telefonda indirilen .ps1 işe yaramaz: bayiye sayfayı bilgisayarına göndermesini söyle.
+  const [telefon, setTelefon] = useState(false);
+  const [kopyalandi, setKopyalandi] = useState(false);
+  useEffect(() => { setTelefon(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)); }, []);
+  const sayfayiGonder = async () => {
+    const url = `${window.location.origin}/sayac-tarayici`;
+    try {
+      if (navigator.share) { await navigator.share({ url, title: tt.indirBaslik }); return; }
+    } catch { /* paylaşım kapatıldı: kopyalamaya düş */ }
+    try { await navigator.clipboard.writeText(url); setKopyalandi(true); } catch { window.prompt('', url); }
+  };
   const [acik, setAcik] = useState<string | null>(null);
   const [mesgul, setMesgul] = useState(false);
   const [bilgi, setBilgi] = useState<string | null>(null);
@@ -381,6 +392,16 @@ export default function SayacTarayiciPage() {
       {/* ── İndir ── */}
       <section style={kart}>
         <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 0.5rem' }}>{tt.indirBaslik}</h2>
+        {telefon && (
+          <div style={{ margin: '0 0 0.8rem', padding: '0.7rem 0.85rem', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.88rem' }}>
+            <div>{tt.telefonNot}</div>
+            <button type="button" onClick={sayfayiGonder}
+              style={{ marginTop: '0.5rem', padding: '0.45rem 0.8rem', borderRadius: 8, border: '1px solid #f59e0b', background: 'white', color: '#92400e', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+              {tt.telefonPaylas}
+            </button>
+            {kopyalandi && <div style={{ marginTop: '0.4rem' }}>{tt.telefonKopyalandi}</div>}
+          </div>
+        )}
         <ol style={{ margin: '0 0 0.9rem', paddingLeft: '1.2rem', color: '#374151', fontSize: '0.9rem', lineHeight: 1.6 }}>
           {tt.adimlar.map((s: string) => <li key={s}>{s}</li>)}
         </ol>
