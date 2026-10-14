@@ -5598,6 +5598,9 @@ export const tr = {
       crmHata: 'CRM\u2019e iletilemedi',
       geriAl: 'Geri al',
       ilgilenildi: '✓ İlgilenildi',
+      // Etkinlik sonrası yüzlerce talebi ekibe dağıtmak için.
+      kaynakHepsi: 'Bütün kaynaklar',
+      csvIndir: 'Excel’e indir (CSV)',
     },
     geriYukle: {
       baslik: 'Yedekten Geri Yükleme',

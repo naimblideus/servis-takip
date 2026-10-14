@@ -5420,6 +5420,8 @@ export const en: Sozluk = {
       crmHata: 'could not be passed to the CRM',
       geriAl: 'Undo',
       ilgilenildi: '✓ Handled',
+      kaynakHepsi: 'All sources',
+      csvIndir: 'Download for Excel (CSV)',
     },
     geriYukle: {
       baslik: 'Restore from a backup',

@@ -170,6 +170,12 @@ t('★ etkinlik sayfası: gün/kullanıcı sunucudan, sayaç yalnız gerçek say
 t('★ yeni hesabın panelinde "kurulumu birlikte yapalım" (müşteri yokken, demoda değil)', /<KurulumKarti \/>/.test(oku('src/app/(dashboard)/dashboard/page.tsx'))
   && /hasCustomers/.test(oku('src/components/KurulumKarti.tsx')) && /if \(!goster \|\| demo\) return null/.test(oku('src/components/KurulumKarti.tsx')));
 
+{
+  // Etkinlik sonrası yüzlerce talebi ekibe dağıtmak: kaynak süzgeci + Excel.
+  const lr = oku('src/app/api/super-admin/leads/route.ts');
+  t('★ Talepler: kaynağa göre süzülür, 1000 kayda kadar, Excel dosyası iner', /kaynak \? \{ kaynak \}/.test(lr) && /take: 1000/.test(lr) && lr.includes("get('bicim') === 'csv'"));
+  t('★ CSV: formül sanılacak hücre etkisiz, Excel için BOM ve noktalı virgül', lr.includes('/^[=+\\-@\\t\\r]/') && lr.includes("'\\uFEFF'") && lr.includes(".join(';')"));
+}
 const tohum = oku('scripts/seed-bayi-demo.mjs');
 {
   // Parça grubu KOD olmalı: Türkçe ad İngilizce ekranda Türkçe kalır, grup süzgeci kaçırır.

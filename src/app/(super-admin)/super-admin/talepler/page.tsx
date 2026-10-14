@@ -20,15 +20,24 @@ export default function TaleplerPage() {
   const [bekleyen, setBekleyen] = useState(0);
   const [hepsi, setHepsi] = useState(false);
   const [yukleniyor, setYukleniyor] = useState(true);
+  // Kaynak süzgeci (ör. "pantum": toplantı QR'ından gelenler) ve Excel'e indirme.
+  const [kaynak, setKaynak] = useState('');
+  const [kaynaklar, setKaynaklar] = useState<{ kaynak: string; adet: number }[]>([]);
+  const sorgu = (ek: Record<string, string> = {}) => {
+    const q = new URLSearchParams({ ...(hepsi ? { hepsi: '1' } : {}), ...(kaynak ? { kaynak } : {}), ...ek });
+    const s = q.toString();
+    return `/api/super-admin/leads${s ? `?${s}` : ''}`;
+  };
 
   const yukle = useCallback(() => {
     setYukleniyor(true);
-    fetch(`/api/super-admin/leads${hepsi ? '?hepsi=1' : ''}`)
+    fetch(sorgu())
       .then(r => r.json())
-      .then(d => { setLeads(d.leads || []); setBekleyen(d.bekleyen || 0); })
+      .then(d => { setLeads(d.leads || []); setBekleyen(d.bekleyen || 0); setKaynaklar(d.kaynaklar || []); })
       .catch(() => {})
       .finally(() => setYukleniyor(false));
-  }, [hepsi]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hepsi, kaynak]);
 
   useEffect(() => { yukle(); }, [yukle]);
 
@@ -63,10 +72,21 @@ export default function TaleplerPage() {
               {bekleyen > 0 && <span className="text-amber-300 font-semibold"> {doldur(z.bekliyorEk, { n: bekleyen })}</span>}
             </p>
           </div>
-          <button onClick={() => setHepsi(!hepsi)}
-            className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10">
-            {hepsi ? z.sadeceBekleyen : z.tumunuGoster}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select value={kaynak} onChange={(e) => setKaynak(e.target.value)}
+              className="px-3 py-1.5 rounded-xl text-xs bg-white/5 border border-white/10 text-white">
+              <option value="" className="bg-[#0a0a12]">{z.kaynakHepsi}</option>
+              {kaynaklar.map((k) => <option key={k.kaynak} value={k.kaynak} className="bg-[#0a0a12]">{k.kaynak} ({k.adet})</option>)}
+            </select>
+            <button onClick={() => setHepsi(!hepsi)}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10">
+              {hepsi ? z.sadeceBekleyen : z.tumunuGoster}
+            </button>
+            <a href={sorgu({ bicim: 'csv' })}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500">
+              {z.csvIndir}
+            </a>
+          </div>
         </div>
       </div>
 
