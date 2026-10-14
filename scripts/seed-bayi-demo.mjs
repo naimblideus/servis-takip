@@ -177,6 +177,15 @@ const KOMSULAR = [
 const patronEpostasi = (bayi) => bayi.patronEposta ?? `demo${bayi.n}@demo.com`;
 const teknisyenEpostasi = (bayi) => bayi.teknisyenEposta ?? `tekniker${bayi.n}@demo.com`;
 const SIFRE = process.env.BAYI_DEMO_SIFRE || 'demo1234';
+/**
+ * Demo şifre özetinin maliyeti. Demo şifreleri giriş sayfasında herkese
+ * açık yazılı: yüksek maliyetin burada güvenlik değeri yok, bedeli ise
+ * gerçek. bcryptjs saf JS; maliyet 12'de bir giriş ~0,3–0,8 sn işlemci
+ * yiyor. Bir etkinlikte sahneden duyurudan sonra yüzlerce kişi aynı demoya
+ * girince sunucu dakikalarca kilitlenir, kayıtlar da yavaşlar. 4'te ~3 ms.
+ * Gerçek bayilerin şifreleri 12'de kalır (tenant-manager, kayıt).
+ */
+const DEMO_SIFRE_MALIYETI = 4;
 // lib/sayac-tarama TARAYICI_SURUMU ile AYNI olmalı (test-sayac-tarayici
 // karşılaştırıyor); geride kalırsa demodaki bilgisayar "eski sürüm" görünür.
 const TARAYICI_SURUMU = 3;
@@ -408,13 +417,13 @@ async function kur(bayi) {
   const patron = await p.user.create({
     data: {
       tenantId: tenant.id, email: PATRON, name: bayi.patronAd,
-      passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, 12), role: 'ADMIN', isActive: true,
+      passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, DEMO_SIFRE_MALIYETI), role: 'ADMIN', isActive: true,
     },
   });
   const teknisyen = await p.user.create({
     data: {
       tenantId: tenant.id, email: TEKNISYEN, name: bayi.teknisyenAd,
-      passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, 12), role: 'TECHNICIAN', isActive: true,
+      passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, DEMO_SIFRE_MALIYETI), role: 'TECHNICIAN', isActive: true,
     },
   });
 
@@ -427,13 +436,13 @@ async function kur(bayi) {
     await p.user.create({
       data: {
         tenantId: tenant.id, email: 'demo@demo.com', name: bayi.patronAd,
-        passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, 12), role: 'ADMIN', isActive: true,
+        passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, DEMO_SIFRE_MALIYETI), role: 'ADMIN', isActive: true,
       },
     });
     await p.user.create({
       data: {
         tenantId: tenant.id, email: 'tekniker@demo.com', name: bayi.teknisyenAd,
-        passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, 12), role: 'TECHNICIAN', isActive: true,
+        passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, DEMO_SIFRE_MALIYETI), role: 'TECHNICIAN', isActive: true,
       },
     });
   }

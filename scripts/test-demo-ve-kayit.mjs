@@ -189,6 +189,7 @@ const tohum = oku('scripts/seed-bayi-demo.mjs');
 const demoModuller = (tohum.match(/modules: \[([^\]]+)\]/)?.[1] ?? '').match(/'([A-Z_]+)'/g)?.map((x) => x.slice(1, -1)) ?? [];
 t('★ demo bayisinde BÜTÜN modüller açık (yeni modül eklenince bu test hatırlatır)', mod.ALL_MODULE_KEYS.every((k) => demoModuller.includes(k)), { eksik: mod.ALL_MODULE_KEYS.filter((k) => !demoModuller.includes(k)) });
 t('demo bayileri demo bayrağıyla kuruluyor', /demo: true,/.test(tohum));
+t('★ demo şifre özeti ucuz (şifre zaten açık; salonda yüzlerce giriş sunucuyu kilitlemesin)', /const DEMO_SIFRE_MALIYETI = 4;/.test(tohum) && !/bcrypt\.hash\(bayi\.sifre \?\? SIFRE, 12\)/.test(tohum));
 t('★ gece kurulumu YALNIZ demo işaretli bayiyi siliyor (gerçek bayi aynı adı taşısa bile)', /if \(!eski\.demo\) throw/.test(tohum) && /if \(var_ && !var_\.demo\) throw/.test(tohum));
 const goc = oku('prisma/migrations/20261010100000_zamanlayici_kayit_demo/migration.sql');
 t('eski demo bayileri göçte yalnız demo adresleriyle doğrulanarak işaretleniyor', /UPDATE "Tenant" SET "demo" = true/.test(goc) && /EXISTS \(/.test(goc));
@@ -345,7 +346,11 @@ if (!yerel) {
 const istek = async (yol, ek = {}) => {
   try { return await fetch(SUNUCU + yol, { redirect: 'manual', signal: AbortSignal.timeout(60000), ...ek }); } catch { return null; }
 };
-const json = (govde, cerez) => ({ method: 'POST', headers: { 'content-type': 'application/json', ...(cerez ? { cookie: cerez } : {}) }, body: JSON.stringify(govde) });
+// Her koşu kendi IP'siyle: sunucunun hız sınırı (IP başına 10 dakikada 5 deneme)
+// bellekte; test iki kez arka arkaya koşunca aynı IP'nin denemeleri birikip
+// "hesap açıldı" 429'a düşüyordu. Sınırın kendisi ayrı testte sınanıyor.
+const kosuIp = `10.${(process.pid % 200) + 20}.${Math.floor(Date.now() / 1000) % 250}.${Math.floor(Math.random() * 250) + 1}`;
+const json = (govde, cerez) => ({ method: 'POST', headers: { 'content-type': 'application/json', 'x-real-ip': kosuIp, ...(cerez ? { cookie: cerez } : {}) }, body: JSON.stringify(govde) });
 async function girisYap(eposta, sifre) {
   const c = await fetch(`${SUNUCU}/api/auth/csrf`);
   const csrfCerez = (c.headers.get('set-cookie') || '').split(';')[0];
@@ -377,6 +382,11 @@ if (!durumIstegi) {
   const ek = await (await istek('/api/kayit?k=pantum'))?.json().catch(() => ({}));
   t('GET /api/kayit?k=pantum etkinlik adını veriyor (sayfadaki rozet)', ek?.etkinlik === 'Pantum Premium Partners Meeting 2026', ek);
   t('★ GET /api/kayit?k=pantum deneme süresi, kullanıcı ve gerçek sayaç', ek?.denemeGun === 30 && ek?.kullanici === 5 && typeof ek?.hesap === 'number', ek);
+  // Salon Wi-Fi'ında JS geç yüklenir: ilk HTML "14 gün" deyip sonra "30 gün"e dönmesin.
+  const qrSayfa = await (await istek('/kayit?k=pantum'))?.text() ?? '';
+  t('★ /kayit?k=pantum ilk HTML\'de 30 gün, rozet ve sekme başlığı', /<h1[^>]*>30 gün ücretsiz deneyin<\/h1>/.test(qrSayfa) && qrSayfa.includes('Pantum Premium Partners Meeting 2026') && /<title>30 gün ücretsiz deneyin/.test(qrSayfa), qrSayfa.match(/<title>[^<]*<\/title>/)?.[0]);
+  const yanlisKod = await (await istek('/kayit?k=yok'))?.text() ?? '';
+  t('bilinmeyen kod sıradan kayıt (14 gün)', /<title>14 gün ücretsiz deneyin/.test(yanlisKod) && !yanlisKod.includes('Pantum'));
   const ps = await istek('/pantum');
   t('/pantum oturumsuz açılıyor', ps?.status === 200 && /Pantum Premium Partners Meeting 2026/.test(await ps.text()), ps?.status);
   if (yerel && dj.acik) {
