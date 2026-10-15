@@ -168,7 +168,7 @@ try {
 
   console.log('\nBARKODDAN AÇILAN FİŞTE MÜŞTERİ ADRESİ\n');
   {
-    const cihaz = await p.device.create({ data: { tenantId: tenant.id, customerId: m.id, brand: 'Pantum', model: 'M7100DW', serialNo: 'CEKIRDEK-SN-1' } });
+    const cihaz = await p.device.create({ data: { tenantId: tenant.id, customerId: m.id, brand: 'Pantum', model: 'M7100DW', serialNo: 'CEKIRDEK-SN-1', publicCode: 'DEV-CK' + Date.now().toString(36).toUpperCase(), qrTokenHash: 'test' } });
     const d = await (await istek('/api/devices/lookup?code=CEKIRDEK-SN-1')).json();
     t('★ arama müşteri adresini döndürüyor', d.customer?.address === 'Büyükdere Cad. 12 Şişli', d.customer);
 
