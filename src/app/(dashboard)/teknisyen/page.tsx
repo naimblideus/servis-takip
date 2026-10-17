@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import { isaretliPuan } from '@/lib/memnuniyet';
 
 interface Karne {
   teknisyenId: string | null;
@@ -30,6 +31,9 @@ interface Karne {
   mudahaleOrtancaDk: number | null;
   cozumOrtancaDk: number | null;
   sureOlculen: number;
+  sahaOrtancaDk: number | null;
+  tavsiyeCevap?: number;
+  tavsiyePuani?: number | null;
 }
 interface Tekrar {
   fisNo: string; tekrarFisNo: string; gun: number;
@@ -123,6 +127,11 @@ export default function TeknisyenPage() {
       </td>
       <td style={{ padding: '0.6rem 0.9rem', textAlign: 'right' }}>{sure(k.mudahaleOrtancaDk)}</td>
       <td style={{ padding: '0.6rem 0.9rem', textAlign: 'right' }}>{sure(k.cozumOrtancaDk)}</td>
+      <td style={{ padding: '0.6rem 0.9rem', textAlign: 'right' }}>{sure(k.sahaOrtancaDk)}</td>
+      {/* Tavsiye puanı: az cevapta sayı yok, kaç cevap olduğu yazılır. */}
+      <td style={{ padding: '0.6rem 0.9rem', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap', color: k.tavsiyePuani == null ? '#6b7280' : k.tavsiyePuani > 0 ? '#047857' : k.tavsiyePuani < 0 ? '#b91c1c' : '#374151', fontSize: k.tavsiyePuani == null ? '0.78rem' : '0.9rem' }}>
+        {k.tavsiyePuani != null ? isaretliPuan(k.tavsiyePuani) : k.tavsiyeCevap ? doldur(t.memnuniyet.azCevapKisa, { n: k.tavsiyeCevap }) : '—'}
+      </td>
     </tr>
   );
 
@@ -189,7 +198,7 @@ export default function TeknisyenPage() {
           {/* ── TEKNİSYEN BAZINDA ────────────────────────────────────── */}
           <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '1.5rem 0 0.5rem' }}>{t.teknisyen.karneBaslik}</h2>
           <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflowX: 'auto' }}>
-            <table style={{ width: '100%', fontSize: '0.86rem', borderCollapse: 'collapse', minWidth: '52rem' }}>
+            <table style={{ width: '100%', fontSize: '0.86rem', borderCollapse: 'collapse', minWidth: '62rem' }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: '0.74rem', borderBottom: '1px solid #e5e7eb' }}>
                   <th style={{ padding: '0.6rem 0.9rem' }}>{t.teknisyen.sutunTeknisyen}</th>
@@ -202,6 +211,8 @@ export default function TeknisyenPage() {
                   <th style={{ padding: '0.6rem 0.9rem', textAlign: 'right' }}>{t.teknisyen.sutunOran}</th>
                   <th style={{ padding: '0.6rem 0.9rem', textAlign: 'right' }}>{t.teknisyen.sutunMudahale}</th>
                   <th style={{ padding: '0.6rem 0.9rem', textAlign: 'right' }}>{t.teknisyen.sutunCozum}</th>
+                  <th style={{ padding: '0.6rem 0.9rem', textAlign: 'right' }}>{t.sahaSuresi.karneSutun}</th>
+                  <th style={{ padding: '0.6rem 0.9rem', textAlign: 'right' }}>{t.memnuniyet.karneSutun}</th>
                 </tr>
               </thead>
               <tbody>
@@ -209,7 +220,7 @@ export default function TeknisyenPage() {
                 {/* Atanmamış fiş puanlanmaz; satırı toplam yalan söylemesin diye burada. */}
                 {veri.atanmamis && veri.atanmamis.fis > 0 && satir(veri.atanmamis, 'atanmamis', false)}
                 {!veri.karneler.length && !veri.atanmamis && (
-                  <tr><td colSpan={10} style={{ padding: '1.25rem 0.9rem', color: '#6b7280' }}>{t.teknisyen.kayitYok}</td></tr>
+                  <tr><td colSpan={12} style={{ padding: '1.25rem 0.9rem', color: '#6b7280' }}>{t.teknisyen.kayitYok}</td></tr>
                 )}
               </tbody>
             </table>

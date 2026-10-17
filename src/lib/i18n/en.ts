@@ -870,6 +870,7 @@ export const en: Sozluk = {
     sureDk: '{dk} min',
     sureSa: '{sa} h',
     sureSaDk: '{sa} h {dk} min',
+    karneSutun: 'On site (median)',
     ustlen: '🙋 Take this job',
     ustlenAlt: 'Nobody has this job yet. Take it and it moves to your jobs; then tap “I have arrived”.',
     kuralBaslik: 'Service ticket rules',

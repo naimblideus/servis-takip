@@ -24,7 +24,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
 const g = mkdtempSync(join(tmpdir(), 'st-saha-'));
-const KAYNAKLAR = ['saha-suresi', 'saha-suresi-veri', 'ticket-asama', 'sla', 'sayac-zorunlu'];
+const KAYNAKLAR = ['saha-suresi', 'saha-suresi-veri', 'ticket-asama', 'sla', 'sayac-zorunlu', 'teknisyen'];
 try {
   execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'),
     ...KAYNAKLAR.map((k) => join(KOK, `src/lib/${k}.ts`)),
@@ -44,6 +44,7 @@ const ss = await al('saha-suresi');
 const sv = await al('saha-suresi-veri');
 const sla = await al('sla');
 const sz = await al('sayac-zorunlu');
+const tk = await al('teknisyen');
 
 // ── KARAR (saf) ──────────────────────────────────────────────────────────
 console.log('\nVardım / Çıktım kararı\n');
@@ -112,6 +113,19 @@ console.log('\nSLA — müdahale anı\n');
   t('açılıştan önce yazılmış varış bozuk kayıt: kullanılmıyor', sla.olaylariCikar(satirlar, an('09:00'), an('08:00')).ilkMudahale.getTime() === an('09:05').getTime());
   t('çözümden sonra yazılmış varış kullanılmıyor', sla.olaylariCikar(satirlar, an('09:00'), an('16:00')).ilkMudahale.getTime() === an('09:05').getTime());
   t('kaynakta: SLA ve karne varış saatini veriyor', /f\.varisAt,\r?\n\s+\);/.test(oku('src/lib/sla-veri.ts')) && /f\.varisAt,\r?\n\s+\);/.test(oku('src/lib/teknisyen-veri.ts')));
+}
+
+// ── TEKNİSYEN KARNESİ: SAHADA GEÇEN SÜRE ─────────────────────────────────
+console.log('\nKarne — sahada (ortanca)\n');
+{
+  const f = (id, tek, sahaDk) => ({ id, ticketNumber: id, teknisyenId: tek, teknisyenAdi: tek, cihazId: id, cihaz: 'X', musteri: 'M', kategori: 'FUSER', arizaMi: true,
+    acilis: new Date('2026-09-01T09:00:00Z'), cozum: new Date('2026-09-01T12:00:00Z'), acik: false, kapanisYaklasik: false, iptal: false, sureOlculemez: false,
+    mudahaleDk: 30, cozumDk: 180, pencerede: true, sahaDk });
+  const r = tk.karneCikar([f('a', 'T1', 40), f('b', 'T1', 60), f('c', 'T1', 1200), f('d', 'T1', null), f('e', 'T2', 30)], new Date('2026-10-18T00:00:00Z'));
+  const t1 = r.karneler.find((k) => k.teknisyenId === 'T1');
+  t('★ ortanca: ertesi gün basılan "Çıktım" (1200 dk) karneyi bozmuyor → 60 dk', t1?.sahaOrtancaDk === 60 && t1?.sahaOlculen === 3, t1);
+  t('iki basıştan biri yoksa ölçüye girmiyor', t1?.sahaOlculen === 3);
+  t('özet ortanca bütün ekip', r.ozet.sahaOrtancaDk === 50, r.ozet.sahaOrtancaDk);
 }
 
 // ── KAYNAK ───────────────────────────────────────────────────────────────
