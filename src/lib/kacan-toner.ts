@@ -16,7 +16,14 @@
  *   · o müşteriye cariden toner satışı (ürün adında toner/kartuş/mürekkep
  *     geçen ya da bayinin toner kartlarından biriyle aynı adlı satır),
  *   · tarayıcının kaydına fişle parça bağlanmış olması (partId),
- *   · bayinin "bizden aldı, kaydı eksikti" işareti (bizdenAlindi).
+ *   · bayinin "bizden aldı, kaydı eksikti" işareti (bizdenAlindi),
+ *   · değişimin emanetten düşülmesi (EmanetHareketi.tonerChangeId) ya da
+ *     değişimden HEMEN ÖNCE müşterinin rafında bayinin bıraktığı toner
+ *     olması (emanet bakiyesi > 0). Rafta yedek dururken görülen değişim
+ *     büyük olasılıkla o yedektir; hangi kalem olduğu belirsiz diye
+ *     emanetten düşülmemiş olsa bile "kaçırdın" denmez. Bilerek gevşek:
+ *     rafta başka modelin toneri dururken gerçekten dışarıdan alınmış bir
+ *     toner görünmeyebilir — haksız suçlamadan iyidir.
  * Önceki değişimden ÖNCEKİ toner sayılmaz: o toner o değişimde takıldı ve
  * tüketildi (fişle takılan toner kendi değişim kaydını zaten açar). Yoksa
  * bir ay önce fişle toner takılan her makinede sonraki kaçak hiç görünmezdi.
@@ -56,9 +63,17 @@ export interface KacanToner {
  * ondan SONRA olmalı (aynı gün dahil değil: o günkü fiş o değişimindir).
  */
 export function bayiVerdiMi(
-  degisim: { changedAt: Date; deviceId: string; customerId: string | null; onceki: Date | null },
-  kanit: { sevk: Map<string, Date[]>; fis: Map<string, Date[]>; satis: Map<string, Date[]> },
+  degisim: { changedAt: Date; deviceId: string; customerId: string | null; onceki: Date | null; id?: string },
+  kanit: {
+    sevk: Map<string, Date[]>; fis: Map<string, Date[]>; satis: Map<string, Date[]>;
+    /** Emanetten düşülmüş değişimler (EmanetHareketi.tonerChangeId). */
+    emanetTuketim?: Set<string>;
+    /** Müşteri → emanet satırları (yalnız toner kalemleri; işaretli adet). */
+    emanet?: Map<string, { tarih: Date; adet: number }[]>;
+  },
 ): boolean {
+  if (degisim.id !== undefined && kanit.emanetTuketim?.has(degisim.id)) return true;
+  if (degisim.customerId !== null && raftaVardi(kanit.emanet?.get(degisim.customerId), degisim.changedAt)) return true;
   const enGeri = degisim.changedAt.getTime() - ONCE_GUN * GUN;
   const bas = degisim.onceki ? Math.max(enGeri, degisim.onceki.getTime() + GUN) : enGeri;
   const son = degisim.changedAt.getTime() + SONRA_GUN * GUN;
@@ -68,6 +83,14 @@ export function bayiVerdiMi(
 }
 
 const ekle = (m: Map<string, Date[]>, k: string, d: Date) => { const l = m.get(k); if (l) l.push(d); else m.set(k, [d]); };
+
+/** Değişimden hemen önce rafta bayinin bıraktığı toner var mıydı (o ana kadarki Σ adet > 0)? */
+export function raftaVardi(satirlar: readonly { tarih: Date; adet: number }[] | undefined, an: Date): boolean {
+  if (!satirlar) return false;
+  let n = 0;
+  for (const s of satirlar) if (s.tarih.getTime() < an.getTime()) n += s.adet;
+  return n > 0;
+}
 
 export async function kacanTonerler(tenantId: string, simdi = new Date()): Promise<{
   kayitlar: KacanToner[]; adet: number; tutar: number; izlenenCihaz: number;
@@ -91,7 +114,7 @@ export async function kacanTonerler(tenantId: string, simdi = new Date()): Promi
   const musteriler = [...new Set(adaylar.map((a) => a.device.customer?.id).filter((x): x is string => !!x))];
   const pencereBas = new Date(enEski.getTime() - ONCE_GUN * GUN);
 
-  const [sevkler, fisParcalari, satislar, tonerKartlari] = await Promise.all([
+  const [sevkler, fisParcalari, satislar, tonerKartlari, emanetler] = await Promise.all([
     prisma.tonerSevki.findMany({ where: { tenantId, deviceId: { in: cihazlar }, durum: { not: 'IPTAL' }, gonderildiAt: { gte: pencereBas } }, select: { deviceId: true, gonderildiAt: true } }),
     prisma.ticketPart.findMany({
       where: { tenantId, createdAt: { gte: pencereBas }, part: { group: { in: TONER_GRUPLARI } }, ticket: { deviceId: { in: cihazlar }, deletedAt: null } },
@@ -99,9 +122,25 @@ export async function kacanTonerler(tenantId: string, simdi = new Date()): Promi
     }),
     prisma.accountEntry.findMany({ where: { tenantId, type: 'SALE', customerId: { in: musteriler }, date: { gte: pencereBas } }, select: { customerId: true, date: true, product: true } }),
     prisma.part.findMany({ where: { tenantId, group: { in: TONER_GRUPLARI } }, select: { name: true } }),
+    // Emanet defteri yoksa (eski kurulum) kaçan toner ekranı yine çalışsın.
+    prisma.emanetHareketi.findMany({
+      where: { tenantId, customerId: { in: musteriler } },
+      select: { customerId: true, adet: true, tarih: true, tonerChangeId: true, parcaAdi: true, part: { select: { group: true } } },
+    }).catch(() => []),
   ]);
   const kartAdlari = new Set(tonerKartlari.map((p) => p.name.trim().toLowerCase()));
-  const kanit = { sevk: new Map<string, Date[]>(), fis: new Map<string, Date[]>(), satis: new Map<string, Date[]>() };
+  const kanit = {
+    sevk: new Map<string, Date[]>(), fis: new Map<string, Date[]>(), satis: new Map<string, Date[]>(),
+    emanetTuketim: new Set<string>(), emanet: new Map<string, { tarih: Date; adet: number }[]>(),
+  };
+  for (const e of emanetler) {
+    if (e.tonerChangeId) kanit.emanetTuketim.add(e.tonerChangeId);
+    // Grubu belli kalemde gruba, değilse ada bakılır: rafta duran drum toner sayılmaz.
+    const toner = e.part?.group ? TONER_GRUPLARI.includes(e.part.group) : TONER_ADI.test(e.parcaAdi);
+    if (!toner) continue;
+    const l = kanit.emanet.get(e.customerId);
+    if (l) l.push({ tarih: e.tarih, adet: e.adet }); else kanit.emanet.set(e.customerId, [{ tarih: e.tarih, adet: e.adet }]);
+  }
   for (const s of sevkler) ekle(kanit.sevk, s.deviceId, s.gonderildiAt);
   for (const f of fisParcalari) ekle(kanit.fis, f.ticket.deviceId, f.createdAt);
   for (const s of satislar) {
@@ -124,7 +163,7 @@ export async function kacanTonerler(tenantId: string, simdi = new Date()): Promi
     }
     return en;
   };
-  const kacanlar = adaylar.filter((a) => !bayiVerdiMi({ changedAt: a.changedAt, deviceId: a.deviceId, customerId: a.device.customer?.id ?? null, onceki: onceki(a) }, kanit));
+  const kacanlar = adaylar.filter((a) => !bayiVerdiMi({ id: a.id, changedAt: a.changedAt, deviceId: a.deviceId, customerId: a.device.customer?.id ?? null, onceki: onceki(a) }, kanit));
   if (!kacanlar.length) return { kayitlar: [], adet: 0, tutar: 0, izlenenCihaz, izlemeGun };
 
   // Tutar: o makineye en son takılan toner; yoksa aynı modelde en son takılan.

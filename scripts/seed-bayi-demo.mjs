@@ -1494,6 +1494,8 @@ async function kur(bayi) {
     console.log(`  kaçan toner: ${kacan} değişim tarayıcıda görüldü, bayiden toner gitmemiş`);
   }
 
+  await import('./seed-demo-emanet.mjs').then((m) => m.emanetDemosunuKur(p, tenant.id)).then((r) => console.log(`  emanet: ${r.satir} defter satırı (müşteride duran toner)`)).catch((e) => console.error('  ⚠ emanet demosu kurulamadı:', e?.message ?? e));
+
   // ── ÖZET ──────────────────────────────────────────────────────────────
   const say = async (f) => f;
   console.log('');

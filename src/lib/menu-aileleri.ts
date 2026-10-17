@@ -55,7 +55,7 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'muhasebe',   bolum: 'PARA',    uyeler: ['/accounting', '/kdv', '/bizimhesap'] },
 
   // Toner verimi sarfın ön koşulu: beklenen verim orada tanımlanır.
-  { anahtar: 'stok',       bolum: 'STOK',    uyeler: ['/inventory', '/siparis', '/sarf', '/toner-verimi', '/satis', '/etiket'] },
+  { anahtar: 'stok',       bolum: 'STOK',    uyeler: ['/inventory', '/siparis', '/sarf', '/emanet', '/toner-verimi', '/satis', '/etiket'] },
   { anahtar: 'pazar',      bolum: 'STOK',    uyeler: ['/market'] },
   { anahtar: 'magaza',     bolum: 'STOK',    uyeler: ['/magaza'] },
 
@@ -112,7 +112,7 @@ export const TEKNISYEN_MENUSU: readonly string[] = [
   '/tickets', '/rota',
   '/sayac-turu', '/takip',
   '/customers', '/devices',
-  '/inventory', '/sarf',
+  '/inventory', '/sarf', '/emanet',
   '/yardim',
 ];
 

@@ -312,6 +312,10 @@ export async function degisimKaydet(girdi: DegisimGirdisi): Promise<DegisimSonuc
         where: { id: tarayici.id },
         data: { partId: tarayici.partId ?? partId ?? null, ...(note ? { note } : {}) },
       });
+      // Tarayıcı gördüğünde hangi toner olduğu belirsiz kalmış olabilir; fiş
+      // parçayı söyleyince raftaki yedekten şimdi düşülebilir (zaten
+      // düşüldüyse tekil kayıt ikinci kez yazmaz).
+      await emanetBagla(tarayici.id);
       return { id: tarayici.id, observedYield: tarayici.observedYield, elenmeSebebi: null };
     }
   }
@@ -365,9 +369,33 @@ export async function degisimKaydet(girdi: DegisimGirdisi): Promise<DegisimSonuc
         await prisma.tonerChange.update({ where: { id: kayit.id }, data: { partId: sevk.partId } });
       }
     }
+
+    // ── MÜŞTERİNİN RAFINDAKİ YEDEK TAKILDI ──────────────────────────────
+    // Sevk yoksa ve müşteride bayinin bıraktığı uygun toner varsa takılan
+    // odur: emanet defterinden −1 (lib/emanet-veri.emanettenDus). Sevke
+    // bağlanan değişim orada atlanır: bayi o toneri yolladı.
+    await emanetBagla(kayit.id);
   }
 
   return { id: kayit.id, observedYield, elenmeSebebi };
+}
+
+/**
+ * EMANET BAĞI — değişim kaydının ARKASINDAN, ana işi bozmadan.
+ *
+ * Emanet defteri yazılamazsa (veritabanı kesintisi, kilit zaman aşımı) toner
+ * değişimi YİNE kaydedilir: verim ölçümü ve sevk kapatma emanetten önemli.
+ * Hata yutulur ama kayda geçer; düşülmeyen tüketimi sayım yakalar.
+ * Dinamik içe aktarım: emanet-veri bu dosyadan tonerMu/kanalKarari alıyor,
+ * statik içe aktarım döngü kurardı.
+ */
+async function emanetBagla(tonerChangeId: string): Promise<void> {
+  try {
+    const { emanettenDus } = await import('@/lib/emanet-veri');
+    await emanettenDus(tonerChangeId);
+  } catch (e) {
+    console.error('EMANET DÜŞÜLEMEDİ:', tonerChangeId, (e as Error)?.message ?? e);
+  }
 }
 
 export { VERIM_ALT, VERIM_UST };

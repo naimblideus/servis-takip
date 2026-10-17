@@ -5,8 +5,9 @@ import Link from 'next/link';
 import CustomerEditPanel from '@/components/CustomerEditPanel';
 import CustomerCariPanel from '@/components/CustomerCariPanel';
 import MusteriPortalKarti from '@/components/MusteriPortalKarti';
+import MusteriEmanetKarti from '@/components/MusteriEmanetKarti';
 import ContactActions from '@/components/ContactActions';
-import { oturumKullanicisi } from '@/lib/api-auth';
+import { oturumKullanicisi, yoneticiMi } from '@/lib/api-auth';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
 
@@ -120,6 +121,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           </div>
         )}
       </div>
+
+      <MusteriEmanetKarti tenantId={me.tenantId} customerId={customer.id} yonetici={yoneticiMi(me)} sz={sz} b={b} />
 
       {/* Son Fişler */}
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
