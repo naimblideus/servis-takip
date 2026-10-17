@@ -2593,6 +2593,7 @@ export const tr = {
       dk: '{dk} dk',
       sa: '{sa} sa',
       saDk: '{sa} sa {dk} dk',
+      gun: '{g} gün',
     },
   },
 
