@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import DemoBaglantiKoruma from '@/components/DemoBaglantiKoruma';
 import AileSekmeleri from '@/components/AileSekmeleri';
 import DenemeSeridi from '@/components/DenemeSeridi';
+import UygulamaKur from '@/components/UygulamaKur';
 import { doldur } from '@/lib/i18n/sozluk';
 import { denemeKalanGun, platformOdeme, whatsappLinki } from '@/lib/abonelik';
 import BottomNav from '@/components/BottomNav';
@@ -134,6 +135,7 @@ export default async function DashboardLayout({
           sallıyordu. Geniş tablolar kendi kaydırma kabında (32 ekran ölçüldü). */}
       <main id="app-main" className="flex-1 overflow-x-clip pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
         {denemeGun !== null && <DenemeSeridi kalanGun={denemeGun} />}
+        <UygulamaKur />
         <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} bizimHesapKurulu={menuDurum.bizimHesapKurulu} />
         <ModuleGuard modules={modules}>{children}</ModuleGuard>
       </main>

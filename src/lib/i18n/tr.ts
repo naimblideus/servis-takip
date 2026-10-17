@@ -371,6 +371,18 @@ export const tr = {
     stokGirisCikis: 'Stok Giriş / Çıkış',
   },
 
+  // Telefona kur şeridi (components/UygulamaKur): mağaza yok, tek dokunuş.
+  uygulamaKur: {
+    baslik: 'Nextus’u telefona kurun',
+    alt: 'Mağaza gerekmez. Tam ekran açılır, kendiliğinden güncellenir.',
+    kur: 'Kur',
+    kapat: 'Şimdi değil',
+    iosBaslik: 'Ana ekrana iki adımda ekleyin',
+    iosAdim1: 'Tarayıcının Paylaş düğmesine dokunun.',
+    iosAdim2: 'Listeden “Ana Ekrana Ekle”yi seçin.',
+    tamam: 'Tamam',
+  },
+
   // Ana panel. Parametreli metinler {n} taşır; sozluk.ts'teki doldur() doldurur.
   pano: {
     baslik: 'Genel Durum',

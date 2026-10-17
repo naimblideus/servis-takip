@@ -351,6 +351,17 @@ export const en: Sozluk = {
     stokGirisCikis: 'Stock In / Out',
   },
 
+  uygulamaKur: {
+    baslik: 'Install Nextus on your phone',
+    alt: 'No app store needed. Opens full screen and updates itself.',
+    kur: 'Install',
+    kapat: 'Not now',
+    iosBaslik: 'Add it to your home screen in two steps',
+    iosAdim1: 'Tap the browser’s Share button.',
+    iosAdim2: 'Choose “Add to Home Screen” from the list.',
+    tamam: 'Got it',
+  },
+
   pano: {
     baslik: 'Overview',
     yeniFis: 'New Ticket',
