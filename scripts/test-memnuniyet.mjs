@@ -255,6 +255,42 @@ if (!yerel) {
     t('aranan müşteri listeden düştü', !(await mv.memnuniyetPanosu(A.id)).aranacaklar.some((x) => x.ticketId === kizgin.id));
     const panoB = await mv.memnuniyetPanosu(B.id);
     t('★ B\'nin panosunda A\'nın hiçbir satırı yok', panoB.toplam === 0 && panoB.aranacaklar.length === 0 && panoB.yorumlar.length === 0, panoB);
+
+    // ── DEMO TOHUMU (scripts/seed-demo-memnuniyet.mjs) ──────────────────
+    // Tohumun başlığı "her demo bayisinde +57, 10'da 7, 43 puan yukarıda"
+    // diyor. Söz ölçülmeden yazılmasın: geçici bir demo bayisinde kurup panoya bakıyoruz.
+    console.log('\nDemo tohumu\n');
+    const D = await p.tenant.create({ data: { name: 'Memnuniyet Demo', slug: `${ONEK}demo-${z}`, demo: true } });
+    const dPatron = await p.user.create({ data: { tenantId: D.id, email: `mem.dp.${z}@ornek.local`, passwordHash: 'x', name: 'Demo Patron', role: 'ADMIN' } });
+    const dTek = await p.user.create({ data: { tenantId: D.id, email: `mem.dt.${z}@ornek.local`, passwordHash: 'x', name: 'Demo Usta', role: 'TECHNICIAN' } });
+    const dm = await p.customer.create({ data: { tenantId: D.id, name: 'Demo Müşteri', phone: '05329998877' } });
+    const dc = await p.device.create({ data: { tenantId: D.id, customerId: dm.id, brand: 'Kyocera', model: 'M2040dn', serialNo: `MEM-D-${z}`, publicCode: `MEM-D-${z}`, qrTokenHash: `MEM-D-${z}-q` } });
+    const GUN = 86400000;
+    for (let i = 0; i < 40; i++) {
+      // 5–160 gün önce, her dört günde bir teslim edilmiş fiş.
+      const tarih = new Date(Date.now() - (5 + i * 4) * GUN);
+      await p.serviceTicket.create({ data: { tenantId: D.id, customerId: dm.id, deviceId: dc.id, ticketNumber: `MEM-D-${z}-${i}`, issueText: 'demo', status: 'DELIVERED', createdByUserId: dPatron.id, assignedUserId: dTek.id, createdAt: tarih, statusUpdatedAt: tarih } });
+    }
+    const { memnuniyetDemosu } = await import(pathToFileURL(join(KOK, 'scripts/seed-demo-memnuniyet.mjs')).href);
+    await memnuniyetDemosu(p, [D.id, A.id]);
+    const dp = await mv.memnuniyetPanosu(D.id);
+    t('★ demo: tepede +57, "10 müşteriden 7\'si", 14 cevap', dp.donem.son.puan === 57 && dp.donem.son.onda === 7 && dp.donem.son.cevap === 14, dp.donem.son);
+    t('★ demo: önceki 90 gün +14 → 43 puan yukarıda; cevap oranı %70', dp.donem.onceki.puan === 14 && dp.donem.fark === 43 && dp.oran.yuzde === 70, { onceki: dp.donem.onceki, fark: dp.donem.fark, oran: dp.oran });
+    t('★ demo: aranması gereken iki müşteri, ikisi de yorumlu', dp.aranacaklar.length === 2 && dp.aranacaklar.every((x) => x.yorum), dp.aranacaklar.map((x) => x.puan));
+    t('★ demo: teknisyene göre iki satır (usta önce: puanı düşük)', dp.teknisyenler.length === 2 && dp.teknisyenler[0].ad === 'Demo Usta' && dp.teknisyenler[1].ad === 'Demo Patron'
+      && dp.teknisyenler[0].ozet.puan === 44 && dp.teknisyenler[1].ozet.puan === 80, dp.teknisyenler.map((x) => [x.ad, x.ozet.puan]));
+    const patronFisi = await p.serviceTicket.count({ where: { tenantId: D.id, assignedUserId: dPatron.id } });
+    t('patronun yaptığı iş fişte de onda (karne ile pano aynı kişiyi söylüyor)', patronFisi === 5, patronFisi);
+    const sahali = await p.serviceTicket.findMany({ where: { tenantId: D.id, varisAt: { not: null } }, select: { varisAt: true, ayrilisAt: true, createdAt: true } });
+    t('★ demo: 20 fişte vardım/çıktım, çıkış varıştan sonra, varış fişten sonra', sahali.length === 20 && sahali.every((x) => x.ayrilisAt > x.varisAt && x.varisAt > x.createdAt), sahali.length);
+    t('★ demo: sayaçsız kapanmaz açık', (await p.tenant.findUnique({ where: { id: D.id } })).sayacZorunlu === true);
+    t('★ demo OLMAYAN bayiye tohum yazmıyor', (await p.tenant.findUnique({ where: { id: A.id } })).sayacZorunlu === false
+      && (await p.memnuniyetAnketi.count({ where: { tenantId: A.id } })) === pano.oran.gonderilen);
+    const once = await p.memnuniyetAnketi.count({ where: { tenantId: D.id } });
+    await memnuniyetDemosu(p, [D.id]);
+    t('ikinci kez çalışınca çift anket yazmıyor', (await p.memnuniyetAnketi.count({ where: { tenantId: D.id } })) === once, once);
+    const tohumKaynak = oku('scripts/seed-bayi-demo.mjs');
+    t('gece tohumu tek satırla çağırıyor; dosya yoksa demo kurulumu düşmüyor', /await import\('\.\/seed-demo-memnuniyet\.mjs'\)\.then\(\(m\) => m\.memnuniyetDemosu\(p, sonuclar\.map\(\(s\) => s\.tenantId\)\)\)\.catch\(/.test(tohumKaynak));
   } finally {
     await temizle();
   }

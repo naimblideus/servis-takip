@@ -1600,6 +1600,7 @@ async function main() {
   // Komşu bayiler ORTAK: beş demo hesabı da aynı pazarı görüyor. Her hesap
   // için ayrı komşu kurmak pazarı beş kopyaya bölerdi.
   await komsulariKur();
+  await import('./seed-demo-memnuniyet.mjs').then((m) => m.memnuniyetDemosu(p, sonuclar.map((s) => s.tenantId))).catch((e) => console.error(`  ⚠ memnuniyet demosu kurulamadı: ${e?.message ?? e}`));
 
   // Her hesap için iddiayı ÖLÇ. Eksik varsa özet onu söylesin.
   console.log('\n\n═══ DOĞRULAMA ═══\n');
