@@ -57,6 +57,18 @@ export function vakitGeldiMi(is: ZamanlanmisIsTanimi, an = new Date()): boolean 
 }
 
 /** Herkese açık demo (giriş sayfasındaki "Demoyu dene") kurulu mu. */
+/**
+ * DEMO TOHUMU SÜRÜMÜ. scripts/seed-bayi-demo.mjs (ya da içe aktardığı
+ * seed-demo-*.mjs dosyaları) değiştiğinde bu değer de değişir. Yeni sürüm
+ * canlıya çıkınca demo, gece 03:30'u beklemeden ilk turda (açılıştan 1–6 dk
+ * sonra) bir kez yeniden kurulur.
+ *
+ * NEDEN: yeni bir ekranın demo verisi gece tazelemesinden SONRA canlıya
+ * çıkarsa ekran ertesi geceye kadar demoda boş görünür — tam da o sabah
+ * gösterilecekken. Sürüm başına bir kez çalışır (ZamanlanmisIs 'demo-surum').
+ */
+export const DEMO_TOHUM_SURUMU = '2026-10-18-rakip';
+
 async function genelDemoVar(): Promise<boolean> {
   const t = await prisma.tenant.findFirst({ where: { slug: 'demo', demo: true }, select: { id: true } });
   return Boolean(t);
@@ -67,10 +79,10 @@ async function genelDemoVar(): Promise<boolean> {
  * Ayrı süreçte koşar: sunucunun belleğini ve olay döngüsünü tutmaz. Betik
  * giriş bilgilerini stdout'a yazar; o çıktı kayda GEÇMEZ, yalnız hata satırı.
  */
-async function demoTazele(): Promise<void> {
+async function demoTazele(anahtar = 'demo', donem = donemi('gunluk')): Promise<void> {
   const betik = join(process.cwd(), 'scripts', 'seed-bayi-demo.mjs');
   if (!existsSync(betik)) return;
-  if (!(await isiSahiplen('demo', donemi('gunluk'), 'zamanlayici'))) return;
+  if (!(await isiSahiplen(anahtar, donem, 'zamanlayici'))) return;
   let hata = '';
   const kod = await new Promise<number>((tamam) => {
     const c = spawn(process.execPath, [betik], { cwd: process.cwd(), env: process.env, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -79,8 +91,8 @@ async function demoTazele(): Promise<void> {
     c.on('error', () => tamam(1));
   });
   const son = hata.trim().split('\n').pop() ?? '';
-  await isiBitir('demo', kod === 0 ? 'TAMAM' : 'HATA', kod === 0 ? null : `çıkış ${kod}${son ? `: ${son}` : ''}`);
-  console.log(`[zamanlayıcı] demo tazeleme ${kod === 0 ? 'tamam' : `başarısız (çıkış ${kod})`}`);
+  await isiBitir(anahtar, kod === 0 ? 'TAMAM' : 'HATA', kod === 0 ? null : `çıkış ${kod}${son ? `: ${son}` : ''}`);
+  console.log(`[zamanlayıcı] demo tazeleme (${anahtar} ${donem}) ${kod === 0 ? 'tamam' : `başarısız (çıkış ${kod})`}`);
 }
 
 async function ucuCagir(is: ZamanlanmisIsTanimi): Promise<void> {
@@ -113,6 +125,13 @@ export async function turAt(an = new Date()): Promise<string[]> {
     calisan.push(is.anahtar);
     if (is.yol) await ucuCagir(is);
     else await demoTazele();
+  }
+  // Demo tohumu değiştiyse (yeni sürüm canlıya çıktı) bir kez yeniden kur.
+  // Demo hiç yoksa yukarıdaki günlük iş zaten kuruyor; burada beklenmez.
+  const surumKaydi = kayit.get('demo-surum');
+  if (surumKaydi?.donem !== DEMO_TOHUM_SURUMU && !calisan.includes('demo') && (await genelDemoVar())) {
+    calisan.push('demo-surum');
+    await demoTazele('demo-surum', DEMO_TOHUM_SURUMU);
   }
   return calisan;
 }

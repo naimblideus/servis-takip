@@ -274,6 +274,10 @@ if (!yerel) {
       const v = { donem: donemi(i.tur, simdi), durum: 'TAMAM', basladiAt: simdi };
       await p.zamanlanmisIs.upsert({ where: { anahtar: i.anahtar }, update: v, create: { anahtar: i.anahtar, ...v } });
     }
+    // Demo tohumu sürümü de bu sürümde kurulmuş: yeni sürüm canlıya çıkınca bir kez çalışır, sonra durur.
+    const sv = { donem: zam.DEMO_TOHUM_SURUMU, durum: 'TAMAM', basladiAt: simdi };
+    await p.zamanlanmisIs.upsert({ where: { anahtar: 'demo-surum' }, update: sv, create: { anahtar: 'demo-surum', ...sv } });
+    t('demo tohumu sürümü tanımlı', typeof zam.DEMO_TOHUM_SURUMU === 'string' && zam.DEMO_TOHUM_SURUMU.length > 0);
     t('★ bu dönem yapılmış işler: zamanlayıcı turu hiçbir şey çalıştırmıyor', (await zam.turAt(simdi)).length === 0);
     // Dünden kalmış hatırlatma: sabah 09:00'dan sonra sıradaki turda çalışır.
     process.env.PORT = '9'; // uç çağrısı kapalı porta gider: gerçek bir şey tetiklenmez
