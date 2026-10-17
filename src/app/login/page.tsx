@@ -66,12 +66,18 @@ export default function LoginPage() {
   const [demoMod, setDemoMod] = useState(false);
   const [sifreGoster, setSifreGoster] = useState(false);
   const [sso, setSso] = useState({ google: false, microsoft: false });
+  // Girişten sonra dönülecek sayfa (?next=/pano — televizyondaki canlı pano).
+  // YALNIZ bu sitenin kendi yolu: "//baska.site" ya da tam adres açık
+  // yönlendirme olurdu; harf, rakam, tire ve eğik çizgi dışı reddedilir.
+  const [donus, setDonus] = useState('/dashboard');
 
   // Demo bilgilerini DOLDUR ama KENDİLİĞİNDEN GİRME: ziyaretçi neye tıkladığını
   // görsün ve isterse başka bir hesapla girebilsin.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const sp = new URLSearchParams(window.location.search);
+    const n = sp.get('next');
+    if (n && /^\/[a-z0-9-]+(\/[a-z0-9-]+)*$/i.test(n)) setDonus(n);
     if (sp.get('demo') === '1') {
       setEmail(DEMO_EPOSTA);
       setPassword(DEMO_SIFRE);
@@ -134,7 +140,7 @@ export default function LoginPage() {
       setLoading(false);
     } else {
       router.refresh();
-      router.push('/dashboard');
+      router.push(donus);
     }
   }
 

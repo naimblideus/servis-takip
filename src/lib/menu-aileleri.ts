@@ -34,7 +34,9 @@ export interface Aile {
 }
 
 export const AILELER: readonly Aile[] = [
-  { anahtar: 'panel',      bolum: 'GUNLUK',  uyeler: ['/dashboard'] },
+  // Canlı pano panelin ikinci yüzü: sekme /dashboard'da görünür, /pano yan
+  // menüsüz TAM EKRAN açılır (operasyon odasındaki televizyon).
+  { anahtar: 'panel',      bolum: 'GUNLUK',  uyeler: ['/dashboard', '/pano'] },
   { anahtar: 'fisler',     bolum: 'GUNLUK',  uyeler: ['/tickets'] },
   { anahtar: 'whatsapp',   bolum: 'GUNLUK',  uyeler: ['/whatsapp'] },
   { anahtar: 'rota',       bolum: 'GUNLUK',  uyeler: ['/rota'] },
@@ -68,6 +70,12 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'yardim',     bolum: 'SISTEM',  uyeler: ['/yardim'] },
   { anahtar: 'admin',      bolum: 'SISTEM',  uyeler: ['/admin'] },
 ];
+
+/**
+ * Panel düzeninin DIŞINDA, yan menüsüz tam ekran açılan ekranlar. Sayfası
+ * src/app/(dashboard)/ altında değil src/app/<ad>/ altındadır.
+ */
+export const TAM_EKRAN: readonly string[] = ['/pano'];
 
 /** Yalnız süper yönetici. */
 export const YALNIZ_SUPER: readonly string[] = ['/admin'];

@@ -155,12 +155,18 @@ export default function DashboardPage() {
           <div className="text-[10.5px] font-bold uppercase tracking-[.18em] text-gray-400">{t.genel.bugun}</div>
           <h1 className="mt-0.5 text-[1.6rem] font-extrabold tracking-[-.022em] text-gray-900">{t.pano.baslik}</h1>
         </div>
-        <Link href="/tickets/new" className="btn-primary flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          {t.pano.yeniFis}
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* Operasyon odasındaki TV için göze batmayan bağlantı (/pano tam ekran açılır). */}
+          <Link href="/pano" className="hidden sm:inline text-sm font-medium text-gray-500 hover:text-gray-900 hover:underline">
+            {t.canliPano.panoAc}
+          </Link>
+          <Link href="/tickets/new" className="btn-primary flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {t.pano.yeniFis}
+          </Link>
+        </div>
       </div>
 
       {/* Herkese açık demo: değeri gösteren dört ekrana kısa yol (DemoTuru.tsx). */}
