@@ -4,7 +4,12 @@ import { prisma } from '@/lib/prisma';
 import { demoBayiMi } from '@/lib/demo-koruma';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
-import { findCustomerByPhone } from '@/lib/whatsapp-inbound';
+import { findCustomerByPhone, retListesi, son10 } from '@/lib/whatsapp-inbound';
+import { sendText, waOutConfigured } from '@/lib/whatsapp-out';
+import { randomBytes } from 'crypto';
+
+/** WhatsApp'ın serbest mesaj penceresi: müşterinin son mesajından sonra 24 saat. */
+const PENCERE_MS = 24 * 3_600_000;
 import { createReading, ReadingError } from '@/lib/readings';
 import { MIN_CONFIDENCE } from '@/lib/whatsapp-suggest';
 import { parseFaultCategory } from '@/lib/fault-categories';
@@ -21,7 +26,8 @@ export async function GET(req: NextRequest) {
     const showAll = new URL(req.url).searchParams.get('all') === '1';
 
     const messages = await prisma.whatsAppMessage.findMany({
-      where: { tenantId, ...(showAll ? {} : { handled: false }) },
+      // Gelen kutusu müşteriden gelenler; bayinin cevapları (GIDEN) her mesajın altında.
+      where: { tenantId, yon: 'GELEN', ...(showAll ? {} : { handled: false }) },
       // Arıza bildirimleri en üstte: bekleyen iş onlar.
       orderBy: [{ isFaultReport: 'desc' }, { receivedAt: 'desc' }],
       take: 200,
@@ -58,6 +64,25 @@ export async function GET(req: NextRequest) {
       : [];
     const devById = new Map(suggestedDevices.map(d => [d.id, d]));
 
+    // Sohbet: listedeki numaralara son 7 günde verilen cevaplar + numaranın son gelen
+    // mesajı (24 saatlik cevap penceresi) + "DUR" yazmış mı.
+    const telefonlar = [...new Set(messages.map(m => m.fromPhone))];
+    const [cevaplar, sonGelenler, ret] = telefonlar.length
+      ? await Promise.all([
+          prisma.whatsAppMessage.findMany({
+            where: { tenantId, yon: 'GIDEN', fromPhone: { in: telefonlar }, receivedAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+            orderBy: { receivedAt: 'asc' },
+            select: { id: true, fromPhone: true, text: true, receivedAt: true, durum: true, hata: true },
+          }),
+          prisma.whatsAppMessage.groupBy({ by: ['fromPhone'], where: { tenantId, yon: 'GELEN', fromPhone: { in: telefonlar } }, _max: { receivedAt: true } }),
+          retListesi(tenantId),
+        ])
+      : [[], [], new Set<string>()] as const;
+    const cevapByTel = new Map<string, typeof cevaplar[number][]>();
+    for (const c of cevaplar) cevapByTel.set(c.fromPhone, [...(cevapByTel.get(c.fromPhone) ?? []), c]);
+    const pencereByTel = new Map(sonGelenler.map(g => [g.fromPhone, g._max.receivedAt ? g._max.receivedAt.getTime() + PENCERE_MS : 0]));
+    const cevapAcik = waOutConfigured();
+
     const deviceCount = new Map(devices.map(d => [d.customerId, d._count._all]));
     const openCount = new Map<string, number>();
     for (const t of openTickets) {
@@ -79,6 +104,12 @@ export async function GET(req: NextRequest) {
         autoReplied: m.autoReplied,
         readingId: m.readingId,
         ticketId: m.ticketId,
+        // Bu numaraya verilen cevaplar (en eskisi önce) ve cevap penceresinin bitişi.
+        cevaplar: (cevapByTel.get(m.fromPhone) ?? []).filter(c => c.receivedAt >= m.receivedAt).map(c => ({
+          id: c.id, text: c.text, zaman: c.receivedAt.toISOString(), durum: c.durum, hata: c.hata,
+        })),
+        pencereBitis: pencereByTel.get(m.fromPhone) ? new Date(pencereByTel.get(m.fromPhone)!).toISOString() : null,
+        retli: ret.has(son10(m.fromPhone)),
         // Öneri — yalnızca güven eşiği geçtiyse gönderilir.
         // Eşik altındaki öneriyi göstermek, bayiyi yanlış yönlendirmekten başka işe yaramaz.
         suggestion:
@@ -103,6 +134,7 @@ export async function GET(req: NextRequest) {
           : null,
       })),
       pendingCount: messages.filter(m => !m.handled).length,
+      cevapAcik,
     });
   } catch (e) {
     return authErrorResponse(e);
@@ -114,6 +146,7 @@ export async function GET(req: NextRequest) {
  *  - addCustomer : tanınmayan numarayı müşteri olarak ekler ve AYNI numaradan gelen
  *                  tüm geçmiş mesajları da o müşteriye bağlar
  *  - handled     : ilgilenildi olarak işaretle (geri alınabilir)
+ *  - cevap       : müşteriye platform numarasından cevap (24 saat penceresinde, ücretsiz)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -123,6 +156,38 @@ export async function POST(req: NextRequest) {
 
     const msg = await prisma.whatsAppMessage.findFirst({ where: { id: messageId, tenantId } });
     if (!msg) return ucHatasi('MESAJ_BULUNAMADI', 404);
+
+    // ── CEVAP ── Müşteri platform numarasına yazdı; bayi buradan cevaplar. Kendi
+    // WhatsApp'ından yazsa müşteri başka numaradan mesaj alırdı (hatırlatma bu
+    // numaradan gelmişti). Mesaj bayinin adıyla imzalanır: numara "Nextus Servis".
+    if (action === 'cevap') {
+      if (msg.yon !== 'GELEN') return ucHatasi('MESAJ_BULUNAMADI', 404);
+      // Ortak demo: demo numaraları örnek; gerçek bir kişiye mesaj gitmesin.
+      if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
+      if (!waOutConfigured()) return ucHatasi('WHATSAPP_API_AYARLI_DEGIL_YONETICI', 503);
+      const metin = typeof body.metin === 'string' ? body.metin.trim() : '';
+      if (!metin || metin.length > 1000) return ucHatasi('WHATSAPP_CEVAP_BOS', 400);
+      const sonGelen = await prisma.whatsAppMessage.findFirst({
+        where: { tenantId, yon: 'GELEN', fromPhone: msg.fromPhone }, orderBy: { receivedAt: 'desc' }, select: { receivedAt: true },
+      });
+      if (!sonGelen || Date.now() - sonGelen.receivedAt.getTime() > PENCERE_MS) return ucHatasi('WHATSAPP_PENCERE_KAPALI', 409);
+      const bayi = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+      const r = await sendText(msg.fromPhone, `${metin}\n\n— ${bayi?.name ?? ''}`.trim());
+      if (!r.ok) return NextResponse.json({ error: r.error ?? 'WhatsApp', kod: 'WHATSAPP_GONDERILEMEDI' }, { status: 502 });
+      const giden = await prisma.whatsAppMessage.create({
+        data: {
+          tenantId, customerId: msg.customerId, yon: 'GIDEN',
+          // Meta kimliği yoksa da benzersiz olsun (durum bildirimi bu kayda bağlanamaz, o kadar).
+          waMessageId: r.id ?? `giden-${randomBytes(8).toString('hex')}`,
+          fromPhone: msg.fromPhone, text: metin, receivedAt: new Date(), handled: true,
+          durum: 'gonderildi', gonderenUserId: oturumKul.id,
+        },
+        select: { id: true, text: true, receivedAt: true, durum: true },
+      });
+      // Cevaplanan mesaj bekleyenlerden düşer (geri alınabilir).
+      await prisma.whatsAppMessage.update({ where: { id: msg.id }, data: { handled: true } });
+      return NextResponse.json({ ok: true, cevap: { id: giden.id, text: giden.text, zaman: giden.receivedAt.toISOString(), durum: giden.durum, hata: null } });
+    }
 
     if (action === 'handled') {
       // Ortak demo: "ilgilenildi" örnek mesajı herkesin gelen kutusundan kaldırırdı.

@@ -340,7 +340,8 @@ export default function AccountingPage() {
       const res = await fetch('/api/whatsapp/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerIds: ids }) });
       const d = await res.json();
       if (res.ok) {
-        const ek = `${d.failed ? doldur(sz.toplu.basarisiz, { n: d.failed }) : ''}${d.skipped ? doldur(sz.toplu.atlandi, { n: d.skipped }) : ''}`;
+        // "DUR" yazmış müşteriye gitmez (lib/whatsapp-inbound); bayi neden eksik gittiğini görsün.
+        const ek = `${d.failed ? doldur(sz.toplu.basarisiz, { n: d.failed }) : ''}${d.skipped ? doldur(sz.toplu.atlandi, { n: d.skipped }) : ''}${d.durduran ? doldur(sz.toplu.durduran, { n: d.durduran }) : ''}`;
         alert(`${doldur(sz.toplu.waSonuc, { n: d.sent, ek })}${d.errors?.length ? `\n\n${d.errors.join('\n')}` : ''}`);
         setShowBulkWA(false);
       } else alert(`❌ ${d.error || sz.toplu.waHata}`);

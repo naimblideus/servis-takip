@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { sendOneWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
 import { tekSeferlik } from '@/lib/zamanlanmis-is';
 import { sayacParametreleri } from '@/lib/whatsapp-sablon';
+import { retListesi, son10 } from '@/lib/whatsapp-inbound';
 
 export const maxDuration = 300;
 
@@ -66,7 +67,9 @@ async function run() {
       select: { id: true, name: true, phone: true },
     });
 
-    const items = customers.filter(c => waApiPhone(c.phone));
+    // "DUR" yazmış numaralara gitmez (lib/whatsapp-inbound).
+    const ret = await retListesi(t.id);
+    const items = customers.filter(c => waApiPhone(c.phone) && !ret.has(son10(c.phone)));
     if (items.length === 0) continue;
 
     // Tek tek gönderilip KAYDEDİLİR: bayi kime ne gittiğini görür, müşterinin
@@ -82,6 +85,7 @@ async function run() {
           tenantId: t.id, recipient: c.phone, channel: 'WHATSAPP',
           status: r.ok ? 'SENT' : 'FAILED', sentAt: r.ok ? new Date() : null,
           error: r.ok ? null : (r.error ?? 'bilinmeyen hata'),
+          waMessageId: r.ok ? (r.id ?? null) : null,
           message: `Sayaç hatırlatma — ${c.name} · ${cihaz} cihaz`,
         },
       }).catch(() => {});

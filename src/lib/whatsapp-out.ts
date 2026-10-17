@@ -6,8 +6,7 @@
  * serbest metin gönderilebilir ve Meta bunu 1 Temmuz 2025'ten beri ÜCRETLENDİRMEZ.
  * Yani otomatik cevaplar bedavadır; şablon onayı da gerekmez.
  */
-// WHATSAPP_GRAPH_KOK yalnız testte (sahte Meta sunucusu); canlıda tanımsız.
-const GRAPH = process.env.WHATSAPP_GRAPH_KOK || 'https://graph.facebook.com/v21.0';
+import { metaPost, metaGet } from '@/lib/whatsapp-graph';
 
 export function waOutConfigured(): boolean {
   return !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
@@ -17,27 +16,17 @@ export function waOutConfigured(): boolean {
  * 24 saatlik pencere içinde serbest metin gönder.
  * Pencere kapalıysa Meta hata döner — bu beklenen durumdur, sessizce false döneriz.
  */
-export async function sendText(to: string, body: string): Promise<{ ok: boolean; error?: string }> {
+export async function sendText(to: string, body: string): Promise<{ ok: boolean; id?: string | null; error?: string; kod?: number | null }> {
   if (!waOutConfigured()) return { ok: false, error: 'WhatsApp giden ayarlı değil (WHATSAPP_TOKEN/PHONE_ID)' };
   const phoneId = process.env.WHATSAPP_PHONE_ID!;
-  try {
-    const res = await fetch(`${GRAPH}/${phoneId}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to,
-        type: 'text',
-        // preview_url kapalı: müşteriye giden mesajda link önizlemesi istemiyoruz
-        text: { preview_url: false, body: body.slice(0, 4000) },
-      }),
-    });
-    if (res.ok) return { ok: true };
-    const e: any = await res.json().catch(() => ({}));
-    return { ok: false, error: e?.error?.message || `HTTP ${res.status}` };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'Ağ hatası' };
-  }
+  const r = await metaPost(`${phoneId}/messages`, {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'text',
+    // preview_url kapalı: müşteriye giden mesajda link önizlemesi istemiyoruz
+    text: { preview_url: false, body: body.slice(0, 4000) },
+  });
+  return r.ok ? { ok: true, id: r.id } : { ok: false, error: r.error, kod: r.kod };
 }
 
 /**
@@ -55,9 +44,9 @@ export async function downloadMedia(
   if (!waOutConfigured()) return { ok: false, error: 'WhatsApp ayarlı değil' };
   const token = process.env.WHATSAPP_TOKEN!;
   try {
-    const metaRes = await fetch(`${GRAPH}/${mediaId}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!metaRes.ok) return { ok: false, error: `Medya bilgisi alınamadı (HTTP ${metaRes.status})` };
-    const meta: any = await metaRes.json();
+    const bilgi = await metaGet(mediaId);
+    if (!bilgi.ok) return { ok: false, error: `Medya bilgisi alınamadı: ${bilgi.error}` };
+    const meta: any = bilgi.veri;
     if (!meta?.url) return { ok: false, error: 'Medya adresi yok' };
 
     // Bu URL yalnızca aynı token ile ve kısa süre indirilebilir.

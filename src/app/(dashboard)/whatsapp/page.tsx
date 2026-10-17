@@ -29,6 +29,12 @@ interface Msg {
     source: string | null;
   } | null;
   customer: { id: string; name: string; phone: string; deviceCount: number; openTickets: number } | null;
+  // Bu numaraya buradan verilen cevaplar (platform numarasından) + durumları.
+  cevaplar: { id: string; text: string | null; zaman: string; durum: string | null; hata: string | null }[];
+  /** Serbest cevap penceresinin bitişi (müşterinin son mesajı + 24 saat). */
+  pencereBitis: string | null;
+  /** Müşteri "DUR" yazdı: hatırlatma almıyor (cevap verilebilir). */
+  retli: boolean;
 }
 
 interface Dev {
@@ -73,16 +79,51 @@ export default function WhatsAppInboxPage() {
   const [fixCat, setFixCat] = useState('');
   const [fixLoading, setFixLoading] = useState(false);
 
-  const load = useCallback(() => {
-    setLoading(true);
+  const [cevapAcik, setCevapAcik] = useState(false);
+  // Sekme: müşteriden gelenler | bayinin gönderdiği hatırlatmalar (durumlarıyla).
+  const [sekme, setSekme] = useState<'gelen' | 'giden'>('gelen');
+  const [gidenler, setGidenler] = useState<{ id: string; alici: string | null; telefon: string; ozet: string; durum: string; hata: string | null; zaman: string }[] | null>(null);
+  const gidenYukle = useCallback(() => {
+    fetch('/api/whatsapp/gonderilen').then(r => r.json()).then(d => setGidenler(d.items || [])).catch(() => setGidenler([]));
+  }, []);
+  useEffect(() => { if (sekme === 'giden') gidenYukle(); }, [sekme, gidenYukle]);
+  const [taslak, setTaslak] = useState<Record<string, string>>({});
+  const [gonderiliyor, setGonderiliyor] = useState<string | null>(null);
+
+  const load = useCallback((sessiz = false) => {
+    if (!sessiz) setLoading(true);
     fetch(`/api/whatsapp/inbox${showAll ? '?all=1' : ''}`)
       .then(r => r.json())
-      .then(d => setItems(d.items || []))
+      .then(d => { setItems(d.items || []); setCevapAcik(Boolean(d.cevapAcik)); })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!sessiz) setLoading(false); });
   }, [showAll]);
 
   useEffect(() => { load(); }, [load]);
+  // Canlı: yeni mesaj ve "teslim edildi / okundu" bildirimi 15 sn'de bir gelir
+  // (sekme görünürken). Bayi müşteriyle yazışırken sayfayı yenilemesin.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (sekme === 'giden') gidenYukle(); else load(true);
+    }, 15_000);
+    return () => window.clearInterval(id);
+  }, [load, sekme, gidenYukle]);
+
+  const cevapla = async (m: Msg) => {
+    const metin = (taslak[m.id] ?? '').trim();
+    if (!metin) return;
+    setGonderiliyor(m.id);
+    try {
+      const r = await fetch('/api/whatsapp/inbox', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'cevap', messageId: m.id, metin }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { alert(d.error || t.wa.islemYapilamadi); return; }
+      setTaslak((x) => ({ ...x, [m.id]: '' }));
+      setItems((l) => l.map((x) => (x.id === m.id ? { ...x, cevaplar: [...x.cevaplar, d.cevap] } : x)));
+    } finally { setGonderiliyor(null); }
+  };
 
   const act = async (body: any) => {
     setBusy(body.messageId);
@@ -171,10 +212,43 @@ export default function WhatsAppInboxPage() {
           {showAll ? t.wa.sadeceBekleyen : t.wa.tumunuGoster}
         </button>
       </div>
-      <p style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: 0, marginBottom: '1.25rem', lineHeight: 1.6 }}>
+      <p style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: 0, marginBottom: '0.9rem', lineHeight: 1.6 }}>
         {t.wa.alt}
       </p>
 
+      <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: '1rem' }}>
+        {(['gelen', 'giden'] as const).map((s) => (
+          <button key={s} role="tab" aria-selected={sekme === s} onClick={() => setSekme(s)}
+            style={{ padding: '0.45rem 0.95rem', borderRadius: 999, fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer',
+              background: sekme === s ? '#0f2253' : 'white', color: sekme === s ? 'white' : '#374151', border: `1px solid ${sekme === s ? '#0f2253' : '#d1d5db'}` }}>
+            {s === 'gelen' ? t.wa.gelenler : t.wa.gonderilenler}
+          </button>
+        ))}
+      </div>
+
+      {sekme === 'giden' ? (
+        <div>
+          {gidenler === null && <div style={{ color: '#9ca3af' }}>{t.genel.yukleniyor}</div>}
+          {gidenler?.length === 0 && (
+            <div style={{ ...card, textAlign: 'center', color: '#6b7280', padding: '2rem 1rem' }}>{t.wa.gonderilenYok}</div>
+          )}
+          {gidenler?.map((g) => (
+            <div key={g.id} style={{ ...card, display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ minWidth: 0, flex: '1 1 260px' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{g.alici ?? `0${g.telefon.replace(/[^0-9]/g, '').slice(-10)}`}</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 2, overflowWrap: 'anywhere' }}>{g.ozet}</div>
+                {g.hata && <div style={{ fontSize: '0.78rem', color: '#b91c1c', marginTop: 4 }}>⚠ {g.hata}</div>}
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '0.78rem' }}>
+                <div style={{ fontWeight: 700, color: g.durum === 'hata' ? '#b91c1c' : g.durum === 'okundu' ? '#0284c7' : g.durum === 'bekliyor' ? '#b45309' : '#15803d' }}>
+                  {g.durum === 'okundu' ? `✓✓ ${t.wa.durumOkundu}` : g.durum === 'teslim' ? `✓✓ ${t.wa.durumTeslim}` : g.durum === 'hata' ? `⚠ ${t.wa.durumHata}` : g.durum === 'bekliyor' ? t.wa.durumBekliyor : `✓ ${t.wa.durumGonderildi}`}
+                </div>
+                <div style={{ color: '#94a3b8', marginTop: 2 }}>{fmtTime(g.zaman)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (<>
       {loading && <div style={{ color: '#9ca3af' }}>{t.genel.yukleniyor}</div>}
 
       {!loading && items.length === 0 && (
@@ -193,6 +267,7 @@ export default function WhatsAppInboxPage() {
               {!m.customer && <span style={chip('#fffbeb', '#b45309', '#fde68a')}>{t.wa.sistemdeYok}</span>}
               {m.isFaultReport && <span style={chip('#fef2f2', '#b91c1c', '#fecaca')}>{t.wa.arizaBildirimi}</span>}
               {m.readingId && <span style={chip('#ecfdf5', '#047857', '#a7f3d0')}>{t.wa.sayacIslendi}</span>}
+              {m.retli && <span style={chip('#f1f5f9', '#475569', '#cbd5e1')}>{t.wa.retEtiket}</span>}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{fmtTime(m.receivedAt)}</div>
           </div>
@@ -223,6 +298,41 @@ export default function WhatsAppInboxPage() {
               {t.wa.dosyaGonderdi}
             </div>
           )}
+
+          {/* ── SOHBET ── Buradan verilen cevaplar, durumlarıyla (Meta bildirimi). */}
+          {m.cevaplar.map((c) => (
+            <div key={c.id} style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <div style={{ maxWidth: '85%', background: c.durum === 'hata' ? '#fef2f2' : '#dcfce7', border: `1px solid ${c.durum === 'hata' ? '#fecaca' : '#bbf7d0'}`, borderRadius: '0.75rem 0.75rem 0.2rem 0.75rem', padding: '0.5rem 0.7rem', fontSize: '0.86rem', color: '#14532d', whiteSpace: 'pre-wrap' }}>
+                {c.text}
+                <div style={{ fontSize: '0.7rem', marginTop: 3, color: c.durum === 'hata' ? '#b91c1c' : c.durum === 'okundu' ? '#0284c7' : '#64748b', textAlign: 'right' }}>
+                  {t.wa.siz} · {fmtTime(c.zaman)} · {c.durum === 'okundu' ? `✓✓ ${t.wa.durumOkundu}` : c.durum === 'teslim' ? `✓✓ ${t.wa.durumTeslim}` : c.durum === 'hata' ? `⚠ ${t.wa.durumHata}${c.hata ? `: ${c.hata}` : ''}` : `✓ ${t.wa.durumGonderildi}`}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* ── CEVAP ── Platform numarasından, 24 saat penceresinde (WhatsApp kuralı; ücretsiz). */}
+          {(() => {
+            if (!cevapAcik) return <div style={{ marginTop: '0.6rem', fontSize: '0.78rem', color: '#94a3b8' }}>{t.wa.cevapKurulu}</div>;
+            const kalanMs = m.pencereBitis ? new Date(m.pencereBitis).getTime() - Date.now() : -1;
+            if (kalanMs <= 0) return <div style={{ marginTop: '0.6rem', fontSize: '0.78rem', color: '#94a3b8' }}>{t.wa.pencereKapali}</div>;
+            return (
+              <div style={{ marginTop: '0.6rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+                  <textarea value={taslak[m.id] ?? ''} onChange={(e) => setTaslak((x) => ({ ...x, [m.id]: e.target.value }))}
+                    placeholder={t.wa.cevapYer} rows={2} maxLength={1000}
+                    style={{ flex: 1, minWidth: 0, padding: '0.55rem 0.7rem', border: '1px solid #cbd5e1', borderRadius: '0.6rem', fontSize: '0.9rem', resize: 'vertical', fontFamily: 'inherit' }} />
+                  <button type="button" onClick={() => cevapla(m)} disabled={gonderiliyor === m.id || !(taslak[m.id] ?? '').trim()}
+                    style={{ padding: '0.6rem 1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.6rem', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', opacity: gonderiliyor === m.id || !(taslak[m.id] ?? '').trim() ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    {gonderiliyor === m.id ? t.wa.cevapGidiyor : t.wa.cevapGonder}
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 4 }}>
+                  {t.wa.cevapImza} · {doldur(t.wa.pencereKalan, { saat: Math.max(1, Math.floor(kalanMs / 3_600_000)) })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── ÖNERİ KARTI ──
               Sistem fişi AÇMAZ; "şu cihaz, şu arıza" diye önerir. Bayi tek dokunuşla
@@ -454,6 +564,7 @@ export default function WhatsAppInboxPage() {
           )}
         </div>
       ))}
+      </>)}
     </div>
   );
 }

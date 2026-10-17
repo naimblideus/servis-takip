@@ -1,8 +1,11 @@
 // Toplu WhatsApp — Meta WhatsApp Cloud API, ONAYLI şablon (template) ile.
 // 24s penceresi dışındaki proaktif mesajlar için Meta ONAYLI şablon ZORUNLUDUR (serbest metin gönderilemez).
 // Env: WHATSAPP_TOKEN (kalıcı erişim token), WHATSAPP_PHONE_ID, WHATSAPP_TEMPLATE (şablon adı), WHATSAPP_LANG (örn 'tr').
-// WHATSAPP_GRAPH_KOK yalnız testte (sahte Meta sunucusu); canlıda tanımsız.
-const GRAPH = process.env.WHATSAPP_GRAPH_KOK || 'https://graph.facebook.com/v21.0';
+// Meta çağrısı tek kapıdan (lib/whatsapp-graph): mesaj kimliği (wamid) ve okunur hata buradan döner.
+import { metaPost } from '@/lib/whatsapp-graph';
+
+/** Tek gönderimin sonucu: başarıda Meta mesaj kimliği (teslim/okundu bildirimi buna bağlanır). */
+export type GonderimSonucu = { ok: boolean; id?: string | null; error?: string; kod?: number | null };
 
 export interface WaItem { phone: string; params: string[]; } // params = şablon body değişkenleri {{1}},{{2}}...
 export interface WaResult { ok: boolean; sent: number; failed: number; skippedInvalid: number; errors: string[] }
@@ -20,8 +23,8 @@ export function waApiPhone(raw: string | null | undefined): string | null {
   return /^90\d{10}$/.test(d) ? d : null;
 }
 
-async function sendOne(phone: string, params: string[], templateName?: string): Promise<{ ok: boolean; error?: string }> {
-  const token = process.env.WHATSAPP_TOKEN!, phoneId = process.env.WHATSAPP_PHONE_ID!;
+async function sendOne(phone: string, params: string[], templateName?: string): Promise<GonderimSonucu> {
+  const phoneId = process.env.WHATSAPP_PHONE_ID!;
   // Şablon adı ÇAĞRIDAN gelebilir. Eskiden her zaman WHATSAPP_TEMPLATE okunuyordu;
   // bu yüzden sayaç hatırlatma işi WHATSAPP_TEMPLATE_SAYAC'ı doğrulasa bile gönderirken
   // BORÇ HATIRLATMA şablonunu yolluyordu — müşteriye "sayaç gönderin" yerine
@@ -38,18 +41,8 @@ async function sendOne(phone: string, params: string[], templateName?: string): 
       components: params.length ? [{ type: 'body', parameters: params.map(p => ({ type: 'text', text: p })) }] : [],
     },
   };
-  try {
-    const res = await fetch(`${GRAPH}/${phoneId}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) return { ok: true };
-    const e: any = await res.json().catch(() => ({}));
-    return { ok: false, error: e?.error?.message || `HTTP ${res.status}` };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'Ağ hatası' };
-  }
+  const r = await metaPost(`${phoneId}/messages`, body);
+  return r.ok ? { ok: true, id: r.id } : { ok: false, error: r.error, kod: r.kod };
 }
 
 /**
@@ -83,7 +76,7 @@ export async function sendBulkWhatsApp(items: WaItem[], templateName?: string): 
 /** Tek alıcıya şablon gönder — gönderim kaydını tek tek tutmak gerektiğinde. */
 export async function sendOneWhatsApp(
   phone: string, params: string[], templateName?: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<GonderimSonucu> {
   if (!waConfigured()) return { ok: false, error: 'WhatsApp API ayarlı değil (WHATSAPP_*).' };
   const no = waApiPhone(phone);
   if (!no) return { ok: false, error: 'Geçersiz telefon' };

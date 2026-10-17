@@ -3,11 +3,17 @@ import { prisma } from '@/lib/prisma';
 import {
   metaSignatureValid,
   parseWebhook,
+  parseStatuses,
+  durumIsle,
+  retKomutu,
+  retUygula,
+  numaraninBayileri,
+  son10,
   findCustomerByPhone,
   findTenantByPhoneNumberId,
   paylasimliNumaraBayisi,
 } from '@/lib/whatsapp-inbound';
-import { looksLikeFaultReport } from '@/lib/whatsapp-out';
+import { looksLikeFaultReport, sendText } from '@/lib/whatsapp-out';
 import { handleAutoReply } from '@/lib/whatsapp-autoreply';
 import { buildAndSaveSuggestion } from '@/lib/whatsapp-suggest';
 
@@ -55,19 +61,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, ignored: 'bozuk gövde' });
   }
 
+  // Giden mesajların durumu (teslim / okundu / iletilemedi) — gönderim kaydına işlenir.
+  const durumlar = parseStatuses(body);
+  for (const d of durumlar) {
+    try { await durumIsle(d); } catch (e: any) { console.error('[whatsapp-webhook] durum işlenemedi:', e?.message); }
+  }
+
   const messages = parseWebhook(body);
   let saved = 0;
 
   for (const m of messages) {
     try {
+      // Meta tekrarı: bu mesaj işlendiyse hiçbir şey yapma (onay/otomatik cevap ikinci kez gitmesin).
+      if (await prisma.whatsAppMessage.findUnique({ where: { waMessageId: m.waMessageId }, select: { id: true } })) continue;
       // Önce bayinin KENDİ numarası; değilse platformun paylaşımlı numarası →
       // gönderen hangi bayinin müşterisiyse ona (emin olunamazsa hiçbirine).
-      const tenant = (await findTenantByPhoneNumberId(m.phoneNumberId))
-        ?? (await paylasimliNumaraBayisi(m.phoneNumberId, m.fromPhone));
+      const komut = retKomutu(m.text);
+      const kendiBayisi = await findTenantByPhoneNumberId(m.phoneNumberId);
+      const tenant = kendiBayisi ?? (await paylasimliNumaraBayisi(m.phoneNumberId, m.fromPhone));
+      // "DUR" / "BAŞLA": hatırlatma şablonları bu numaraya gitmez / yeniden gider.
+      // Kendi numarası olan bayide yalnız o bayi; paylaşımlı numarada bu numaraya
+      // yazabilecek BÜTÜN bayiler (hangisini kastettiği belli olmasa da işlenir;
+      // istemeyen kişiye yazmaya devam etmek numarayı herkes için yakar).
+      // Onay mesajı 24 saat penceresinde ücretsiz.
+      if (komut) {
+        const bayiler = kendiBayisi
+          ? [kendiBayisi.id]
+          : m.phoneNumberId === process.env.WHATSAPP_PHONE_ID ? (await numaraninBayileri(son10(m.fromPhone))).map((b) => b.id) : [];
+        if (bayiler.length) {
+          try {
+            await retUygula(bayiler, m.fromPhone, komut);
+            await sendText(m.fromPhone, komut === 'DUR'
+              ? 'Hatırlatma mesajları durduruldu. Yeniden almak isterseniz BAŞLA yazabilirsiniz.'
+              : 'Hatırlatma mesajları yeniden açıldı. Durdurmak için DUR yazabilirsiniz.');
+          } catch (e: any) {
+            console.error('[whatsapp-webhook] DUR/BAŞLA işlenemedi:', e?.message);
+          }
+        }
+      }
       if (!tenant) continue;
 
       const customer = await findCustomerByPhone(tenant.id, m.fromPhone);
-      const isFaultReport = looksLikeFaultReport(m.text);
+      const isFaultReport = !komut && looksLikeFaultReport(m.text);
 
       const created = await prisma.whatsAppMessage.create({
         data: {
@@ -84,6 +119,13 @@ export async function POST(req: NextRequest) {
         },
       });
       saved++;
+
+      // Komut mesajı gelen kutusunda görünür (bayi müşterisinin durdurduğunu bilsin);
+      // otomatik cevap / fiş önerisi yok, onay yukarıda gitti.
+      if (komut) {
+        await prisma.whatsAppMessage.update({ where: { id: created.id }, data: { autoReplied: true } }).catch(() => {});
+        continue;
+      }
 
       // Fiş önerisi — "hangi cihaz, hangi arıza". Fiş AÇMAZ, yalnızca önerir.
       // Kayıttan sonra denenir; öneri üretilemezse mesaj yine de kaydedilmiş olur.
@@ -126,5 +168,5 @@ export async function POST(req: NextRequest) {
   }
 
   // Her koşulda 200 — aksi halde Meta aynı paketi saatlerce tekrar gönderir.
-  return NextResponse.json({ ok: true, received: messages.length, saved });
+  return NextResponse.json({ ok: true, received: messages.length, saved, durum: durumlar.length });
 }

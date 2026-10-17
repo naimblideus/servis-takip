@@ -7,6 +7,7 @@ import { sendOneWhatsApp, waConfigured, waApiPhone } from '@/lib/whatsapp';
 import { prisma } from '@/lib/prisma';
 import { borcParametreleri } from '@/lib/whatsapp-sablon';
 import { BORC_KAYIT_ONEKI } from '@/lib/vade-hatirlatma';
+import { retListesi, son10 } from '@/lib/whatsapp-inbound';
 
 // POST /api/whatsapp/bulk — Seçili müşterilere TEK TIKLA toplu WhatsApp (Meta onaylı şablonla).
 // Güvenlik: müşteriler TENANT-scoped; şablon değişkenleri SUNUCUDA üretilir ({{1}}=ad, {{2}}=bayi, {{3}}=borç).
@@ -28,14 +29,18 @@ export async function POST(req: NextRequest) {
     }
 
     const recipients = await resolveRecipients(tenantId, customerIds);
+    // "DUR" yazmış müşteriye bayi elle de gönderemez (şikâyet numarayı herkes için yakar).
+    const ret = await retListesi(tenantId);
+    const durduran = recipients.filter(r => ret.has(son10(r.phone))).length;
     const items = recipients
-      .filter(r => waApiPhone(r.phone))
+      // Borcu olmayana "vadesi geçmiş 0,00 TL" hatırlatması gitmesin.
+      .filter(r => waApiPhone(r.phone) && !ret.has(son10(r.phone)) && r.balance > 0.009)
       // Şablon değişkenleri tek yerde (lib/whatsapp-sablon): müşteri, bayi, tutar.
       .map(r => ({ phone: r.phone, ad: r.name, tutar: fmtTLm(r.balance), params: borcParametreleri(r.name, bayi?.name ?? '', fmtTLm(r.balance)) }));
-    const skipped = recipients.length - items.length;
+    const skipped = recipients.length - items.length - durduran;
 
     if (items.length === 0) {
-      return ucHatasi('SECILI_MUSTERILERDE_GECERLI_TELEFON_YOK', 400, { ek: { skipped } });
+      return ucHatasi('SECILI_MUSTERILERDE_GECERLI_TELEFON_YOK', 400, { ek: { skipped, durduran } });
     }
 
     // Tek tek gönderiliyor ki HER ALICI için ayrı kayıt tutulabilsin.
@@ -53,13 +58,15 @@ export async function POST(req: NextRequest) {
           recipient: it.phone,
           channel: 'WHATSAPP',
           status: r.ok ? 'SENT' : 'FAILED',
+          sentAt: r.ok ? new Date() : null,
           error: r.ok ? null : (r.error ?? 'bilinmeyen hata'),
+          waMessageId: r.ok ? (r.id ?? null) : null,
           message: `${BORC_KAYIT_ONEKI} — ${it.ad} · ${it.tutar} TL`,
         },
       }).catch(() => {}); // kayıt yazılamazsa gönderim yine de sürsün
     }
 
-    return NextResponse.json({ ok: sent > 0, sent, failed, skipped, errors });
+    return NextResponse.json({ ok: sent > 0, sent, failed, skipped, durduran, errors });
   } catch (e) {
     return authErrorResponse(e);
   }

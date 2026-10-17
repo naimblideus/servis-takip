@@ -28,7 +28,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
 const g = mkdtempSync(join(tmpdir(), 'st-wa-'));
-const KAYNAKLAR = ['whatsapp-sablon', 'whatsapp', 'whatsapp-inbound', 'vade-hatirlatma', 'reminders'];
+const KAYNAKLAR = ['whatsapp-graph', 'whatsapp-sablon', 'whatsapp', 'whatsapp-inbound', 'vade-hatirlatma', 'reminders'];
 try {
   execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'), ...KAYNAKLAR.map((k) => join(KOK, `src/lib/${k}.ts`)),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck'], { stdio: 'pipe' });

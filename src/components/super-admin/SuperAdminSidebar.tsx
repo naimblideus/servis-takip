@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database, PhoneCall } from 'lucide-react';
+import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database, PhoneCall, MessageCircle } from 'lucide-react';
 import { useT, useDil } from '@/lib/i18n/client';
 import { aktivasyonMetni } from '@/lib/aktivasyon-metin';
 import type { Sozluk } from '@/lib/i18n/sozluk';
@@ -19,6 +19,8 @@ const menu = (sz: Sozluk, dil: string) => [
     { href: '/super-admin/billing', label: sz.superAdmin.menu.faturalama, icon: Receipt },
     { href: '/super-admin/plans', label: sz.superAdmin.menu.paketler, icon: Package },
     { href: '/super-admin/pazar', label: sz.superAdmin.menu.pazar, icon: ShoppingCart },
+    // Platform WhatsApp numarasının Meta kurulumu: ne eksik, sıradaki adım.
+    { href: '/super-admin/whatsapp', label: sz.superAdmin.whatsapp.menu, icon: MessageCircle },
     { href: '/super-admin/settings', label: sz.superAdmin.menu.ayarlar, icon: Settings },
 ];
 

@@ -14,6 +14,9 @@
  * Tek platform numarası: mesaj "Nextus Servis" adlı numaradan gider; müşteri
  * bayisini tanısın diye bayi adı her şablonda var. Cevap bu numaraya gelir ve
  * webhook onu doğru bayiye yönlendirir (lib/whatsapp-inbound paylasimliNumaraBayisi).
+ *
+ * Her şablon "DUR" yazma yolunu söyler: müşteri istemediği mesajı şikâyet etmek
+ * yerine durdurabilsin (şikâyet tek platform numarasının kalitesini herkes için düşürür).
  */
 
 export interface SablonTanimi {
@@ -31,14 +34,14 @@ export const SABLONLAR = {
     ad: 'borc_hatirlatma',
     kategori: 'UTILITY',
     dil: 'tr',
-    metin: 'Merhaba {{1}}, {{2}} adına hatırlatma: vadesi geçmiş {{3}} TL tutarında ödemeniz bulunuyor. Sorunuz varsa bu mesaja cevap yazabilirsiniz.',
+    metin: 'Merhaba {{1}}, {{2}} adına hatırlatma: vadesi geçmiş {{3}} TL tutarında ödemeniz bulunuyor. Sorunuz varsa bu mesaja cevap yazabilirsiniz. Hatırlatma istemiyorsanız DUR yazın.',
     ornek: ['Ahmet Bey', 'Örnek Fotokopi', '2.450,00'],
   },
   sayac: {
     ad: 'sayac_hatirlatma',
     kategori: 'UTILITY',
     dil: 'tr',
-    metin: 'Merhaba {{1}}, {{2}} bu ayın faturası için {{3}} makinenizin sayacını bekliyor. Sayaç ekranının fotoğrafını bu mesaja cevap olarak gönderebilirsiniz.',
+    metin: 'Merhaba {{1}}, {{2}} bu ayın faturası için {{3}} makinenizin sayacını bekliyor. Sayaç ekranının fotoğrafını bu mesaja cevap olarak gönderebilirsiniz. Hatırlatma istemiyorsanız DUR yazın.',
     ornek: ['Ahmet Bey', 'Örnek Fotokopi', '3'],
   },
 } satisfies Record<string, SablonTanimi>;

@@ -185,6 +185,7 @@ model Tenant {
   invoiceLines        InvoiceLine[]
   invoicePayments     InvoicePayment[]
   whatsappMessages    WhatsAppMessage[]
+  whatsappRetler   WhatsAppRet[]
   portalRequests      PortalRequest[]
   contracts           Contract[]
   contractDevices     ContractDevice[]
@@ -381,6 +382,19 @@ model TicketStatusHistory {
   @@index([tenantId, changedAt])
 }
 
+/// Müşteri bu bayinin WhatsApp hatırlatmalarını "DUR" ile kapattı ("BAŞLA" ile açar).
+/// Telefon bazlı (son 10 hane): mağaza alıcısı servis müşterisi olmayabilir.
+model WhatsAppRet {
+  id        String   @id @default(cuid())
+  tenantId  String
+  son10     String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, son10])
+}
+
 model WhatsAppMessage {
   id            String   @id @default(cuid())
   tenantId      String
@@ -397,6 +411,11 @@ model WhatsAppMessage {
   readingId     String? // bu mesajdaki fotoğraftan sayaç okuması kaydedildiyse
   isFaultReport Boolean  @default(false) // metin arıza bildirimine benziyor mu (anahtar kelime)
   autoReplied   Boolean  @default(false) // otomatik cevap gönderildi mi (tekrar göndermeyi önler)
+  // GELEN: müşteriden · GIDEN: gelen kutusundan bayinin cevabı (sohbet tek tabloda)
+  yon            String  @default("GELEN")
+  durum          String? // GIDEN: gonderildi | teslim | okundu | hata (Meta durum bildirimi)
+  hata           String? // GIDEN iletilemediyse okunur sebep
+  gonderenUserId String? // GIDEN: cevabı yazan kullanıcı
 
   // ── ÖNERİ (mesajdan fiş) ──────────────────────────────────────────────
   // Sistem mesajı okuyup "hangi cihaz, hangi arıza" ÖNERİR; fişi ASLA kendisi açmaz.
@@ -1326,6 +1345,10 @@ model NotificationLog {
   sentAt    DateTime?
   error     String?
   createdAt DateTime            @default(now())
+  // WhatsApp: Meta mesaj kimliği; durum bildirimi (teslim/okundu/iletilemedi) buna bağlanır.
+  waMessageId String?   @unique
+  teslimAt    DateTime?
+  okunduAt    DateTime?
 
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
