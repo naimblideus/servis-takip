@@ -99,6 +99,12 @@ export interface KarneFisi {
    * için getirilmiştir; karnede sayılmazlar.
    */
   pencerede: boolean;
+  /**
+   * Sahada geçen dakika ("Vardım" → "Çıktım", lib/saha-suresi.ts). DUVAR
+   * saati: müşterinin kapısında geçen süre mesai takvimine bölünmez. İki
+   * basıştan biri yoksa null — tahmin edilmez.
+   */
+  sahaDk?: number | null;
 }
 
 export interface Yargi {
@@ -194,6 +200,13 @@ export interface TeknisyenKarnesi {
   cozumOrtancaDk: number | null;
   /** Ortancalara kaç fiş katkı verdi — güven göstergesi. */
   sureOlculen: number;
+  /** Sahada geçen sürenin ortancası (dk). Ortalama değil: "Çıktım"ı ertesi gün basılan tek iş karneyi bozmasın. */
+  sahaOrtancaDk: number | null;
+  /** Kaç fişte iki basış da var. */
+  sahaOlculen: number;
+  /** Tavsiye puanı (lib/memnuniyet.ts) — veritabanı katmanı doldurur; az cevapta null. */
+  tavsiyeCevap?: number;
+  tavsiyePuani?: number | null;
 }
 
 export interface KarneOzeti {
@@ -210,6 +223,7 @@ export interface KarneOzeti {
   oranYok: 'AZ_IS' | 'OLCUM_YOK' | null;
   mudahaleOrtancaDk: number | null;
   cozumOrtancaDk: number | null;
+  sahaOrtancaDk: number | null;
   /** Karnesi olan teknisyen sayısı (atanmamış satırı hariç). */
   teknisyen: number;
 }
@@ -247,6 +261,7 @@ function bosKarne(id: string | null, ad: string | null): TeknisyenKarnesi {
     ilkSeferde: 0, tekrar: 0, beklemede: 0, belirsiz: 0, kategorisiz: 0, yaklasik: 0,
     ilkSeferdeYuzde: null, oranYok: 'OLCUM_YOK',
     mudahaleOrtancaDk: null, cozumOrtancaDk: null, sureOlculen: 0,
+    sahaOrtancaDk: null, sahaOlculen: 0,
   };
 }
 
@@ -272,10 +287,10 @@ export function karneCikar(
     cihazBazli.get(f.cihazId)!.push(f);
   }
 
-  const kutular = new Map<string, { karne: TeknisyenKarnesi; mudahale: number[]; cozum: number[] }>();
+  const kutular = new Map<string, { karne: TeknisyenKarnesi; mudahale: number[]; cozum: number[]; saha: number[] }>();
   const kutu = (id: string | null, ad: string | null) => {
     const anahtar = id ?? '';
-    if (!kutular.has(anahtar)) kutular.set(anahtar, { karne: bosKarne(id, ad), mudahale: [], cozum: [] });
+    if (!kutular.has(anahtar)) kutular.set(anahtar, { karne: bosKarne(id, ad), mudahale: [], cozum: [], saha: [] });
     const k = kutular.get(anahtar)!;
     if (ad && !k.karne.teknisyenAdi) k.karne.teknisyenAdi = ad;
     return k;
@@ -301,6 +316,8 @@ export function karneCikar(
       if (f.mudahaleDk !== null) k.mudahale.push(f.mudahaleDk);
       if (f.cozum !== null && f.cozumDk !== null) k.cozum.push(f.cozumDk);
     }
+    // Sahada geçen süre takvimden bağımsız: türetilmiş geçmişte de ölçülür.
+    if (!f.iptal && typeof f.sahaDk === 'number') k.saha.push(f.sahaDk);
 
     const y = fisYargisi(f, cihazBazli.get(f.cihazId) ?? [f], simdi);
     // Hüküm yaklaşık bir kapanış anına dayanıyorsa sayılır ve ekranda yazılır.
@@ -329,6 +346,8 @@ export function karneCikar(
     k.karne.mudahaleOrtancaDk = ortanca(k.mudahale);
     k.karne.cozumOrtancaDk = ortanca(k.cozum);
     k.karne.sureOlculen = k.cozum.length;
+    k.karne.sahaOrtancaDk = ortanca(k.saha);
+    k.karne.sahaOlculen = k.saha.length;
   }
 
   // ATANMAMIŞ fiş puanlanmaz: kimsenin karnesi değildir. Sayısı görünür.
@@ -370,6 +389,7 @@ export function karneCikar(
       oranYok: genel.yok,
       mudahaleOrtancaDk: ortanca(tumMudahale),
       cozumOrtancaDk: ortanca(tumCozum),
+      sahaOrtancaDk: ortanca([...kutular.values()].flatMap((k) => k.saha)),
       teknisyen: karneler.length,
     },
   };

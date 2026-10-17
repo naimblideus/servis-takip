@@ -30,6 +30,8 @@ import {
 } from '@/lib/sla';
 import { takvimKur } from '@/lib/sla-veri';
 import { karneCikar, TEKRAR_GUN, type KarneFisi, type KarneSonucu } from '@/lib/teknisyen';
+import { sahaDakikasi } from '@/lib/saha-suresi';
+import { tavsiyeOzeti } from '@/lib/memnuniyet';
 
 const GUN_MS = 86_400_000;
 
@@ -75,7 +77,7 @@ export async function karneOlc(
     where: { tenantId, deletedAt: null, createdAt: { gte: bas, lte: izlemeSonu } },
     select: {
       id: true, ticketNumber: true, createdAt: true, deviceId: true, customerId: true,
-      assignedUserId: true, faultCategory: true, status: true, statusUpdatedAt: true, varisAt: true,
+      assignedUserId: true, faultCategory: true, status: true, statusUpdatedAt: true, varisAt: true, ayrilisAt: true,
       assignedUser: { select: { name: true } },
       device: { select: { brand: true, model: true, serialNo: true } },
       statusHistory: { select: { status: true, changedAt: true, kaynak: true } },
@@ -152,6 +154,7 @@ export async function karneOlc(
       mudahaleDk,
       cozumDk,
       pencerede: f.createdAt >= bas && f.createdAt <= son,
+      sahaDk: sahaDakikasi(f.varisAt, f.ayrilisAt),
     };
   });
 
@@ -163,8 +166,31 @@ export async function karneOlc(
     take: 500,
   });
 
+  const sonuc = karneCikar(girdiler, simdi, teknisyenler.map((t) => ({ id: t.id, ad: t.name })));
+
+  // TAVSİYE PUANI (lib/memnuniyet.ts): dönemin fişlerine verilen cevaplar,
+  // anketin yazdığı teknisyene göre. Az cevapta puan null — karne iftira etmez.
+  const penceredekiler = girdiler.filter((f) => f.pencerede).map((f) => f.id);
+  if (penceredekiler.length) {
+    const anketler = await prisma.memnuniyetAnketi.findMany({
+      where: { tenantId, ticketId: { in: penceredekiler }, puan: { not: null } },
+      select: { teknisyenId: true, puan: true },
+    });
+    const puanlar = new Map<string, number[]>();
+    for (const a of anketler) {
+      if (!a.teknisyenId || a.puan === null) continue;
+      if (!puanlar.has(a.teknisyenId)) puanlar.set(a.teknisyenId, []);
+      puanlar.get(a.teknisyenId)!.push(a.puan);
+    }
+    for (const k of sonuc.karneler) {
+      const o = tavsiyeOzeti(k.teknisyenId ? puanlar.get(k.teknisyenId) ?? [] : []);
+      k.tavsiyeCevap = o.cevap;
+      k.tavsiyePuani = o.puan;
+    }
+  }
+
   return {
-    ...karneCikar(girdiler, simdi, teknisyenler.map((t) => ({ id: t.id, ad: t.name }))),
+    ...sonuc,
     takvim,
     takvimSorunlu,
     tekrarGun: TEKRAR_GUN,

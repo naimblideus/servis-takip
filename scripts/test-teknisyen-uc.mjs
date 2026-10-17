@@ -47,6 +47,7 @@ try { execFileSync(process.execPath, [
   join(KOK, 'src/lib/teknisyen-veri.ts'), join(KOK, 'src/lib/teknisyen.ts'),
   join(KOK, 'src/lib/sla-veri.ts'), join(KOK, 'src/lib/sla.ts'),
   join(KOK, 'src/lib/fault-categories.ts'),
+  join(KOK, 'src/lib/saha-suresi.ts'), join(KOK, 'src/lib/memnuniyet.ts'),
   '--outDir', g, '--module', 'esnext', '--target', 'es2022',
   '--moduleResolution', 'bundler', '--skipLibCheck',
 ], { stdio: 'pipe' }); } catch { /* yukarıdaki not */ }
@@ -66,6 +67,8 @@ try {
     ["'@/lib/sla-veri'", "'./sla-veri.js'"],
     ["'@/lib/sla'", "'./sla.js'"],
     ["'@/lib/teknisyen'", "'./teknisyen.js'"],
+    ["'@/lib/saha-suresi'", "'./saha-suresi.js'"],
+    ["'@/lib/memnuniyet'", "'./memnuniyet.js'"],
   ]);
   duzelt('sla-veri.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/sla'", "'./sla.js'"]]);
   veri = await import(pathToFileURL(join(g, 'teknisyen-veri.js')).href);

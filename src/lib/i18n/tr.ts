@@ -900,6 +900,8 @@ export const tr = {
     sureDk: '{dk} dk',
     sureSa: '{sa} sa',
     sureSaDk: '{sa} sa {dk} dk',
+    // Teknisyen karnesi sütunu
+    karneSutun: 'Sahada (ortanca)',
     ustlen: '🙋 Bu işi üstlen',
     ustlenAlt: 'Bu iş kimseye atanmamış. Üstlenirseniz sizin işleriniz arasına girer; sonra “Vardım” dersiniz.',
     // Sayaçsız kapanmaz (Ayarlar + fiş paneli) — lib/sayac-zorunlu.ts
