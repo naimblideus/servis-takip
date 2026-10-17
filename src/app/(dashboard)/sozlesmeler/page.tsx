@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bugununTarihi } from '@/lib/utils';
 import { useT, useBicim } from '@/lib/i18n/client';
+import { openPrintable } from '@/lib/print';
 import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 import type { Bicimleyici } from '@/lib/bicim';
 
@@ -393,6 +394,11 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
           ))}
 
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.6rem' }}>
+            {/* İmzaya hazır ek: cihaz listesi ve şartlar bu kayıttan dolar (sozlesmeler/[id]/belge). */}
+            <button onClick={() => openPrintable(`/sozlesmeler/${k.id}/belge`)}
+              style={{ fontSize: '0.8rem', color: '#0f2253', fontWeight: 600, background: 'white', border: '1px solid #d1d5db', borderRadius: '0.45rem', padding: '0.35rem 0.7rem', cursor: 'pointer' }}>
+              🖨️ {t.sozlesmeBelgesi.yazdirDugme}
+            </button>
             {k.fileUrl && <a href={k.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: '#2563eb' }}>{t.sozlesmeler.taranmisNusha}</a>}
             {k.notes && <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>{k.notes}</span>}
             <button
