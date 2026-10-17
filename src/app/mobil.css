@@ -13,7 +13,7 @@
      kaymıyordu — yapışkan öğe kaymayan kaba yapışır. */
 
 /* Alt menü + taşan "+" düğmesi (20 px) + ev çubuğu. */
-@media (max-width: 767px) {
+@media screen and (max-width: 767px) {
   #app-main {
     padding-bottom: calc(5rem + env(safe-area-inset-bottom));
     padding-left: env(safe-area-inset-left);

@@ -90,8 +90,12 @@ COPY --chown=nextjs:nodejs db-durum.js ./db-durum.js
 # 50'den fazla test dosyası var, üretimde işleri yok). Kopyalanmadığı için
 # demo hesabı CANLIDA HİÇ OLUŞTURULAMIYORDU — komut yerelde çalışıyor,
 # sunucuda "dosya yok" diyordu ve giriş bilgileri çalışmıyor sanılıyordu.
-# Yalnız bu tek dosya alınıyor.
-COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-bayi-demo.mjs ./scripts/seed-bayi-demo.mjs
+# Yalnız tohum dosyaları alınıyor (seed-*.mjs): demo tohumu özellik başına
+# ayrı dosyalara bölündü (seed-demo-emanet.mjs gibi) ve seed-bayi-demo.mjs
+# onları içe aktarıyor. Tek dosya kopyalansaydı içe aktarma canlıda "modül
+# yok" der, gece demo tazelemesi tamamen dururdu. Kalıp seed-bayi-demo.mjs'i
+# her zaman yakaladığı için boş eşleşme olmaz.
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-*.mjs ./scripts/
 
 # Zamanlanmış görev çalıştırıcı — Coolify "Scheduled Tasks" çağırır:
 #   node run-cron.mjs faturalar   (ayın 1'i)   |   node run-cron.mjs hatirlatma  (her gün)

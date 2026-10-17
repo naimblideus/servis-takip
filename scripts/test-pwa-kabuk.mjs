@@ -51,7 +51,7 @@ t('ayrılırken kilit kalkıyor', /kilit\(false\)/.test(yan));
 t('karartma parmakla kaydırmayı yutmuyor (touch-action)', /id="app-perde"[^>]*touchAction: 'none'/.test(yan));
 // CSS'teki yatay telefon sorgusu ile JS sorgusu aynı eşikleri kullanmalı.
 t('CSS yatay telefon sorgusu JS ile aynı eşikte (1100 × 500)', /max-width: 1100px\) and \(max-height: 500px\)/.test(css) && /\(max-width: 1100px\) and \(max-height: 500px\)/.test(sorgu || ''));
-t('CSS dikey telefon eşiği JS ile aynı (767)', /@media \(max-width: 767px\)/.test(css) && /\(max-width: 767px\)/.test(sorgu || ''));
+t('CSS dikey telefon eşiği JS ile aynı (767), yalnız ekranda (yazdırmaya karışmaz)', /@media screen and \(max-width: 767px\)/.test(css) && /\(max-width: 767px\)/.test(sorgu || ''));
 t('yatay telefonda üst çubuk ve alt menü görünür', /#app-topbar \{\s*display: flex;/.test(css) && /#app-bottomnav \{\s*display: flex;/.test(css));
 t('çekmece görünen yükseklik kadar (dvh)', /height: 100dvh;/.test(css));
 
