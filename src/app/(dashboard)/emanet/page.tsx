@@ -518,8 +518,9 @@ export default function EmanetSayfasi() {
             <div style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 700 }}>{e.ozetOn}</div>
             <div style={{ fontSize: '1.9rem', fontWeight: 800, lineHeight: 1.15 }}>
               {doldur(e.ozetAdet, { n: ozet.toplam.adet })}
-              {ozet.toplam.deger !== null && <span style={{ fontSize: '1.25rem', opacity: 0.9 }}> · {b.para(ozet.toplam.deger, 0)}</span>}
             </div>
+            {/* Değer ayrı satırda: dar telefonda "·" satır sonunda asılı kalıyordu. */}
+            {ozet.toplam.deger !== null && <div style={{ fontSize: '1.25rem', fontWeight: 700, opacity: 0.92, marginTop: 2 }}>{b.para(ozet.toplam.deger, 0)}</div>}
             <div style={{ fontSize: '0.8rem', opacity: 0.85, marginTop: 4 }}>
               {doldur(e.ozetMusteri, { n: ozet.toplam.musteri })}
               {ozet.toplam.deger !== null && ozet.toplam.degerEksik ? ` · ${e.degerEksik}` : ''}

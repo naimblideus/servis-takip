@@ -109,15 +109,20 @@ try {
     const ses = await fetch(`${KOK}/api/auth/session`, { headers: { cookie: cerez } }).then((r) => r.json()).catch(() => null);
     t(`[${g.rol}] giriş gerçekten yapıldı`, ses?.user?.email === g.eposta, ses);
     const sayfaHatasi = [], ucHatasi = [], jsonDegil = [];
-    let ucSayisi = 0, acilan = 0, cevapli = 0;
-    const giriseYonlenen = [];
+    let ucSayisi = 0, acilan = 0, cevapli = 0, kilitli = 0;
+    const giriseYonlenen = [], digerDurum = [];
     for (const s of sayfalar) {
       const y = await fetch(`${KOK}/${s}`, { headers: { cookie: cerez }, redirect: 'manual', signal: AbortSignal.timeout(60000) });
       const govde = y.status === 200 ? await y.text() : '';
       if (y.status === 200) acilan++;
       // Başka bir sayfaya yönlendirme bilinçli kilit (teknisyen /dashboard → /tickets,
-      // yönetici olmayan /users → /dashboard). Girişe yönlenme ise oturum düştü demek.
-      if (y.status >= 300 && y.status < 400 && /\/login/.test(y.headers.get('location') ?? '')) giriseYonlenen.push(`/${s}`);
+      // yönetici olmayan /users, /memnuniyet, /gelecek-gelir → panel). Girişe
+      // yönlenme ise oturum düştü demek. Kilitler SAYILIR: yönetici ekranı
+      // eklendikçe sabit bir pay ("en çok 3 sayfa açılmayabilir") yanlış alarm verir.
+      if (y.status >= 300 && y.status < 400) {
+        if (/\/login/.test(y.headers.get('location') ?? '')) giriseYonlenen.push(`/${s}`);
+        else kilitli++;
+      } else if (y.status !== 200) digerDurum.push(`/${s} → ${y.status}`);
       // 307: teknisyen ana panelden işlerine yönleniyor — beklenen.
       if (y.status >= 500 || (y.status === 200 && /Application error|Internal Server Error/.test(govde))) sayfaHatasi.push(`/${s} → ${y.status}`);
       for (const u of okumaUclari(s)) {
@@ -130,7 +135,9 @@ try {
         }
       }
     }
-    t(`[${g.rol}] ★ hiçbir sayfa girişe yönlenmedi (oturum ayakta): ${acilan}/${sayfalar.length} açıldı`, giriseYonlenen.length === 0 && acilan >= sayfalar.length - 3, { acilan, giriseYonlenen });
+    t(`[${g.rol}] ★ hiçbir sayfa girişe yönlenmedi (oturum ayakta): ${acilan} açıldı + ${kilitli} bilinçli kilit / ${sayfalar.length}`,
+      giriseYonlenen.length === 0 && digerDurum.length === 0 && acilan + kilitli === sayfalar.length && (g.rol !== 'ADMIN' || acilan >= sayfalar.length - 3),
+      { acilan, kilitli, giriseYonlenen, digerDurum });
     t(`[${g.rol}] okuma çağrılarının çoğu veri döndü: ${cevapli}/${ucSayisi}`, cevapli >= ucSayisi * (g.rol === 'ADMIN' ? 0.9 : 0.5), cevapli);
     t(`[${g.rol}] ★ ${sayfalar.length} sayfanın hiçbiri boş hesapta çökmüyor`, sayfaHatasi.length === 0, sayfaHatasi);
     t(`[${g.rol}] ★ sayfaların ${ucSayisi} okuma çağrısının hiçbiri 500 vermiyor`, ucHatasi.length === 0, ucHatasi);
