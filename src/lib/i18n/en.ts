@@ -857,6 +857,13 @@ export const en: Sozluk = {
     sureDk: '{dk} min',
     sureSa: '{sa} h',
     sureSaDk: '{sa} h {dk} min',
+    kuralBaslik: 'Service ticket rules',
+    kuralSayac: 'Rental devices: a ticket cannot be marked delivered without a meter reading',
+    kuralSayacAlt: 'The most common reason a rental device cannot be invoiced at month end is a technician leaving without recording the meter. When this is on, “Delivered” first asks for the reading on the ticket.',
+    kuralKaydedildi: '✓ Saved',
+    sayacGerekBaslik: 'Enter the meter reading first',
+    sayacGerekAlt: 'This is a rental device: the ticket cannot be marked delivered without a meter reading (turned on in Settings). Type the reading and we will save it and mark the ticket delivered in one tap.',
+    sayacKaydetTeslim: 'Save reading and mark delivered',
   },
 
   fisPanel: {
@@ -4526,6 +4533,7 @@ export const en: Sozluk = {
     SAHA_YETKI_YOK: 'Only the assigned technician or a manager can record arrival and departure on this job.',
     SAHA_ONCE_VARDIM: 'Tap “I have arrived” first.',
     SAHA_FIS_KAPALI: 'Arrival cannot be recorded on a closed ticket.',
+    SAYAC_ZORUNLU: 'This is a rental device: enter its meter reading on this ticket before marking it delivered.',
     FOTO_COZUMLENEMEDI: 'The photo could not be read',
     GEREKLI_SUTUNLAR_BULUNAMADI_DOSYADA_EN: 'The required columns were not found. The file needs at least: serial number, date, mono meter (colour optional).',
     GECERLI_POZITIF_BIR_TUTAR_GIRIN: 'Enter a valid (positive) amount',

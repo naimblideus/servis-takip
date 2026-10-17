@@ -900,6 +900,14 @@ export const tr = {
     sureDk: '{dk} dk',
     sureSa: '{sa} sa',
     sureSaDk: '{sa} sa {dk} dk',
+    // Sayaçsız kapanmaz (Ayarlar + fiş paneli) — lib/sayac-zorunlu.ts
+    kuralBaslik: 'Servis fişi kuralları',
+    kuralSayac: 'Kiralık cihazın fişi sayaç girilmeden teslim edilemesin',
+    kuralSayacAlt: 'Ay sonunda faturası kesilemeyen cihazın en sık sebebi, teknisyenin sayacı yazmadan çıkması. Açıksa “Teslim edildi” önce bu fişe sayacı ister.',
+    kuralKaydedildi: '✓ Kaydedildi',
+    sayacGerekBaslik: 'Önce sayacı girin',
+    sayacGerekAlt: 'Bu kiralık bir cihaz: sayaç girilmeden fiş teslim edilemez (Ayarlar’da açık). Sayacı yazın, tek dokunuşla kaydedip teslim edelim.',
+    sayacKaydetTeslim: 'Sayacı kaydet ve teslim et',
   },
 
   // Fiş durum/düzenleme paneli (fiş detayının sağ üstü).
@@ -4703,6 +4711,7 @@ export const tr = {
     SAHA_YETKI_YOK: 'Bu işte “Vardım / Çıktım”a yalnız atanan teknisyen ya da yönetici basabilir.',
     SAHA_ONCE_VARDIM: 'Önce “Vardım”a basın.',
     SAHA_FIS_KAPALI: 'Kapanmış fişe varış yazılmaz.',
+    SAYAC_ZORUNLU: 'Bu kiralık cihazın sayacı girilmeden fiş teslim edilemez. Önce bu fişe sayacı girin.',
     FOTO_COZUMLENEMEDI: 'Foto çözümlenemedi',
     GEREKLI_SUTUNLAR_BULUNAMADI_DOSYADA_EN: 'Gerekli sütunlar bulunamadı. Dosyada en az şunlar olmalı: Seri No, Tarih, Siyah Sayaç (Renkli isteğe bağlı).',
     GECERLI_POZITIF_BIR_TUTAR_GIRIN: 'Geçerli (pozitif) bir tutar girin',

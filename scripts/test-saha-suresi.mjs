@@ -24,7 +24,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
 const g = mkdtempSync(join(tmpdir(), 'st-saha-'));
-const KAYNAKLAR = ['saha-suresi', 'saha-suresi-veri', 'ticket-asama', 'sla'];
+const KAYNAKLAR = ['saha-suresi', 'saha-suresi-veri', 'ticket-asama', 'sla', 'sayac-zorunlu'];
 try {
   execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'),
     ...KAYNAKLAR.map((k) => join(KOK, `src/lib/${k}.ts`)),
@@ -43,6 +43,7 @@ const al = (k) => import(pathToFileURL(join(g, `${k}.js`)).href);
 const ss = await al('saha-suresi');
 const sv = await al('saha-suresi-veri');
 const sla = await al('sla');
+const sz = await al('sayac-zorunlu');
 
 // ── KARAR (saf) ──────────────────────────────────────────────────────────
 console.log('\nVardım / Çıktım kararı\n');
@@ -184,7 +185,42 @@ if (!yerel) {
     && (await p.ticketStatusHistory.count({ where: { ticketId: F2.id } })) === 1, { y1, y2 });
 }
 
-// SAYAÇ ZORUNLULUĞU bölümü buraya eklenir (aynı bayi: ortak).
+// ── SAYAÇSIZ KAPANMAZ ────────────────────────────────────────────────────
+console.log('\nSayaçsız kapanmaz — kural\n');
+{
+  const k = (ek = {}) => sz.sayacZorunluEngeli({ ayarAcik: true, kiralik: true, fisteOkumaVar: false, oncekiDurum: 'READY', yeniDurum: 'DELIVERED', ...ek });
+  t('★ ayar açık + kiralık + okuma yok + teslime geçiyor → ENGEL', k() === true);
+  t('★ ayar kapalıysa serbest (varsayılan)', k({ ayarAcik: false }) === false);
+  t('★ kiralık değilse serbest', k({ kiralik: false }) === false);
+  t('★ bu fişe bağlı okuma varsa serbest', k({ fisteOkumaVar: true }) === false);
+  t('teslim dışı durumlar serbest (serviste, hazır, iptal)', ['IN_SERVICE', 'READY', 'CANCELLED', 'WAITING_FOR_PART'].every((y) => k({ yeniDurum: y }) === false));
+  t('zaten teslim edilmiş fişte başka alan düzeltmek serbest', k({ oncekiDurum: 'DELIVERED' }) === false);
+  const uc = oku('src/app/api/tickets/[id]/route.ts');
+  t('★ durum değiştiren uç kuralı uyguluyor: 409 SAYAC_ZORUNLU', /teslimSayacEngeli\(user\.tenantId, id, existing\.status\)/.test(uc) && /ucHatasi\('SAYAC_ZORUNLU', 409\)/.test(uc));
+  t('bilinmeyen durum ham veritabanı hatası yerine 400', /ucHatasi\('GECERSIZ_DURUM', 400\)/.test(uc));
+  const panel = oku('src/components/TicketStatusPanel.tsx');
+  t('★ ekran 409\'da sayaç kutusunu açıyor, sayacı kaydedip aynı teslimi yeniden gönderiyor', /data\?\.kod === 'SAYAC_ZORUNLU'/.test(panel) && /await updateStatus\(sayacGerek\.status, sayacGerek\.faultCategory\)/.test(panel));
+  t('ayar ucu yalnız true/false kabul ediyor', /typeof sayacZorunlu === 'boolean' && \{ sayacZorunlu \}/.test(oku('src/app/api/settings/route.ts')));
+}
+
+if (ortak) {
+  console.log('\nSayaçsız kapanmaz — veritabanı\n');
+  const { A, B, kiralik, satilmis, fisAc, m } = ortak;
+  const fK = await fisAc('READY');
+  t('★ ayar kapalı: kiralık cihaz sayaçsız teslim edilebilir', (await sz.teslimSayacEngeli(A.id, fK.id, 'READY')) === false);
+  await p.tenant.update({ where: { id: A.id }, data: { sayacZorunlu: true } });
+  t('★ ayar açık: kiralık cihaz sayaçsız teslim EDİLEMEZ', (await sz.teslimSayacEngeli(A.id, fK.id, 'READY')) === true);
+  const fS = await fisAc('READY', { deviceId: satilmis.id });
+  t('★ ayar açık, satılmış cihaz: serbest', (await sz.teslimSayacEngeli(A.id, fS.id, 'READY')) === false);
+  await p.counterReading.create({ data: { tenantId: A.id, deviceId: kiralik.id, ticketId: fK.id, counterBlack: 1000, counterColor: 0 } });
+  t('★ bu fişe okuma girilince serbest', (await sz.teslimSayacEngeli(A.id, fK.id, 'READY')) === false);
+  const fK2 = await fisAc('READY');
+  await p.counterReading.create({ data: { tenantId: A.id, deviceId: kiralik.id, counterBlack: 1100, counterColor: 0 } });
+  t('★ cihazın BAŞKA (fişsiz) okuması bu fişin yerine geçmez', (await sz.teslimSayacEngeli(A.id, fK2.id, 'READY')) === true);
+  t('zaten teslim edilmiş fişte engel yok', (await sz.teslimSayacEngeli(A.id, fK2.id, 'DELIVERED')) === false);
+  t('başka bayinin fişi için engel sorgusu bir şey söylemiyor', (await sz.teslimSayacEngeli(B.id, fK2.id, 'READY')) === false);
+  void m;
+}
 
 if (ortak) await temizle();
 await p.$disconnect();
