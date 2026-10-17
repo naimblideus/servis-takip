@@ -48,6 +48,9 @@ const YAZMA_KAPALI_ONEKLER = [
   '/api/abonelik',
   // "Bizden aldı" işareti: demoda bir ziyaretçi basınca kaçan toner listesi herkese boşalırdı.
   '/api/kacan-toner',
+  // "Aradım" işareti: bir ziyaretçi basınca "Aranması gerekenler" herkese boşalırdı.
+  // Müşterinin anket cevabı (/api/public/anket) ve "Memnuniyet sor" açık.
+  '/api/memnuniyet',
 ];
 // Toplu zam / toplu ayar (/api/devices/bulk-*) burada YOK: önizlemeleri
 // (dryRun) yazmıyor, demoda da görülsün; "Uygula" uçların içinde kapalı.
