@@ -7,6 +7,7 @@ import { siparisGruplari, siparisGerekli, type SiparisParcasi } from '@/lib/teda
 import { tonerDurumu } from '@/lib/toner-veri';
 import { sevkBaglami, sevkKullanimi } from '@/lib/toner-sevk-veri';
 import { cihazTalebi } from '@/lib/toner-sevk';
+import { parcaOmruTalebi } from '@/lib/parca-omru-veri';
 
 const GUN = 86_400_000;
 
@@ -19,10 +20,16 @@ export async function siparisVerisi(tenantId: string) {
   // ve henüz gönderilmemiş cihazlar (Sarf Takibi ile aynı hesap).
   const durum = await tonerDurumu(tenantId);
   const talep = cihazTalebi((await sevkBaglami(tenantId, durum.takipli)).ihtiyaclar);
+  // Önümüzdeki 30 günde ömrü dolacak drum, fırın, bakım kiti (Parça Ömrü ile
+  // aynı hesap). Hesaplanamazsa sipariş listesi yine açılır, yalnız bu talep eksik kalır.
+  const omurTalebi = await parcaOmruTalebi(tenantId).catch((e) => {
+    console.error('PARÇA ÖMRÜ (sipariş):', e?.message);
+    return new Map<string, number>();
+  });
 
   // İki kolonu karşılaştıran koşul (stok ≤ asgari) Prisma'da yazılamıyor;
   // bayi başına birkaç yüz kalem, bellekte süzmek ucuz.
-  const kritik = parcalar.filter((p) => siparisGerekli({ stok: p.stockQty, asgari: p.minStock, cihazTalebi: talep.get(p.id) ?? 0 }));
+  const kritik = parcalar.filter((p) => siparisGerekli({ stok: p.stockQty, asgari: p.minStock, cihazTalebi: talep.get(p.id) ?? 0, omurTalebi: omurTalebi.get(p.id) ?? 0 }));
   const ids = kritik.map((p) => p.id);
 
   const [kullanim, alislar, sevkler] = ids.length ? await Promise.all([
@@ -52,6 +59,7 @@ export async function siparisVerisi(tenantId: string) {
       id: p.id, ad: p.name, sku: p.sku, oemKodu: p.oemCode, grup: p.group,
       stok: p.stockQty, asgari: p.minStock, kullanim90: kullanimi.get(p.id) ?? 0,
       cihazTalebi: talep.get(p.id) ?? 0,
+      omurTalebi: omurTalebi.get(p.id) ?? 0,
       alisVar: !!a,
       sonTedarikci: a?.supplier?.trim() || null,
       sonFiyat: a ? Number(a.unitCost) : null,

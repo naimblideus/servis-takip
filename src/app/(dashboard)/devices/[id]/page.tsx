@@ -11,6 +11,8 @@ import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
 import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, PARCA_KRITIK, DURUM_TAZE_MS, type UyariKodu, type SarfKalemi } from '@/lib/sayac-tarama';
 import { uyariGecmisi } from '@/lib/sayac-tarama-veri';
+import { parcaOmruVerisi } from '@/lib/parca-omru-veri';
+import ParcaOmruSatiri from '@/components/ParcaOmruSatiri';
 
 // statusLabel and priorityLabel removed — replaced with counter columns
 
@@ -99,6 +101,12 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
   }
   const kalemler = (Array.isArray(device.olcumSarf) ? device.olcumSarf : []) as unknown as SarfKalemi[];
   const gecmis = await uyariGecmisi(user.tenantId, device.id, 90);
+  // Parça ömrü: /parca-omru ile AYNI hesap, yalnız bu cihaz (lib/parca-omru-veri).
+  // Hesap hata verirse kart çizilmez; cihaz sayfası (sayaç, fiş) yine açılır.
+  const omur = await parcaOmruVerisi(user.tenantId, { deviceId: device.id }).catch((e) => {
+    console.error('PARÇA ÖMRÜ (cihaz):', e?.message);
+    return null;
+  });
   const rozetRengi = (u: UyariKodu) => UYARI_TURU[u] === 'SERVIS' ? ['#fee2e2', '#991b1b'] : UYARI_TURU[u] === 'SARF' ? ['#fef3c7', '#92400e'] : ['#f3f4f6', '#4b5563'];
 
   return (
@@ -284,6 +292,24 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             </div>
           )}
           <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0.7rem 0 0' }}>{sz.cihaz.olcumNot}</p>
+        </div>
+      )}
+
+      {/* Parça ömrü — drum, fırın, bakım kiti: cihazın kendi söylediği ya da
+          fişte takıldığı sayaçtan. Veri yoksa tek satırla nasıl geleceği. */}
+      {omur && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'baseline' }}>
+            <h2 style={{ fontWeight: '600', margin: 0 }}>{sz.parcaOmru.cihazKartBaslik}</h2>
+            <Link href="/parca-omru" style={{ fontSize: '0.8rem', color: '#1D3E7E', textDecoration: 'none' }}>{sz.parcaOmru.cihazKartLink}</Link>
+          </div>
+          {omur.satirlar.length === 0 ? (
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: '0.5rem 0 0' }}>{sz.parcaOmru.cihazKartBos}</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {omur.satirlar.map((s) => <ParcaOmruSatiri key={s.anahtar} s={s} t={sz} b={b} cihazGoster={false} />)}
+            </ul>
+          )}
         </div>
       )}
 

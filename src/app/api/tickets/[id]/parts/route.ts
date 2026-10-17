@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { kanalKarari, degisimKaydet, tonerMu, type Kanal } from '@/lib/verim-ogrenme';
 import { parcaMaliyeti } from '@/lib/stok-maliyet';
+import { takilmaSayaciBul } from '@/lib/parca-omru-veri';
 
 // GET: Bu fişin parçalarını listele
 export async function GET(
@@ -82,6 +83,16 @@ export async function POST(
         // kârlılık kendiliğinden bozuluyordu.
         const maliyet = parcaMaliyeti({ avgCost: part.avgCost as any, buyPrice: part.buyPrice as any });
 
+        // PARÇA ÖMRÜ BU ANDAN SAYILIR (lib/parca-omru). Fişin okuması varsa
+        // o, yoksa cihazın son bilinen sayacı. Kartında ömür yazılı olmasa da
+        // yazılıyor: bayi ömrü sonradan girerse geçmiş hazır olsun. Okunamazsa
+        // parça yine eklenir (sahadaki teknisyen kilitlenmez); boş kalan kayıt
+        // Parça Ömrü'nde en yakın okumadan "yaklaşık" hesaplanır.
+        const takilmaSayaci = await takilmaSayaciBul(user.tenantId, ticketId, ticket.deviceId).catch((e) => {
+            console.error('TAKILMA SAYACI:', e?.message);
+            return null;
+        });
+
         // Transaction: fişe parça ekle + stoktan düş
         const [ticketPart] = await prisma.$transaction([
             prisma.ticketPart.create({
@@ -92,6 +103,7 @@ export async function POST(
                     quantity,
                     unitPrice: finalUnitPrice,
                     unitCost: maliyet.deger,
+                    takilmaSayaci,
                 },
             }),
             // Stoktan düş

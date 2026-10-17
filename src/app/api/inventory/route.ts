@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { detectBrandInText } from '@/lib/device-brands';
 import { normalizePartGroup, guessPartGroup } from '@/lib/part-groups';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { ucHatasi } from '@/lib/uc-hata';
+import { omurSayfaAyikla } from '@/lib/parca-omru';
 
 export async function GET() {
     const session = await auth();
@@ -29,6 +31,11 @@ export async function POST(req: Request) {
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         const body = await req.json();
+
+        // PARÇA ÖMRÜ (sayfa) — isteğe bağlı. Boş = izlenmiyor. Varsayılan
+        // ÖNERİLMEZ: üreticinin ömrünü biz uydurmayız, bayi kutudan yazar.
+        const omur = omurSayfaAyikla(body.omurSayfa);
+        if (!omur.gecerli) return ucHatasi('GECERSIZ_OMUR', 400);
 
         // Auto-SKU: boşsa sıralı kod üret
         let sku = (body.sku || '').trim();
@@ -68,6 +75,7 @@ export async function POST(req: Request) {
                 // Marka yazılmadıysa parça adından yakala ("Canon fırın ünitesi" -> Canon).
                 // Bulunamazsa boş kalır; tahmin YAZILMAZ.
                 oemBrand: body.oemBrand?.trim() || detectBrandInText(body.name),
+                omurSayfa: omur.deger,
             },
         });
 

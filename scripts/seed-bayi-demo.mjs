@@ -1494,6 +1494,8 @@ async function kur(bayi) {
     console.log(`  kaçan toner: ${kacan} değişim tarayıcıda görüldü, bayiden toner gitmemiş`);
   }
 
+  await import('./seed-demo-parca-omru.mjs').then((m) => m.parcaOmruDemosu(p, tenant.id)).catch((e) => console.log(`  ⚠ parça ömrü demosu kurulamadı: ${e?.message ?? e}`));
+
   // ── ÖZET ──────────────────────────────────────────────────────────────
   const say = async (f) => f;
   console.log('');

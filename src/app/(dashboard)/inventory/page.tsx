@@ -16,6 +16,8 @@ interface Part {
     minStock: number;
     group: string | null;
     barcode?: string | null;
+    /** Parça ömrü (sayfa) — null = izlenmiyor (lib/parca-omru). */
+    omurSayfa?: number | null;
 }
 
 type SortField = 'name' | 'sku' | 'stockQty' | 'sellPrice' | 'buyPrice' | 'group';
@@ -41,11 +43,11 @@ export default function InventoryPage() {
     const [sortField, setSortField] = useState<SortField>('stockQty');
     const [sortAsc, setSortAsc] = useState(true);
     const [form, setForm] = useState({
-        sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '', oemCode: '',
+        sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '', oemCode: '', omurSayfa: '',
     });
     // Satır düzenlemesi
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editRow, setEditRow] = useState({ name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '', group: '', barcode: '' });
+    const [editRow, setEditRow] = useState({ name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '', group: '', barcode: '', omurSayfa: '' });
     // Barkod okuyucu (HID) geri bildirimi
     const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
     // Sadece stok sayısını inline düzenle
@@ -77,6 +79,7 @@ export default function InventoryPage() {
             setEditRow({
                 name: found.name, buyPrice: String(found.buyPrice), sellPrice: String(found.sellPrice),
                 stockQty: String(found.stockQty), minStock: String(found.minStock), group: found.group || '', barcode: found.barcode || '',
+                omurSayfa: found.omurSayfa ? String(found.omurSayfa) : '',
             });
             setSearch(found.name);
             setScanMsg({ text: `Bulundu: ${found.name} — düzenlemeye açıldı`, ok: true });
@@ -137,7 +140,7 @@ export default function InventoryPage() {
             body: JSON.stringify(form),
         });
         if (res.ok) {
-            setForm({ sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '', oemCode: '' });
+            setForm({ sku: '', name: '', buyPrice: '', sellPrice: '', stockQty: '', minStock: '5', group: '', barcode: '', oemCode: '', omurSayfa: '' });
             setShowForm(false);
             load();
         } else {
@@ -196,6 +199,7 @@ export default function InventoryPage() {
                 minStock: editRow.minStock,
                 group: editRow.group,
                 barcode: editRow.barcode,
+                omurSayfa: editRow.omurSayfa,
             }),
         });
         // Hata varsa satırı AÇIK bırak: kullanıcı düzeltebilsin, yazdığı
@@ -439,6 +443,21 @@ export default function InventoryPage() {
                                 Girerseniz aynı parçayı farklı isimle kaydetseniz bile sistem tek parça olarak tanır. Marka, parça adından otomatik algılanır.
                             </span>
                         </div>
+                        {/* PARÇA ÖMRÜ — isteğe bağlı. Değer önerilmez (yer tutucu
+                            yalnız örnek): üreticinin ömrünü bayi kutudan yazar.
+                            16 px: iOS daha küçük yazıda alana dokununca sayfayı büyütüyor. */}
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label htmlFor="yeni-parca-omur" style={lbl}>{t.parcaOmru.kartEtiket}</label>
+                            <input
+                                id="yeni-parca-omur"
+                                type="number" inputMode="numeric" min={1} step={1}
+                                style={{ ...inp, fontSize: '1rem', maxWidth: '14rem' }}
+                                value={form.omurSayfa}
+                                onChange={e => setForm({ ...form, omurSayfa: e.target.value })}
+                                placeholder={t.parcaOmru.kartYer}
+                            />
+                            <span style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af' }}>{t.parcaOmru.kartYardim}</span>
+                        </div>
                         {/* auto-fit: dört sütunda sayı kutuları 54 px kalıyordu
                             (ölçüldü) — fiyat/stok girmek için fazla dar. Telefonda
                             iki sütuna düşüp ~120 px'e çıkıyor. */}
@@ -521,6 +540,15 @@ export default function InventoryPage() {
                                                 onChange={e => setEditRow({ ...editRow, barcode: e.target.value })}
                                                 placeholder={t.stokSayfa.barkodKisaYer}
                                             />
+                                            <input
+                                                type="number" inputMode="numeric" min={1} step={1}
+                                                style={{ ...inp, width: '100%', padding: '0.3rem 0.5rem', marginTop: '0.35rem', fontSize: '1rem' }}
+                                                value={editRow.omurSayfa}
+                                                onChange={e => setEditRow({ ...editRow, omurSayfa: e.target.value })}
+                                                placeholder={t.parcaOmru.kartYer}
+                                                aria-label={t.parcaOmru.kartEtiket}
+                                                title={t.parcaOmru.kartYardim}
+                                            />
                                         </td>
                                         <td style={{ padding: '0.5rem 0.75rem' }}>
                                             <input type="number" step="0.01"
@@ -594,6 +622,11 @@ export default function InventoryPage() {
                                                 ▮▏{p.barcode}
                                             </div>
                                         )}
+                                        {p.omurSayfa ? (
+                                            <a href="/parca-omru" style={{ display: 'inline-block', fontSize: '0.7rem', color: '#1D3E7E', marginTop: '0.15rem', textDecoration: 'none' }}>
+                                                {doldur(t.parcaOmru.kartOzet, { n: b.sayi(p.omurSayfa) })}
+                                            </a>
+                                        ) : null}
                                     </td>
                                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>{b.para(Number(p.buyPrice))}</td>
                                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', fontWeight: '600', color: '#059669' }}>{b.para(Number(p.sellPrice))}</td>
@@ -675,6 +708,7 @@ export default function InventoryPage() {
                                                         minStock: String(p.minStock),
                                                         group: p.group || '',
                                                         barcode: p.barcode || '',
+                                                        omurSayfa: p.omurSayfa ? String(p.omurSayfa) : '',
                                                     });
                                                 }}
                                                 style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label={t.kalanEtiket.parcayiDuzenle}>✏</button>

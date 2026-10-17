@@ -25,6 +25,9 @@
 //     başına bir adet (Sarf Takibi ile aynı hesap). Stok bu talebi
 //     karşıladıktan sonra asgarinin altına düşecekse kalem listeye girer —
 //     stok henüz asgarinin üstünde olsa bile.
+//   • PARÇA ÖMRÜ TALEBİ: önümüzdeki 30 günde ömrü dolacak drum, fırın,
+//     bakım kiti (lib/parca-omru). Cihaz talebiyle aynı kural: Parça Ömrü
+//     ekranındaki "Sipariş et" kalemin listede OLMADIĞI bir ekrana götürmesin.
 
 export type SiparisParcasi = {
   id: string;
@@ -40,7 +43,12 @@ export type SiparisParcasi = {
   sonFiyat: number | null;
   /** Toneri bitmek üzere olan ve bu tonerle eşleşen cihaz sayısı (yolda olanlar hariç). */
   cihazTalebi?: number;
+  /** Önümüzdeki 30 günde ömrü dolacak bu karttan parça adedi (lib/parca-omru stokIhtiyaci). */
+  omurTalebi?: number;
 };
+
+/** Cihazlardan doğan toplam talep: toneri biten + parça ömrü dolan. */
+const talep = (p: Pick<SiparisParcasi, 'cihazTalebi' | 'omurTalebi'>) => (p.cihazTalebi ?? 0) + (p.omurTalebi ?? 0);
 
 export type SiparisKalemi = SiparisParcasi & { oneri: number };
 export type SiparisGrubu = { tedarikci: string | null; kalemler: SiparisKalemi[]; tahminiTutar: number | null };
@@ -55,18 +63,18 @@ export function aylikKullanim(kullanim90: number): number {
 }
 
 /** Önerilen adet: cihaz talebini karşıla, asgariye tamamla + aylık ortalama kullanım; en az 1. */
-export function oneriAdet(p: Pick<SiparisParcasi, 'stok' | 'asgari' | 'kullanim90' | 'cihazTalebi'>): number {
-  return Math.max(1, Math.max(0, p.asgari + (p.cihazTalebi ?? 0) - p.stok) + aylikKullanim(p.kullanim90));
+export function oneriAdet(p: Pick<SiparisParcasi, 'stok' | 'asgari' | 'kullanim90' | 'cihazTalebi' | 'omurTalebi'>): number {
+  return Math.max(1, Math.max(0, p.asgari + talep(p) - p.stok) + aylikKullanim(p.kullanim90));
 }
 
 /** Kalem siparişe girer mi: cihaz talebi karşılandıktan sonra stok asgarinin altına (ya da eşitine) düşüyorsa. */
-export function siparisGerekli(p: Pick<SiparisParcasi, 'stok' | 'asgari' | 'cihazTalebi'>): boolean {
-  return p.stok - (p.cihazTalebi ?? 0) <= p.asgari;
+export function siparisGerekli(p: Pick<SiparisParcasi, 'stok' | 'asgari' | 'cihazTalebi' | 'omurTalebi'>): boolean {
+  return p.stok - talep(p) <= p.asgari;
 }
 
 /** Bayi bu kalemi gerçekten kullanıyor ya da alıyor mu? */
-export function aktifMi(p: Pick<SiparisParcasi, 'kullanim90' | 'alisVar' | 'cihazTalebi'>): boolean {
-  return p.kullanim90 > 0 || p.alisVar || (p.cihazTalebi ?? 0) > 0;
+export function aktifMi(p: Pick<SiparisParcasi, 'kullanim90' | 'alisVar' | 'cihazTalebi' | 'omurTalebi'>): boolean {
+  return p.kullanim90 > 0 || p.alisVar || talep(p) > 0;
 }
 
 /** Tedarikçi adını gruplamak için sadeleştirir ("AKSA  Toner" = "aksa toner"). */
