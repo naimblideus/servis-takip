@@ -556,6 +556,12 @@ export async function POST(req: NextRequest) {
                             partId,
                             quantity: su.Adet || 1,
                             unitPrice: parseTurkishDecimal(su.Fiyat),
+                            // ESKİ SİSTEMDEN GELEN FİŞ: parça yıllar önce takıldı.
+                            // Cihazın BUGÜNKÜ sayacını yazmak parçayı yeni takılmış
+                            // gösterirdi (ömrü dolmuş drum "%100" görünürdü). Boş
+                            // kalır; Parça Ömrü fişin tarihine en yakın okumadan
+                            // "yaklaşık" hesaplar (lib/parca-omru takilmaNoktasi).
+                            takilmaSayaci: null,
                         },
                     });
 

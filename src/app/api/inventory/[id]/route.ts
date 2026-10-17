@@ -4,6 +4,8 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { normalizePartGroup } from '@/lib/part-groups';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { omurSayfaAyikla } from '@/lib/parca-omru';
+import { demoBayiMi } from '@/lib/demo-koruma';
 
 export async function PATCH(
     req: Request,
@@ -39,6 +41,20 @@ export async function PATCH(
         // OEM kodu / markası — çapraz-bayi parça analizi için (isteğe bağlı)
         if (body.oemCode !== undefined) updateData.oemCode = body.oemCode?.trim() || null;
         if (body.oemBrand !== undefined) updateData.oemBrand = body.oemBrand?.trim() || null;
+        // PARÇA ÖMRÜ (sayfa) — boş = izlenmiyor. Değiştiğinde o kartın takılı
+        // olduğu her cihazın Parça Ömrü satırı değişir.
+        if (body.omurSayfa !== undefined) {
+            const omur = omurSayfaAyikla(body.omurSayfa);
+            if (!omur.gecerli) return ucHatasi('GECERSIZ_OMUR', 400);
+            if (omur.deger !== existing.omurSayfa) {
+                // Ortak demoda bir ziyaretçi drumun ömrünü 1 yapınca bütün
+                // filonun drumu herkese "doldu" görünürdü (gece tazelemesine
+                // kadar). Satır düzenlemesi değeri aynen geri gönderiyor; yalnız
+                // DEĞİŞİKLİK kapalı, stok ve fiyat düzenlemesi çalışmaya devam eder.
+                if (await demoBayiMi(user.tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
+                updateData.omurSayfa = omur.deger;
+            }
+        }
         // ── Stok artırma/azaltma ────────────────────────────────────────
         // Eskiden düz `increment`ti ve NEGATİFE düşmeyi engelleyen hiçbir şey
         // yoktu: "−" düğmesine stok 0'ken basmak stoğu -1 yapıyordu. Eksi stok

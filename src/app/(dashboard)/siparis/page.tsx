@@ -130,6 +130,11 @@ export default function SiparisPage() {
                               {doldur(s.cihazBekliyor, { n: k.cihazTalebi ?? 0 })}
                             </Link>
                           )}
+                          {(k.omurTalebi ?? 0) > 0 && (
+                            <Link href="/parca-omru" className="mt-0.5 block text-xs font-medium text-amber-800 hover:underline">
+                              {doldur(t.parcaOmru.siparisTalebi, { n: k.omurTalebi ?? 0 })}
+                            </Link>
+                          )}
                         </td>
                         <td className={`whitespace-nowrap px-4 py-2 text-right ${k.stok <= 0 ? 'font-semibold text-red-700' : 'text-gray-700'}`}>{k.stok} / {k.asgari}</td>
                         <td className="whitespace-nowrap px-4 py-2 text-right text-gray-700">{k.kullanim90}</td>

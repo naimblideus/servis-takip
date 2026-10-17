@@ -26,6 +26,8 @@ const istemci = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js'
 const VERI_MODULLERI = [
   'tedarik-siparisi-veri', 'toner-veri', 'toner-sevk-veri', 'toner-sevk', 'verim-ogrenme', 'toner-verimi',
   'device-brands', 'reliability', 'fault-categories', 'stok-maliyet', 'toner', 'sayac-tarama', 'magaza-baglanti',
+  // Parça ömrü talebi (drum, fırın, bakım kiti) de siparişe giriyor.
+  'parca-omru-veri', 'parca-omru', 'tr-katla',
 ];
 let saf, menu, veri = null;
 try {
@@ -63,6 +65,8 @@ t('öneri: asgariye tamamla + aylık ortalama', oneriAdet({ stok: 1, asgari: 5, 
 t('öneri: stok asgariye eşitse yalnız aylık kullanım', oneriAdet({ stok: 5, asgari: 5, kullanim90: 9 }) === 3);
 t('öneri en az 1', oneriAdet({ stok: 5, asgari: 5, kullanim90: 0 }) === 1);
 t('eksi stok (fazla düşülmüş) doğru tamamlanıyor', oneriAdet({ stok: -2, asgari: 3, kullanim90: 0 }) === 5);
+t('★ parça ömrü talebi: stok asgarinin üstünde olsa da 30 günde dolacak drum siparişe girer', saf.siparisGerekli({ stok: 4, asgari: 1, omurTalebi: 3 }) && !saf.siparisGerekli({ stok: 4, asgari: 1, omurTalebi: 2 }));
+t('öneri toner + parça ömrü talebini birlikte karşılıyor', oneriAdet({ stok: 1, asgari: 1, kullanim90: 0, cihazTalebi: 1, omurTalebi: 2 }) === 3 && saf.aktifMi({ kullanim90: 0, alisVar: false, omurTalebi: 1 }));
 {
   const { gruplar: gr, hareketsiz } = siparisGruplari([
     P({ id: 'a', ad: 'Drum DK-1150', grup: 'DRUM', stok: 1, asgari: 2, alisVar: true, sonTedarikci: 'AKSA Toner', sonFiyat: 900 }),
