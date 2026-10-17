@@ -56,7 +56,7 @@ const gorunen = (e) => menuKur(e).flatMap((b) => b.aileler.flatMap((a) => a.sekm
 const aileler = (e) => menuKur(e).flatMap((b) => b.aileler.map((a) => a.aile.anahtar));
 
 // Para gösteren ekranlar: kâr, marj, borç, ciro, karne.
-const PARA_EKRANLARI = ['/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports', '/teknisyen', '/kurumsal', '/accounting', '/invoices', '/collections'];
+const PARA_EKRANLARI = ['/kacan-gelir', '/cihaz-karlilik', '/filo', '/gelecek-gelir', '/reports', '/teknisyen', '/kurumsal', '/accounting', '/invoices', '/collections'];
 
 console.log('\nMenü aileleri\n');
 
@@ -72,8 +72,13 @@ console.log('\nMenü aileleri\n');
   const sahipsiz = sayfalar.filter((s) => !hepsi.includes(s));
   t(`★ (dashboard) altındaki ${sayfalar.length} sayfanın HEPSİ bir ailede`, sahipsiz.length === 0, sahipsiz);
 
-  const olmayan = hepsi.filter((h) => !sayfalar.includes(h));
+  // Tam ekran ekranlar (canlı pano) panel düzeninin dışında: src/app/<ad>/page.tsx.
+  const tamEkranSayfasi = (h) => (mod.TAM_EKRAN ?? []).includes(h) && existsSync(join(KOK, 'src/app', h.slice(1), 'page.tsx'));
+  const olmayan = hepsi.filter((h) => !sayfalar.includes(h) && !tamEkranSayfasi(h));
   t('ailelerdeki her adres gerçekten bir sayfa', olmayan.length === 0, olmayan);
+  t('★ canlı pano panel ailesinde, yan menüsüz (panel düzeninin dışında)',
+    AILELER.find((a) => a.anahtar === 'panel')?.uyeler.join() === '/dashboard,/pano'
+    && tamEkranSayfasi('/pano') && !existsSync(join(KOK, 'src/app/(dashboard)/pano')));
 
   const sidebar = readFileSync(join(KOK, 'src/components/Sidebar.tsx'), 'utf8');
   const ikonlu = [...sidebar.matchAll(/href: '([^']+)'/g)].map((m) => m[1]);
@@ -103,6 +108,7 @@ console.log('\nMenü aileleri\n');
   t('★ teknisyen yalnız saha ekranlarını görüyor', g2.every((h) => TEKNISYEN_MENUSU.includes(h)), g2);
   t('★ teknisyen HİÇBİR para ekranını görmüyor', PARA_EKRANLARI.every((h) => !g2.includes(h)), g2.filter((h) => PARA_EKRANLARI.includes(h)));
   t('teknisyen ana paneli görmüyor (ciro, tahsilat)', !g2.includes('/dashboard'));
+  t('canlı pano teknisyen menüsünde yok', !g2.includes('/pano') && !TEKNISYEN_MENUSU.includes('/pano'));
   t('teknisyenin menüsü kısa', aileler(e).length <= 8, aileler(e));
   t('teknisyen iş listesini, rotayı ve sayacı görüyor', ['/tickets', '/rota', '/sayac-turu'].every((h) => g2.includes(h)), g2);
   t('toplu yazma ekranları teknisyende yok', !g2.includes('/toplu-ayar') && !g2.includes('/toplu-zam'));
@@ -149,6 +155,8 @@ console.log('\nMenü aileleri\n');
     s && JSON.stringify(s.sekmeler) === JSON.stringify(['/sayac-turu', '/takip', '/sayac-eposta', '/sayac-tarayici']), s);
   t('teknisyen ağ tarayıcıyı görmüyor (anahtar üretimi yönetici işi)', !gorunen(erisim({ rol: 'TECHNICIAN' })).includes('/sayac-tarayici'));
   t('detay sayfasında sekme çizilmez', sekmeGosterilir('/devices/abc', erisim()) === null);
+  const ps = sekmeGosterilir('/dashboard', erisim({ rol: 'FRONT_DESK' }));
+  t('★ ana panelde "Canlı Pano" sekmesi (ön büro da görür: ekranda para yok)', ps && ps.sekmeler.join() === '/dashboard,/pano', ps);
   t('tek ekranlı ailede sekme çizilmez', sekmeGosterilir('/rota', erisim()) === null);
   const fs = sekmeGosterilir('/tickets', erisim());
   t('★ fiş ailesi yöneticide: fişler → memnuniyet', fs && JSON.stringify(fs.sekmeler) === JSON.stringify(['/tickets', '/memnuniyet']), fs);
@@ -195,6 +203,7 @@ t('bölüm başlıkları Türkçe büyük harfle yazılmış (CSS büyütmesi yo
     '/teknisyen': 'src/app/api/teknisyen/route.ts',
     '/reports': 'src/app/api/reports/route.ts',
     '/kacan-gelir': 'src/app/api/revenue-risk/route.ts',
+    '/gelecek-gelir': 'src/app/api/gelecek-gelir/route.ts',
   };
   for (const [ekran, dosya] of Object.entries(UCLAR)) {
     const k = readFileSync(join(KOK, dosya), 'utf8');

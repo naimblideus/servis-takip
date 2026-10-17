@@ -66,6 +66,42 @@ export interface SlaSonuc {
 }
 
 /**
+ * Müşteri başına GEÇERLİ SLA sözü.
+ *
+ * Yalnız SLA hedefi TANIMLI aktif sözleşmeler. Hedefi olmayan müşteriyi
+ * ölçüme katmak, uydurulmuş bir hedefe göre uyum oranı üretmek olurdu.
+ * Aynı müşteride birden çok sözleşme varsa EN YENİ başlayan geçerlidir.
+ *
+ * SLA raporu (slaOlc) ve canlı pano (lib/canli-pano-veri) bunu BİRLİKTE
+ * kullanır: iki ekran aynı fişe iki ayrı söz uygulamasın.
+ */
+export async function slaHedefleri(tenantId: string): Promise<Map<string, SlaHedefi>> {
+  const sozlesmeler = await prisma.contract.findMany({
+    where: {
+      tenantId,
+      status: 'AKTIF',
+      OR: [{ slaResponseMins: { not: null } }, { slaResolutionMins: { not: null } }],
+    },
+    select: {
+      customerId: true, slaResponseMins: true, slaResolutionMins: true, slaPauseOnPart: true,
+      startDate: true, endDate: true,
+    },
+    orderBy: { startDate: 'desc' },
+  });
+
+  const hedefler = new Map<string, SlaHedefi>();
+  for (const s of sozlesmeler) {
+    if (hedefler.has(s.customerId)) continue;
+    hedefler.set(s.customerId, {
+      mudahaleDk: s.slaResponseMins ?? null,
+      cozumDk: s.slaResolutionMins ?? null,
+      parcaDurdurur: s.slaPauseOnPart,
+    });
+  }
+  return hedefler;
+}
+
+/**
  * Dönem içinde AÇILMIŞ fişleri ölçer.
  *
  * Neden açılışa göre: SLA sözü "bildirimden itibaren" işler. Kapanışa göre
@@ -90,31 +126,9 @@ export async function slaOlc(
     new Date(Date.UTC(2026, 0, 5, 0, 0)), new Date(Date.UTC(2026, 0, 9, 23, 0)), takvim,
   ) === null;
 
-  // Yalnız SLA hedefi TANIMLI sözleşmeler. Hedefi olmayan müşteriyi ölçüme
-  // katmak, uydurulmuş bir hedefe göre uyum oranı üretmek olurdu.
-  const sozlesmeler = await prisma.contract.findMany({
-    where: {
-      tenantId,
-      status: 'AKTIF',
-      OR: [{ slaResponseMins: { not: null } }, { slaResolutionMins: { not: null } }],
-    },
-    select: {
-      customerId: true, slaResponseMins: true, slaResolutionMins: true, slaPauseOnPart: true,
-      startDate: true, endDate: true,
-    },
-    orderBy: { startDate: 'desc' },
-  });
-
-  // Aynı müşteride birden çok sözleşme olabilir: EN YENİ başlayan geçerlidir.
-  const hedefler = new Map<string, SlaHedefi>();
-  for (const s of sozlesmeler) {
-    if (hedefler.has(s.customerId)) continue;
-    hedefler.set(s.customerId, {
-      mudahaleDk: s.slaResponseMins ?? null,
-      cozumDk: s.slaResolutionMins ?? null,
-      parcaDurdurur: s.slaPauseOnPart,
-    });
-  }
+  // Yalnız SLA hedefi TANIMLI sözleşmeler; aynı müşteride EN YENİ başlayan
+  // geçerli. Kural tek yerde (slaHedefleri): canlı pano da onu okuyor.
+  const hedefler = await slaHedefleri(tenantId);
 
   const fisler = await prisma.serviceTicket.findMany({
     where: { tenantId, deletedAt: null, createdAt: { gte: bas, lte: son } },

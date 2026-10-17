@@ -17,7 +17,8 @@ export const MODULES: Record<ModuleKey, { hrefs: string[] }> = {
   // böyle duruyor), içeriği genişledi: kaçan gelir, cihaz kârlılığı, filo.
   // Üçü de aynı soruya cevap veriyor: hangi makine para kaybettiriyor.
   REVENUE_RISK: { hrefs: ['/kacan-gelir', '/cihaz-karlilik', '/filo'] },
-  REPORTS:      { hrefs: ['/reports'] },
+  // Gelecek gelir raporlarla aynı pakette: ikisi de yöneticinin ileriye bakan raporu.
+  REPORTS:      { hrefs: ['/reports', '/gelecek-gelir'] },
   MARKETPLACE:  { hrefs: ['/market'] },
   // Eskiden yalnız gelen bildirimler kapılıydı, erişimi açan ekran değil:
   // paketi olmayan bayi portalı açabiliyor ama gelenleri göremiyordu.

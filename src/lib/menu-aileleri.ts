@@ -34,7 +34,9 @@ export interface Aile {
 }
 
 export const AILELER: readonly Aile[] = [
-  { anahtar: 'panel',      bolum: 'GUNLUK',  uyeler: ['/dashboard'] },
+  // Canlı pano panelin ikinci yüzü: sekme /dashboard'da görünür, /pano yan
+  // menüsüz TAM EKRAN açılır (operasyon odasındaki televizyon).
+  { anahtar: 'panel',      bolum: 'GUNLUK',  uyeler: ['/dashboard', '/pano'] },
   // Memnuniyet fişin devamı: teslim edilen fişte müşteriye sorulan tek
   // sorunun cevapları. Yalnız yöneticide sekme olarak görünür.
   { anahtar: 'fisler',     bolum: 'GUNLUK',  uyeler: ['/tickets', '/memnuniyet'] },
@@ -64,7 +66,7 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'magaza',     bolum: 'STOK',    uyeler: ['/magaza'] },
 
   // Tek soru: hangi makine ya da müşteri para kaybettiriyor.
-  { anahtar: 'kar',        bolum: 'ANALIZ',  uyeler: ['/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports'] },
+  { anahtar: 'kar',        bolum: 'ANALIZ',  uyeler: ['/kacan-gelir', '/cihaz-karlilik', '/filo', '/gelecek-gelir', '/reports'] },
   // Büyük müşterinin denetlediği ekranlar.
   { anahtar: 'kurumsal',   bolum: 'ANALIZ',  uyeler: ['/bakim', '/sla', '/teknisyen', '/kurumsal'] },
 
@@ -72,6 +74,12 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'yardim',     bolum: 'SISTEM',  uyeler: ['/yardim'] },
   { anahtar: 'admin',      bolum: 'SISTEM',  uyeler: ['/admin'] },
 ];
+
+/**
+ * Panel düzeninin DIŞINDA, yan menüsüz tam ekran açılan ekranlar. Sayfası
+ * src/app/(dashboard)/ altında değil src/app/<ad>/ altındadır.
+ */
+export const TAM_EKRAN: readonly string[] = ['/pano'];
 
 /** Yalnız süper yönetici. */
 export const YALNIZ_SUPER: readonly string[] = ['/admin'];
@@ -88,7 +96,7 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/users', '/settings', '/import', '/abonelik',
   '/accounting', '/kdv', '/sozlesmeler', '/teklifler',
   '/invoices', '/e-fatura', '/collections',
-  '/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports',
+  '/kacan-gelir', '/cihaz-karlilik', '/filo', '/gelecek-gelir', '/reports',
   '/teknisyen', '/kurumsal',
   // Teknisyenin müşterisinin ne dediği: karne gibi kişiyi ölçer.
   '/memnuniyet',
