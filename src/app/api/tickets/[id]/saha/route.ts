@@ -6,11 +6,12 @@ import { sahaIslemi } from '@/lib/saha-suresi-veri';
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/tickets/<id>/saha — { islem: 'vardim' | 'ciktim' | 'geriAl' }
+ * POST /api/tickets/<id>/saha — { islem: 'vardim' | 'ciktim' | 'geriAl' | 'ustlen' }
  *
  * Teknisyen müşteriye varınca "Vardım", çıkarken "Çıktım". Konum ALINMAZ,
  * yalnız saat. Tekrar basmak zararsız (ilk saat kalır). "geriAl" yalnız
- * yönetici: yanlış basılan son adımı siler. Kurallar lib/saha-suresi.ts'te.
+ * yönetici: yanlış basılan son adımı siler. "ustlen": atanmamış işi kendine al.
+ * Kurallar lib/saha-suresi.ts'te.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -25,6 +26,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       status: s.fis.status,
       varisAt: s.fis.varisAt?.toISOString() ?? null,
       ayrilisAt: s.fis.ayrilisAt?.toISOString() ?? null,
+      assignedUserId: s.fis.assignedUserId,
     });
   } catch (e) {
     return authErrorResponse(e);

@@ -20,7 +20,7 @@
  * aynı kararı `where` şartıyla yarışa karşı da kilitler.
  */
 
-export const SAHA_ISLEMLERI = ['vardim', 'ciktim', 'geriAl'] as const;
+export const SAHA_ISLEMLERI = ['vardim', 'ciktim', 'geriAl', 'ustlen'] as const;
 export type SahaIslemi = (typeof SAHA_ISLEMLERI)[number];
 
 export function sahaIslemiMi(x: unknown): x is SahaIslemi {
@@ -43,12 +43,13 @@ export type SahaHataKodu =
   | 'SAHA_YETKI_YOK'
   | 'SAHA_ONCE_VARDIM'
   | 'SAHA_FIS_KAPALI'
+  | 'SAHA_ZATEN_ATANMIS'
   | 'BU_ISLEM_ICIN_YONETICI_YETKISI'
   | 'GECERSIZ_ISLEM';
 
 export type SahaKarari =
   /** Yazılacak alanlar + yazımın şartı (yarışta ikinci istek boşa düşsün). */
-  | { tur: 'YAZ'; alanlar: { varisAt?: Date | null; ayrilisAt?: Date | null }; serviseAl: boolean }
+  | { tur: 'YAZ'; alanlar: { varisAt?: Date | null; ayrilisAt?: Date | null; assignedUserId?: string }; serviseAl: boolean }
   /** Zaten öyle: hiçbir şey yazılmaz, hata da yok. */
   | { tur: 'AYNI' }
   | { tur: 'HATA'; kod: SahaHataKodu; durum: number };
@@ -71,6 +72,9 @@ export function sahaYetkisi(fis: Pick<SahaFisi, 'assignedUserId'>, kisi: SahaKis
  *              zaman: vardım → onar → teslim et → çıktım).
  *  · geriAl  — yalnız yönetici; SON adımı siler (önce çıkış, yoksa varış).
  *              Fişin durumuna dokunmaz: aşama geçmişi silinmez, düzeltilir.
+ *  · ustlen  — atanmamış işi teknisyen (ya da yönetici) tek dokunuşla kendine
+ *              alır. Başkasınınsa almaz: "üstlen" bir devralma düğmesi değil;
+ *              işi başkasından almak yöneticinin kararı (fiş düzenleme).
  */
 export function sahaKarari(fis: SahaFisi, islem: string, kisi: SahaKisisi, simdi: Date): SahaKarari {
   if (!sahaIslemiMi(islem)) return { tur: 'HATA', kod: 'GECERSIZ_ISLEM', durum: 400 };
@@ -80,6 +84,14 @@ export function sahaKarari(fis: SahaFisi, islem: string, kisi: SahaKisisi, simdi
     if (fis.ayrilisAt) return { tur: 'YAZ', alanlar: { ayrilisAt: null }, serviseAl: false };
     if (fis.varisAt) return { tur: 'YAZ', alanlar: { varisAt: null }, serviseAl: false };
     return { tur: 'AYNI' };
+  }
+
+  if (islem === 'ustlen') {
+    if (kisi.role !== 'TECHNICIAN' && !yoneticiMi(kisi.role)) return { tur: 'HATA', kod: 'SAHA_YETKI_YOK', durum: 403 };
+    if (fis.status === 'DELIVERED' || fis.status === 'CANCELLED') return { tur: 'HATA', kod: 'SAHA_FIS_KAPALI', durum: 409 };
+    if (fis.assignedUserId === kisi.id) return { tur: 'AYNI' };
+    if (fis.assignedUserId) return { tur: 'HATA', kod: 'SAHA_ZATEN_ATANMIS', durum: 409 };
+    return { tur: 'YAZ', alanlar: { assignedUserId: kisi.id }, serviseAl: false };
   }
 
   if (!sahaYetkisi(fis, kisi)) return { tur: 'HATA', kod: 'SAHA_YETKI_YOK', durum: 403 };

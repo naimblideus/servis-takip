@@ -900,6 +900,8 @@ export const tr = {
     sureDk: '{dk} dk',
     sureSa: '{sa} sa',
     sureSaDk: '{sa} sa {dk} dk',
+    ustlen: '🙋 Bu işi üstlen',
+    ustlenAlt: 'Bu iş kimseye atanmamış. Üstlenirseniz sizin işleriniz arasına girer; sonra “Vardım” dersiniz.',
     // Sayaçsız kapanmaz (Ayarlar + fiş paneli) — lib/sayac-zorunlu.ts
     kuralBaslik: 'Servis fişi kuralları',
     kuralSayac: 'Kiralık cihazın fişi sayaç girilmeden teslim edilemesin',
@@ -4711,6 +4713,7 @@ export const tr = {
     SAHA_YETKI_YOK: 'Bu işte “Vardım / Çıktım”a yalnız atanan teknisyen ya da yönetici basabilir.',
     SAHA_ONCE_VARDIM: 'Önce “Vardım”a basın.',
     SAHA_FIS_KAPALI: 'Kapanmış fişe varış yazılmaz.',
+    SAHA_ZATEN_ATANMIS: 'Bu iş az önce başka birinin üzerine alındı. Sayfayı yenileyin.',
     SAYAC_ZORUNLU: 'Bu kiralık cihazın sayacı girilmeden fiş teslim edilemez. Önce bu fişe sayacı girin.',
     FOTO_COZUMLENEMEDI: 'Foto çözümlenemedi',
     GEREKLI_SUTUNLAR_BULUNAMADI_DOSYADA_EN: 'Gerekli sütunlar bulunamadı. Dosyada en az şunlar olmalı: Seri No, Tarih, Siyah Sayaç (Renkli isteğe bağlı).',

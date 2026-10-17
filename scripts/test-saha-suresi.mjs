@@ -81,6 +81,15 @@ const fis = (ek = {}) => ({ status: 'NEW', varisAt: null, ayrilisAt: null, assig
   t('★ süre: 09:15 → 10:00 = 45 dk; canlı sayaç şu ana kadar', ss.sahaDakikasi(ONCE, SIMDI) === 45 && ss.sahaDakikasi(ONCE, null, SIMDI) === 45 && ss.sahaDakikasi(ONCE, null) === null);
   t('bozuk kayıttan süre üretilmez (çıkış varıştan önce)', ss.sahaDakikasi(SIMDI, ONCE) === null && ss.sahaDakikasi(null, SIMDI) === null);
   t('72 dk = 1 sa 12 dk', JSON.stringify(ss.sureParcala(72)) === JSON.stringify({ saat: 1, dakika: 12 }));
+
+  // Üstlen
+  const bos = fis({ assignedUserId: null });
+  const u = ss.sahaKarari(bos, 'ustlen', TEK, SIMDI);
+  t('★ atanmamış işi teknisyen tek dokunuşla üstlenir', u.tur === 'YAZ' && u.alanlar.assignedUserId === 'tek-1', u);
+  t('★ başkasının işini üstlenemez (devralma yöneticinin kararı)', ss.sahaKarari(fis({ assignedUserId: 'tek-2' }), 'ustlen', TEK, SIMDI).kod === 'SAHA_ZATEN_ATANMIS');
+  t('kendi işini yeniden üstlenmek zararsız', ss.sahaKarari(fis(), 'ustlen', TEK, SIMDI).tur === 'AYNI');
+  t('ön büro üstlenemez, yönetici üstlenebilir', ss.sahaKarari(bos, 'ustlen', BURO, SIMDI).kod === 'SAHA_YETKI_YOK' && ss.sahaKarari(bos, 'ustlen', YON, SIMDI).tur === 'YAZ');
+  t('teslim edilmiş işi üstlenmek anlamsız', ss.sahaKarari(fis({ assignedUserId: null, status: 'DELIVERED' }), 'ustlen', TEK, SIMDI).kod === 'SAHA_FIS_KAPALI');
 }
 
 // ── SLA: MÜDAHALE ANI = "VARDIM" ─────────────────────────────────────────
@@ -183,6 +192,20 @@ if (!yerel) {
   ]);
   t('★ aynı anda iki "Vardım": yalnız biri yazdı, tek geçmiş satırı', [y1.degisti, y2.degisti].filter(Boolean).length === 1
     && (await p.ticketStatusHistory.count({ where: { ticketId: F2.id } })) === 1, { y1, y2 });
+
+  // Üstlen: aynı anda iki teknisyen aynı atanmamış işe basarsa
+  const tek2 = await p.user.create({ data: { tenantId: A.id, email: `saha.tek2.${z}@ornek.local`, passwordHash: 'x', name: 'Saha Usta 2', role: 'TECHNICIAN' } });
+  const F3 = await fisAc('NEW', { assignedUserId: null });
+  const [u1, u2] = await Promise.all([
+    sv.sahaIslemi(A.id, F3.id, kisi(tek), 'ustlen'),
+    sv.sahaIslemi(A.id, F3.id, kisi(tek2), 'ustlen'),
+  ]);
+  const sahibi = (await p.serviceTicket.findUnique({ where: { id: F3.id } })).assignedUserId;
+  const kazanan = u1.durum === 'TAMAM' ? tek.id : tek2.id;
+  t('★ aynı anda iki "Üstlen": biri alır, öbürüne "az önce başkası aldı" (sessizce sanmaz)',
+    [u1.durum, u2.durum].sort().join() === 'HATA,TAMAM' && [u1, u2].some((x) => x.kod === 'SAHA_ZATEN_ATANMIS') && sahibi === kazanan, { u1, u2, sahibi });
+  const sonra = await sv.sahaIslemi(A.id, F3.id, { id: kazanan, role: 'TECHNICIAN' }, 'vardim');
+  t('üstlenen artık "Vardım" diyebilir', sonra.durum === 'TAMAM' && sonra.degisti && sonra.fis.status === 'IN_SERVICE', sonra);
 }
 
 // ── SAYAÇSIZ KAPANMAZ ────────────────────────────────────────────────────

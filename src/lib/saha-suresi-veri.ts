@@ -17,6 +17,7 @@ export interface SahaHali {
   status: string;
   varisAt: Date | null;
   ayrilisAt: Date | null;
+  assignedUserId: string | null;
 }
 
 export type SahaSonucu =
@@ -24,7 +25,7 @@ export type SahaSonucu =
   | { durum: 'YOK' }
   | { durum: 'HATA'; kod: SahaHataKodu; http: number };
 
-const HAL = { status: true, varisAt: true, ayrilisAt: true } as const;
+const HAL = { status: true, varisAt: true, ayrilisAt: true, assignedUserId: true } as const;
 
 export async function sahaIslemi(
   tenantId: string,
@@ -36,7 +37,7 @@ export async function sahaIslemi(
   const kapsam = { id: ticketId, tenantId, deletedAt: null };
   const fis = await prisma.serviceTicket.findFirst({
     where: kapsam,
-    select: { ...HAL, assignedUserId: true },
+    select: HAL,
   });
   if (!fis) return { durum: 'YOK' };
 
@@ -44,18 +45,24 @@ export async function sahaIslemi(
   if (k.tur === 'HATA') return { durum: 'HATA', kod: k.kod, http: k.durum };
   const yeniHal = async (): Promise<SahaHali> => {
     const h = await prisma.serviceTicket.findFirst({ where: kapsam, select: HAL });
-    return h ? { ...h, status: String(h.status) } : { status: String(fis.status), varisAt: fis.varisAt, ayrilisAt: fis.ayrilisAt };
+    return h ? { ...h, status: String(h.status) } : { ...fis, status: String(fis.status) };
   };
   if (k.tur === 'AYNI') return { durum: 'TAMAM', degisti: false, fis: await yeniHal() };
 
   // Kararın dayandığı hâl: arada başka bir basış yazdıysa bu yazım boşa düşer.
   const sart =
-    islem === 'vardim' ? { varisAt: null }
+    islem === 'ustlen' ? { assignedUserId: null }
+    : islem === 'vardim' ? { varisAt: null }
       : islem === 'ciktim' ? { varisAt: { not: null }, ayrilisAt: null }
         : 'ayrilisAt' in k.alanlar ? { ayrilisAt: { not: null } }
           : { varisAt: { not: null }, ayrilisAt: null };
   const yazim = await prisma.serviceTicket.updateMany({ where: { ...kapsam, ...sart }, data: k.alanlar });
-  if (yazim.count === 0) return { durum: 'TAMAM', degisti: false, fis: await yeniHal() };
+  if (yazim.count === 0) {
+    const h = await yeniHal();
+    // Üstlenme yarışını başkası kazandıysa söylenir: "aldım" sanıp sahaya çıkmasın.
+    if (islem === 'ustlen' && h.assignedUserId !== kisi.id) return { durum: 'HATA', kod: 'SAHA_ZATEN_ATANMIS', http: 409 };
+    return { durum: 'TAMAM', degisti: false, fis: h };
+  }
 
   if (k.serviseAl) {
     // Yalnız hâlâ "Yeni"yse: bu arada biri başka duruma aldıysa ona dokunulmaz.
