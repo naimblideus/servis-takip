@@ -842,6 +842,23 @@ export const en: Sozluk = {
     karneSutun: 'Recommendation score',
   },
 
+  sahaSuresi: {
+    baslik: 'Time on site',
+    vardim: '📍 I have arrived',
+    vardimAlt: 'Tap when you reach the customer. No location is taken — only the time.',
+    ciktim: '🚪 I am leaving',
+    ciktimAlt: 'Tap as you leave, once the job is done.',
+    sahada: 'On site for {sure}',
+    varis: 'Arrived {saat}',
+    kimdeSahada: '{ad} on site: {sure}',
+    kimdeBitti: '{ad} was on site for {sure}',
+    geriAl: 'Tapped by mistake — undo the last tap',
+    geriAlSor: 'Delete the last tap? The ticket status does not change.',
+    sureDk: '{dk} min',
+    sureSa: '{sa} h',
+    sureSaDk: '{sa} h {dk} min',
+  },
+
   fisPanel: {
     cariIslendi: '💼 {n} posted to the customer account (Accounting).',
     bildirelimMi: 'Status updated — shall we tell the customer?',
@@ -4506,6 +4523,9 @@ export const en: Sozluk = {
     ANKET_KAPALI: 'The survey for this service visit is not open right now.',
     ANKET_PUAN_GECERSIZ: 'Please pick a score from 0 to 10.',
     ANKET_YORUM_COK_UZUN: 'The comment can be at most 1000 characters.',
+    SAHA_YETKI_YOK: 'Only the assigned technician or a manager can record arrival and departure on this job.',
+    SAHA_ONCE_VARDIM: 'Tap “I have arrived” first.',
+    SAHA_FIS_KAPALI: 'Arrival cannot be recorded on a closed ticket.',
     FOTO_COZUMLENEMEDI: 'The photo could not be read',
     GEREKLI_SUTUNLAR_BULUNAMADI_DOSYADA_EN: 'The required columns were not found. The file needs at least: serial number, date, mono meter (colour optional).',
     GECERLI_POZITIF_BIR_TUTAR_GIRIN: 'Enter a valid (positive) amount',

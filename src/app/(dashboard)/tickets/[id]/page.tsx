@@ -9,6 +9,7 @@ import TicketPrintButton from '@/components/TicketPrintButton';
 import TicketDeleteButton from '@/components/TicketDeleteButton';
 import ContactActions from '@/components/ContactActions';
 import MemnuniyetKarti, { type KartAnketi } from '@/components/MemnuniyetKarti';
+import SahaKarti from '@/components/SahaKarti';
 import { anketYolu } from '@/lib/memnuniyet-veri';
 import { waUrl, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 import { oturumKullanicisi } from '@/lib/api-auth';
@@ -177,6 +178,18 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
       </div>
+
+      {/* Vardım / Çıktım: teknisyen fişi müşterinin kapısında açar; ilk iş bu. */}
+      <SahaKarti
+        ticketId={ticket.id}
+        status={ticket.status}
+        varisAt={ticket.varisAt?.toISOString() ?? null}
+        ayrilisAt={ticket.ayrilisAt?.toISOString() ?? null}
+        atananId={ticket.assignedUserId}
+        atananAdi={ticket.assignedUser?.name ?? null}
+        benimId={me.id}
+        rol={String(me.role)}
+      />
 
       {/* Teslim edilen fişte müşteriye tek soru — fişin en görünür yerinde. */}
       {memnuniyet && (

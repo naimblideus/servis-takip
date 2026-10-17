@@ -202,8 +202,14 @@ export function calismaDakikasi(bas: Date, son: Date, t: CalismaTakvimi): number
 /** Ölçüme giren ham olaylar — aşama geçmişinden türetilir. */
 export interface FisOlaylari {
   acilis: Date;
-  /** İlk kez işe başlanan an (IN_SERVICE). Hiç başlanmadıysa null. */
+  /**
+   * İlk müdahale anı. Teknisyen "Vardım"a bastıysa O AN (kapıdan girilen an —
+   * çoğu sözleşmenin "müdahale"si); basmadıysa ilk IN_SERVICE geçişi.
+   * Hiç başlanmadıysa null.
+   */
   ilkMudahale: Date | null;
+  /** ilkMudahale "Vardım"dan mı geldi (rapor kaynağını söyleyebilsin diye). */
+  mudahaleVaristan?: boolean;
   /** İş biten an (READY ya da DELIVERED — hangisi önceyse). Bitmediyse null. */
   cozum: Date | null;
   /** "Parça bekleniyor" aralıkları. son null = hâlâ sürüyor. */
@@ -324,8 +330,13 @@ export interface AsamaSatiri {
  *
  * `acilisYedegi` fişin createdAt'idir: geçmişte NEW satırı yoksa açılış anı
  * odur. NEW satırı hiç yazılmamış olabilir (fiş eski yoldan açılmış).
+ *
+ * `varisAt` ("Vardım", lib/saha-suresi.ts): doluysa müdahale anı ODUR. Ofis
+ * fişi sabah "serviste"ye alıp teknisyen öğlen kapıdan girdiyse, durum
+ * geçişini müdahale saymak SLA'yı olduğundan iyi gösterirdi. Açılıştan önce ya
+ * da çözümden sonra yazılmış varış bozuk kayıttır, kullanılmaz.
  */
-export function olaylariCikar(satirlar: AsamaSatiri[], acilisYedegi: Date): FisOlaylari {
+export function olaylariCikar(satirlar: AsamaSatiri[], acilisYedegi: Date, varisAt?: Date | null): FisOlaylari {
   const sirali = [...satirlar].sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime());
   const turetilmis = sirali.length === 0 || sirali.some((s) => s.kaynak === 'GECMIS');
 
@@ -345,9 +356,13 @@ export function olaylariCikar(satirlar: AsamaSatiri[], acilisYedegi: Date): FisO
     duraklamalar.push({ bas: sirali[i].changedAt, son: sonraki?.changedAt ?? null });
   }
 
+  const varisGecerli = varisAt instanceof Date && Number.isFinite(varisAt.getTime())
+    && varisAt.getTime() >= acilis.getTime() && (!cozum || varisAt.getTime() <= cozum.getTime());
+
   return {
     acilis,
-    ilkMudahale: ilk('IN_SERVICE'),
+    ilkMudahale: varisGecerli ? varisAt : ilk('IN_SERVICE'),
+    mudahaleVaristan: varisGecerli,
     cozum,
     duraklamalar,
     turetilmis,

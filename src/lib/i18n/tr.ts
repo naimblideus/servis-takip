@@ -883,6 +883,25 @@ export const tr = {
     karneSutun: 'Tavsiye puanı',
   },
 
+  // ── SAHADA GEÇEN SÜRE ("Vardım / Çıktım") ── lib/saha-suresi.ts
+  // Fiş ekranının en üstündeki kart. Konum alınmaz, yalnız saat.
+  sahaSuresi: {
+    baslik: 'Sahada geçen süre',
+    vardim: '📍 Vardım',
+    vardimAlt: 'Müşteriye varınca basın. Konum alınmaz, yalnız saat yazılır.',
+    ciktim: '🚪 Çıktım',
+    ciktimAlt: 'İşiniz bitip çıkarken basın.',
+    sahada: 'Sahada {sure}',
+    varis: 'Varış {saat}',
+    kimdeSahada: '{ad} sahada: {sure}',
+    kimdeBitti: '{ad} sahada kaldı: {sure}',
+    geriAl: 'Yanlış basıldı — son basışı geri al',
+    geriAlSor: 'Son basış silinsin mi? Fişin durumu değişmez.',
+    sureDk: '{dk} dk',
+    sureSa: '{sa} sa',
+    sureSaDk: '{sa} sa {dk} dk',
+  },
+
   // Fiş durum/düzenleme paneli (fiş detayının sağ üstü).
   fisPanel: {
     cariIslendi: '💼 {n} müşteri carisine (Muhasebe) işlendi.',
@@ -4680,6 +4699,10 @@ export const tr = {
     ANKET_KAPALI: 'Bu servis için anket şu an açık değil.',
     ANKET_PUAN_GECERSIZ: '0 ile 10 arasında bir puan seçin.',
     ANKET_YORUM_COK_UZUN: 'Yorum en çok 1000 karakter olabilir.',
+    // Sahada geçen süre (Vardım / Çıktım)
+    SAHA_YETKI_YOK: 'Bu işte “Vardım / Çıktım”a yalnız atanan teknisyen ya da yönetici basabilir.',
+    SAHA_ONCE_VARDIM: 'Önce “Vardım”a basın.',
+    SAHA_FIS_KAPALI: 'Kapanmış fişe varış yazılmaz.',
     FOTO_COZUMLENEMEDI: 'Foto çözümlenemedi',
     GEREKLI_SUTUNLAR_BULUNAMADI_DOSYADA_EN: 'Gerekli sütunlar bulunamadı. Dosyada en az şunlar olmalı: Seri No, Tarih, Siyah Sayaç (Renkli isteğe bağlı).',
     GECERLI_POZITIF_BIR_TUTAR_GIRIN: 'Geçerli (pozitif) bir tutar girin',
