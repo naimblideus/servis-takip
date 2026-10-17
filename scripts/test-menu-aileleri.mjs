@@ -56,7 +56,7 @@ const gorunen = (e) => menuKur(e).flatMap((b) => b.aileler.flatMap((a) => a.sekm
 const aileler = (e) => menuKur(e).flatMap((b) => b.aileler.map((a) => a.aile.anahtar));
 
 // Para gösteren ekranlar: kâr, marj, borç, ciro, karne.
-const PARA_EKRANLARI = ['/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports', '/teknisyen', '/kurumsal', '/accounting', '/invoices', '/collections'];
+const PARA_EKRANLARI = ['/kacan-gelir', '/cihaz-karlilik', '/filo', '/gelecek-gelir', '/reports', '/teknisyen', '/kurumsal', '/accounting', '/invoices', '/collections'];
 
 console.log('\nMenü aileleri\n');
 
@@ -199,6 +199,7 @@ t('bölüm başlıkları Türkçe büyük harfle yazılmış (CSS büyütmesi yo
     '/teknisyen': 'src/app/api/teknisyen/route.ts',
     '/reports': 'src/app/api/reports/route.ts',
     '/kacan-gelir': 'src/app/api/revenue-risk/route.ts',
+    '/gelecek-gelir': 'src/app/api/gelecek-gelir/route.ts',
   };
   for (const [ekran, dosya] of Object.entries(UCLAR)) {
     const k = readFileSync(join(KOK, dosya), 'utf8');

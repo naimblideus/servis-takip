@@ -77,6 +77,20 @@ export default function SozlesmelerPage() {
   }, [t.genel.hata]);
   useEffect(() => { yukle(); }, [yukle]);
 
+  // ?ac=<sözleşme> — Gelecek Gelir'deki "Yenileme görüşmesi" kısayolu: o
+  // sözleşme açık gelir ve ekrana kaydırılır. Liste uzunken aramak gerekmesin.
+  const [acilacak, setAcilacak] = useState<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('ac');
+    if (id) setAcilacak(id);
+  }, []);
+  useEffect(() => {
+    if (!acilacak || !veri) return;
+    setAcik(acilacak);
+    setAcilacak(null);
+    requestAnimationFrame(() => document.getElementById(`sozlesme-${acilacak}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  }, [acilacak, veri]);
+
   const patch = async (id: string, govde: any) => {
     const r = await fetch(`/api/sozlesmeler/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -271,7 +285,7 @@ function SozlesmeSatiri({ k, acik, ac, patch, yenile }: any) {
   };
 
   return (
-    <div style={{ borderBottom: '1px solid #f3f4f6' }}>
+    <div id={`sozlesme-${k.id}`} style={{ borderBottom: '1px solid #f3f4f6', scrollMarginTop: '4.5rem' }}>
       <button onClick={ac} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap',
         padding: '0.85rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',

@@ -62,7 +62,7 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'magaza',     bolum: 'STOK',    uyeler: ['/magaza'] },
 
   // Tek soru: hangi makine ya da müşteri para kaybettiriyor.
-  { anahtar: 'kar',        bolum: 'ANALIZ',  uyeler: ['/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports'] },
+  { anahtar: 'kar',        bolum: 'ANALIZ',  uyeler: ['/kacan-gelir', '/cihaz-karlilik', '/filo', '/gelecek-gelir', '/reports'] },
   // Büyük müşterinin denetlediği ekranlar.
   { anahtar: 'kurumsal',   bolum: 'ANALIZ',  uyeler: ['/bakim', '/sla', '/teknisyen', '/kurumsal'] },
 
@@ -92,7 +92,7 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/users', '/settings', '/import', '/abonelik',
   '/accounting', '/kdv', '/sozlesmeler', '/teklifler',
   '/invoices', '/e-fatura', '/collections',
-  '/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports',
+  '/kacan-gelir', '/cihaz-karlilik', '/filo', '/gelecek-gelir', '/reports',
   '/teknisyen', '/kurumsal',
   '/satis', '/toplu-ayar', '/toplu-zam',
   // Tarayıcı anahtarını üretmek bayi adına sayaç göndermeye yetki vermek demek.
