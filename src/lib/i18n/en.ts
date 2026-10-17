@@ -2673,6 +2673,7 @@ export const en: Sozluk = {
       dk: '{dk} min',
       sa: '{sa} h',
       saDk: '{sa} h {dk} min',
+      gun: '{g} {g|day|days}',
     },
   },
 

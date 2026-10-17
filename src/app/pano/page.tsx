@@ -135,8 +135,13 @@ function saatYaz(an: number, dil: 'tr' | 'en', saniye = true): string {
   }).format(new Date(an));
 }
 
-function sureYaz(t: Sozluk, dakika: number): string {
+/**
+ * 45 dk / 2 sa 10 dk / 3 gün. SLA süresi ÇALIŞMA dakikasıdır: güne çevrilmez
+ * ("2 gün" 48 saat okunur, oysa 16 mesai saatidir) — orada gunle kapalı.
+ */
+function sureYaz(t: Sozluk, dakika: number, gunle = true): string {
   const { sa, dk } = sureParcala(dakika);
+  if (gunle && sa >= 24) return doldur(t.canliPano.sure.gun, { g: Math.floor(sa / 24) });
   if (sa === 0) return doldur(t.canliPano.sure.dk, { dk });
   if (dk === 0 || sa >= 10) return doldur(t.canliPano.sure.sa, { sa });
   return doldur(t.canliPano.sure.saDk, { sa, dk });
@@ -306,7 +311,8 @@ export default function CanliPanoSayfasi() {
         </div>
       </header>
 
-      {oturumYok && (
+      {/* Oturum düştü ama son veri ekranda: veri kalır, üstte yeniden giriş yolu. */}
+      {oturumYok && veri && (
         <div className="cp-serit-uyari" style={{ background: RENK.kritikZemin, border: `1px solid ${RENK.kritik}` }}>
           {p.oturumBitti}{' '}
           <a href="/login?next=/pano" style={{ color: RENK.metin, fontWeight: 800 }}>{p.girisYap}</a>
@@ -315,7 +321,9 @@ export default function CanliPanoSayfasi() {
 
       {!veri ? (
         <div className="cp-kutu" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: RENK.ikincil }}>
-          {oturumYok ? p.oturumBitti : hata ? doldur(p.baglantiYok, { saat: '—' }) : p.yukleniyor}
+          {oturumYok
+            ? <a href="/login?next=/pano" className="cp-dugme" style={{ color: RENK.metin }}>{p.girisYap}</a>
+            : hata ? doldur(p.baglantiYok, { saat: '—' }) : p.yukleniyor}
         </div>
       ) : (
         <>
@@ -393,7 +401,7 @@ function SlaKutulari({ t, sla }: { t: Sozluk; sla: NonNullable<CanliPanoVerisi['
   }
   const enAcil = sla.liste[0];
   const satir = (s: typeof enAcil) => `${s.ticketNumber} · ${s.musteri} · ${s.tur === 'MUDAHALE' ? p.slaMudahale : p.slaCozum} `
-    + (s.kalanDk < 0 ? doldur(p.slaGecti, { sure: sureYaz(t, -s.kalanDk) }) : doldur(p.slaKaldi, { sure: sureYaz(t, s.kalanDk) }));
+    + (s.kalanDk < 0 ? doldur(p.slaGecti, { sure: sureYaz(t, -s.kalanDk, false) }) : doldur(p.slaKaldi, { sure: sureYaz(t, s.kalanDk, false) }));
   const gecen = sla.liste.filter((s) => s.kalanDk < 0);
   const yaklasan = sla.liste.filter((s) => s.kalanDk >= 0);
   return (
