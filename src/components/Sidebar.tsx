@@ -427,6 +427,13 @@ export interface MenuDurum {
 
 const ROZET_STILI = { marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' } as const;
 
+
+// Yan menünün çekmece olarak açıldığı ekranlar: dikey telefon ve yan çevrilmiş
+// telefon (genişlik masaüstü eşiğini geçse de yükseklik 500 px altı). Yatay
+// telefonda masaüstü düzeni yan menüyü 390 px yüksekliğe sıkıştırıyordu: menüye
+// 99 px kalıyordu. src/app/mobil.css aynı sorguyu kullanır — biri değişirse öteki de.
+const CEKMECE_KIPI = '(max-width: 767px), (max-width: 1100px) and (max-height: 500px)';
+
 export default function Sidebar({ modules = [], durum }: { modules?: string[]; durum?: MenuDurum }) {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -456,11 +463,28 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
   const close = () => setOpen(false);
   // Sayfa değişince (link tıklanınca) mobil menüyü kapat
   useEffect(() => { setOpen(false); }, [pathname]);
-  // Menü açıkken arka plan kaymasın
+  // Menü açıkken arka plan kaymasın — YALNIZ çekmece kipinde (telefon dikey).
+  // Eskiden kilit ekran genişliğine bakmıyordu: menü açıkken telefon yan
+  // çevrilince masaüstü düzenine geçiliyor, çekmece kayboluyor ama gövde
+  // kilitli kalıyordu — sayfa hiç kaymıyordu. Artık genişlik 768 px'i geçince
+  // çekmece kapanır ve kilit kalkar. Kilit hem html'e hem gövdeye: iOS'ta
+  // yalnız gövdeyi kilitlemek arkadaki sayfanın kaymasını durdurmuyor.
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.body.style.overflow = open ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    if (typeof window === 'undefined') return;
+    // Çekmece kipi: dikey telefon YA DA yan çevrilmiş telefon (mobil.css ile aynı sorgu).
+    const mq = window.matchMedia(CEKMECE_KIPI);
+    const kilit = (ac: boolean) => {
+      const v = ac ? 'hidden' : '';
+      document.documentElement.style.overflow = v;
+      document.body.style.overflow = v;
+    };
+    kilit(open && mq.matches);
+    const degisti = () => {
+      if (!mq.matches) setOpen(false);
+      kilit(open && mq.matches);
+    };
+    mq.addEventListener('change', degisti);
+    return () => { mq.removeEventListener('change', degisti); kilit(false); };
   }, [open]);
 
   const tenantName = (session?.user as any)?.tenantName;
@@ -481,7 +505,8 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
       </div>
 
       {/* ── Backdrop (mobilde menü açıkken) ── */}
-      {open && <div className="md:hidden fixed inset-0 bg-black/50 z-40 print:hidden" onClick={close} />}
+      {/* touch-action:none — karartmanın üstünde parmak gezdirmek arkadaki sayfayı kaydırmasın. */}
+      {open && <div id="app-perde" className="md:hidden fixed inset-0 bg-black/50 z-40 print:hidden" style={{ touchAction: 'none' }} onClick={close} />}
 
       {/* ── Sidebar / Drawer ── masaüstünde ekrana yapışık (uzun sayfada menü kaybolmaz), menü kendi içinde kayar. */}
       <div

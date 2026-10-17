@@ -128,7 +128,11 @@ export default async function DashboardLayout({
     <LocaleProvider dil={dil} birim={birim} ulke={ulke} bayiDili={bayiDili}>
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar modules={modules} durum={menuDurum} />
-      <main id="app-main" className="flex-1 overflow-auto pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
+      {/* overflow-x-clip: kaydırma kabı DEĞİL. Eskiden overflow-auto'ydu; ana alan
+          kendisi hiç kaymadığı hâlde içindeki yapışkan çubuklar ona yapışıp
+          çalışmıyordu, telefonda da çapraz kaydırma bütün sayfayı yana
+          sallıyordu. Geniş tablolar kendi kaydırma kabında (32 ekran ölçüldü). */}
+      <main id="app-main" className="flex-1 overflow-x-clip pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
         {denemeGun !== null && <DenemeSeridi kalanGun={denemeGun} />}
         <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} bizimHesapKurulu={menuDurum.bizimHesapKurulu} />
         <ModuleGuard modules={modules}>{children}</ModuleGuard>

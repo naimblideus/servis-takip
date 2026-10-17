@@ -212,7 +212,7 @@ export default function SatisPage() {
       </div>
 
       {/* Alt bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', position: 'sticky', bottom: 0, background: '#fff', padding: '0.75rem 0' }}>
+      <div className="yapiskan-alt" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', position: 'sticky', bottom: 0, background: '#fff', padding: '0.75rem 0' }}>
         <div style={{ fontSize: '1.3rem', fontWeight: 800 }}>{t.satis.toplam}<span style={{ color: '#16a34a' }}>{fmt(total)}</span></div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <Link href="/accounting" style={{ padding: '0.7rem 1rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 10, fontWeight: 600, color: '#374151', textDecoration: 'none', fontSize: '0.9rem' }}>{t.satis.muhasebe}</Link>

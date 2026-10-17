@@ -170,7 +170,8 @@ export default function ReportsPage() {
             {/* Aylık Fiş Grafiği */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1.5rem' }}>
                 <h2 style={{ fontWeight: '600', marginBottom: '1.5rem' }}>{doldur(t.rapor.aylikFis, { n: data.monthlyData.length })}</h2>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', height: '180px' }}>
+                <div className="grafik-kaydir">
+                <div className="grafik-ic" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', height: '180px' }}>
                     {data.monthlyData.map(m => {
                         const h = maxCount > 0 ? Math.round((m.count / maxCount) * 160) : 0;
                         return (
@@ -187,12 +188,14 @@ export default function ReportsPage() {
                         );
                     })}
                 </div>
+                </div>
             </div>
 
             {/* Aylık Ciro Grafiği */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
                 <h2 style={{ fontWeight: '600', marginBottom: '1.5rem' }}>{doldur(t.rapor.aylikCiro, { n: data.monthlyData.length })}</h2>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', height: '180px' }}>
+                <div className="grafik-kaydir">
+                <div className="grafik-ic" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', height: '180px' }}>
                     {data.monthlyData.map(m => {
                         const h = maxRevenue > 0 ? Math.round((m.revenue / maxRevenue) * 160) : 0;
                         return (
@@ -208,6 +211,7 @@ export default function ReportsPage() {
                             </div>
                         );
                     })}
+                </div>
                 </div>
             </div>
         </div>

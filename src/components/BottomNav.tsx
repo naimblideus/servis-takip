@@ -83,12 +83,12 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
   return (
     <>
       {/* Hızlı işlem — backdrop */}
-      <div onClick={() => setSheet(false)} aria-hidden={!sheet} className="md:hidden print:hidden"
-        style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(11,21,51,.42)', opacity: sheet ? 1 : 0, pointerEvents: sheet ? 'auto' : 'none', transition: 'opacity .25s cubic-bezier(.32,.72,0,1)' }} />
+      <div id="app-hizli-perde" onClick={() => setSheet(false)} aria-hidden={!sheet} className="md:hidden print:hidden"
+        style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(11,21,51,.42)', opacity: sheet ? 1 : 0, pointerEvents: sheet ? 'auto' : 'none', touchAction: 'none', transition: 'opacity .25s cubic-bezier(.32,.72,0,1)' }} />
 
       {/* Hızlı işlem — sheet */}
-      <div role="dialog" aria-label={t.mobil.hizliIslem} className="md:hidden print:hidden"
-        style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 51, background: '#fff', borderRadius: '22px 22px 0 0', padding: '10px 14px calc(16px + env(safe-area-inset-bottom))', boxShadow: '0 -18px 44px -20px rgba(11,21,51,.5)', transform: sheet ? 'translateY(0)' : 'translateY(115%)', transition: 'transform .32s cubic-bezier(.32,.72,0,1)' }}>
+      <div id="app-hizli-sayfa" role="dialog" aria-label={t.mobil.hizliIslem} className="md:hidden print:hidden"
+        style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 51, background: '#fff', borderRadius: '22px 22px 0 0', padding: '10px 14px calc(16px + env(safe-area-inset-bottom))', overscrollBehavior: 'contain', boxShadow: '0 -18px 44px -20px rgba(11,21,51,.5)', transform: sheet ? 'translateY(0)' : 'translateY(115%)', transition: 'transform .32s cubic-bezier(.32,.72,0,1)' }}>
         <div style={{ width: 40, height: 5, borderRadius: 999, background: 'rgba(15,34,83,.15)', margin: '2px auto 12px' }} />
         <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#98A1B5', margin: '0 4px 10px' }}>{t.mobil.hizliIslem}</div>
         <div style={{ display: 'grid', gap: 8 }}>
