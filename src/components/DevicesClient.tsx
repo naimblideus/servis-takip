@@ -1,6 +1,14 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { icerir } from '@/lib/tr-katla';
+
+// İLK ÇİZİMDE KAÇ SATIR. Ölçüldü (2026-10-18, 5.000 cihazlık bayi, üretim
+// derlemesi): bütün satırlar çizilince sayfa 6,6 MB, sunucu 1,1 sn — telefonda
+// saniyelerce donuyordu. Veri yine istemcide (arama anlık ve BÜTÜN cihazlarda),
+// yalnız ekrana basılan satır sınırlı; "Daha fazla" ile açılır.
+const ILK_SATIR = 100;
+const SONRAKI_SATIR = 200;
 import Link from 'next/link';
 import { useBarcodeWedge } from '@/hooks/useBarcodeWedge';
 import { useT, useBicim } from '@/lib/i18n/client';
@@ -25,6 +33,9 @@ interface Props {
 
 export default function DevicesClient({ devices, activeTab }: Props) {
     const [search, setSearch] = useState('');
+    const [goster, setGoster] = useState(ILK_SATIR);
+    // Arama ya da sekme değişince liste baştan: eski "daha fazla" kalmasın.
+    useEffect(() => { setGoster(ILK_SATIR); }, [search, activeTab]);
     const [scanMsg, setScanMsg] = useState<{ text: string; ok: boolean } | null>(null);
     // `sz`: sekme döngüsü `t` adını kullanıyor, gölgelenmesin.
     const sz = useT();
@@ -59,13 +70,12 @@ export default function DevicesClient({ devices, activeTab }: Props) {
             activeTab === 'normal' ? devices.filter(d => !d.isRental) : devices;
 
         if (!search.trim()) return base;
-        const q = search.toLowerCase();
+        // Türkçe katlama: "İSTANBUL" araması "istanbul"u, "ı" "i"yi bulsun
+        // (toLowerCase İ'yi "i̇" yapıyordu, eşleşme kaçıyordu).
+        const q = search.trim();
         return base.filter(d =>
-            d.brand.toLowerCase().includes(q) ||
-            d.model.toLowerCase().includes(q) ||
-            d.serialNo.toLowerCase().includes(q) ||
-            d.customer.name.toLowerCase().includes(q) ||
-            (d.location && d.location.toLowerCase().includes(q))
+            icerir(d.brand, q) || icerir(d.model, q) || icerir(d.serialNo, q) ||
+            icerir(d.customer.name, q) || icerir(d.location, q)
         );
     }, [devices, activeTab, search]);
 
@@ -179,7 +189,7 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.map((d, i) => (
+                        {filtered.slice(0, goster).map((d, i) => (
                             <tr
                                 key={d.id}
                                 style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: i % 2 === 0 ? 'white' : '#f9fafb', cursor: 'pointer', transition: 'background-color 0.1s' }}
@@ -224,6 +234,17 @@ export default function DevicesClient({ devices, activeTab }: Props) {
                     </tbody>
                 </table>
             </div>
+            {filtered.length > goster && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.9rem' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                        {doldur(sz.cihazlar.gosterilen, { n: goster, t: filtered.length })}
+                    </span>
+                    <button type="button" onClick={() => setGoster((g) => g + SONRAKI_SATIR)}
+                        style={{ minHeight: 44, padding: '0 1.1rem', borderRadius: '0.6rem', border: '1px solid #d1d5db', background: 'white', color: '#0f2253', fontWeight: 700, cursor: 'pointer' }}>
+                        {doldur(sz.cihazlar.dahaFazla, { n: Math.min(SONRAKI_SATIR, filtered.length - goster) })}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

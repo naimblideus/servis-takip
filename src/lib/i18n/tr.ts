@@ -646,6 +646,8 @@ export const tr = {
     sekme: { kiralik: '🏷️ Kiralık', normal: 'Normal' },
     araYer: 'Cihaz, seri no, müşteri veya konum ara...',
     sonuc: '{n} sonuç bulundu',
+    gosterilen: '{t} cihazın {n} tanesi gösteriliyor — aramak için yazın',
+    dahaFazla: '{n} cihaz daha göster',
     sutun: { markaModel: 'Marka / Model', seriNo: 'Seri No', konum: 'Konum', kira: 'Kira', sonFis: 'Son Fiş' },
     kiralik: 'KİRALIK',
     aylik: '/ay',

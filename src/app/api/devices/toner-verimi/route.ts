@@ -21,8 +21,13 @@ export async function GET() {
     // Sahada ölçülmüş verimler burada üretilip tabloya veriliyor.
     // toner-verimi.ts bunu kendisi çağırsaydı iki modül birbirini içe
     // aktarırdı ve o döngü bir gün sebebi bulunamayan bir hata olurdu.
-    const ogrenilen = await verimleriOgren(tenantId);
-    const gruplar = await verimGruplari(tenantId, ogrenilen.model);
+    // Üç hesap birbirinden bağımsız: sırayla koşunca süreleri toplanıyordu
+    // (5.000 cihazda 3,2 sn). Aynı anda koşuyor; sonuç aynı.
+    const [gruplar, maliyetler, urunler] = await Promise.all([
+      verimleriOgren(tenantId).then((o) => verimGruplari(tenantId, o.model)),
+      modelSayfaMaliyetleri(tenantId),
+      tonerUrunKarnesi(tenantId),
+    ]);
 
     const cihaz = gruplar.reduce((a, g) => a + g.cihaz, 0);
     const verimli = gruplar.reduce((a, g) => a + g.verimli, 0);
@@ -41,7 +46,6 @@ export async function GET() {
     // zaten vardı ama yalnız teklif ekranında görünüyordu — bayi kendi
     // maliyetini göremiyordu. Aynı kaynaktan besleniyor ki iki ekran
     // ayrı sayı söylemesin.
-    const maliyetler = await modelSayfaMaliyetleri(tenantId);
     const satirlar = gruplar
       .map((g) => {
         const m = maliyetler.get(g.anahtar);
@@ -59,7 +63,6 @@ export async function GET() {
     // Model satırı bütün tonerleri tek ortalamada birleştiriyor; bu harita
     // aynı makinede hangi toner ürününün sayfa başı daha ucuza geldiğini
     // ayırıyor (model anahtarı → ürün satırları).
-    const urunler = await tonerUrunKarnesi(tenantId);
     const urunFarki = Object.values(urunler).filter((l) => l.some((u) => u.enUcuz)).length;
 
     return NextResponse.json({

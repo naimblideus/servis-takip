@@ -110,10 +110,27 @@ export interface NormalizedDevice {
  *  - marka tanınmıyor AMA model tanınıyorsa: TERS kaydedilmiş → yer değiştir
  *  - ikisi de tanınmıyorsa: DOKUNMA (yerel/bilinmeyen marka olabilir)
  */
+// ÖNBELLEK: bu işlev saf (aynı girdi → aynı çıktı) ama marka listesi taraması
+// pahalı ve 5.000 cihazlık filoda aynı 30–40 marka/model binlerce kez soruluyor.
+// Ölçüldü (2026-10-18): toner verimi ucu cihaz başına çözümle 3,2 sn sürüyordu.
+// Sınır aşılınca baştan başlar (bellek büyümez). Çağıran kopya alır: önbellekteki
+// nesne değiştirilemez.
+const NORMAL_ONBELLEK = new Map<string, NormalizedDevice>();
+const ONBELLEK_SINIR = 20_000;
+
 export function normalizeBrandModel(brandIn: unknown, modelIn: unknown): NormalizedDevice {
   const brand = String(brandIn ?? '').trim();
   const model = String(modelIn ?? '').trim();
+  const anahtar = `${brand}\u0000${model}`;
+  const hazir = NORMAL_ONBELLEK.get(anahtar);
+  if (hazir) return { ...hazir };
+  const sonuc = normalizeBrandModelHam(brand, model);
+  if (NORMAL_ONBELLEK.size >= ONBELLEK_SINIR) NORMAL_ONBELLEK.clear();
+  NORMAL_ONBELLEK.set(anahtar, sonuc);
+  return { ...sonuc };
+}
 
+function normalizeBrandModelHam(brand: string, model: string): NormalizedDevice {
   const bIsBrand = isKnownBrand(brand);
   const mIsBrand = isKnownBrand(model);
 

@@ -66,7 +66,21 @@ export function verimGecerliMi(n: unknown): n is number {
  * yerelden bağımsız büyük harfe çevir. Model kodları zaten ASCII;
  * katlama kod okunaklılığını bozmuyor.
  */
+// Saf işlev; 5.000 cihazlık filoda aynı model binlerce kez soruluyor (bkz.
+// device-brands normalizeBrandModel önbelleği). Sınır aşılınca baştan başlar.
+const ANAHTAR_ONBELLEK = new Map<string, string>();
+
 export function modelAnahtari(brandIn: unknown, modelIn: unknown): string {
+  const ham = `${String(brandIn ?? '')}\u0000${String(modelIn ?? '')}`;
+  const hazir = ANAHTAR_ONBELLEK.get(ham);
+  if (hazir !== undefined) return hazir;
+  const sonuc = modelAnahtariHam(brandIn, modelIn);
+  if (ANAHTAR_ONBELLEK.size >= 20_000) ANAHTAR_ONBELLEK.clear();
+  ANAHTAR_ONBELLEK.set(ham, sonuc);
+  return sonuc;
+}
+
+function modelAnahtariHam(brandIn: unknown, modelIn: unknown): string {
   const { brand, model } = normalizeBrandModel(brandIn, modelIn);
   const sade = (s: string) =>
     s.replace(/[\s._/-]+/g, ' ').trim()
@@ -128,9 +142,20 @@ export async function verimGruplari(
   });
 
   const harita = new Map<string, VerimGrubu>();
+  // Marka/model çözümü pahalı (eşanlam tablosu + düzenli ifadeler) ve 5.000
+  // cihazlık filoda aynı 30–40 model binlerce kez tekrarlanıyor. Ölçüldü:
+  // cihaz başına çözüm bu işlevi 1,35 sn'ye çıkarıyordu. Farklı ham marka+model
+  // çifti başına bir kez çözülüyor; sonuç birebir aynı.
+  const cozum = new Map<string, { anahtar: string; brand: string; model: string }>();
   for (const d of cihazlar) {
-    const anahtar = modelAnahtari(d.brand, d.model);
-    const { brand, model } = normalizeBrandModel(d.brand, d.model);
+    const ham = `${d.brand}\u0000${d.model}`;
+    let c = cozum.get(ham);
+    if (!c) {
+      const n = normalizeBrandModel(d.brand, d.model);
+      c = { anahtar: modelAnahtari(d.brand, d.model), brand: n.brand, model: n.model };
+      cozum.set(ham, c);
+    }
+    const { anahtar, brand, model } = c;
     let g = harita.get(anahtar);
     if (!g) {
       g = {

@@ -619,6 +619,8 @@ export const en: Sozluk = {
     sekme: { kiralik: '🏷️ Rental', normal: 'Owned' },
     araYer: 'Search device, serial no., customer or location...',
     sonuc: '{n} {n|result|results}',
+    gosterilen: 'Showing {n} of {t} devices — type to search',
+    dahaFazla: 'Show {n} more {n|device|devices}',
     sutun: { markaModel: 'Brand / Model', seriNo: 'Serial no.', konum: 'Location', kira: 'Rent', sonFis: 'Last ticket' },
     kiralik: 'RENTAL',
     aylik: '/mo',
