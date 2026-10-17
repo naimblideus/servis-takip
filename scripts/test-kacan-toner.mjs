@@ -53,6 +53,16 @@ console.log('\nKarar\n');
   t('önceki değişim yoksa 60 gün geriye bakılır', kt.bayiVerdiMi({ ...d, onceki: null }, { ...bos, sevk: new Map([['D', [once(75)]]]) }) === true
     && kt.bayiVerdiMi({ ...d, onceki: null }, { ...bos, sevk: new Map([['D', [once(81)]]]) }) === false);
   t('başka makinenin kanıtı bu makineye sayılmaz', kt.bayiVerdiMi(d, { ...bos, sevk: new Map([['X', [once(25)]]]) }) === false);
+
+  // EMANET: müşterinin rafındaki yedekten takılan toner bayinin verdiği tonerdir.
+  const de = { ...d, id: 'TC1' };
+  t('★ emanetten düşülen değişim kaçan sayılmaz', kt.bayiVerdiMi(de, { ...bos, emanetTuketim: new Set(['TC1']) }) === true
+    && kt.bayiVerdiMi(de, { ...bos, emanetTuketim: new Set(['BASKA']) }) === false);
+  t('★ değişimden önce rafta bayinin yedeği vardı → kaçan değil (çok eski bırakış da sayılır)',
+    kt.bayiVerdiMi(d, { ...bos, emanet: new Map([['M', [{ tarih: once(200), adet: 3 }, { tarih: once(100), adet: -1 }]]]) }) === true);
+  t('★ yedek değişimden SONRA bırakıldıysa ya da raf boşaldıysa kaçan', kt.bayiVerdiMi(d, { ...bos, emanet: new Map([['M', [{ tarih: once(5), adet: 3 }]]]) }) === false
+    && kt.bayiVerdiMi(d, { ...bos, emanet: new Map([['M', [{ tarih: once(90), adet: 2 }, { tarih: once(60), adet: -2 }]]]) }) === false);
+  t('başka müşterinin rafı bu değişime sayılmaz', kt.bayiVerdiMi(d, { ...bos, emanet: new Map([['X', [{ tarih: once(90), adet: 2 }]]]) }) === false);
 }
 
 // ── KAYNAK ───────────────────────────────────────────────────────────────

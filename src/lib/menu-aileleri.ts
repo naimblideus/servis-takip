@@ -57,8 +57,9 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'muhasebe',   bolum: 'PARA',    uyeler: ['/accounting', '/kdv', '/bizimhesap'] },
 
   // Toner verimi sarfın ön koşulu: beklenen verim orada tanımlanır.
-  // Parça ömrü tonerin yanında: drum, fırın, bakım kiti — sarfın öbür yarısı.
-  { anahtar: 'stok',       bolum: 'STOK',    uyeler: ['/inventory', '/siparis', '/sarf', '/toner-verimi', '/parca-omru', '/satis', '/etiket'] },
+  // Emanet sarfın hemen arkasında (müşterinin rafındaki toner); parça ömrü
+  // tonerin yanında: drum, fırın, bakım kiti — sarfın öbür yarısı.
+  { anahtar: 'stok',       bolum: 'STOK',    uyeler: ['/inventory', '/siparis', '/sarf', '/emanet', '/toner-verimi', '/parca-omru', '/satis', '/etiket'] },
   { anahtar: 'pazar',      bolum: 'STOK',    uyeler: ['/market'] },
   { anahtar: 'magaza',     bolum: 'STOK',    uyeler: ['/magaza'] },
 
@@ -117,7 +118,7 @@ export const TEKNISYEN_MENUSU: readonly string[] = [
   '/tickets', '/rota',
   '/sayac-turu', '/takip',
   '/customers', '/devices',
-  '/inventory', '/sarf',
+  '/inventory', '/sarf', '/emanet',
   // Parça ömrü: "bu makinenin drumu bitiyor, yanına al" — saha bilgisi.
   '/parca-omru',
   '/yardim',

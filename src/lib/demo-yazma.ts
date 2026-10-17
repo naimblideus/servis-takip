@@ -70,6 +70,8 @@ const DEMO_VITRIN = [
   /^\/api\/invoices$/,
   /^\/api\/sayac\/tarayici\/(?!ayar$)[^/]+(\/cihaz)?$/,
   /^\/api\/toner-sevk$/,
+  // Yedek bırakmak, iade, kayıp ve sayım müşteride duran toner vitrinini herkes için değiştirir.
+  /^\/api\/emanet$/,
 ];
 
 /** Giriş/çıkış ve dil seçimi demoda da çalışmalı. */

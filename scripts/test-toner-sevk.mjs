@@ -30,6 +30,10 @@ const MODULLER = [
   'toner-sevk', 'verim-karnesi', 'tedarik-siparisi', 'toner-sevk-veri', 'toner-veri', 'toner-urun-veri',
   'tedarik-siparisi-veri', 'verim-ogrenme', 'toner-verimi', 'device-brands', 'reliability', 'fault-categories',
   'stok-maliyet', 'toner', 'sayac-tarama', 'magaza-baglanti', 'teklif', 'sozlesme-karlilik',
+  // degisimKaydet emanet defterine bakıyor (raftaki yedek takıldı mı).
+  'emanet', 'emanet-veri',
+  // Tedarik siparişi önümüzdeki 30 günde ömrü dolacak parçaları da sayıyor.
+  'parca-omru-veri', 'parca-omru', 'tr-katla',
 ];
 try {
   execFileSync(process.execPath, [
