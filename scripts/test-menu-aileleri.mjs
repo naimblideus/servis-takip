@@ -149,7 +149,11 @@ console.log('\nMenü aileleri\n');
     s && JSON.stringify(s.sekmeler) === JSON.stringify(['/sayac-turu', '/takip', '/sayac-eposta', '/sayac-tarayici']), s);
   t('teknisyen ağ tarayıcıyı görmüyor (anahtar üretimi yönetici işi)', !gorunen(erisim({ rol: 'TECHNICIAN' })).includes('/sayac-tarayici'));
   t('detay sayfasında sekme çizilmez', sekmeGosterilir('/devices/abc', erisim()) === null);
-  t('tek ekranlı ailede sekme çizilmez', sekmeGosterilir('/tickets', erisim()) === null);
+  t('tek ekranlı ailede sekme çizilmez', sekmeGosterilir('/rota', erisim()) === null);
+  const fs = sekmeGosterilir('/tickets', erisim());
+  t('★ fiş ailesi yöneticide: fişler → memnuniyet', fs && JSON.stringify(fs.sekmeler) === JSON.stringify(['/tickets', '/memnuniyet']), fs);
+  t('★ teknisyen memnuniyet panosunu görmüyor (fiş listesinde sekme çubuğu yok)', sekmeGosterilir('/tickets', erisim({ rol: 'TECHNICIAN' })) === null
+    && !gorunen(erisim({ rol: 'TECHNICIAN' })).includes('/memnuniyet') && !gorunen(erisim({ rol: 'FRONT_DESK' })).includes('/memnuniyet'));
   t('görmemesi gereken sayfada sekme çizilmez',
     sekmeGosterilir('/kacan-gelir', erisim({ rol: 'FRONT_DESK' })) === null);
 }

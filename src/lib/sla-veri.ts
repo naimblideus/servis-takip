@@ -119,7 +119,7 @@ export async function slaOlc(
   const fisler = await prisma.serviceTicket.findMany({
     where: { tenantId, deletedAt: null, createdAt: { gte: bas, lte: son } },
     select: {
-      id: true, ticketNumber: true, customerId: true, createdAt: true,
+      id: true, ticketNumber: true, customerId: true, createdAt: true, varisAt: true,
       device: { select: { brand: true, model: true, serialNo: true } },
       statusHistory: { select: { status: true, changedAt: true, kaynak: true } },
     },
@@ -145,6 +145,8 @@ export async function slaOlc(
     const olay = olaylariCikar(
       f.statusHistory.map((s) => ({ status: String(s.status), changedAt: s.changedAt, kaynak: s.kaynak })),
       f.createdAt,
+      // "Vardım" basıldıysa müdahale anı odur (lib/sla.ts).
+      f.varisAt,
     );
     cikti.push({
       id: f.id,

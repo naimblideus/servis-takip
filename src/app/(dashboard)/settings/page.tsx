@@ -41,6 +41,9 @@ export default function SettingsPage() {
     const [odemeKayit, setOdemeKayit] = useState(false);
     const [odemeMsg, setOdemeMsg] = useState<{ ok: boolean; metin: string } | null>(null);
     const [takvimKayit, setTakvimKayit] = useState(false);
+    // Sayaçsız kapanmaz: tek anahtar, basınca kaydedilir (ayrı düğme yok).
+    const [sayacZorunlu, setSayacZorunlu] = useState(false);
+    const [kuralMsg, setKuralMsg] = useState<{ ok: boolean; metin: string } | null>(null);
     const [takvimMsg, setTakvimMsg] = useState('');
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -59,6 +62,7 @@ export default function SettingsPage() {
                 vadeHatirlatma: data.vadeHatirlatma === true,
                 sayacHatirlatma: data.sayacHatirlatma === true,
             });
+            setSayacZorunlu(data.sayacZorunlu === true);
             setOdeme({
                 odemeIban: data.odemeIban ? String(data.odemeIban).replace(/(.{4})/g, '$1 ').trim() : '',
                 odemeHesapAdi: data.odemeHesapAdi || '',
@@ -87,6 +91,21 @@ export default function SettingsPage() {
         // yanlış olduğunu söylüyor, genel bir "kaydedilemedi" söylemiyor.
         const j = res.ok ? null : await res.json().catch(() => null);
         setOdemeMsg(res.ok ? { ok: true, metin: t.ayarlar.odemeKaydedildi } : { ok: false, metin: j?.error ?? t.ayarlar.takvimHata });
+    };
+
+    const sayacKuraliDegistir = async (acik: boolean) => {
+        setSayacZorunlu(acik);
+        setKuralMsg(null);
+        const res = await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sayacZorunlu: acik }),
+        }).catch(() => null);
+        if (res?.ok) { setKuralMsg({ ok: true, metin: t.sahaSuresi.kuralKaydedildi }); return; }
+        // Kaydedilmediyse anahtar eski yerine döner: ekran yalan söylemesin (demoda da böyle).
+        setSayacZorunlu(!acik);
+        const j = res ? await res.json().catch(() => null) : null;
+        setKuralMsg({ ok: false, metin: j?.error ?? t.genel.baglantiHatasi });
     };
 
     const takvimKaydet = async () => {
@@ -317,6 +336,21 @@ export default function SettingsPage() {
                     </Link>
                 </div>
             )}
+
+            {/* ── SERVİS FİŞİ KURALLARI ──────────────────────────────────
+                Sayaçsız kapanmaz (lib/sayac-zorunlu.ts). Varsayılan kapalı. */}
+            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.75rem' }}>{t.sahaSuresi.kuralBaslik}</h2>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', minHeight: 44 }}>
+                    <input type="checkbox" checked={sayacZorunlu} style={{ marginTop: '0.2rem', width: 20, height: 20, cursor: 'pointer', flexShrink: 0 }}
+                        onChange={e => sayacKuraliDegistir(e.target.checked)} />
+                    <span style={{ fontSize: '0.875rem' }}>
+                        <b>{t.sahaSuresi.kuralSayac}</b>
+                        <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem', lineHeight: 1.5 }}>{t.sahaSuresi.kuralSayacAlt}</span>
+                    </span>
+                </label>
+                {kuralMsg && <p role={kuralMsg.ok ? 'status' : 'alert'} style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: kuralMsg.ok ? '#166534' : '#b91c1c' }}>{kuralMsg.metin}</p>}
+            </div>
 
             {/* ── ÇALIŞMA TAKVİMİ ─────────────────────────────────────────
                 SLA'nın ölçüldüğü zemin. Ayrı kaydedilir: bayi fiyat

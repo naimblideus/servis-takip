@@ -35,7 +35,9 @@ export interface Aile {
 
 export const AILELER: readonly Aile[] = [
   { anahtar: 'panel',      bolum: 'GUNLUK',  uyeler: ['/dashboard'] },
-  { anahtar: 'fisler',     bolum: 'GUNLUK',  uyeler: ['/tickets'] },
+  // Memnuniyet fişin devamı: teslim edilen fişte müşteriye sorulan tek
+  // sorunun cevapları. Yalnız yöneticide sekme olarak görünür.
+  { anahtar: 'fisler',     bolum: 'GUNLUK',  uyeler: ['/tickets', '/memnuniyet'] },
   { anahtar: 'whatsapp',   bolum: 'GUNLUK',  uyeler: ['/whatsapp'] },
   { anahtar: 'rota',       bolum: 'GUNLUK',  uyeler: ['/rota'] },
 
@@ -86,6 +88,8 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/invoices', '/e-fatura', '/collections',
   '/kacan-gelir', '/cihaz-karlilik', '/filo', '/reports',
   '/teknisyen', '/kurumsal',
+  // Teknisyenin müşterisinin ne dediği: karne gibi kişiyi ölçer.
+  '/memnuniyet',
   '/satis', '/toplu-ayar', '/toplu-zam',
   // Tarayıcı anahtarını üretmek bayi adına sayaç göndermeye yetki vermek demek.
   '/sayac-tarayici',

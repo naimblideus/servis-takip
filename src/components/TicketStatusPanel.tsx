@@ -135,6 +135,9 @@ export default function TicketStatusPanel({
     const [sayacNot, setSayacNot] = useState<string | null>(null);
     const [faultCat, setFaultCat] = useState(currentFaultCategory || '');
     const [askFault, setAskFault] = useState<string | null>(null); // kategori beklenen kapanış durumu
+    // SAYAÇSIZ KAPANMAZ: sunucu 409 SAYAC_ZORUNLU dediyse teslim isteği burada
+    // bekler; sayaç girilince AYNI durum (ve seçilen kategori) yeniden gider.
+    const [sayacGerek, setSayacGerek] = useState<{ status: string; faultCategory?: string } | null>(null);
     const [allFaults, setAllFaults] = useState(false);
 
     const updateStatus = async (newStatus: string, faultCategory?: string) => {
@@ -146,6 +149,14 @@ export default function TicketStatusPanel({
             body: JSON.stringify({ status: newStatus, ...(faultCategory ? { faultCategory } : {}) }),
         });
         const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            setAskFault(null);
+            setLoading(false);
+            if (data?.kod === 'SAYAC_ZORUNLU') { setSayacGerek({ status: newStatus, faultCategory }); setSayacHata(null); return; }
+            alert(doldur(t.fisler.hata, { n: data?.error || t.genel.hata }));
+            return;
+        }
+        setSayacGerek(null);
         applyCari(data); // teslim edilince cariye otomatik işlenir → onay göster
         if (faultCategory) setFaultCat(faultCategory);
         setAskFault(null);
@@ -189,6 +200,17 @@ export default function TicketStatusPanel({
             setSayacNot(doldur(t.fisPanel.sonrakiGuncellendi, { n: bic.sayi(Number(d.sonrakiGuncellendi.black)) }));
         }
         return true;
+    };
+
+    /** Sayaç zorunluysa: önce bu fişe sayacı yaz, sonra bekleyen teslimi gönder. */
+    const sayacliTeslim = async () => {
+        if (!sayacGerek) return;
+        if (!sayacB.trim()) { setSayacHata(t.fisPanel.siyahGecersiz); return; }
+        setLoading(true);
+        const ok = await sayacKaydet();
+        setLoading(false);
+        if (!ok) return;
+        await updateStatus(sayacGerek.status, sayacGerek.faultCategory);
     };
 
     const savePanel = async () => {
@@ -279,6 +301,40 @@ export default function TicketStatusPanel({
                     </span>
                 </div>
             )}
+            {/* Sayaç zorunlu (Ayarlar): kiralık cihazın fişi sayaçsız teslim edilmez.
+                Kutu sayacı burada ister; "Kaydet ve teslim et" iki işi birden yapar. */}
+            {sayacGerek && (
+                <div role="alert" style={{ width: '100%', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.6rem', padding: '0.85rem' }}>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#991b1b' }}>{t.sahaSuresi.sayacGerekBaslik}</div>
+                    <div style={{ fontSize: '0.78rem', color: '#7f1d1d', margin: '0.2rem 0 0.7rem', lineHeight: 1.5 }}>{t.sahaSuresi.sayacGerekAlt}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <label style={{ minWidth: 0 }}>
+                            <span style={{ ...fieldLabel, color: '#7f1d1d' }}>{t.fisDetay.siyahSayac}</span>
+                            <input autoFocus inputMode="numeric" value={sayacB} onChange={e => setSayacB(e.target.value)}
+                                placeholder={doldur(t.fisPanel.sayacOrnek, { n: 36010 })}
+                                style={{ ...inp, fontSize: '16px', minHeight: 44, background: 'white' }} />
+                        </label>
+                        <label style={{ minWidth: 0 }}>
+                            <span style={{ ...fieldLabel, color: '#7f1d1d' }}>{t.fisDetay.renkliSayac}</span>
+                            <input inputMode="numeric" value={sayacR} onChange={e => setSayacR(e.target.value)}
+                                placeholder={doldur(t.fisPanel.sayacOrnek, { n: 0 })}
+                                style={{ ...inp, fontSize: '16px', minHeight: 44, background: 'white' }} />
+                        </label>
+                    </div>
+                    {sayacHata && <div style={{ marginTop: '0.45rem', fontSize: '0.78rem', color: '#b91c1c' }}>{sayacHata}</div>}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem', flexWrap: 'wrap' }}>
+                        <button onClick={sayacliTeslim} disabled={loading}
+                            style={{ flex: '1 1 12rem', minHeight: 44, padding: '0.55rem 0.9rem', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '0.9rem', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+                            {loading ? t.genel.kaydediliyor : t.sahaSuresi.sayacKaydetTeslim}
+                        </button>
+                        <button onClick={() => { setSayacGerek(null); setSayacHata(null); }}
+                            style={{ minHeight: 44, padding: '0.55rem 0.9rem', background: 'white', border: '1px solid #fecaca', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#6b7280', cursor: 'pointer' }}>
+                            {t.genel.iptal}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Kapanışta arıza kategorisi — tek dokunuş: kategori + durum aynı istekte gider */}
             {askFault && (
                 <div style={{ width: '100%', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.6rem', padding: '0.85rem' }}>

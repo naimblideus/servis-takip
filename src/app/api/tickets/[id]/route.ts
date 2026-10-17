@@ -5,6 +5,10 @@ import { kaydetAsama } from '@/lib/ticket-asama';
 import { syncTicketToCari } from '@/lib/ticket-cari';
 import { parseFaultCategory } from '@/lib/fault-categories';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { ucHatasi } from '@/lib/uc-hata';
+import { teslimSayacEngeli } from '@/lib/sayac-zorunlu';
+
+const FIS_DURUMLARI = ['NEW', 'IN_SERVICE', 'WAITING_FOR_PART', 'READY', 'DELIVERED', 'CANCELLED'];
 
 export async function GET(
     req: Request,
@@ -57,6 +61,18 @@ export async function PATCH(
         if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
         const body = await req.json();
+
+        // Bilinmeyen durum veritabanına kadar gidip ham hata dönmesin.
+        if (body.status !== undefined && !FIS_DURUMLARI.includes(body.status)) {
+            return ucHatasi('GECERSIZ_DURUM', 400);
+        }
+        // SAYAÇSIZ KAPANMAZ (lib/sayac-zorunlu.ts): bayi açtıysa kiralık cihazın
+        // fişi bu fişe bağlı sayaç okuması olmadan "teslim edildi"ye geçmez.
+        // Ekran 409'u görünce sayaç kutusunu açar; istek BÜTÜNÜYLE reddedilir.
+        if (body.status === 'DELIVERED' && existing.status !== 'DELIVERED'
+            && await teslimSayacEngeli(user.tenantId, id, existing.status)) {
+            return ucHatasi('SAYAC_ZORUNLU', 409);
+        }
 
         const updateData: any = {};
         if (body.status !== undefined) {

@@ -75,7 +75,7 @@ export async function karneOlc(
     where: { tenantId, deletedAt: null, createdAt: { gte: bas, lte: izlemeSonu } },
     select: {
       id: true, ticketNumber: true, createdAt: true, deviceId: true, customerId: true,
-      assignedUserId: true, faultCategory: true, status: true, statusUpdatedAt: true,
+      assignedUserId: true, faultCategory: true, status: true, statusUpdatedAt: true, varisAt: true,
       assignedUser: { select: { name: true } },
       device: { select: { brand: true, model: true, serialNo: true } },
       statusHistory: { select: { status: true, changedAt: true, kaynak: true } },
@@ -98,6 +98,8 @@ export async function karneOlc(
     const olay = olaylariCikar(
       f.statusHistory.map((s) => ({ status: String(s.status), changedAt: s.changedAt, kaynak: s.kaynak })),
       f.createdAt,
+      // "Vardım" basıldıysa müdahale anı odur (lib/sla.ts).
+      f.varisAt,
     );
     const sureOlculemez = olay.turetilmis || takvimSorunlu;
 

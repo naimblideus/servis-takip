@@ -8,6 +8,9 @@ import TicketPaymentPanel from '@/components/TicketPaymentPanel';
 import TicketPrintButton from '@/components/TicketPrintButton';
 import TicketDeleteButton from '@/components/TicketDeleteButton';
 import ContactActions from '@/components/ContactActions';
+import MemnuniyetKarti, { type KartAnketi } from '@/components/MemnuniyetKarti';
+import SahaKarti from '@/components/SahaKarti';
+import { anketYolu } from '@/lib/memnuniyet-veri';
 import { waUrl, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
@@ -94,6 +97,39 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     ...(statusRenk[ticket.status] ?? { color: '#f3f4f6', text: '#374151' }),
   };
 
+  // ── MEMNUNİYET: yalnız teslim edilmiş fişte ─────────────────────────────
+  // Anket bağlantısı imzalı anahtar taşır (AUTH_SECRET). Anahtar kurulamazsa
+  // yalnız kart çizilmez; fiş ekranı yine açılır.
+  let memnuniyet: { yol: string; anket: KartAnketi | null; sonSorulmaGun: number | null } | null = null;
+  if (ticket.status === 'DELIVERED') {
+    try {
+      const GUN_MS = 86_400_000;
+      const simdi = Date.now();
+      const [anket, baskaFiste] = await Promise.all([
+        prisma.memnuniyetAnketi.findUnique({
+          where: { ticketId: ticket.id },
+          select: { tenantId: true, puan: true, yorum: true, kanal: true, gonderildiAt: true, cevaplandiAt: true },
+        }),
+        // Aynı müşteriye son 30 günde başka fişte soruldu mu — kart uyarır, engellemez.
+        prisma.memnuniyetAnketi.findFirst({
+          where: { tenantId: me.tenantId, customerId: ticket.customerId, ticketId: { not: ticket.id }, gonderildiAt: { gte: new Date(simdi - 30 * GUN_MS) } },
+          orderBy: { gonderildiAt: 'desc' },
+          select: { gonderildiAt: true },
+        }),
+      ]);
+      memnuniyet = {
+        yol: anketYolu(ticket.id),
+        anket: anket && anket.tenantId === me.tenantId ? {
+          puan: anket.puan, yorum: anket.yorum, kanal: anket.kanal,
+          gonderildiAt: anket.gonderildiAt.toISOString(), cevaplandiAt: anket.cevaplandiAt?.toISOString() ?? null,
+        } : null,
+        sonSorulmaGun: baskaFiste ? Math.max(0, Math.floor((simdi - baskaFiste.gonderildiAt.getTime()) / GUN_MS)) : null,
+      };
+    } catch (e) {
+      console.error('[memnuniyet] kart kurulamadı:', ticket.id, e instanceof Error ? e.message : e);
+    }
+  }
+
   return (
     <div style={{ padding: '2rem', maxWidth: '960px' }}>
       {/* Başlık */}
@@ -142,6 +178,32 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
       </div>
+
+      {/* Vardım / Çıktım: teknisyen fişi müşterinin kapısında açar; ilk iş bu. */}
+      <SahaKarti
+        ticketId={ticket.id}
+        status={ticket.status}
+        varisAt={ticket.varisAt?.toISOString() ?? null}
+        ayrilisAt={ticket.ayrilisAt?.toISOString() ?? null}
+        atananId={ticket.assignedUserId}
+        atananAdi={ticket.assignedUser?.name ?? null}
+        benimId={me.id}
+        rol={String(me.role)}
+      />
+
+      {/* Teslim edilen fişte müşteriye tek soru — fişin en görünür yerinde. */}
+      {memnuniyet && (
+        <MemnuniyetKarti
+          ticketId={ticket.id}
+          yol={memnuniyet.yol}
+          musteriAdi={ticket.device.customer.name}
+          musteriTelefon={ticket.device.customer.phone}
+          cihazAdi={`${ticket.device.brand} ${ticket.device.model}`}
+          bayiAdi={tenantName ?? null}
+          anket={memnuniyet.anket}
+          sonSorulmaGun={memnuniyet.sonSorulmaGun}
+        />
+      )}
 
       {/* auto-fit: telefonda tek sütun, masaüstünde yine iki kart yan yana.
           Sabit iki sütun 375 px'te 408 px istiyordu ve sağdaki "Fiş Bilgileri"
