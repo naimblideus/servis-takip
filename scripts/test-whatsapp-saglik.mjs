@@ -23,7 +23,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
 const g = mkdtempSync(join(tmpdir(), 'st-wa-saglik-'));
-const KAYNAKLAR = ['whatsapp-graph', 'whatsapp-sablon', 'whatsapp-saglik'];
+const KAYNAKLAR = ['whatsapp-graph', 'whatsapp-sablon', 'whatsapp-sablon-magaza', 'whatsapp-saglik'];
 try {
   execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'), ...KAYNAKLAR.map((k) => join(KOK, `src/lib/${k}.ts`)),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck'], { stdio: 'pipe' });
@@ -42,9 +42,12 @@ const TAM_ENV = { token: true, phoneId: true, appSecret: true, verifyToken: true
 const BOS_ENV = { token: false, phoneId: false, appSecret: false, verifyToken: false, wabaId: false, template: null, templateSayac: null, lang: null };
 const TELEFON = { ok: true, veri: { display_phone_number: '+90 850 000 00 00', verified_name: 'Nextus Servis', quality_rating: 'GREEN', code_verification_status: 'VERIFIED', name_status: 'APPROVED', messaging_limit_tier: 'TIER_1K' } };
 const sablon = (tur, ek = {}) => ({ name: SABLONLAR[tur].ad, status: 'APPROVED', language: 'tr', category: 'UTILITY', components: [{ type: 'BODY', text: SABLONLAR[tur].metin }], ...ek });
+// Nextus Mağaza bildirim şablonları da denetleniyor: fikstürlerde hep onaylı durur.
+const { MAGAZA_SABLONLARI } = await al('whatsapp-sablon-magaza');
+const MAGAZA = Object.values(MAGAZA_SABLONLARI).map((m) => ({ name: m.ad, status: 'APPROVED', language: 'tr', category: 'UTILITY', components: [{ type: 'BODY', text: m.metin }] }));
 const SIMDI = new Date('2026-10-15T12:00:00Z');
 const girdi = (ek = {}) => ({
-  env: TAM_ENV, telefon: TELEFON, sablonlar: { ok: true, liste: [sablon('borc'), sablon('sayac')] },
+  env: TAM_ENV, telefon: TELEFON, sablonlar: { ok: true, liste: [...MAGAZA, sablon('borc'), sablon('sayac')] },
   sonGelen: new Date(SIMDI.getTime() - 5 * 60000), sonDurum: null, sonHatalar: [], simdi: SIMDI, ...ek,
 });
 const madde = (L, anahtar) => L.find((x) => x.anahtar === anahtar);
@@ -74,26 +77,26 @@ console.log('\nKontrol listesi\n');
   t('numara adı ve görünen numara başlıkta', madde(L, 'numara')?.baslikParam?.ad === 'Nextus Servis');
 }
 {
-  const L = saglikListesi(girdi({ sablonlar: { ok: true, liste: [sablon('borc', { status: 'PENDING' }), sablon('sayac')] } }));
+  const L = saglikListesi(girdi({ sablonlar: { ok: true, liste: [...MAGAZA, sablon('borc', { status: 'PENDING' }), sablon('sayac')] } }));
   t('★ jeton tamam + şablon PENDING → sarı', madde(L, 'sablon_borc')?.durum === 'uyari' && madde(L, 'sablon_borc')?.baslik === 'sablonBekliyor');
   t('genel durum: uyarı', genelDurum(L) === 'uyari');
 }
 {
-  const L = saglikListesi(girdi({ sablonlar: { ok: true, liste: [sablon('borc', { status: 'REJECTED', rejected_reason: 'INVALID_FORMAT' }), sablon('sayac')] } }));
+  const L = saglikListesi(girdi({ sablonlar: { ok: true, liste: [...MAGAZA, sablon('borc', { status: 'REJECTED', rejected_reason: 'INVALID_FORMAT' }), sablon('sayac')] } }));
   const m = madde(L, 'sablon_borc');
   t('★ REDDEDİLDİ → kırmızı ve sebep görünüyor', m?.durum === 'hata' && m?.ayrinti === 'INVALID_FORMAT', m);
 }
 {
   const eksik = sablon('sayac', { components: [{ type: 'BODY', text: 'Merhaba {{1}}, sayacınızı gönderin, teşekkürler.' }] });
-  const L = saglikListesi(girdi({ sablonlar: { ok: true, liste: [sablon('borc'), eksik] } }));
+  const L = saglikListesi(girdi({ sablonlar: { ok: true, liste: [...MAGAZA, sablon('borc'), eksik] } }));
   const m = madde(L, 'sablon_sayac');
   t('★ Meta metni farklı değişken sayısı → kırmızı (#132000)', m?.durum === 'hata' && m?.baslik === 'sablonDegiskenFarkli' && m?.baslikParam?.meta === 1 && m?.baslikParam?.kod === 3, m);
   const ayniSayi = sablon('borc', { components: [{ type: 'BODY', text: 'Sayın {{1}}, {{2}} bildirir: {{3}} TL gecikmiş ödemeniz var. Cevap yazabilirsiniz.' }] });
-  const L2 = saglikListesi(girdi({ sablonlar: { ok: true, liste: [ayniSayi, sablon('sayac')] } }));
+  const L2 = saglikListesi(girdi({ sablonlar: { ok: true, liste: [...MAGAZA, ayniSayi, sablon('sayac')] } }));
   t('metin farklı ama değişken sayısı aynı → sarı (mesaj gider)', madde(L2, 'sablon_borc')?.durum === 'uyari' && madde(L2, 'sablon_borc')?.baslik === 'sablonMetinFarkli');
-  const L3 = saglikListesi(girdi({ sablonlar: { ok: true, liste: [sablon('sayac')] } }));
+  const L3 = saglikListesi(girdi({ sablonlar: { ok: true, liste: [...MAGAZA, sablon('sayac')] } }));
   t('şablon Meta\'da hiç yok → kırmızı, "oluştur"', madde(L3, 'sablon_borc')?.durum === 'hata' && madde(L3, 'sablon_borc')?.cozum === 'sablonOlustur');
-  const L4 = saglikListesi(girdi({ sablonlar: { ok: true, liste: [sablon('borc', { language: 'en_US' }), sablon('sayac')] } }));
+  const L4 = saglikListesi(girdi({ sablonlar: { ok: true, liste: [...MAGAZA, sablon('borc', { language: 'en_US' }), sablon('sayac')] } }));
   t('şablon başka dilde → kırmızı', madde(L4, 'sablon_borc')?.baslik === 'sablonDilYok');
 }
 {
@@ -173,5 +176,12 @@ console.log('\nKaynak (gizli değer)\n');
 }
 
 rmSync(g, { recursive: true, force: true });
+{
+  // Mağaza şablonu Meta'da yoksa ilgili madde HATA (o bildirim gitmez).
+  const L = saglikListesi(girdi({ sablonlar: { ok: true, liste: [...MAGAZA.filter((x) => x.name !== 'magaza_yeni_siparis'), sablon('borc'), sablon('sayac')] } }));
+  const m = L.find((x) => x.anahtar === 'sablon_magaza_yeniSiparis');
+  t('mağaza şablonu eksik → sablon_magaza_yeniSiparis hata', m?.durum === 'hata' && m.baslik === 'sablonYok', m);
+}
+
 console.log(`\n${gecti} geçti, ${kaldi} kaldı\n`);
 process.exitCode = kaldi ? 1 : 0;

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSuperAdminSession } from '@/lib/super-admin-auth';
 import { metaGet, metaPost, GRAPH_SURUM } from '@/lib/whatsapp-graph';
 import { SABLONLAR } from '@/lib/whatsapp-sablon';
+import { MAGAZA_SABLONLARI } from '@/lib/whatsapp-sablon-magaza';
 import { waApiPhone } from '@/lib/whatsapp';
 import { sendText } from '@/lib/whatsapp-out';
 import { saglikListesi, genelDurum, maskele, type MetaSablon } from '@/lib/whatsapp-saglik';
@@ -69,7 +70,12 @@ export async function GET() {
 
   // Ekranda gösterilecek gizli olmayan özet (Meta cevabından yalnız seçili alanlar).
   const v: Record<string, any> = telefon && telefon.ok ? telefon.veri : {};
-  const bizimAdlar = new Set([env.template || SABLONLAR.borc.ad, env.templateSayac || SABLONLAR.sayac.ad, 'hello_world']);
+  const bizimAdlar = new Set([
+    env.template || SABLONLAR.borc.ad,
+    env.templateSayac || SABLONLAR.sayac.ad,
+    ...Object.values(MAGAZA_SABLONLARI).map((s) => s.ad),
+    'hello_world',
+  ]);
   return NextResponse.json({
     genel: genelDurum(liste),
     liste,

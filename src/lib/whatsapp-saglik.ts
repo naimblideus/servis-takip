@@ -19,6 +19,7 @@
  * var/yok bilgisini. Böylece liste nereye giderse gitsin sır sızmaz.
  */
 import { SABLONLAR } from '@/lib/whatsapp-sablon';
+import { MAGAZA_SABLONLARI } from '@/lib/whatsapp-sablon-magaza';
 
 export type SaglikDurumu = 'tamam' | 'uyari' | 'hata' | 'bekliyor';
 
@@ -179,10 +180,17 @@ export function saglikListesi(g: SaglikGirdisi): SaglikMaddesi[] {
     L.push({ anahtar: 'env_waba', durum: 'uyari', baslik: 'wabaYok', cozum: 'wabaEkle' });
   }
   const s = g.sablonlar;
-  for (const tur of ['borc', 'sayac'] as const) {
-    const tanim = SABLONLAR[tur];
-    const ad = (tur === 'borc' ? e.template : e.templateSayac) || tanim.ad;
-    const anahtar = `sablon_${tur}`;
+  // Hatırlatma şablonları (adı ortamdan değişebilir) + Nextus Mağaza'nın
+  // bildirim şablonları (adı sabit; mağaza /api/shop/bildirim'e bu adla yollar).
+  const denetlenecek = [
+    ...(['borc', 'sayac'] as const).map((tur) => ({
+      anahtar: `sablon_${tur}`,
+      tanim: SABLONLAR[tur] as { ad: string; metin: string },
+      ad: (tur === 'borc' ? e.template : e.templateSayac) || SABLONLAR[tur].ad,
+    })),
+    ...Object.entries(MAGAZA_SABLONLARI).map(([k, tanim]) => ({ anahtar: `sablon_magaza_${k}`, tanim, ad: tanim.ad })),
+  ];
+  for (const { anahtar, tanim, ad } of denetlenecek) {
     if (!s) {
       L.push({ anahtar, durum: 'bekliyor', baslik: 'sablonBilinmiyor', baslikParam: { ad }, cozum: e.wabaId ? 'once_env' : 'wabaEkle' });
       continue;
