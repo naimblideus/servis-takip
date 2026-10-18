@@ -5,6 +5,8 @@ import { MessageCircle, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Clock, 
 import { useT, useDil } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { SABLONLAR } from '@/lib/whatsapp-sablon';
+import { MAGAZA_SABLONLARI } from '@/lib/whatsapp-sablon-magaza';
+import { SablonOlustur } from './SablonOlustur';
 import { META_HATALARI, waHataMetni } from '@/lib/whatsapp-graph';
 import type { SaglikMaddesi, SaglikDurumu } from '@/lib/whatsapp-saglik';
 
@@ -264,6 +266,9 @@ export default function WhatsappKurulumPage() {
           )}
         </form>
 
+        {/* Şablonları elle kopyalamak yerine tek düğme (Meta'da olanlara dokunmaz). */}
+        <SablonOlustur onBitti={yukle} />
+
         {/* Kurulum adımları */}
         <details className="group bg-white/3 border border-white/10 rounded-2xl">
           <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-4 sm:px-5 py-4">
@@ -283,8 +288,8 @@ export default function WhatsappKurulumPage() {
               <KopyaSatiri etiket={z.kurulum.webhookAlan} deger="messages" anahtar="alan" />
             </div>
 
-            {(['borc', 'sayac'] as const).map((k) => {
-              const s = SABLONLAR[k];
+            {/* Elle kurulum için 7 şablonun hepsi: hatırlatmalar + mağaza bildirimleri. */}
+            {(Object.entries({ ...SABLONLAR, ...MAGAZA_SABLONLARI }) as [string, (typeof SABLONLAR)['borc']][]).map(([k, s]) => {
               return (
                 <div key={k} className="rounded-xl border border-white/10 bg-black/20 p-3 sm:p-4 space-y-3">
                   <KopyaSatiri etiket={z.kurulum.sablonAdi} deger={s.ad} anahtar={`${k}-ad`} />
