@@ -93,7 +93,11 @@ export default async function SozlesmeBelgesiPage({ params }: { params: Promise<
   const sayi = (x: { v: number | null; sistem: boolean }) => x.v === null ? '—' : `${b.sayi(x.v)}${x.sistem ? '*' : ''}`;
   const ikili = (a: string, c: string) => (c === '—' && a !== '—' ? a : `${a} / ${c}`);
 
-  const adres = (a: string | null, ilce: string | null, il: string | null) => [a, ilce, il].filter(Boolean).join(', ') || '—';
+  // Adres alanı ilçe/il'i zaten içeriyorsa ikinci kez eklenmez ("Ümraniye, İstanbul, Ümraniye, İstanbul").
+  const adres = (a: string | null, ilce: string | null, il: string | null) => {
+    const parca = [a, ilce, il].filter((x): x is string => Boolean(x && x.trim()));
+    return parca.filter((x, i) => i === 0 || !(parca[0] ?? '').toLocaleLowerCase('tr-TR').includes(x.toLocaleLowerCase('tr-TR'))).join(', ') || '—';
+  };
   const vergi = (daire: string | null, no: string | null) => [daire, no].filter(Boolean).join(' / ') || '—';
 
   const ihbar = s.noticeDays > 0 ? doldur(k.ihbarGun, { n: s.noticeDays }) : k.belirtilmemis;
