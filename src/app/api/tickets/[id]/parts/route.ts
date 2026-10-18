@@ -6,6 +6,7 @@ import { oturumKullanicisi } from '@/lib/api-auth';
 import { kanalKarari, degisimKaydet, tonerMu, type Kanal } from '@/lib/verim-ogrenme';
 import { parcaMaliyeti } from '@/lib/stok-maliyet';
 import { takilmaSayaciBul } from '@/lib/parca-omru-veri';
+import { fistenDus, fiseIade } from '@/lib/depo-veri';
 
 // GET: Bu fişin parçalarını listele
 export async function GET(
@@ -93,9 +94,13 @@ export async function POST(
             return null;
         });
 
-        // Transaction: fişe parça ekle + stoktan düş
-        const [ticketPart] = await prisma.$transaction([
-            prisma.ticketPart.create({
+        // Transaction: fişe parça ekle + stoktan düş.
+        // ARAÇ STOĞU (lib/depo-veri): parça önce fişin teknisyeninin, yoksa
+        // ekleyenin aracından düşer; araçta yetmiyorsa ana depodan. Toplam
+        // stok (Part.stockQty) her durumda düşer — ana depo = toplam − araçlar.
+        const { ticketPart, depoId } = await prisma.$transaction(async (tx) => {
+            const depoId = await fistenDus(tx, user.tenantId, part.id, quantity, [ticket.assignedUserId, user.id]);
+            const ticketPart = await tx.ticketPart.create({
                 data: {
                     tenantId: user.tenantId,
                     ticketId,
@@ -104,23 +109,23 @@ export async function POST(
                     unitPrice: finalUnitPrice,
                     unitCost: maliyet.deger,
                     takilmaSayaci,
+                    depoId,
                 },
-            }),
-            // Stoktan düş
-            prisma.part.update({
+            });
+            await tx.part.update({
                 where: { id: part.id },
                 data: { stockQty: { decrement: quantity } },
-            }),
-            // Fiş toplam tutarını güncelle
-            prisma.serviceTicket.update({
+            });
+            await tx.serviceTicket.update({
                 where: { id: ticketId },
                 data: {
                     totalCost: {
                         increment: finalUnitPrice * quantity,
                     },
                 },
-            }),
-        ]);
+            });
+            return { ticketPart, depoId };
+        });
 
         // ── TONER DEĞİŞİMİ ─────────────────────────────────────────
         // Teknisyen fişe toner eklediğinde toner ZATEN değişmiştir.
@@ -152,7 +157,7 @@ export async function POST(
             }
         }
 
-        return NextResponse.json({ ...ticketPart, tonerKaydi, tonerSorusu });
+        return NextResponse.json({ ...ticketPart, aractan: Boolean(depoId), tonerKaydi, tonerSorusu });
     } catch (e: any) {
         console.error('TICKET PART ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
@@ -224,23 +229,24 @@ export async function DELETE(
         });
         if (!ticketPart) return ucHatasi('BULUNAMADI', 404);
 
-        await prisma.$transaction([
-            prisma.ticketPart.delete({ where: { id: ticketPartId } }),
-            // Stoğa geri koy
-            prisma.part.update({
+        await prisma.$transaction(async (tx) => {
+            await tx.ticketPart.delete({ where: { id: ticketPartId } });
+            // Stoğa geri koy — araçtan düştüyse yine o araca (lib/depo-veri).
+            await tx.part.update({
                 where: { id: ticketPart.partId },
                 data: { stockQty: { increment: ticketPart.quantity } },
-            }),
+            });
+            await fiseIade(tx, user.tenantId, ticketPart.depoId, ticketPart.partId, ticketPart.quantity);
             // Fiş toplam tutarını güncelle (ticketPart'ın GERÇEK fişi — URL'den gelen değil)
-            prisma.serviceTicket.update({
+            await tx.serviceTicket.update({
                 where: { id: ticketPart.ticketId },
                 data: {
                     totalCost: {
                         decrement: Number(ticketPart.unitPrice) * ticketPart.quantity,
                     },
                 },
-            }),
-        ]);
+            });
+        });
 
         return NextResponse.json({ ok: true });
     } catch (e: any) {

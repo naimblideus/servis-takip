@@ -203,6 +203,8 @@ model Tenant {
   bankaHareketleri    BankaHareketi[]
   emanetHareketleri   EmanetHareketi[]
   memnuniyetAnketleri MemnuniyetAnketi[]
+  depolar             Depo[]
+  depoStoklari        DepoStok[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -1150,10 +1152,11 @@ model Part {
   updatedAt DateTime @updatedAt
 
   // Relations
-  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  ticketParts TicketPart[]
-  purchases   PartPurchase[]
-  emanetler   EmanetHareketi[]
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticketParts  TicketPart[]
+  purchases    PartPurchase[]
+  emanetler    EmanetHareketi[]
+  depoStoklari DepoStok[]
 
   @@unique([tenantId, sku])
   @@unique([tenantId, barcode])
@@ -1316,6 +1319,9 @@ model TicketPart {
   // sayılır. null = alan eklenmeden önceki kayıt: fişin tarihine en yakın
   // okumadan YAKLAŞIK hesaplanır ve ekranda öyle yazılır.
   takilmaSayaci Int?
+  // Parça hangi depodan çıktı (teknisyen aracı ya da ek depo). null = ana depo.
+  // Fişten parça çıkarılınca aynı yere geri konur.
+  depoId        String?
   createdAt     DateTime @default(now())
 
   // Relations
@@ -2017,4 +2023,45 @@ enum InvoiceLineKind {
   PART // Parça
   LABOR // İşçilik
   OTHER
+}
+
+// ÇOK DEPO VE TEKNİSYEN ARACI.
+// Part.stockQty firmanın TOPLAM stoğu olarak kalır: satış, mağaza, sevk,
+// değerleme ve asgari stok uyarısı olduğu gibi doğru çalışır. Ana depo ayrı
+// satır değildir: ana depo = toplam − (araçlar + ek depolar). Böylece eski
+// stok taşınmadan, tek satır göç yazmadan çok depoya geçilir.
+// tur: ARAC (teknisyenin aracı; kullaniciId dolu) | DEPO (şube/ek depo).
+model Depo {
+  id          String   @id @default(cuid())
+  tenantId    String
+  ad          String
+  tur         String // ARAC | DEPO
+  kullaniciId String? // ARAC ise aracın teknisyeni
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stoklar DepoStok[]
+
+  @@unique([tenantId, ad])
+  @@index([tenantId, kullaniciId])
+}
+
+// Bir depodaki/araçtaki parça adedi. Toplamı hiçbir zaman Part.stockQty'yi
+// geçemez (aktarım ana depoda olan kadarını taşır).
+model DepoStok {
+  id        String   @id @default(cuid())
+  tenantId  String
+  depoId    String
+  partId    String
+  adet      Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  depo   Depo   @relation(fields: [depoId], references: [id], onDelete: Cascade)
+  part   Part   @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([depoId, partId])
+  @@index([tenantId, partId])
 }

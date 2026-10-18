@@ -48,6 +48,8 @@ const YAZMA_KAPALI_ONEKLER = [
   '/api/abonelik',
   // "Bizden aldı" işareti: demoda bir ziyaretçi basınca kaçan toner listesi herkese boşalırdı.
   '/api/kacan-toner',
+  // Ortak demoda araç açmak / parça aktarmak herkesin gördüğü stoğu dağıtırdı.
+  '/api/depolar',
   // "Aradım" işareti: bir ziyaretçi basınca "Aranması gerekenler" herkese boşalırdı.
   // Müşterinin anket cevabı (/api/public/anket) ve "Memnuniyet sor" açık.
   '/api/memnuniyet',

@@ -1496,6 +1496,7 @@ async function kur(bayi) {
 
   await import('./seed-demo-parca-omru.mjs').then((m) => m.parcaOmruDemosu(p, tenant.id)).catch((e) => console.log(`  ⚠ parça ömrü demosu kurulamadı: ${e?.message ?? e}`));
   await import('./seed-demo-emanet.mjs').then((m) => m.emanetDemosunuKur(p, tenant.id)).then((r) => console.log(`  emanet: ${r.satir} defter satırı (müşteride duran toner)`)).catch((e) => console.error('  ⚠ emanet demosu kurulamadı:', e?.message ?? e));
+  await import('./seed-demo-depo.mjs').then((m) => m.depoDemosunuKur(p, tenant.id)).then((r) => console.log(`  depolar: ${r.depo} depo/araç · ${r.satir} stok satırı`)).catch((e) => console.error('  ⚠ depo demosu kurulamadı:', e?.message ?? e));
 
   // ── ÖZET ──────────────────────────────────────────────────────────────
   const say = async (f) => f;

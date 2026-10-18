@@ -67,7 +67,7 @@ export function vakitGeldiMi(is: ZamanlanmisIsTanimi, an = new Date()): boolean 
  * çıkarsa ekran ertesi geceye kadar demoda boş görünür — tam da o sabah
  * gösterilecekken. Sürüm başına bir kez çalışır (ZamanlanmisIs 'demo-surum').
  */
-export const DEMO_TOHUM_SURUMU = '2026-10-18-rakip';
+export const DEMO_TOHUM_SURUMU = '2026-10-18-depo';
 
 async function genelDemoVar(): Promise<boolean> {
   const t = await prisma.tenant.findFirst({ where: { slug: 'demo', demo: true }, select: { id: true } });
