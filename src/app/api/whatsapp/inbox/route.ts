@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
-import { demoBayiMi } from '@/lib/demo-koruma';
+import { demoBayiMi, disariyaMesajKapali } from '@/lib/demo-koruma';
 import { kaydetAsama } from '@/lib/ticket-asama';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { findCustomerByPhone, retListesi, son10 } from '@/lib/whatsapp-inbound';
@@ -163,7 +163,8 @@ export async function POST(req: NextRequest) {
     if (action === 'cevap') {
       if (msg.yon !== 'GELEN') return ucHatasi('MESAJ_BULUNAMADI', 404);
       // Ortak demo: demo numaraları örnek; gerçek bir kişiye mesaj gitmesin.
-      if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
+      const mesajEngeli = await disariyaMesajKapali(tenantId);
+      if (mesajEngeli) return ucHatasi(mesajEngeli, 403);
       if (!waOutConfigured()) return ucHatasi('WHATSAPP_API_AYARLI_DEGIL_YONETICI', 503);
       const metin = typeof body.metin === 'string' ? body.metin.trim() : '';
       if (!metin || metin.length > 1000) return ucHatasi('WHATSAPP_CEVAP_BOS', 400);
@@ -191,6 +192,7 @@ export async function POST(req: NextRequest) {
 
     if (action === 'handled') {
       // Ortak demo: "ilgilenildi" örnek mesajı herkesin gelen kutusundan kaldırırdı.
+      // Dışarıya mesaj değil: ekip test hesabında açık.
       if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
       await prisma.whatsAppMessage.update({ where: { id: msg.id }, data: { handled: handled !== false } });
       return NextResponse.json({ ok: true });

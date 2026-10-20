@@ -275,6 +275,11 @@ export const tr = {
   },
 
   // Ortak demoda vitrini tüketen işler yapılmaz; ne olacağı söylenir (lib/demo-yazma DEMO_VITRIN).
+  // Ekip test hesabı şeridi (components/OrnekVeriSeridi).
+  ornekVeri: {
+    etiket: 'Ekip test hesabı ·',
+    metin: 'Buradaki firma, müşteri, cihaz, fatura ve bütün rakamlar örnek (seed) veridir; gerçek bir bayiye ait değildir. Her gece 03:30’da baştan kurulur. Dışarıya SMS ya da WhatsApp gitmez.',
+  },
   demoOnizleme: {
     fatura: 'Demoda fatura kesilmez: demoyu aynı anda birçok kişi kullanıyor. Kendi hesabınızda bu düğme {musteri} müşterinin bu dönem faturasını ({tutar}) tek tıkla keser.',
     faturaGecmis: 'Demoda fatura kesilmez. Kendi hesabınızda {donem} dönemi kendi ayında, tek tıkla kesilir.',
@@ -5332,6 +5337,7 @@ export const tr = {
     TARAMA_ZATEN_ONAYLANDI: 'Bu tarama zaten onaylanmış.',
     TARAMA_SECIM_GECERSIZ: 'Eklenecek yazıcıları ve müşteriyi seçin.',
     DEMO_HESABINDA_KAPALI: 'Demo hesabında bu işlem kapalı: demoyu aynı anda birçok kişi kullanıyor. Kendi ücretsiz deneme hesabınızda açık — nextusservis.com/kayit',
+    TEST_HESABINDA_MESAJ_KAPALI: 'Ekip test hesabında dışarıya SMS ve WhatsApp gitmez: müşteriler ve numaraları örnek veri, gerçek bir kişiye ait olabilir.',
     DEMO_TARAYICI_KAPALI: 'Demo hesabında tarayıcı indirilemez. Kendi ağınızı ücretsiz taramak için: nextusservis.com/ucretsiz-tarama',
     KAYIT_ALAN_EKSIK: 'Firma adı, adınız, cep telefonu ve e-posta gerekli.',
     KAYIT_EPOSTA_GECERSIZ: 'E-posta adresi geçerli görünmüyor.',

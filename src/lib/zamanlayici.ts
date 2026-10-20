@@ -67,7 +67,25 @@ export function vakitGeldiMi(is: ZamanlanmisIsTanimi, an = new Date()): boolean 
  * çıkarsa ekran ertesi geceye kadar demoda boş görünür — tam da o sabah
  * gösterilecekken. Sürüm başına bir kez çalışır (ZamanlanmisIs 'demo-surum').
  */
-export const DEMO_TOHUM_SURUMU = '2026-10-18-depo';
+export const DEMO_TOHUM_SURUMU = '2026-10-21-ekip-test';
+
+/**
+ * EKİP TEST HESAPLARI (scripts/seed-bayi-demo.mjs ile aynı kural): sunucuda
+ * EKIP_TEST_SIFRE en az 10 karakterse EKIP_TEST_SAYI kadar (varsayılan 5, en
+ * çok 20) hesap kurulur. Şifre sonradan eklenince ya da sayı değişince gece
+ * 03:30'u beklemeden ilk turda bir kez kurulur (ZamanlanmisIs 'ekip-test').
+ */
+export function ekipTestAyari(env: NodeJS.ProcessEnv = process.env): { sayi: number; donem: string } | null {
+  if ((env.EKIP_TEST_SIFRE || '').trim().length < 10) return null;
+  const sayi = Math.min(20, Math.max(1, Number.parseInt(env.EKIP_TEST_SAYI || '', 10) || 5));
+  return { sayi, donem: `sayi-${sayi}` };
+}
+
+async function ekipTestEksik(sayi: number): Promise<boolean> {
+  const sluglar = Array.from({ length: sayi }, (_, i) => `ekip-test-${i + 1}`);
+  const n = await prisma.tenant.count({ where: { ekipTest: true, demo: true, slug: { in: sluglar } } });
+  return n < sayi;
+}
 
 async function genelDemoVar(): Promise<boolean> {
   const t = await prisma.tenant.findFirst({ where: { slug: 'demo', demo: true }, select: { id: true } });
@@ -132,6 +150,14 @@ export async function turAt(an = new Date()): Promise<string[]> {
   if (surumKaydi?.donem !== DEMO_TOHUM_SURUMU && !calisan.includes('demo') && (await genelDemoVar())) {
     calisan.push('demo-surum');
     await demoTazele('demo-surum', DEMO_TOHUM_SURUMU);
+  }
+  // Ekip test hesapları açıldı (ya da sayısı değişti) ama henüz kurulmadıysa.
+  // Dönem sayıya bağlı: aynı ayarla başarısız bir kurulum her turda tekrarlanmaz.
+  const ekip = ekipTestAyari();
+  const tazelendi = calisan.includes('demo') || calisan.includes('demo-surum');
+  if (ekip && !tazelendi && kayit.get('ekip-test')?.donem !== ekip.donem && (await ekipTestEksik(ekip.sayi))) {
+    calisan.push('ekip-test');
+    await demoTazele('ekip-test', ekip.donem);
   }
   return calisan;
 }

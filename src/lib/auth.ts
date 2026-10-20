@@ -7,6 +7,8 @@ import bcrypt from 'bcryptjs';
 import { verifyTOTP, hashRecoveryCode } from '@/lib/totp';
 import { writeAudit } from '@/lib/audit';
 import { ENTRA_ISSUER, ssoEpostasi, ssoKullaniciBul } from '@/lib/sso-kimlik';
+import { girisAdiniCoz } from '@/lib/ekip-test';
+
 
 /**
  * ── KURUMSAL GİRİŞ (SSO) ─────────────────────────────────────────────────
@@ -101,7 +103,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Büyük/küçük harf duyarsız: kayıt e-postayı küçültüyor (lib/kayit), giriş
         // birebir arıyordu; "Ali@Firma.com" yazan bayiye doğru şifreyle "hatalı"
         // deniyordu. ILIKE değil lower()=lower(): e-postadaki "_" ILIKE'ta joker.
-        const eposta = String(credentials.email).trim().toLowerCase().slice(0, 200);
+        // Ekip test hesabı kısa adla da girer ("test3" → test3@nextusservis.com; lib/ekip-test).
+        const eposta = girisAdiniCoz(String(credentials.email));
         if (girisKilitli(eposta)) return null;
 
         // E-posta bayi bazında benzersiz (@@unique([tenantId, email])) — yani AYNI
@@ -119,7 +122,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         // Herkese açık demo kilitlenmez: şifresi giriş sayfasında yazılı, kilit
         // yalnız yüzlerce ziyaretçiyi dışarıda bırakırdı.
-        if (!user) { girisHatasi(eposta, adaylar.some((a) => (a as any).tenant?.demo)); return null; }
+        if (!user) { girisHatasi(eposta, adaylar.some((a) => (a as any).tenant?.demo && !(a as any).tenant?.ekipTest)); return null; }
         girisBasarili(eposta);
 
         // ── İKİ ADIMLI DOĞRULAMA ──
@@ -152,7 +155,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           tenantId: user.tenantId,
           tenantName: (user as any).tenant.name,
           // Herkese açık demo: middleware silme/ayar isteklerini buna bakarak kapatır (lib/demo-yazma).
-          demo: Boolean((user as any).tenant.demo),
+          // Ekip test hesabı da demo bayisidir ama yazma kısıtı ona uygulanmaz.
+          demo: Boolean((user as any).tenant.demo && !(user as any).tenant.ekipTest),
+          ekipTest: Boolean((user as any).tenant.ekipTest),
         };
       },
     }),
@@ -196,6 +201,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.tenantId = (user as any).tenantId;
         token.tenantName = (user as any).tenantName;
         token.demo = Boolean((user as any).demo);
+        token.ekipTest = Boolean((user as any).ekipTest);
       }
       // SSO'da `user` Google/Microsoft profilidir; rol ve bayi bilgisi onda yok.
       // Oturumun yetkileri HER ZAMAN kendi kullanıcı kaydımızdan gelir.
@@ -207,7 +213,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = kayitli.role;
         token.tenantId = kayitli.tenantId;
         token.tenantName = kayitli.tenant.name;
-        token.demo = Boolean(kayitli.tenant.demo);
+        token.demo = Boolean(kayitli.tenant.demo && !kayitli.tenant.ekipTest);
+        token.ekipTest = Boolean(kayitli.tenant.ekipTest);
         token.name = kayitli.name;
         token.email = kayitli.email;
       }
@@ -221,6 +228,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).tenantName = token.tenantName;
         // Herkese açık demo: panel kurulum rehberi yerine demo turunu gösterir.
         (session.user as any).demo = Boolean(token.demo);
+        // Ekip test hesabı: panelde "örnek veri" şeridi.
+        (session.user as any).ekipTest = Boolean(token.ekipTest);
       }
       return session;
     },

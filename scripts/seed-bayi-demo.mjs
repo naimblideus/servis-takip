@@ -69,6 +69,39 @@ const BAYILER = [
 ];
 
 /**
+ * EKİP TEST HESAPLARI — teknik ekibin deneme bayileri.
+ *
+ * Herkese açık demoyla (6) AYNI örnek veri: aynı tohum, aynı müşteri adları,
+ * aynı hikâyeler. Ekipte biri "3 numaralı makinenin toneri bitiyor" dediğinde
+ * öbürü kendi hesabında aynı makineyi görür. Benzersiz olması gereken alanlar
+ * (cihaz kodu, WhatsApp kimliği) `n` ile ayrışır, ekranda görünen veri `veriN`
+ * ile aynı kalır.
+ *
+ * Demodan farkı: yazma kısıtı yok (silme, ayarlar, içe aktarma, tarayıcı
+ * açık), yani ekip her özelliği gerçek bir bayi gibi dener. Dışarıya
+ * SMS/WhatsApp yine KAPALI (demo=true), panelde "örnek veri" şeridi var.
+ *
+ * Şifre depoda DEĞİL: depo açık, şifre burada olsaydı herkes girerdi.
+ * EKIP_TEST_SIFRE (en az 10 karakter) sunucu ortamında tanımlıysa hesaplar
+ * kurulur; tanımlı değilse kurulmaz, var olanların girişi kapatılır (veri ve
+ * sorun bildirimleri kalır). Sayı EKIP_TEST_SAYI (varsayılan 5, en çok 20);
+ * lib/zamanlayici.ts aynı hesabı yapar.
+ */
+const EKIP_TEST_SIFRE = (process.env.EKIP_TEST_SIFRE || '').trim();
+const EKIP_TEST_ACIK = EKIP_TEST_SIFRE.length >= 10;
+const EKIP_TEST_SAYI = Math.min(20, Math.max(1, Number.parseInt(process.env.EKIP_TEST_SAYI || '', 10) || 5));
+const EKIP_TESTLERI = EKIP_TEST_ACIK
+  ? Array.from({ length: EKIP_TEST_SAYI }, (_, i) => ({
+      n: 11 + i, veriN: 6, ekipTest: true,
+      slug: `ekip-test-${i + 1}`, ad: `Ekip Test ${i + 1} · Örnek Veri`,
+      sehir: 'İstanbul', adres: 'Barbaros Bulvarı No:64 Kat:3', tohum: 20260920, vknOn: '7660', telOn: '0537666', onEk: 'OFS',
+      patronAd: 'Deniz Arslan', teknisyenAd: 'Can Yılmaz',
+      patronEposta: `test${i + 1}@nextusservis.com`, teknisyenEposta: `test${i + 1}-teknisyen@nextusservis.com`,
+    }))
+  : [];
+const HESAPLAR = [...BAYILER, ...EKIP_TESTLERI];
+
+/**
  * Müşteri adları havuzdan üretiliyor: 30 isim × 14 iş kolu. Her bayi
  * havuzda farklı bir yerden başlıyor, yani beş hesapta 70 ayrı firma adı
  * çıkıyor — elle 70 ad yazmadan.
@@ -107,7 +140,7 @@ const MUSTERI_KOLLARI = [
 /** Bir bayinin 14 müşterisi — yapı aynı, adlar bayiye özel. */
 function musterileriKur(bayi, ilceler) {
   return MUSTERI_KOLLARI.map((k, i) => {
-    const isim = MUSTERI_ISIMLERI[((bayi.n - 1) * 14 + i) % MUSTERI_ISIMLERI.length];
+    const isim = MUSTERI_ISIMLERI[(((bayi.veriN ?? bayi.n) - 1) * 14 + i) % MUSTERI_ISIMLERI.length];
     const ad = `${isim} ${k.tur}`;
     const ilce = ilceler[i % ilceler.length];
     const tel = `${bayi.telOn}${String(i + 1).padStart(4, '0')}`;
@@ -186,6 +219,10 @@ const SIFRE = process.env.BAYI_DEMO_SIFRE || 'demo1234';
  * Gerçek bayilerin şifreleri 12'de kalır (tenant-manager, kayıt).
  */
 const DEMO_SIFRE_MALIYETI = 4;
+/** Hesabın şifresi ve özet maliyeti. Ekip test şifresi açık yazılı değil: 10. */
+const sifreOzeti = (bayi) => bayi.ekipTest
+  ? bcrypt.hash(EKIP_TEST_SIFRE, 10)
+  : bcrypt.hash(bayi.sifre ?? SIFRE, DEMO_SIFRE_MALIYETI);
 // lib/sayac-tarama TARAYICI_SURUMU ile AYNI olmalı (test-sayac-tarayici
 // karşılaştırıyor); geride kalırsa demodaki bilgisayar "eski sürüm" görünür.
 const TARAYICI_SURUMU = 3;
@@ -340,7 +377,7 @@ async function komsulariKur() {
 }
 
 async function kur(bayi) {
-  console.log(`\n═══ ${bayi.n}/${BAYILER.length} — ${bayi.ad} ═══\n`);
+  console.log(`\n═══ ${HESAPLAR.indexOf(bayi) + 1}/${HESAPLAR.length} — ${bayi.ad} ═══\n`);
 
   // Her bayi KENDİ tohumuyla başlıyor: hesaplar birbirinin kopyası olmasın
   // ama her hesap kendi içinde deterministik kalsın.
@@ -352,12 +389,16 @@ async function kur(bayi) {
   const MUSTERILER = musterileriKur(bayi, ilceler);
 
   const eski = await p.tenant.findFirst({ where: { slug: SLUG } });
+  let eskiBildirimler = [];
   if (eski) {
     // YALNIZ DEMO İŞARETLİ BAYİ SİLİNİR. Bu betik her gece sunucuda kendiliğinden
     // çalışıyor (lib/zamanlayici.ts); aynı adı taşıyan gerçek bir bayi olursa
     // (ör. "Demo" adlı bir firma kendi kendine kayıt olduysa) verisini silmek
     // yerine durup bağırır. Kayıt zaten 'demo' ile başlayan adı vermiyor.
     if (!eski.demo) throw new Error(`'${SLUG}' adlı bayi DEMO DEĞİL (demo bayrağı yok) — silinmedi, kurulum durdu.`);
+    // Ekibin test hesabından gönderdiği sorun bildirimleri süper admin'de
+    // ayıklanan GERÇEK bildirimler; bayi silinince (Cascade) gitmesinler.
+    if (eski.ekipTest) eskiBildirimler = await p.sorunBildirimi.findMany({ where: { tenantId: eski.id } });
     await p.tenant.delete({ where: { id: eski.id } });
     console.log('  eski demo silindi');
   }
@@ -379,6 +420,8 @@ async function kur(bayi) {
       modules: ['INVOICING', 'ROUTE', 'TRACKING', 'REVENUE_RISK', 'REPORTS', 'MARKETPLACE', 'PORTAL', 'SHOP', 'SLA'],
       // Şifre/2FA değişikliği ve dışarıya mesaj demoda kapalı (lib/demo-koruma.ts).
       demo: true,
+      // Ekip test hesabı: yazma kısıtı yok, panelde örnek veri şeridi.
+      ekipTest: Boolean(bayi.ekipTest),
       marketEnabled: true,
       // WhatsApp menüde ancak Meta numarası bağlıysa görünüyor.
       // Demoda kanal kurulmuş sayılıyor; gelen mesaj kuyruğu aşağıda.
@@ -417,15 +460,22 @@ async function kur(bayi) {
   const patron = await p.user.create({
     data: {
       tenantId: tenant.id, email: PATRON, name: bayi.patronAd,
-      passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, DEMO_SIFRE_MALIYETI), role: 'ADMIN', isActive: true,
+      passwordHash: await sifreOzeti(bayi), role: 'ADMIN', isActive: true,
     },
   });
   const teknisyen = await p.user.create({
     data: {
       tenantId: tenant.id, email: TEKNISYEN, name: bayi.teknisyenAd,
-      passwordHash: await bcrypt.hash(bayi.sifre ?? SIFRE, DEMO_SIFRE_MALIYETI), role: 'TECHNICIAN', isActive: true,
+      passwordHash: await sifreOzeti(bayi), role: 'TECHNICIAN', isActive: true,
     },
   });
+
+  if (eskiBildirimler.length) {
+    await p.sorunBildirimi.createMany({
+      data: eskiBildirimler.map(({ id, tenantId, kullaniciId, ...b }) => ({ ...b, id, tenantId: tenant.id, kullaniciId: null })),
+    });
+    console.log(`  ${eskiBildirimler.length} sorun bildirimi yeni hesaba taşındı`);
+  }
 
   // ── ESKİ ADRESLER (yalnız 1 numaralı bayi) ────────────────────────────
   // demo@demo.com ve tekniker@demo.com zaten dağıtıldı. Numaralı seriye
@@ -1013,6 +1063,9 @@ async function kur(bayi) {
     const hepsi = await p.part.findMany({
       where: { tenantId: tenant.id },
       select: { id: true, name: true, stockQty: true, avgCost: true, buyPrice: true, minStock: true },
+      // Sıra sabit: sırasız sorguda veritabanı her bayide başka sıra döndürüyor,
+      // kritik kalan üç parça ve rastgele sayıların sırası hesaptan hesaba değişiyordu.
+      orderBy: { sku: 'asc' },
     });
     // Üç parça BİLEREK kritik seviyede bırakılıyor: "Kritik Stok" kartı
     // sıfır gösterseydi o uyarının ne işe yaradığı anlaşılmazdı.
@@ -1195,7 +1248,8 @@ async function kur(bayi) {
   {
     const acik = await p.customerInvoice.findMany({
       where: { tenantId: tenant.id, status: 'OPEN' },
-      orderBy: { invoiceDate: 'asc' }, take: 3,
+      // Aynı günün faturaları arasında sıra numarayla sabit: yoksa her hesapta başka fatura ödenmiş çıkıyor.
+      orderBy: [{ invoiceDate: 'asc' }, { invoiceNumber: 'asc' }], take: 3,
       select: { id: true, customerId: true, invoiceNumber: true, totalAmount: true },
     });
     for (let i = 0; i < acik.length; i++) {
@@ -1451,8 +1505,8 @@ async function kur(bayi) {
     // Sistemde kayıtlı olmayan iki yazıcı: müşterinin kendi aldığı ya da
     // henüz girilmemiş makineler. "Cihaz olarak ekle" kutusu bunlar için.
     const kayitsiz = [
-      { marka: 'HP', model: 'HP LaserJet Pro M404dn', seri: `PHCBR${bayi.n}${rnd(1000, 9999)}`, sb: rnd(12000, 30000), toner: 63, ad: 'Black Cartridge HP 59A' },
-      { marka: 'Pantum', model: 'Pantum M7100DW', seri: `CA2${bayi.n}${rnd(100000, 999999)}`, sb: rnd(6000, 15000), toner: 18, ad: 'Black Toner' },
+      { marka: 'HP', model: 'HP LaserJet Pro M404dn', seri: `PHCBR${bayi.veriN ?? bayi.n}${rnd(1000, 9999)}`, sb: rnd(12000, 30000), toner: 63, ad: 'Black Cartridge HP 59A' },
+      { marka: 'Pantum', model: 'Pantum M7100DW', seri: `CA2${bayi.veriN ?? bayi.n}${rnd(100000, 999999)}`, sb: rnd(6000, 15000), toner: 18, ad: 'Black Toner' },
     ];
     kayitsiz.forEach((k, i) => satirlar.push({
       ip: `192.168.1.${60 + i}`, marka: k.marka, model: k.model, seri: k.seri, deviceId: null,
@@ -1503,7 +1557,7 @@ async function kur(bayi) {
   console.log('');
   console.log(`  YÖNETİCİ  : ${PATRON}`);
   console.log(`  TEKNİSYEN : ${TEKNISYEN}`);
-  console.log(`  ŞİFRE     : ${bayi.sifre ?? SIFRE}`);
+  console.log(`  ŞİFRE     : ${bayi.ekipTest ? '(sunucudaki EKIP_TEST_SIFRE)' : bayi.sifre ?? SIFRE}`);
   console.log(`  ${musteriler.length} müşteri · ${cihazlar.length} makine · ${okuma} sayaç okuması`);
   console.log(`  ${fisSayisi + tonerFisi} servis fişi · ${faturaSayisi} fatura · ${sozNo} sözleşme`);
   console.log(`  ${gozlem} toner verimi SAHADA ÖLÇÜLDÜ (elle girilen: 0)`);
@@ -1599,7 +1653,16 @@ async function main() {
   console.log('\n═══ DEMO HESAPLARI KURULUYOR ═══');
 
   const sonuclar = [];
-  for (const bayi of BAYILER) sonuclar.push(await kur(bayi));
+  for (const bayi of HESAPLAR) sonuclar.push(await kur(bayi));
+
+  // Ekip test hesabı kapatıldıysa (şifre kaldırıldı ya da sayı azaldı) fazla
+  // kalanları SİLME: girişlerini kapat. Sorun bildirimleri ve veri durur.
+  const acikSluglar = EKIP_TESTLERI.map((b) => b.slug);
+  const kapanan = await p.user.updateMany({
+    where: { isActive: true, tenant: { ekipTest: true, demo: true, slug: { notIn: acikSluglar } } },
+    data: { isActive: false },
+  });
+  if (kapanan.count) console.log(`\n  ekip test: ${kapanan.count} kullanıcının girişi kapatıldı (hesap açık değil)`);
 
   // Komşu bayiler ORTAK: beş demo hesabı da aynı pazarı görüyor. Her hesap
   // için ayrı komşu kurmak pazarı beş kopyaya bölerdi.
@@ -1627,6 +1690,8 @@ async function main() {
     console.log(`  ${s.bayi.n}  ${s.bayi.ad.padEnd(26)}  ${s.patron.padEnd(18)}  ${s.teknisyen}`);
   }
   console.log(`\n  ŞİFRE (1–5): ${SIFRE}  ·  herkese açık demo (6): giriş sayfasındaki 'Demoyu dene'`);
+  if (EKIP_TESTLERI.length) console.log(`  EKİP TEST (${EKIP_TESTLERI[0].n}–${EKIP_TESTLERI.at(-1).n}): şifre sunucudaki EKIP_TEST_SIFRE`);
+  else console.log('  EKİP TEST: kapalı (EKIP_TEST_SIFRE tanımlı değil ya da 10 karakterden kısa)');
   console.log('  1 numaralı hesaba demo@demo.com / tekniker@demo.com da girer.');
   console.log('');
   if (eksikToplam === 0) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
-import { demoBayiMi } from '@/lib/demo-koruma';
+import { disariyaMesajKapali } from '@/lib/demo-koruma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { resolveRecipients, fmtTLm } from '@/lib/reminders';
 import { sendBulkSms, smsConfigured, netgsmPhone } from '@/lib/sms';
@@ -22,7 +22,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const { tenantId } = await requireTenantUser();
-    if (await demoBayiMi(tenantId)) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
+    const mesajEngeli = await disariyaMesajKapali(tenantId);
+    if (mesajEngeli) return ucHatasi(mesajEngeli, 403);
     if (!smsConfigured()) {
       return ucHatasi('SMS_SAGLAYICI_AYARLI_DEGIL_YONETICI', 503);
     }

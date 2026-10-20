@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import DemoBaglantiKoruma from '@/components/DemoBaglantiKoruma';
 import AileSekmeleri from '@/components/AileSekmeleri';
 import DenemeSeridi from '@/components/DenemeSeridi';
+import OrnekVeriSeridi from '@/components/OrnekVeriSeridi';
 import UygulamaKur from '@/components/UygulamaKur';
 import { doldur } from '@/lib/i18n/sozluk';
 import { denemeKalanGun, platformOdeme, whatsappLinki } from '@/lib/abonelik';
@@ -117,6 +118,7 @@ export default async function DashboardLayout({
   // Deneme şeridi yalnız yöneticiye: satın alma kararını o veriyor; teknisyene
   // "süreniz doluyor" demek gürültü.
   const rol = (session.user as { role?: string } | undefined)?.role;
+  const ekipTest = Boolean((session.user as { ekipTest?: boolean } | undefined)?.ekipTest);
   const denemeGun = rol === 'ADMIN' || rol === 'SUPER_ADMIN' ? denemeKalanGun(tenant?.plan, tenant?.trialEndsAt, new Date()) : null;
 
   const menuDurum = {
@@ -135,6 +137,8 @@ export default async function DashboardLayout({
           çalışmıyordu, telefonda da çapraz kaydırma bütün sayfayı yana
           sallıyordu. Geniş tablolar kendi kaydırma kabında (32 ekran ölçüldü). */}
       <main id="app-main" className="flex-1 overflow-x-clip pt-14 md:pt-0 pb-20 md:pb-0 min-w-0">
+        {/* Ekip test hesabı: buradaki her şey örnek veri. */}
+        {ekipTest && <OrnekVeriSeridi />}
         {denemeGun !== null && <DenemeSeridi kalanGun={denemeGun} />}
         <UygulamaKur />
         <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} bizimHesapKurulu={menuDurum.bizimHesapKurulu} />
@@ -144,8 +148,9 @@ export default async function DashboardLayout({
       <Onboarding />
       {/* "Sorun bildir" penceresi: tek kopya; menü, alt menü ve Yardım olay atarak açar. */}
       <SorunBildir />
-      {/* Ortak demoda WhatsApp/arama bağlantıları gerçek biçimli numaralara gitmesin; metni göster. */}
-      {(session.user as { demo?: boolean } | undefined)?.demo && <DemoBaglantiKoruma />}
+      {/* Ortak demoda WhatsApp/arama bağlantıları gerçek biçimli numaralara gitmesin; metni göster.
+          Ekip test hesabında da: numaralar aynı örnek numaralar. */}
+      {((session.user as { demo?: boolean } | undefined)?.demo || ekipTest) && <DemoBaglantiKoruma />}
     </div>
     </LocaleProvider>
   );

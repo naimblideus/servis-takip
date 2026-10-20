@@ -125,6 +125,14 @@ model Tenant {
   // bayi de olabilir.
   demo Boolean @default(false)
 
+  // EKİP TEST HESABI (seed-bayi-demo, EKIP_TEST_SIFRE). Teknik ekibin deneme
+  // bayisi: demo=true ile birlikte gelir, yani listelerden, distribütör
+  // sayılarından ve dışarıya SMS/WhatsApp'tan yine ayrıdır. Bu bayrak yalnız
+  // demonun YAZMA kısıtlarını (silme, ayar, içe aktarma, tarayıcı) kaldırır:
+  // ekip her özelliği gerçek bir bayi gibi dener. Paneldeki şerit bunun
+  // örnek veri olduğunu söyler.
+  ekipTest Boolean @default(false)
+
   // SAYAÇSIZ KAPANMAZ. Açıksa kiralık cihazın fişi sayaç girilmeden
   // "teslim edildi" olamaz: ay sonunda faturası kesilemeyen cihazın en sık
   // sebebi, teknisyenin sayacı yazmadan çıkması. Varsayılan KAPALI — bayi

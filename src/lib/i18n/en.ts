@@ -259,6 +259,11 @@ export const en: Sozluk = {
     hesapAc: 'Open my own account',
   },
 
+  // Team test account strip (components/OrnekVeriSeridi).
+  ornekVeri: {
+    etiket: 'Team test account ·',
+    metin: 'Every company, customer, device, invoice and number here is sample (seed) data and belongs to no real dealer. It is rebuilt every night at 03:30. No SMS or WhatsApp is sent out.',
+  },
   demoOnizleme: {
     fatura: 'No invoices are issued in the demo, because many people use it at once. In your own account this button issues this period’s invoices for {musteri} {musteri|customer|customers} ({tutar}) in one click.',
     faturaGecmis: 'No invoices are issued in the demo. In your own account the {donem} period is invoiced in its own month, in one click.',
@@ -5134,6 +5139,7 @@ export const en: Sozluk = {
     TARAMA_ZATEN_ONAYLANDI: 'This scan has already been approved.',
     TARAMA_SECIM_GECERSIZ: 'Choose the printers to add and a customer.',
     DEMO_HESABINDA_KAPALI: 'This is turned off in the demo account because many people use it at once. It works in your own free trial account — nextusservis.com/kayit',
+    TEST_HESABINDA_MESAJ_KAPALI: 'No SMS or WhatsApp is sent from a team test account: the customers and their numbers are sample data and may belong to a real person.',
     DEMO_TARAYICI_KAPALI: 'The scanner cannot be downloaded in the demo account. To scan your own network for free: nextusservis.com/ucretsiz-tarama',
     KAYIT_ALAN_EKSIK: 'Company name, your name, mobile phone and email are required.',
     KAYIT_EPOSTA_GECERSIZ: 'The email address does not look valid.',

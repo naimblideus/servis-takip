@@ -160,13 +160,18 @@ t('CRON_SECRET yoksa sunucudan ÖNCE geçici anahtar üretiliyor', /if \[ -z "\$
 const enstr = oku('src/instrumentation.ts');
 t('zamanlayıcı yalnız üretimde ve Node ortamında başlıyor (Node modülü yalnız nodejs dalında)', /if \(process\.env\.NEXT_RUNTIME === 'nodejs'\) \{/.test(enstr) && /NODE_ENV !== 'production'/.test(enstr) && enstr.indexOf("import('./lib/zamanlayici')") > enstr.indexOf("=== 'nodejs'"));
 t('★ hatırlatma işleri demo bayilerine gitmiyor', /demo: false/.test(oku('src/lib/vade-hatirlatma.ts')) && /demo: false/.test(oku('src/app/api/cron/sayac-hatirlatma/route.ts')));
-const KORUMA = ['src/app/api/sms/bulk/route.ts', 'src/app/api/whatsapp/bulk/route.ts', 'src/app/api/auth/2fa/route.ts', 'src/app/api/users/[id]/route.ts', 'src/app/api/sayac/tarayici/ayar/route.ts'];
-t('demo koruması beş uçta', KORUMA.every((f) => oku(f).includes('demoBayiMi(')), KORUMA.filter((f) => !oku(f).includes('demoBayiMi(')));
+// Dışarıya mesaj atan iki uç ayrı soruyu soruyor (ekip test hesabında da kapalı,
+// lib/demo-koruma disariyaMesajKapali); hesabı kilitleyen üçü demo kısıtını.
+const KORUMA = ['src/app/api/auth/2fa/route.ts', 'src/app/api/users/[id]/route.ts', 'src/app/api/sayac/tarayici/ayar/route.ts'];
+const DIS_MESAJ = ['src/app/api/sms/bulk/route.ts', 'src/app/api/whatsapp/bulk/route.ts'];
+t('demo koruması beş uçta', KORUMA.every((f) => oku(f).includes('demoBayiMi(')) && DIS_MESAJ.every((f) => oku(f).includes('disariyaMesajKapali(')),
+  [...KORUMA.filter((f) => !oku(f).includes('demoBayiMi(')), ...DIS_MESAJ.filter((f) => !oku(f).includes('disariyaMesajKapali('))]);
 
 const ara = oku('src/middleware.ts');
 t('★ middleware demo oturumunda kuralı uyguluyor ve /api yollarını kapsıyor', /demoYazmaYasak\(request\.method, pathname\)/.test(ara) && /jeton\?\.demo/.test(ara) && ara.includes("'/api/:path*'"));
 const authKaynak = oku('src/lib/auth.ts');
-t('★ oturum jetonu bayinin demo bayrağını taşıyor (giriş ve SSO)', /demo: Boolean\(\(user as any\)\.tenant\.demo\)/.test(authKaynak) && /token\.demo = Boolean\(\(user as any\)\.demo\)/.test(authKaynak) && /token\.demo = Boolean\(kayitli\.tenant\.demo\)/.test(authKaynak)
+// Ekip test hesabı da demo bayisidir ama yazma kısıtı ona uygulanmaz (scripts/test-ekip-test.mjs).
+t('★ oturum jetonu bayinin demo bayrağını taşıyor (giriş ve SSO)', /demo: Boolean\(\(user as any\)\.tenant\.demo && !\(user as any\)\.tenant\.ekipTest\)/.test(authKaynak) && /token\.demo = Boolean\(\(user as any\)\.demo\)/.test(authKaynak) && /token\.demo = Boolean\(kayitli\.tenant\.demo && !kayitli\.tenant\.ekipTest\)/.test(authKaynak)
   && /demo: true/.test(oku('src/lib/sso-kimlik.ts')));
 // Bayi Pazarı: demo komşuları gerçek bayilere görünmesin, demo ziyaretçisi gerçek bayiye yazamasın.
 t('★ pazar listesi yalnız kendi dünyasındaki satıcıları gösteriyor', /marketEnabled: true, demo: a\.tenant!\.demo/.test(oku('src/app/api/market/listings/route.ts')));
