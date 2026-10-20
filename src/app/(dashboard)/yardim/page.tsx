@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useT } from '@/lib/i18n/client';
 import type { Sozluk } from '@/lib/i18n/sozluk';
+import { sorunBildirAc } from '@/components/SorunBildir';
 
 type BolumAnahtari = keyof Sozluk['yardim']['bolum'];
 
@@ -249,6 +250,18 @@ export default function YardimPage() {
           ))}
         </div>
       </div>
+
+      {/* Rehberde bulamayan buradan yazar: eksik bilgi rehbere geri döner. */}
+      <section className="mt-10 flex flex-col gap-3 rounded-xl border bg-white p-5 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-bold text-slate-900">{t.sorunBildir.yardimBaslik}</h2>
+          <p className="mt-0.5 text-sm text-slate-500">{t.sorunBildir.yardimAlt}</p>
+        </div>
+        <button type="button" onClick={sorunBildirAc}
+          className="min-h-[44px] rounded-lg bg-[#0f2253] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#16306e]">
+          {t.sorunBildir.menu}
+        </button>
+      </section>
 
       <p className="mt-10 text-center text-sm text-slate-400">
         {t.yardim.altbilgi}
