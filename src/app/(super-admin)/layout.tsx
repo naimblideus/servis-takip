@@ -26,7 +26,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     // Menü rolüne göre süzülür (ekip yalnız kendi ekranlarını görür).
     const oturum = await getSuperAdminSession();
     return (
-        <div className="flex h-screen overflow-hidden bg-gray-950 text-white">
+        <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-gray-950 text-white">
             <SuperAdminSidebar rol={oturum?.rol ?? 'SAHIP'} />
             <main className="flex-1 overflow-y-auto">
                 {children}

@@ -19,7 +19,7 @@ export default function EkipSayfasi() {
   const [hesaplar, setHesaplar] = useState<Hesap[] | null>(null);
   const [benimId, setBenimId] = useState('');
   const [hata, setHata] = useState<string | null>(null);
-  const [f, setF] = useState({ ad: '', eposta: '', sifre: '', rol: 'EKIP' as 'EKIP' | 'DISTRIBUTOR', marka: 'Pantum', kurumAd: 'Pantum Türkiye' });
+  const [f, setF] = useState({ ad: '', eposta: '', sifre: '', rol: 'EKIP' as 'EKIP' | 'DISTRIBUTOR', marka: 'Pantum', kurumAd: m.varsayilanKurum });
   const [mesgul, setMesgul] = useState(false);
 
   const metin = useCallback((kod: unknown) => (m.hata as Record<string, string>)[String(kod)] ?? m.hata.GENEL, [m]);

@@ -43,6 +43,9 @@ export interface KurulumMetni {
   /** Kanıt: adımın durumunu gösteren sayılar. */
   kanit: AdimMetni;
   kanitUygulanmaz: string;
+  /** Firma bilgisinde eksik olan alanlar (ör. "eksik: vergi no"). */
+  firmaEksik: string;
+  firmaAlan: { vergiNo: string; adres: string; telefon: string };
   sayacPay: string;
   sayacPayYok: string;
   whatsappKanit: { TAMAM: string; EKSIK: string };
@@ -161,7 +164,7 @@ const tr: KurulumMetni = {
     PORTAL: 'Müşteri Portalı sayfasında müşteriyi seçip portalı açın; müşteri sayacını ve faturasını kendisi görür.',
   },
   kanit: {
-    FIRMA: '{n}/3 dolu: vergi no, adres, telefon',
+    FIRMA: '{n}/3 dolu',
     CIHAZ: '{n} cihaz, {kiralik} kiralık',
     FIYAT: '{n}/{toplam} kiralıkta fiyat var',
     SAYAC: '{n}/{toplam} kiralık son 35 günde okundu',
@@ -176,6 +179,8 @@ const tr: KurulumMetni = {
     PORTAL: '{n} müşteride portal açık',
   },
   kanitUygulanmaz: 'Bu bayi için gerekmez (kiralık yok ya da Türkiye dışı).',
+  firmaEksik: 'eksik',
+  firmaAlan: { vergiNo: 'vergi no', adres: 'adres', telefon: 'telefon' },
   sayacPay: 'okumaların %{pay} kadarı kendiliğinden geldi',
   sayacPayYok: 'kendiliğinden gelen pay bilinmiyor (okuma yok)',
   whatsappKanit: { TAMAM: 'Hatırlatma açık ya da numara bağlı', EKSIK: 'Hatırlatmalar kapalı' },
@@ -323,7 +328,7 @@ const en = {
     PORTAL: 'Pick a customer on the Customer Portal page and open the portal; the customer sees their meters and invoices.',
   },
   kanit: {
-    FIRMA: '{n} of 3 filled: tax number, address, phone',
+    FIRMA: '{n} of 3 filled',
     CIHAZ: '{n} {n|device|devices}, {kiralik} rental',
     FIYAT: '{n} of {toplam} rentals have a price',
     SAYAC: '{n} of {toplam} rentals read in the last 35 days',
@@ -338,6 +343,8 @@ const en = {
     PORTAL: 'Portal open for {n} {n|customer|customers}',
   },
   kanitUygulanmaz: 'Not needed for this dealer (no rentals, or outside Turkey).',
+  firmaEksik: 'missing',
+  firmaAlan: { vergiNo: 'tax number', adres: 'address', telefon: 'phone' },
   sayacPay: '{pay}% of readings arrived by themselves',
   sayacPayYok: 'share arriving by themselves unknown (no readings)',
   whatsappKanit: { TAMAM: 'A reminder is on or a number is connected', EKSIK: 'Reminders are off' },
@@ -426,6 +433,11 @@ export function kanitCumlesi(m: KurulumMetni, a: Adim): string {
   if (a.kod === 'WHATSAPP') return a.durum === 'TAMAM' ? m.whatsappKanit.TAMAM : m.whatsappKanit.EKSIK;
   if (a.kod === 'EFATURA') return a.durum === 'TAMAM' ? m.eFaturaKanit.TAMAM : a.durum === 'KISMEN' ? m.eFaturaKanit.KISMEN : m.eFaturaKanit.EKSIK;
   const ana = doldur(m.kanit[a.kod], a.kanit);
+  if (a.kod === 'FIRMA') {
+    // Hangi alanın eksik olduğu söylenir: "2/3 dolu" tek başına neyi dolduracağını göstermez.
+    const eksik = (['vergiNo', 'adres', 'telefon'] as const).filter((k) => !a.kanit[k]).map((k) => m.firmaAlan[k]);
+    return eksik.length ? `${ana} · ${m.firmaEksik}: ${eksik.join(', ')}` : ana;
+  }
   if (a.kod !== 'SAYAC') return ana;
   // Pay -1 = okuma yok: "%0" yazmak yalan olur, "bilinmiyor" denir.
   return `${ana} · ${a.kanit.pay < 0 ? m.sayacPayYok : doldur(m.sayacPay, a.kanit)}`;

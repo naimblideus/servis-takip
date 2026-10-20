@@ -1,8 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database, PhoneCall, MessageCircle, ClipboardCheck, LifeBuoy, Users, UserCog, Factory } from 'lucide-react';
+import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database, PhoneCall, MessageCircle, ClipboardCheck, LifeBuoy, Users, UserCog, Factory, Menu, X } from 'lucide-react';
 import { rolErisebilir, type SaRol } from '@/lib/super-admin-rol';
 import { useT, useDil } from '@/lib/i18n/client';
 import { aktivasyonMetni } from '@/lib/aktivasyon-metin';
@@ -41,23 +42,40 @@ export default function SuperAdminSidebar({ rol = 'SAHIP' }: { rol?: SaRol }) {
     // Ekip ve distribütör yalnız kendi ekranlarını görür; kural tek yerde (lib/super-admin-rol).
     const navItems = menu(sz, dil).filter(({ href }) => rolErisebilir(rol, href));
 
+    // Telefonda menü çekmece: kapalıyken sayfa tam genişlik, sayfa değişince kapanır.
+    const [acik, setAcik] = useState(false);
+    useEffect(() => { setAcik(false); }, [pathname]);
+
     const handleLogout = async () => {
         await fetch('/api/super-admin/login', { method: 'DELETE' });
         window.location.href = '/super-admin/login';
     };
 
     return (
-        <aside className="w-64 bg-gray-900 border-r border-white/10 flex flex-col flex-shrink-0 h-full">
+        <>
+        <div className="md:hidden flex items-center gap-3 px-4 h-14 bg-gray-900 border-b border-white/10 flex-shrink-0">
+            <button type="button" onClick={() => setAcik(true)} aria-label={sz.menu.menuAc}
+                className="w-11 h-11 -ml-2 flex items-center justify-center rounded-xl text-gray-300 hover:bg-white/5">
+                <Menu className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-bold">{sz.superAdmin.baslik}</span>
+        </div>
+        {acik && <div className="md:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setAcik(false)} />}
+        <aside className={`w-64 bg-gray-900 border-r border-white/10 flex flex-col flex-shrink-0 h-full fixed inset-y-0 left-0 z-50 transition-transform md:static md:translate-x-0 ${acik ? 'translate-x-0' : '-translate-x-full'}`}>
             {/* Logo */}
             <div className="px-5 py-5 border-b border-white/10">
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-violet-600 rounded-xl flex items-center justify-center">
                         <Shield className="w-5 h-5 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <div className="text-sm font-bold">{sz.superAdmin.baslik}</div>
                         <div className="text-xs text-violet-400">{sz.superAdmin.altBaslik}</div>
                     </div>
+                    <button type="button" onClick={() => setAcik(false)} aria-label={sz.genel.kapat}
+                        className="md:hidden w-11 h-11 -mr-2 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/5">
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
             </div>
 
@@ -96,5 +114,6 @@ export default function SuperAdminSidebar({ rol = 'SAHIP' }: { rol?: SaRol }) {
                 </button>
             </div>
         </aside>
+        </>
     );
 }
