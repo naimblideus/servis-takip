@@ -9,6 +9,7 @@ import { menuKur, aileBul, aileRozeti, type MenuAilesi } from '@/lib/menu-ailele
 import { useRozetler } from '@/lib/use-rozetler';
 import { useT, useDil } from '@/lib/i18n/client';
 import DilSecici from '@/components/DilSecici';
+import { sorunBildirAc } from '@/components/SorunBildir';
 
 const menuItems = [
   {
@@ -579,6 +580,19 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
               <p className="text-gray-400 text-xs truncate">{session?.user?.email}</p>
             </div>
           </div>
+          {/* Sorun bildir: menünün dibinde, telefon çekmecesinde de. Çekmece
+              önce kapanır ki pencere onun arkasında kalmasın. */}
+          <button
+            type="button"
+            onClick={() => { close(); sorunBildirAc(); }}
+            className="w-full text-left sidebar-link text-gray-300 hover:text-white mb-2"
+            style={{ minHeight: 44 }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8M8 14h5m-9 6l2.6-2.6A2 2 0 018 17h11a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14z" />
+            </svg>
+            {t.sorunBildir.menu}
+          </button>
           <div className="mb-3">
             <DilSecici />
           </div>

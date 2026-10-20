@@ -14,6 +14,7 @@ import BottomNav from '@/components/BottomNav';
 import ModuleGuard from '@/components/ModuleGuard';
 import AccessLock from '@/components/AccessLock';
 import Onboarding from '@/components/Onboarding';
+import SorunBildir from '@/components/SorunBildir';
 import { sunucuDili } from '@/lib/i18n/sunucu';
 import { LocaleProvider } from '@/lib/i18n/client';
 import { dilMi, sozluk } from '@/lib/i18n/sozluk';
@@ -141,6 +142,8 @@ export default async function DashboardLayout({
       </main>
       <BottomNav modules={modules} />
       <Onboarding />
+      {/* "Sorun bildir" penceresi: tek kopya; menü, alt menü ve Yardım olay atarak açar. */}
+      <SorunBildir />
       {/* Ortak demoda WhatsApp/arama bağlantıları gerçek biçimli numaralara gitmesin; metni göster. */}
       {(session.user as { demo?: boolean } | undefined)?.demo && <DemoBaglantiKoruma />}
     </div>

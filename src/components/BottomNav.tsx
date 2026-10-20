@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useRozetler } from '@/lib/use-rozetler';
 import { useEffect, useState } from 'react';
 import { useT } from '@/lib/i18n/client';
+import { sorunBildirAc } from '@/components/SorunBildir';
 
 // Mobil alt sekme çubuğu (yalnız telefon; md+ gizli). Günlük hızlı erişim.
 // Ortadaki "+" = Hızlı İşlem sheet'i (tek aksiyona mahkum etmez; bayi en sık işini seçer).
@@ -20,6 +21,7 @@ const PATHS: Record<string, string> = {
   box: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
   plus: 'M12 5v14M5 12h14',
   chev: 'M9 6l6 6-6 6',
+  sorun: 'M8 10h8M8 14h5m-9 6l2.6-2.6A2 2 0 018 17h11a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14z',
 };
 
 function Ic({ name, size = 23 }: { name: string; size?: number }) {
@@ -100,6 +102,13 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
               <span style={{ color: '#B6BECF' }}><Ic name="chev" size={18} /></span>
             </Link>
           ))}
+          {/* Sorun bildir: sayfa değil pencere, o yüzden ACTIONS'ta bağlantı değil düğme. */}
+          <button type="button" onClick={() => { setSheet(false); sorunBildirAc(); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 14, background: '#F5F7FB', border: 'none', textAlign: 'left', color: '#0B1533', cursor: 'pointer', width: '100%' }}>
+            <span style={{ width: 40, height: 40, borderRadius: 12, background: '#FDECEC', color: '#A33A3A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ic name="sorun" size={22} /></span>
+            <span style={{ fontWeight: 600, fontSize: 15, flex: 1 }}>{t.sorunBildir.menu}</span>
+            <span style={{ color: '#B6BECF' }}><Ic name="chev" size={18} /></span>
+          </button>
         </div>
       </div>
 
