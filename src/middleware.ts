@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 import { getToken } from 'next-auth/jwt';
 import { demoYazmaYasak, DEMO_YAZMA_MESAJI } from '@/lib/demo-yazma';
-import { saRol, rolErisebilir, EKIP_ANA_SAYFA } from '@/lib/super-admin-rol';
+import { saRol, rolErisebilir, anaSayfa } from '@/lib/super-admin-rol';
 
 // Fail-closed: gömülü fallback YOK. Secret tanımlı değilse süper-admin erişimi tümden reddedilir.
 const RAW_SECRET = process.env.SUPER_ADMIN_SECRET || process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || '';
@@ -68,9 +68,9 @@ export async function middleware(request: NextRequest) {
             if (!payload.isSuperAdmin) {
                 return NextResponse.redirect(new URL('/super-admin/login', request.url));
             }
-            // Ekip hesabı yalnız izin listesindeki ekranları açar (lib/super-admin-rol).
+            // Ekip ve distribütör yalnız izin listesindeki ekranları açar (lib/super-admin-rol).
             if (!rolErisebilir(saRol(payload.rol), pathname)) {
-                return NextResponse.redirect(new URL(EKIP_ANA_SAYFA, request.url));
+                return NextResponse.redirect(new URL(anaSayfa(saRol(payload.rol)), request.url));
             }
         } catch {
             return NextResponse.redirect(new URL('/super-admin/login', request.url));

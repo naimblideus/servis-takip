@@ -5846,6 +5846,7 @@ export const en: Sozluk = {
       sorunlar: 'Issue reports',
       ekip: 'Team accounts',
       hesabim: 'My account',
+      distributor: 'Distributor panel',
     },
     // WhatsApp setup health (/super-admin/whatsapp).
     whatsapp: {

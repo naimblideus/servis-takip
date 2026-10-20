@@ -27,8 +27,11 @@ export interface SuperAdminSession {
     email: string;
     name: string;
     isSuperAdmin: true;
-    /** SAHIP | EKIP (lib/super-admin-rol). Eski jetonda yok → SAHIP. */
+    /** SAHIP | EKIP | DISTRIBUTOR (lib/super-admin-rol). Eski jetonda yok → SAHIP. */
     rol: SaRol;
+    /** Yalnız DISTRIBUTOR: görebildiği marka ve kurum adı. */
+    marka?: string | null;
+    kurumAd?: string | null;
 }
 
 /** Giriş sonucu — 2FA açıksa kod gelene kadar oturum AÇILMAZ. */
@@ -85,7 +88,7 @@ export async function loginSuperAdmin(
 
     return {
         ok: true,
-        session: { id: admin.id, email: admin.email, name: admin.name, isSuperAdmin: true, rol: saRol(admin.rol) },
+        session: { id: admin.id, email: admin.email, name: admin.name, isSuperAdmin: true, rol: saRol(admin.rol), marka: admin.marka ?? null, kurumAd: admin.kurumAd ?? null },
     };
 }
 

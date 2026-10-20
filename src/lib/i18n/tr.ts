@@ -6054,6 +6054,7 @@ export const tr = {
       sorunlar: 'Sorun Bildirimleri',
       ekip: 'Ekip Hesapları',
       hesabim: 'Hesabım',
+      distributor: 'Distribütör Paneli',
     },
     // WhatsApp kurulum durumu (/super-admin/whatsapp) — Meta kurulumunun kontrol listesi.
     whatsapp: {

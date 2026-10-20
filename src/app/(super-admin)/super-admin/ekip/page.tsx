@@ -9,7 +9,7 @@ import { ekipMetni } from '@/lib/ekip-metin';
  * Yalnız sahip açar (middleware + uç). Ekip rolünün açtığı ekranlar
  * lib/super-admin-rol'de; bu ekran onları değiştirmez.
  */
-interface Hesap { id: string; name: string; email: string; rol: 'SAHIP' | 'EKIP'; totpEnabled: boolean; lastLoginAt: string | null }
+interface Hesap { id: string; name: string; email: string; rol: 'SAHIP' | 'EKIP' | 'DISTRIBUTOR'; marka: string | null; kurumAd: string | null; totpEnabled: boolean; lastLoginAt: string | null }
 
 const girdi = 'w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-violet-400';
 
@@ -19,7 +19,7 @@ export default function EkipSayfasi() {
   const [hesaplar, setHesaplar] = useState<Hesap[] | null>(null);
   const [benimId, setBenimId] = useState('');
   const [hata, setHata] = useState<string | null>(null);
-  const [f, setF] = useState({ ad: '', eposta: '', sifre: '' });
+  const [f, setF] = useState({ ad: '', eposta: '', sifre: '', rol: 'EKIP' as 'EKIP' | 'DISTRIBUTOR', marka: 'Pantum', kurumAd: 'Pantum Türkiye' });
   const [mesgul, setMesgul] = useState(false);
 
   const metin = useCallback((kod: unknown) => (m.hata as Record<string, string>)[String(kod)] ?? m.hata.GENEL, [m]);
@@ -61,17 +61,17 @@ export default function EkipSayfasi() {
                 <td className="px-4 py-3 font-medium">{h.name}{h.id === benimId && <span className="ml-2 text-xs text-violet-300">({m.sen})</span>}</td>
                 <td className="px-4 py-3 text-gray-300">{h.email}</td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${h.rol === 'SAHIP' ? 'bg-violet-600/30 text-violet-200' : 'bg-emerald-600/20 text-emerald-200'}`}>{h.rol === 'SAHIP' ? m.rolSahip : m.rolEkip}</span>
+                  <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${h.rol === 'SAHIP' ? 'bg-violet-600/30 text-violet-200' : h.rol === 'DISTRIBUTOR' ? 'bg-sky-600/20 text-sky-200' : 'bg-emerald-600/20 text-emerald-200'}`}>{h.rol === 'SAHIP' ? m.rolSahip : h.rol === 'DISTRIBUTOR' ? `${m.rolDistributor} · ${h.kurumAd ?? h.marka ?? ''}` : m.rolEkip}</span>
                 </td>
                 <td className={`px-4 py-3 ${h.totpEnabled ? 'text-emerald-300' : 'text-amber-300'}`}>{h.totpEnabled ? m.acik : m.kapali}</td>
                 <td className="px-4 py-3 text-gray-400">{tarih(h.lastLoginAt)}</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   {h.id !== benimId && (
                     <>
-                      <button type="button" disabled={mesgul} onClick={() => istek('PATCH', '/api/super-admin/ekip', { id: h.id, rol: h.rol === 'SAHIP' ? 'EKIP' : 'SAHIP' })}
+                      {h.rol !== 'DISTRIBUTOR' && <button type="button" disabled={mesgul} onClick={() => istek('PATCH', '/api/super-admin/ekip', { id: h.id, rol: h.rol === 'SAHIP' ? 'EKIP' : 'SAHIP' })}
                         className="min-h-[40px] px-3 rounded-lg text-xs text-gray-300 hover:bg-white/10">
                         {m.rolYap.replace('{r}', h.rol === 'SAHIP' ? m.rolEkip : m.rolSahip)}
-                      </button>
+                      </button>}
                       <button type="button" disabled={mesgul} onClick={() => { if (window.confirm(m.silOnay)) istek('DELETE', `/api/super-admin/ekip?id=${encodeURIComponent(h.id)}`); }}
                         className="min-h-[40px] px-3 rounded-lg text-xs text-red-300 hover:bg-red-500/10">{m.sil}</button>
                     </>
@@ -85,8 +85,21 @@ export default function EkipSayfasi() {
       </div>
 
       <form className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5 grid gap-3 max-w-xl"
-        onSubmit={async (e) => { e.preventDefault(); if (await istek('POST', '/api/super-admin/ekip', { ...f, rol: 'EKIP' })) setF({ ad: '', eposta: '', sifre: '' }); }}>
+        onSubmit={async (e) => { e.preventDefault(); if (await istek('POST', '/api/super-admin/ekip', f)) setF({ ...f, ad: '', eposta: '', sifre: '' }); }}>
         <h2 className="text-lg font-semibold">{m.yeniBaslik}</h2>
+        <label className="grid gap-1 text-sm text-gray-300">{m.hesapTuru}
+          <select className={girdi} value={f.rol} onChange={(e) => setF({ ...f, rol: e.target.value as 'EKIP' | 'DISTRIBUTOR' })}>
+            <option value="EKIP">{m.rolEkip}</option>
+            <option value="DISTRIBUTOR">{m.rolDistributor}</option>
+          </select>
+        </label>
+        {f.rol === 'DISTRIBUTOR' && (
+          <>
+            <label className="grid gap-1 text-sm text-gray-300">{m.marka}<input className={girdi} value={f.marka} onChange={(e) => setF({ ...f, marka: e.target.value })} /></label>
+            <label className="grid gap-1 text-sm text-gray-300">{m.kurumAd}<input className={girdi} value={f.kurumAd} onChange={(e) => setF({ ...f, kurumAd: e.target.value })} /></label>
+            <p className="text-xs text-gray-400">{m.distributorNot}</p>
+          </>
+        )}
         <label className="grid gap-1 text-sm text-gray-300">{m.ad}<input className={girdi} value={f.ad} onChange={(e) => setF({ ...f, ad: e.target.value })} autoComplete="off" /></label>
         <label className="grid gap-1 text-sm text-gray-300">{m.eposta}<input className={girdi} type="email" value={f.eposta} onChange={(e) => setF({ ...f, eposta: e.target.value })} autoComplete="off" /></label>
         <label className="grid gap-1 text-sm text-gray-300">{m.geciciSifre}<input className={girdi} type="password" value={f.sifre} onChange={(e) => setF({ ...f, sifre: e.target.value })} autoComplete="new-password" /></label>

@@ -43,7 +43,7 @@ export default function HesabimSayfasi() {
       <div>
         <h1 className="text-2xl font-bold">{m.hesabimBaslik}</h1>
         <p className="text-sm text-gray-400 mt-1">{m.hesabimAlt}</p>
-        {d && <p className="text-sm text-gray-300 mt-3">{d.ad} · {d.eposta} · {d.rol === 'EKIP' ? m.rolEkip : m.rolSahip}</p>}
+        {d && <p className="text-sm text-gray-300 mt-3">{d.ad} · {d.eposta} · {d.rol === 'EKIP' ? m.rolEkip : d.rol === 'DISTRIBUTOR' ? m.rolDistributor : m.rolSahip}</p>}
       </div>
       {mesaj && <div className={`rounded-xl px-4 py-3 text-sm border ${mesaj.ok ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-red-500/30 bg-red-500/10 text-red-200'}`}>{mesaj.t}</div>}
 

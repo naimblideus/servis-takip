@@ -25,7 +25,7 @@ export async function GET() {
   if ('yanit' in k) return k.yanit;
   const hesaplar = await prisma.superAdmin.findMany({
     orderBy: [{ rol: 'desc' }, { createdAt: 'asc' }],
-    select: { id: true, name: true, email: true, rol: true, totpEnabled: true, lastLoginAt: true, createdAt: true },
+    select: { id: true, name: true, email: true, rol: true, marka: true, kurumAd: true, totpEnabled: true, lastLoginAt: true, createdAt: true },
   });
   return NextResponse.json({ hesaplar: hesaplar.map((h) => ({ ...h, rol: saRol(h.rol) })), benimId: k.sa.id });
 }
@@ -37,14 +37,18 @@ export async function POST(req: NextRequest) {
   const ad = typeof g.ad === 'string' ? g.ad.trim().slice(0, 80) : '';
   const eposta = typeof g.eposta === 'string' ? g.eposta.trim().toLowerCase() : '';
   const sifre = typeof g.sifre === 'string' ? g.sifre : '';
-  const rol = saRol(g.rol === 'SAHIP' ? 'SAHIP' : 'EKIP');
+  const rol = saRol(g.rol === 'SAHIP' || g.rol === 'DISTRIBUTOR' ? g.rol : 'EKIP');
+  // Distribütör hangi markayı göreceğiyle açılır (ör. Pantum / Pantum Türkiye).
+  const marka = rol === 'DISTRIBUTOR' && typeof g.marka === 'string' ? g.marka.trim().slice(0, 40) : '';
+  const kurumAd = rol === 'DISTRIBUTOR' && typeof g.kurumAd === 'string' ? g.kurumAd.trim().slice(0, 80) : '';
+  if (rol === 'DISTRIBUTOR' && (marka.length < 2 || kurumAd.length < 2)) return NextResponse.json({ hata: 'GECERSIZ' }, { status: 400 });
   if (ad.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta) || sifre.length < 10 || sifre.length > 200) {
     return NextResponse.json({ hata: 'GECERSIZ' }, { status: 400 });
   }
   const var_ = await prisma.superAdmin.findUnique({ where: { email: eposta }, select: { id: true } });
   if (var_) return NextResponse.json({ hata: 'VAR' }, { status: 409 });
   const h = await prisma.superAdmin.create({
-    data: { name: ad, email: eposta, password: await bcrypt.hash(sifre, 12), rol },
+    data: { name: ad, email: eposta, password: await bcrypt.hash(sifre, 12), rol, marka: marka || null, kurumAd: kurumAd || null },
     select: { id: true },
   });
   return NextResponse.json({ ok: true, id: h.id });
@@ -57,6 +61,8 @@ export async function PATCH(req: NextRequest) {
   const g = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const id = typeof g.id === 'string' ? g.id : '';
   const rol = saRol(g.rol);
+  // Rol değişimi sahip ile ekip arasında; distribütör hesabı marka bilgisiyle ayrıca açılır.
+  if (rol === 'DISTRIBUTOR') return NextResponse.json({ hata: 'GECERSIZ' }, { status: 400 });
   const h = id ? await prisma.superAdmin.findUnique({ where: { id }, select: { id: true, rol: true } }) : null;
   if (!h) return NextResponse.json({ hata: 'YOK' }, { status: 404 });
   if (h.id === k.sa.id && rol !== 'SAHIP') return NextResponse.json({ hata: 'KENDINI' }, { status: 400 });

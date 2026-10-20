@@ -36,12 +36,18 @@ for (const y of ['/super-admin/kurulum', '/super-admin/kurulum/abc', '/super-adm
 for (const y of ['/super-admin/dashboard', '/super-admin/tenants', '/super-admin/tenants/abc', '/super-admin/billing', '/super-admin/settings', '/super-admin/ekip', '/super-admin/aktivasyon', '/super-admin/geri-yukle', '/api/super-admin/tenants', '/api/super-admin/settings', '/api/super-admin/ekip', '/api/super-admin/billing', '/super-admin/kurulumx', '/api/super-admin/sorunlarx']) {
   t(`★ ekibe kapalı: ${y}`, !r.rolErisebilir('EKIP', y));
 }
+t('distribütör yalnız kendi paneli ve hesabı', r.rolErisebilir('DISTRIBUTOR', '/super-admin/distributor') && r.rolErisebilir('DISTRIBUTOR', '/api/super-admin/distributor/duyuru') && r.rolErisebilir('DISTRIBUTOR', '/super-admin/hesabim'));
+for (const y of ['/super-admin/kurulum', '/super-admin/sorunlar', '/super-admin/tenants', '/api/super-admin/tenants', '/api/super-admin/kurulum/x', '/super-admin/ekip', '/super-admin/distributorx']) {
+  t(`★ distribütöre kapalı: ${y}`, !r.rolErisebilir('DISTRIBUTOR', y));
+}
+t('ekip distribütör panelini açamaz', !r.rolErisebilir('EKIP', '/super-admin/distributor'));
+t('rol tanıma', r.saRol('DISTRIBUTOR') === 'DISTRIBUTOR' && r.anaSayfa('DISTRIBUTOR') === '/super-admin/distributor' && r.anaSayfa('EKIP') === '/super-admin/kurulum');
 t('sahip her yeri açar', ['/super-admin/settings', '/api/super-admin/ekip', '/super-admin/kurulum'].every((y) => r.rolErisebilir('SAHIP', y)));
 t('ekibin ana sayfası kendi açabildiği yer', r.rolErisebilir('EKIP', r.EKIP_ANA_SAYFA));
 
 console.log('\nKaynak\n');
 const mw = oku('src/middleware.ts');
-t('middleware sayfada rolü denetliyor ve ekibi ana sayfasına yolluyor', /rolErisebilir\(saRol\(payload\.rol\), pathname\)\) \{\s*return NextResponse\.redirect\(new URL\(EKIP_ANA_SAYFA/.test(mw));
+t('middleware sayfada rolü denetliyor ve ekibi ana sayfasına yolluyor', /rolErisebilir\(saRol\(payload\.rol\), pathname\)\) \{\s*return NextResponse\.redirect\(new URL\(anaSayfa\(saRol\(payload\.rol\)\)/.test(mw));
 t('middleware uçta rolü denetliyor (403)', /rolErisebilir\(saRol\(payload\.rol\), pathname\)\) \{\s*return NextResponse\.json\(\{ error: 'Forbidden', kod: 'EKIP_ERISEMEZ' \}, \{ status: 403 \}\)/.test(mw));
 t('★ /api/super-admin dışındaki geri yükleme yalnız sahip', /sa\.rol !== 'SAHIP'/.test(oku('src/app/api/backup/restore/route.ts')));
 t('★ üretici verisi ucu yalnız sahip', /admin\.rol !== 'SAHIP'/.test(oku('src/app/api/oem/reliability/route.ts')));

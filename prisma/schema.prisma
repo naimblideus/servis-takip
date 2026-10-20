@@ -262,6 +262,11 @@ model Tenant {
   // itibaren doldurulmalıdır.
   oemDataSharing   Boolean   @default(false)
   oemDataSharingAt DateTime?
+  // ADIYLA GÖRÜNME İZNİ — üretici/distribütör panelinde bayinin ADI görünsün mü.
+  // oemDataSharing açık olsa bile varsayılan KAPALI: veri yalnız toplu sayıya
+  // (en az 3 bayi) girer. Bayi Ayarlar'dan kendisi açar.
+  markaAdIzni      Boolean   @default(false)
+  markaAdIzniAt    DateTime?
 
   @@index([isActive])
   @@index([plan])
@@ -1574,7 +1579,11 @@ model SuperAdmin {
   // ROL. SAHIP her şeyi görür. EKIP (kurulum ve başarı ekibi) yalnız Kurulum ve
   // Başarı, Sorunlar ve kendi hesap sayfasını açar: fatura, paket, ayar, bayi
   // verisinin geri kalanı ve gizli anahtarlar kapalı (middleware, lib/super-admin-rol).
-  rol String @default("SAHIP") // SAHIP | EKIP
+  rol String @default("SAHIP") // SAHIP | EKIP | DISTRIBUTOR
+  // DISTRIBUTOR rolünde hangi markanın verisini görür (ör. "Pantum") ve
+  // panelde görünen kurum adı (ör. "Pantum Türkiye"). Diğer rollerde boş.
+  marka   String?
+  kurumAd String?
 }
 
 // ============================================
@@ -2132,4 +2141,21 @@ model SorunBildirimi {
 
   @@index([durum, createdAt])
   @@index([tenantId, createdAt])
+}
+
+// DİSTRİBÜTÖR DUYURUSU — distribütör (ör. Pantum Türkiye) bayilerin paneline
+// kampanya/eğitim duyurusu yazar. Yalnız o markanın cihazı olan bayilere
+// görünür. Bayinin MÜŞTERİSİNE hiçbir şey gitmez (kanal çatışması yok).
+model MarkaDuyurusu {
+  id        String    @id @default(cuid())
+  marka     String // "Pantum"
+  kurumAd   String // "Pantum Türkiye"
+  baslik    String
+  metin     String
+  baglanti  String? // https:// ile başlayan isteğe bağlı bağlantı
+  yazanId   String? // SuperAdmin.id
+  bitis     DateTime? // bu tarihten sonra görünmez
+  createdAt DateTime  @default(now())
+
+  @@index([marka, createdAt])
 }
