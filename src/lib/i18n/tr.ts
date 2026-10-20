@@ -334,6 +334,15 @@ export const tr = {
     },
   },
 
+  // Marka duyurusu: distribütörün (ör. Pantum Türkiye) bayi paneline kısa duyurusu
+  // (components/MarkaDuyurusuKarti.tsx). Yalnız o markanın cihazı olan bayide;
+  // müşteri paneli görmez. Bayi kapatabilir (yalnız bu tarayıcıda).
+  markaDuyurusu: {
+    ust: '{kurum} duyurusu',
+    ayrinti: 'Ayrıntı',
+    kapat: 'Kapat',
+  },
+
   // Herkese açık demoda panelin üstü (components/DemoTuru.tsx)
   demoTuru: {
     ust: 'Demo turu',
@@ -2272,6 +2281,14 @@ export const tr = {
     bizimHesapLink: 'Bizim Hesap bağlantısı →',
     odemeKaydedildi: 'Ödeme bilgisi kaydedildi.',
     odemeMaliKapali: 'Müşteri panelinde mali bilgiler kapalı; ödeme bilgisi de gösterilmez.',
+    // Üretici/distribütörle paylaşım (components/MarkaPaylasimiAyari.tsx). Yalnız yönetici.
+    ureticiBaslik: 'Üretici ile veri paylaşımı',
+    ureticiAlt: 'Cihaz markanızın distribütörü (ör. Pantum Türkiye) yalnız en az 3 bayinin toplu sayılarını görür. Müşteri adı, adresi ve seri numarası hiçbir zaman paylaşılmaz.',
+    ureticiPaylas: 'Üretici ile anonim veri paylaş',
+    ureticiPaylasAlt: 'Cihaz, sayaç, toner ve arıza sayılarınız diğer bayilerle birlikte, adınız olmadan toplanır.',
+    ureticiAd: 'Adımı üreticiye göster',
+    ureticiAdAlt: 'Distribütör listesinde firma adınız, iliniz, telefonunuz ve bu markadaki cihaz sayınız görünür. Yalnız paylaşım açıkken çalışır.',
+    ureticiKaydedildi: 'Kaydedildi.',
     fiyatBaslik: 'Varsayılan Sayaç Birim Fiyatları',
     fiyatAlt: 'Cihaz bazında özel fiyat belirtilmemişse bu varsayılan fiyatlar kullanılır. Her cihaza özel fiyat vermek için cihaz düzenleme ekranını kullanın.',
     siyahBirim: '⚫ Siyah Sayaç ({birim}/adet)',

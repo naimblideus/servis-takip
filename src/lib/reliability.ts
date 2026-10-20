@@ -50,6 +50,20 @@ export interface DeviceMetric {
 export interface WindowOpts {
   /** Kaç aylık pencere (varsayılan 12) */
   months?: number;
+  /**
+   * Yalnız bu cihazlar (modelStats). Distribütör paneli bir markanın
+   * cihazlarını verir: bütün markaların bütün cihazlarını çekip sonra
+   * süzmek 5.000 bayide gereksiz yük olurdu.
+   */
+  deviceIds?: string[];
+  /**
+   * Gruplama anahtarı ve gösterilecek marka/model (modelStats). Distribütör
+   * paneli normalleştirilmiş anahtar verir: "PANTUM M7100" ile "Pantum m7100"
+   * aynı satır. Verilmezse ham yazımla gruplanır (eski raporlar). İşlev
+   * dışarıdan geliyor: bu dosya yeni modül içe aktarmasın — birçok test onu
+   * içe aktarımlarını elle çözerek derliyor.
+   */
+  grupla?: (brand: string, model: string) => { anahtar: string; brand: string; model: string };
 }
 
 function windowStart(months: number) {
@@ -159,6 +173,8 @@ export interface ModelStat {
   uncategorizedRatio: number;
   topFaults: { code: string; count: number }[];
   avgPartsCost: number | null;
+  /** Bu modelin görüldüğü FARKLI bayi sayısı — k-anonimlik ölçütü. */
+  bayiSayisi: number;
   /** İstatistik güvenilir mi (yeterli cihaz + yeterli kategori kapsamı) */
   reliable: boolean;
   note: string | null;
@@ -179,8 +195,8 @@ export async function modelStats(
   const scope = tenantIds ? { tenantId: { in: tenantIds } } : {};
 
   const devices = await prisma.device.findMany({
-    where: scope,
-    select: { id: true, brand: true, model: true, installedAt: true },
+    where: opts.deviceIds ? { ...scope, id: { in: opts.deviceIds } } : scope,
+    select: { id: true, tenantId: true, brand: true, model: true, installedAt: true },
   });
   if (!devices.length) return { months, models: [] };
 
@@ -216,8 +232,9 @@ export async function modelStats(
   // marka+model grupla
   const groups = new Map<string, { brand: string; model: string; devs: typeof devices }>();
   for (const d of devices) {
-    const key = `${d.brand}|||${d.model}`;
-    if (!groups.has(key)) groups.set(key, { brand: d.brand, model: d.model, devs: [] });
+    const n = opts.grupla ? opts.grupla(d.brand, d.model) : { anahtar: `${d.brand}|||${d.model}`, brand: d.brand, model: d.model };
+    const key = n.anahtar;
+    if (!groups.has(key)) groups.set(key, { brand: n.brand, model: n.model, devs: [] });
     groups.get(key)!.devs.push(d);
   }
 
@@ -267,6 +284,7 @@ export async function modelStats(
       uncategorizedRatio: +uncRatio.toFixed(2),
       topFaults: [...cats.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([code, count]) => ({ code, count })),
       avgPartsCost: reliable ? Math.round(cost / n) : null,
+      bayiSayisi: new Set(g.devs.map((d) => d.tenantId)).size,
       reliable,
       note,
       notKod,

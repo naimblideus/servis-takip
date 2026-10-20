@@ -69,5 +69,18 @@ t('oturum rolü taşıyor', /rol: saRol\(admin\.rol\)/.test(auth) && /rol: saRol
   t('★ süper admin oturumu kullanan dış uçların hepsi rol denetliyor', eksik.length === 0, eksik);
 }
 
+// Distribütör uçları markayı OTURUMDAN alır: istekteki ?marka= distribütörde
+// yok sayılır (lib/distributor markaSec). Yeni bir uç eklenip bunu atlarsa
+// distribütör adres çubuğundan başka markanın verisini açabilirdi.
+{
+  const { execSync } = await import('node:child_process');
+  const uclar = execSync('git ls-files --others --cached --exclude-standard -- src/app/api/super-admin/distributor', { cwd: KOK, encoding: 'utf8' })
+    .split('\n').filter((f) => f.endsWith('route.ts'));
+  const eksik = uclar.filter((f) => { const s = oku(f); return !/session\.marka/.test(s) || !/markaSec\(/.test(s); });
+  t(`★ distribütör uçlarının hepsi markayı session.marka'dan alıyor (${uclar.length} uç)`, uclar.length >= 2 && eksik.length === 0, eksik);
+  const kural = oku('src/lib/distributor.ts');
+  t('★ markaSec distribütörde istenen markayı kullanmıyor', /if \(oturum\.rol === 'DISTRIBUTOR'\) \{\s*const m = String\(oturum\.marka/.test(kural));
+}
+
 console.log(`\n${gecti} geçti, ${kaldi} kaldı`);
 process.exit(kaldi ? 1 : 0);
