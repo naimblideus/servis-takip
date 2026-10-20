@@ -80,7 +80,7 @@ export default function SuperAdminSidebar({ rol = 'SAHIP' }: { rol?: SaRol }) {
             </div>
 
             {/* Nav */}
-            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            <nav className="kaydirma-koyu flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                 {navItems.map(({ href, label, icon: Icon }) => {
                     const active = pathname === href || pathname.startsWith(href + '/');
                     return (
