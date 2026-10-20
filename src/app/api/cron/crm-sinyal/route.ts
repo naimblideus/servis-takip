@@ -9,9 +9,13 @@
 // durumunu okur ve CRM'e bildirir. Mükerrerliği CRM eler (anahtar alanı), o yüzden
 // burada "gönderdim mi" durumu tutmaya, tabloya kolon eklemeye gerek yok.
 //
-// İKİ İŞ YAPAR:
+// ÜÇ İŞ YAPAR:
 //   1) CRM'e ulaşamamış landing taleplerini tekrar dener (Lead.crmDurum != aktarildi)
-//   2) Her kiracının kullanım durumunu CRM'e sinyal olarak bildirir
+//   2) Her kiracının kullanım ve KURULUM durumunu CRM'e sinyal olarak bildirir
+//      (kurulum: src/lib/kurulum-veri.ts ile aynı ölçü — "3/5 · sıradaki: sayaç", hepsi bitince TAMAM)
+//   3) Son 14 günün "Sorun bildir" kayıtlarını yollar → CRM'in Merkez'inde geri bildirim olur
+//      (ürün geliştirmenin girdisi). Ne gönderileceği src/lib/crm-sinyal.ts'te (saf, testli).
+// Demo kiracılar gönderilmez. CRM'de firma yoksa adıyla AÇILIR (üründe kendi kaydını açan bayi).
 //
 // .env (servis-takip):
 //   NEXUS_CRM_URL="https://crm.alanadin.com/api/lead"    (bekleyen talepler için)
@@ -23,6 +27,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { tekSeferlik } from '@/lib/zamanlanmis-is';
 import { prisma } from "@/lib/prisma";
+import { kurulumListesi } from "@/lib/kurulum-veri";
+import { kurulumSinyali, sorunSinyali, type Sinyal } from "@/lib/crm-sinyal";
 
 export const maxDuration = 120;
 
@@ -34,14 +40,7 @@ function authorized(req: NextRequest): boolean {
   return header === `Bearer ${secret}` || qp === secret;
 }
 
-type Sinyal = {
-  tur: "DENEME_BASLADI" | "ILK_KAYIT" | "FATURA_KESILDI" | "LIMIT_DOLDU" | "GIRIS_YOK";
-  baslik: string;
-  detay?: string;
-  anahtar: string; // mükerrer koruma — CRM aynı anahtarı ikinci kez işlemez
-};
-
-async function crmYolla(telefon: string, s: Sinyal) {
+async function crmYolla(telefon: string, s: Sinyal, firma: string) {
   const url = process.env.NEXUS_CRM_OLAY;
   if (!url) return false;
   try {
@@ -51,7 +50,8 @@ async function crmYolla(telefon: string, s: Sinyal) {
         "Content-Type": "application/json",
         "x-nexus-token": process.env.NEXUS_CRM_TOKEN ?? "",
       },
-      body: JSON.stringify({ urun: "nexus-servis", telefon, ...s }),
+      // firma: CRM'de bu telefonla firma yoksa bu adla açılır
+      body: JSON.stringify({ urun: "nexus-servis", telefon, firma, ...s }),
       signal: AbortSignal.timeout(8000),
     });
     return cevap.ok;
@@ -122,7 +122,7 @@ async function run() {
   const talepler = await bekleyenTalepleriAktar();
 
   const tenants = await prisma.tenant.findMany({
-    where: { deletedAt: null, isActive: true, phone: { not: null } },
+    where: { deletedAt: null, isActive: true, demo: false, phone: { not: null } },
     select: { id: true, name: true, phone: true, createdAt: true },
   });
 
@@ -197,11 +197,37 @@ async function run() {
     }
 
     for (const s of sinyaller) {
-      if (await crmYolla(t.phone!, s)) gonderilen++;
+      if (await crmYolla(t.phone!, s, t.name)) gonderilen++;
     }
   }
 
-  return { tenants: tenants.length, gonderilen, talepler };
+  // CRM adresi yoksa kurulum ve sorun hesabına hiç girme (ağır sorgu, gidecek yer yok)
+  let kurulum = 0;
+  let sorun = 0;
+  if (process.env.NEXUS_CRM_OLAY) {
+    for (const k of await kurulumListesi()) {
+      const s = k.telefon ? kurulumSinyali(k) : null;
+      if (s && (await crmYolla(k.telefon!, s, k.firma))) kurulum++;
+    }
+    const sorunlar = await prisma.sorunBildirimi.findMany({
+      where: {
+        demo: false,
+        createdAt: { gte: new Date(Date.now() - 14 * 86400000) },
+        tenant: { demo: false, deletedAt: null, phone: { not: null } },
+      },
+      select: {
+        id: true, tur: true, kutu: true, neYapiyordu: true, neOldu: true, sayfa: true, kullaniciAd: true, rol: true,
+        tenant: { select: { name: true, phone: true } },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 500,
+    });
+    for (const b of sorunlar) {
+      if (await crmYolla(b.tenant.phone!, sorunSinyali(b), b.tenant.name)) sorun++;
+    }
+  }
+
+  return { tenants: tenants.length, gonderilen, kurulum, sorun, talepler };
 }
 
 export async function GET(req: NextRequest) {
