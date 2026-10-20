@@ -11,6 +11,7 @@ import { doldur } from '@/lib/i18n/sozluk';
 import DemoTuru from '@/components/DemoTuru';
 import KurulumKarti from '@/components/KurulumKarti';
 import KurulumDurumuKarti from '@/components/KurulumDurumuKarti';
+import MarkaDuyurusuKarti from '@/components/MarkaDuyurusuKarti';
 
 interface StuckTicket {
   id: string;
@@ -176,6 +177,8 @@ export default function DashboardPage() {
       <KurulumKarti />
       {/* Müşteri girildikten sonra, Hazır olana kadar: "Kurulum 3/5 · Sıradaki" (yalnız yönetici). */}
       <KurulumDurumuKarti />
+      {/* Cihaz markasının distribütör duyurusu (en çok 3; demoda yok, müşteri panelinde yok). */}
+      <MarkaDuyurusuKarti />
 
       {/* Stat Cards
           TELEFONDA TEK SÜTUN: iki sütunda kart içi metne yalnız 56 px kalıyordu

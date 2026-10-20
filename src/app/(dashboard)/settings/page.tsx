@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useT, useBicim, useDil } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import TwoFactorCard from '@/components/TwoFactorCard';
+import MarkaPaylasimiAyari from '@/components/MarkaPaylasimiAyari';
 
 interface TenantInfo {
     id: string;
@@ -351,6 +352,9 @@ export default function SettingsPage() {
                 </label>
                 {kuralMsg && <p role={kuralMsg.ok ? 'status' : 'alert'} style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: kuralMsg.ok ? '#166534' : '#b91c1c' }}>{kuralMsg.metin}</p>}
             </div>
+
+            {/* ── ÜRETİCİ İLE PAYLAŞIM ── anonim paylaşım + adıyla görünme (yalnız yönetici). */}
+            <MarkaPaylasimiAyari />
 
             {/* ── ÇALIŞMA TAKVİMİ ─────────────────────────────────────────
                 SLA'nın ölçüldüğü zemin. Ayrı kaydedilir: bayi fiyat

@@ -315,6 +315,12 @@ export const en: Sozluk = {
     },
   },
 
+  markaDuyurusu: {
+    ust: '{kurum} announcement',
+    ayrinti: 'Details',
+    kapat: 'Dismiss',
+  },
+
   demoTuru: {
     ust: 'Demo tour',
     baslik: 'See in two minutes what this system earns you',
@@ -2189,6 +2195,13 @@ export const en: Sozluk = {
     bizimHesapLink: 'Bizim Hesap connection →',
     odemeKaydedildi: 'Payment details saved.',
     odemeMaliKapali: 'Financial details are hidden in the customer portal, so payment details are not shown either.',
+    ureticiBaslik: 'Data sharing with the manufacturer',
+    ureticiAlt: 'Your device brand’s distributor (e.g. Pantum Turkey) only sees totals pooled from at least 3 dealers. Customer names, addresses and serial numbers are never shared.',
+    ureticiPaylas: 'Share anonymous data with the manufacturer',
+    ureticiPaylasAlt: 'Your device, meter, toner and fault figures are pooled with other dealers, without your name.',
+    ureticiAd: 'Show my name to the manufacturer',
+    ureticiAdAlt: 'The distributor’s list shows your company name, province, phone and number of devices of their brand. Works only while sharing is on.',
+    ureticiKaydedildi: 'Saved.',
     fiyatBaslik: 'Default meter rates',
     fiyatAlt: 'These defaults are used whenever a device has no rate of its own. To price a single device differently, use the device edit screen.',
     siyahBirim: '⚫ Mono meter ({birim}/page)',
