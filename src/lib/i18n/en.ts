@@ -5842,6 +5842,10 @@ export const en: Sozluk = {
       paketler: 'Plans',
       pazar: 'Dealer market',
       ayarlar: 'Platform settings',
+      kurulum: 'Onboarding & success',
+      sorunlar: 'Issue reports',
+      ekip: 'Team accounts',
+      hesabim: 'My account',
     },
     // WhatsApp setup health (/super-admin/whatsapp).
     whatsapp: {

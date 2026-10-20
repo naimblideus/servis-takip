@@ -6050,6 +6050,10 @@ export const tr = {
       paketler: 'Paketler',
       pazar: 'Bayi Pazarı',
       ayarlar: 'Platform Ayarları',
+      kurulum: 'Kurulum ve Başarı',
+      sorunlar: 'Sorun Bildirimleri',
+      ekip: 'Ekip Hesapları',
+      hesabim: 'Hesabım',
     },
     // WhatsApp kurulum durumu (/super-admin/whatsapp) — Meta kurulumunun kontrol listesi.
     whatsapp: {

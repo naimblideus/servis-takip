@@ -25,6 +25,8 @@ import { faultLabel } from '@/lib/fault-categories';
 export async function GET(req: NextRequest) {
   const admin = await getSuperAdminSession();
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Yalnız sahip: üretici verisi ekip ekranlarının dışında (lib/super-admin-rol).
+  if (admin.rol !== 'SAHIP') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
     const sp = new URL(req.url).searchParams;

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database, PhoneCall, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Building2, Receipt, Package, Settings, LogOut, Shield, ShoppingCart, Database, PhoneCall, MessageCircle, ClipboardCheck, LifeBuoy, Users, UserCog } from 'lucide-react';
+import { ekipErisebilir, type SaRol } from '@/lib/super-admin-rol';
 import { useT, useDil } from '@/lib/i18n/client';
 import { aktivasyonMetni } from '@/lib/aktivasyon-metin';
 import type { Sozluk } from '@/lib/i18n/sozluk';
@@ -13,6 +14,10 @@ const menu = (sz: Sozluk, dil: string) => [
     { href: '/super-admin/dashboard', label: sz.superAdmin.menu.panel, icon: LayoutDashboard },
     // Deneme hesaplarından bugün aranacaklar (etiketi kendi metin dosyasından).
     { href: '/super-admin/aktivasyon', label: aktivasyonMetni(dil).menu, icon: PhoneCall },
+    // Kurulum ve Başarı: her bayinin kurulumu nerede, kimi bugün aramalı.
+    { href: '/super-admin/kurulum', label: sz.superAdmin.menu.kurulum, icon: ClipboardCheck },
+    // Üründeki "Sorun bildir" ile gelenler.
+    { href: '/super-admin/sorunlar', label: sz.superAdmin.menu.sorunlar, icon: LifeBuoy },
     { href: '/super-admin/tenants', label: sz.superAdmin.menu.isletmeler, icon: Building2 },
     // Ağın veri ürettiğini gösteren panel — veri katmanının sağlık göstergesi
     { href: '/super-admin/veri-kapsami', label: sz.superAdmin.menu.veriKapsami, icon: Database },
@@ -22,13 +27,17 @@ const menu = (sz: Sozluk, dil: string) => [
     // Platform WhatsApp numarasının Meta kurulumu: ne eksik, sıradaki adım.
     { href: '/super-admin/whatsapp', label: sz.superAdmin.whatsapp.menu, icon: MessageCircle },
     { href: '/super-admin/settings', label: sz.superAdmin.menu.ayarlar, icon: Settings },
+    // Ekip hesapları (yalnız sahip) ve kendi hesabı (herkes).
+    { href: '/super-admin/ekip', label: sz.superAdmin.menu.ekip, icon: Users },
+    { href: '/super-admin/hesabim', label: sz.superAdmin.menu.hesabim, icon: UserCog },
 ];
 
-export default function SuperAdminSidebar() {
+export default function SuperAdminSidebar({ rol = 'SAHIP' }: { rol?: SaRol }) {
     const pathname = usePathname();
     const sz = useT();
     const { dil } = useDil();
-    const navItems = menu(sz, dil);
+    // Ekip yalnız kendi ekranlarını görür; kural tek yerde (lib/super-admin-rol).
+    const navItems = menu(sz, dil).filter(({ href }) => rol === 'SAHIP' || ekipErisebilir(href));
 
     const handleLogout = async () => {
         await fetch('/api/super-admin/login', { method: 'DELETE' });

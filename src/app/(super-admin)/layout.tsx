@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import SuperAdminSidebar from '@/components/super-admin/SuperAdminSidebar';
+import { getSuperAdminSession } from '@/lib/super-admin-auth';
 
 export const metadata: Metadata = {
     title: 'Nextus Servis — Super Admin',
@@ -21,10 +22,12 @@ export const metadata: Metadata = {
  * Başlık çevrilmiyor: <head> istemci dilini bilmiyor ve "Super Admin" iki
  * dilde de aynı okunur.
  */
-export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
+export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
+    // Menü rolüne göre süzülür (ekip yalnız kendi ekranlarını görür).
+    const oturum = await getSuperAdminSession();
     return (
         <div className="flex h-screen overflow-hidden bg-gray-950 text-white">
-            <SuperAdminSidebar />
+            <SuperAdminSidebar rol={oturum?.rol ?? 'SAHIP'} />
             <main className="flex-1 overflow-y-auto">
                 {children}
             </main>

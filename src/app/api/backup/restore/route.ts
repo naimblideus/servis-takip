@@ -23,6 +23,8 @@ import {
 export async function POST(req: NextRequest) {
   const sa = await getSuperAdminSession();
   if (!sa) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Yalnız sahip: ekip hesabı (lib/super-admin-rol) bayi verisini geri yazamaz.
+  if (sa.rol !== 'SAHIP') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   let govde: any;
   try { govde = await req.json(); } catch { return NextResponse.json({ hata: 'GECERSIZ_ISTEK' }, { status: 400 }); }

@@ -7,6 +7,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { verifyTOTP, hashRecoveryCode } from '@/lib/totp';
+import { saRol, type SaRol } from '@/lib/super-admin-rol';
 
 // FAIL-CLOSED: super-admin imzası tenant JWT'sinden AYRI bir secret ister.
 // SUPER_ADMIN_SECRET yoksa/zayıfsa imza + doğrulama çalışmaz → super-admin devre dışı
@@ -26,6 +27,8 @@ export interface SuperAdminSession {
     email: string;
     name: string;
     isSuperAdmin: true;
+    /** SAHIP | EKIP (lib/super-admin-rol). Eski jetonda yok → SAHIP. */
+    rol: SaRol;
 }
 
 /** Giriş sonucu — 2FA açıksa kod gelene kadar oturum AÇILMAZ. */
@@ -82,7 +85,7 @@ export async function loginSuperAdmin(
 
     return {
         ok: true,
-        session: { id: admin.id, email: admin.email, name: admin.name, isSuperAdmin: true },
+        session: { id: admin.id, email: admin.email, name: admin.name, isSuperAdmin: true, rol: saRol(admin.rol) },
     };
 }
 
@@ -110,7 +113,7 @@ export async function getSuperAdminSession(): Promise<SuperAdminSession | null> 
         const { payload } = await jwtVerify(token, saSecret());
         if (!payload.isSuperAdmin) return null;
 
-        return payload as unknown as SuperAdminSession;
+        return { ...(payload as unknown as SuperAdminSession), rol: saRol(payload.rol) };
     } catch {
         return null;
     }
