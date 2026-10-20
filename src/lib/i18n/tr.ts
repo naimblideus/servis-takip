@@ -317,6 +317,23 @@ export const tr = {
     waMesaj: 'Merhaba, {firma} olarak Nextus Servis hesabımı açtım. Müşteri ve makine listemi gönderiyorum, sisteme yükler misiniz?',
   },
 
+  // Panelde Hazır olana kadar küçük kurulum kartı (components/KurulumDurumuKarti.tsx).
+  // Adımlar veriden sayılır (lib/kurulum.ts); yalnız yöneticiye görünür.
+  kurulumDurumu: {
+    baslik: 'Kurulum {n}/{t}',
+    kalan: '{n} adım kaldı',
+    sirada: 'Sıradaki:',
+    ac: 'Şimdi yap',
+    alt: 'Bu adımlar bitince ilk faturanız sayaçlardan kendiliğinden hazırlanır.',
+    adim: {
+      FIRMA: 'Vergi no, adres ve telefonu girin',
+      CIHAZ: 'Müşteri ve cihaz listenizi yükleyin',
+      FIYAT: 'Kiralık cihazlara kira ya da sayfa fiyatı girin',
+      SAYAC: 'Kiralık cihazların sayaçlarını okutun',
+      FATURA: 'İlk müşteri faturanızı kesin',
+    },
+  },
+
   // Herkese açık demoda panelin üstü (components/DemoTuru.tsx)
   demoTuru: {
     ust: 'Demo turu',

@@ -10,6 +10,7 @@ import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import DemoTuru from '@/components/DemoTuru';
 import KurulumKarti from '@/components/KurulumKarti';
+import KurulumDurumuKarti from '@/components/KurulumDurumuKarti';
 
 interface StuckTicket {
   id: string;
@@ -173,6 +174,8 @@ export default function DashboardPage() {
       {(session?.user as any)?.demo && <DemoTuru ariza={ariza} />}
       {/* Yeni hesap, henüz müşteri yok: kurulumu birlikte yapalım (KurulumKarti.tsx). */}
       <KurulumKarti />
+      {/* Müşteri girildikten sonra, Hazır olana kadar: "Kurulum 3/5 · Sıradaki" (yalnız yönetici). */}
+      <KurulumDurumuKarti />
 
       {/* Stat Cards
           TELEFONDA TEK SÜTUN: iki sütunda kart içi metne yalnız 56 px kalıyordu

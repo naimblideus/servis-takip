@@ -300,6 +300,21 @@ export const en: Sozluk = {
     waMesaj: 'Hello, I opened a Nextus Servis account for {firma}. I am sending my customer and machine list; could you load it for me?',
   },
 
+  kurulumDurumu: {
+    baslik: 'Setup {n} of {t}',
+    kalan: '{n} {n|step|steps} left',
+    sirada: 'Next:',
+    ac: 'Do it now',
+    alt: 'Once these steps are done, your first invoice is prepared from the meters by itself.',
+    adim: {
+      FIRMA: 'Enter tax number, address and phone',
+      CIHAZ: 'Upload your customer and device list',
+      FIYAT: 'Enter rent or page price on rental devices',
+      SAYAC: 'Get your rental devices read',
+      FATURA: 'Issue your first customer invoice',
+    },
+  },
+
   demoTuru: {
     ust: 'Demo tour',
     baslik: 'See in two minutes what this system earns you',
