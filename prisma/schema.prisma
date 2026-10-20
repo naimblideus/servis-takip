@@ -205,6 +205,9 @@ model Tenant {
   memnuniyetAnketleri MemnuniyetAnketi[]
   depolar             Depo[]
   depoStoklari        DepoStok[]
+  kurulumTakip        KurulumTakip?
+  kurulumNotlari      KurulumNotu[]
+  sorunBildirimleri   SorunBildirimi[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -1567,6 +1570,11 @@ model SuperAdmin {
   totpEnabled     Boolean  @default(false)
   totpLastCounter Int? // aynı kodun tekrar kullanılmasını engeller (replay)
   recoveryCodes   String[] @default([]) // sha256; her biri BİR kez kullanılır
+
+  // ROL. SAHIP her şeyi görür. EKIP (kurulum ve başarı ekibi) yalnız Kurulum ve
+  // Başarı, Sorunlar ve kendi hesap sayfasını açar: fatura, paket, ayar, bayi
+  // verisinin geri kalanı ve gizli anahtarlar kapalı (middleware, lib/super-admin-rol).
+  rol String @default("SAHIP") // SAHIP | EKIP
 }
 
 // ============================================
@@ -2064,4 +2072,64 @@ model DepoStok {
 
   @@unique([depoId, partId])
   @@index([tenantId, partId])
+}
+
+// KURULUM VE BAŞARI — bayi başına takip (süper admin, /super-admin/kurulum).
+// Kurulum adımları burada TUTULMAZ: veriden hesaplanır (lib/kurulum). Burada
+// yalnız insanın verdiği bilgi var: kim sorumlu, bir sonraki temas ne zaman.
+model KurulumTakip {
+  tenantId     String    @id
+  sorumluId    String? // SuperAdmin.id
+  sorumluAd    String? // gösterim için anlık kopya
+  sonrakiTemas DateTime? // bir sonraki arama/ziyaret günü
+  updatedAt    DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Temas notu: arama, ziyaret ya da not. Kısa (≤1000), müşteri şifresi yazılmaz.
+model KurulumNotu {
+  id        String   @id @default(cuid())
+  tenantId  String
+  yazanId   String? // SuperAdmin.id
+  yazanAd   String
+  tur       String // ARAMA | ZIYARET | NOT
+  metin     String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+// SORUN BİLDİRİMİ — üründeki "Sorun bildir" (bayi kullanıcıları ve ekip).
+// Sahadaki gözlem kaybolmasın diye bağlam kendiliğinden eklenir (sayfa, ekran,
+// rol); kişi yalnız ne olduğunu yazar. Süper admin'de ayıklanır:
+// kutu BILGI_EKSIGI (rehbere) | HATA | ISTEK; müşteriye haber verilince bildirildiAt.
+model SorunBildirimi {
+  id             String    @id @default(cuid())
+  tenantId       String
+  kullaniciId    String?
+  kullaniciAd    String?
+  rol            String?
+  tur            String // DURDURUYOR | YAVASLATIYOR | ONERI
+  neYapiyordu    String?
+  neOldu         String
+  sayfa          String? // yol + sorgu (anahtarlar ayıklanmış)
+  ekran          String? // "375x812"
+  tarayici       String? // kısa kullanıcı aracısı
+  ekranGoruntusu String? // küçültülmüş JPEG data URL
+  demo           Boolean   @default(false)
+  durum          String    @default("YENI") // YENI | INCELENIYOR | COZULDU | KAPANDI
+  kutu           String? // BILGI_EKSIGI | HATA | ISTEK
+  yoneticiNotu   String?
+  cozulduAt      DateTime?
+  bildirildiAt   DateTime? // müşteriye "yapıldı" denildi
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([durum, createdAt])
+  @@index([tenantId, createdAt])
 }
