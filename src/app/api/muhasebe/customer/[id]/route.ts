@@ -51,6 +51,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             ekstre(user.tenantId, id),
         ]);
 
+        // ── ÖDEDİĞİ ────────────────────────────────────────────────────
+        // Bayi kartta "bu müşteri bana ne kadar ödedi" diye de bakıyor (geri
+        // bildirim: eskiden görünüyordu, birleşik görünüme geçerken kartan
+        // düşmüştü). Eski `totalPayments` yalnız servis tahsilatını sayıyor;
+        // ekran artık kira/sayaç faturasını da gösterdiği için toplam ekstrenin
+        // ÖDEME satırlarından alınıyor: kartın altındaki listeyle aynı sayı.
+        const odemeler = satirlar.filter((s) => s.tip === 'ODEME');
+        const toplamOdeme = Math.round(odemeler.reduce((t, s) => t + s.tutar, 0) * 100) / 100;
+        const sonOdeme = odemeler.reduce<(typeof odemeler)[number] | null>((son, s) => (!son || s.tarih > son.tarih ? s : son), null);
+
         return NextResponse.json({
             customer,
             entries,
@@ -63,6 +73,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 balance: b.toplamBorc,   // BİRLEŞİK
                 servisBorc: b.servisBorc,
                 faturaBorc: b.faturaBorc,
+                toplamOdeme,
+                sonOdeme: sonOdeme ? { tarih: sonOdeme.tarih, tutar: sonOdeme.tutar } : null,
                 entryCount: entries.length,
             },
         });

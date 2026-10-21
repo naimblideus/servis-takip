@@ -13,7 +13,7 @@ interface Entry { id: string; type: 'SALE'|'PAYMENT'; product: string|null; amou
 interface Customer { id:string; name:string; phone:string; totalSales:number; totalPayments:number; balance:number; servisBorc?:number; faturaBorc?:number; }
 interface AllCustomer { id:string; name:string; phone:string; }
 interface EkstreSatiri { id:string; kaynak:'SERVIS'|'FATURA'; tip:'BORC'|'ODEME'; aciklama:string; tutar:number; tarih:string; detay?:string|null; }
-interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; ekstre?:EkstreSatiri[]; summary:{totalSales:number;totalPayments:number;balance:number;servisBorc?:number;faturaBorc?:number;entryCount:number}; }
+interface CustDetail { customer:{id:string;name:string;phone:string;address:string|null;email:string|null}; entries:Entry[]; ekstre?:EkstreSatiri[]; summary:{totalSales:number;totalPayments:number;balance:number;servisBorc?:number;faturaBorc?:number;toplamOdeme?:number;sonOdeme?:{tarih:string;tutar:number}|null;entryCount:number}; }
 
 interface StockItem { id:string; source:'PART'|'PRINTER'; name:string; sku?:string|null; category?:string|null; brand?:string|null; model?:string|null; color?:string|null; condition?:string|null; group?:string|null; buyPrice:number; sellPrice:number; stockQty:number; notes?:string|null; }
 // Etiketler sözlükte (muhasebe.yontem); kod veritabanına yazılan şey.
@@ -930,6 +930,16 @@ export default function AccountingPage() {
                   <div style={{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:'0.5rem',padding:'0.75rem'}}>
                     <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>{sz.muhasebe.kiraSayacKisa}</div>
                     <div style={{fontSize:'1.05rem',fontWeight:'700',color:'#93c5fd'}}>{b.para(Math.abs(detail.summary.faturaBorc ?? 0))}</div>
+                  </div>
+                  {/* Ödediği: servis + kira/sayaç tahsilatlarının toplamı, altında son ödeme. */}
+                  <div style={{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:'0.5rem',padding:'0.75rem'}}>
+                    <div style={{fontSize:'0.7rem',opacity:0.7,marginBottom:'0.25rem'}}>{sz.muhasebe.odedigiKisa}</div>
+                    <div style={{fontSize:'1.05rem',fontWeight:'700',color:'#6ee7b7'}}>{b.para(detail.summary.toplamOdeme ?? 0)}</div>
+                    <div style={{fontSize:'0.68rem',opacity:0.7,marginTop:'0.2rem'}}>
+                      {detail.summary.sonOdeme
+                        ? doldur(sz.muhasebe.sonOdeme, { tarih: b.tarih(detail.summary.sonOdeme.tarih), tutar: b.para(detail.summary.sonOdeme.tutar) })
+                        : sz.muhasebe.odemeYok}
+                    </div>
                   </div>
                 </div>
               </div>
