@@ -14,46 +14,11 @@
 //
 // Gerçek veritabanına geçici bir bayi açar, sonunda siler; başka veriye
 // dokunmaz. HTTP gerektirmez — kütüphane katmanını doğrudan sürer.
-import { mkdtempSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
-import fs from 'node:fs';
 import { PrismaClient } from '@prisma/client';
+import { derle } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
-const g = mkdtempSync(join(tmpdir(), 'st-sayac-'));
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/readings.ts'),
-    join(KOK, 'src/lib/sayac-anomali.ts'),
-    join(KOK, 'src/lib/invoicing.ts'),
-    join(KOK, 'src/lib/prisma.ts'),
-    join(KOK, 'src/lib/fatura-donemi.ts'),
-    join(KOK, 'src/lib/fatura-turu.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-    '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
-
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-fs.writeFileSync(join(g, 'prisma-shim.js'), [
-  `import { PrismaClient } from ${JSON.stringify(P)};`,
-  'export const prisma = new PrismaClient();',
-].join('\n'));
-const duzelt = (dosya, esle) => {
-  const y = join(g, dosya); let s = fs.readFileSync(y, 'utf8');
-  for (const [a, b] of esle) s = s.split(a).join(b);
-  fs.writeFileSync(y, s);
-};
-const ORTAK = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]];
-duzelt('readings.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]);
-duzelt('invoicing.js', [...ORTAK, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-duzelt('fatura-turu.js', [...ORTAK, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-
-const { createReading, ReadingError } = await import(pathToFileURL(join(g, 'readings.js')).href);
+const { ice } = derle({ girisler: ['src/lib/readings.ts'], onEk: 'st-sayac-' });
+const { createReading, ReadingError } = await ice('lib/readings');
 
 const p = new PrismaClient();
 const nf = (n) => Number(n || 0).toLocaleString('tr-TR');

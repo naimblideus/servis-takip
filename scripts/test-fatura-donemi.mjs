@@ -10,14 +10,10 @@
 // Burada iki şey doğrulanır:
 //   1. Kapanan dönem doğru hesaplanıyor mu (yıl sınırı dahil)
 //   2. Faturalama gerçekten o dönemin okumalarını topluyor mu (gerçek DB)
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { PrismaClient } from '@prisma/client';
+import { derle } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
   if (kosul) { gecti++; console.log(`  ✓ ${ad}`); }
@@ -41,29 +37,8 @@ t('31 Mayıs → Nisan (ayın sonunda da doğru)', kapananDonem('2026-05-31T23:0
 t('1 Ekim BUGÜNÜN dönemini vermiyor', kapananDonem('2026-10-01T06:00:00') !== '2026-10');
 
 // ── 2) Faturalama gerçekten o dönemin okumasını topluyor mu ────────────────
-const g = mkdtempSync(join(tmpdir(), 'st-donem-'));
-let buildInvoiceForCustomerPeriod;
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/prisma.ts'), join(KOK, 'src/lib/readings.ts'),
-    join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/fatura-turu.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-    '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip hataları ayrı koşuyor */ }
-
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-const duzelt = (dosya, esle) => {
-  const y = join(g, dosya); let s = readFileSync(y, 'utf8');
-  for (const [a, b] of esle) s = s.split(a).join(b);
-  writeFileSync(y, s);
-};
-writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
-duzelt('invoicing.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ['"@prisma/client"', JSON.stringify(P)], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-duzelt('fatura-turu.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-try { duzelt('readings.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]); } catch { /* yok */ }
-({ buildInvoiceForCustomerPeriod } = await import(pathToFileURL(join(g, 'invoicing.js')).href));
+const { dizin: g, ice } = derle({ girisler: ['src/lib/invoicing.ts'], onEk: 'st-donem-' });
+const { buildInvoiceForCustomerPeriod } = await ice('lib/invoicing');
 
 const p = new PrismaClient();
 const SLUG = 'test-donem-gecici';

@@ -15,13 +15,9 @@
 //      > cihazın sayfa fiyatı > bayi varsayılanı.
 //   4. Başka bayinin cihazı listeye karışmıyor mu.
 import { PrismaClient } from '@prisma/client';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
-
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
+import { rmSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { derle, KOK } from './_derle.mjs';
 
 function veritabaniUrl() {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
@@ -35,42 +31,14 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
   process.exit(0);
 }
 
-const g = mkdtempSync(join(tmpdir(), 'st-filouc-'));
-let veri;
-// tsc '@/...' takma yolunu çözemez ve HATA verir; JS'i yine de üretir.
-// Tip denetimi ayrıca koşuyor (npx tsc --noEmit).
-try { execFileSync(process.execPath, [
-  join(KOK, 'node_modules/typescript/bin/tsc'),
-  join(KOK, 'src/lib/filo-veri.ts'), join(KOK, 'src/lib/filo.ts'),
-  join(KOK, 'src/lib/toner.ts'), join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/fatura-donemi.ts'),
-  '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-  '--moduleResolution', 'bundler', '--skipLibCheck',
-], { stdio: 'pipe' }); } catch { /* yukarıdaki not */ }
-
+let g, veri;
 try {
-  writeFileSync(join(g, 'prisma-shim.js'),
-    `import { PrismaClient } from ${JSON.stringify(pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href)};\nexport const prisma = new PrismaClient();\n`);
-  const duzelt = (dosya, ciftler) => {
-    const yol = join(g, dosya);
-    let s = readFileSync(yol, 'utf8');
-    for (const [a, b] of ciftler) s = s.split(a).join(b);
-    writeFileSync(yol, s, 'utf8');
-  };
-  const prismaYolu = ["'@/lib/prisma'", "'./prisma-shim.js'"];
-  // invoicing.ts, @prisma/client'ten sabit (enum) da alıyor; geçici klasörde
-  // paket çözülemediği için mutlak yola çevriliyor.
-  const prismaPaketi = ["'@prisma/client'", `'${pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href}'`];
-  duzelt('filo-veri.js', [
-    prismaYolu,
-    ["'@/lib/toner'", "'./toner.js'"],
-    ["'@/lib/invoicing'", "'./invoicing.js'"],
-    ["'@/lib/filo'", "'./filo.js'"],
-  ]);
-  duzelt('invoicing.js', [prismaYolu, prismaPaketi, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-  veri = await import(pathToFileURL(join(g, 'filo-veri.js')).href);
+  const d = derle({ girisler: ['src/lib/filo-veri.ts'], onEk: 'st-filouc-' });
+  g = d.dizin;
+  veri = await d.ice('lib/filo-veri');
 } catch (e) {
   console.log('ATLANDI: filo-veri derlenemedi —', e?.message);
-  rmSync(g, { recursive: true, force: true });
+  if (g) rmSync(g, { recursive: true, force: true });
   process.exit(0);
 }
 const { filoRaporu } = veri;

@@ -10,14 +10,9 @@
 //   • tutarı yanlış okumak ("1.500" → 1,5 TL).
 // Her biri burada somut dosya ve somut rakamla deneniyor.
 import { PrismaClient } from '@prisma/client';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
-
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
-const g = mkdtempSync(join(tmpdir(), 'st-banka-'));
+import { rmSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { derle, KOK } from './_derle.mjs';
 
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
@@ -26,37 +21,15 @@ const t = (ad, kosul, detay) => {
 };
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
-const istemci = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-let motor, okuyucu, zip, veri = null, bakiye = null;
+let g, ice, motor, okuyucu, zip, veri = null, bakiye = null;
 try {
-  try {
-    execFileSync(process.execPath, [
-      join(KOK, 'node_modules/typescript/bin/tsc'),
-      ...['banka-ekstresi', 'banka-ekstresi-veri', 'tablo-oku', 'ek-dosya', 'sheet-import', 'zip', 'invoicing', 'musteri-bakiye', 'tr-katla', 'fatura-donemi']
-        .map((f) => join(KOK, `src/lib/${f}.ts`)),
-      '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck',
-    ], { stdio: 'pipe' });
-  } catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
-  writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(istemci)};\nexport const prisma = new PrismaClient();\n`);
-  const duzelt = (dosya, ciftler) => {
-    const yol = join(g, dosya);
-    let s = readFileSync(yol, 'utf8');
-    for (const [a, b] of ciftler) s = s.split(a).join(b);
-    writeFileSync(yol, s, 'utf8');
-  };
-  const ortak = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(istemci)]];
-  duzelt('banka-ekstresi.js', [["'@/lib/tr-katla'", "'./tr-katla.js'"]]);
-  duzelt('tablo-oku.js', [["'@/lib/ek-dosya'", "'./ek-dosya.js'"], ["'@/lib/sheet-import'", "'./sheet-import.js'"]]);
-  duzelt('banka-ekstresi-veri.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/banka-ekstresi'", "'./banka-ekstresi.js'"]]);
-  duzelt('invoicing.js', [...ortak, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-  duzelt('musteri-bakiye.js', ortak);
-  duzelt('banka-ekstresi-veri.js', [["'@/lib/musteri-bakiye'", "'./musteri-bakiye.js'"]]);
-  motor = await import(pathToFileURL(join(g, 'banka-ekstresi.js')).href);
-  okuyucu = await import(pathToFileURL(join(g, 'tablo-oku.js')).href);
-  zip = await import(pathToFileURL(join(g, 'zip.js')).href);
+  ({ dizin: g, ice } = derle({ girisler: ['src/lib/banka-ekstresi-veri.ts', 'src/lib/tablo-oku.ts', 'src/lib/zip.ts'], onEk: 'st-banka-' }));
+  motor = await ice('lib/banka-ekstresi');
+  okuyucu = await ice('lib/tablo-oku');
+  zip = await ice('lib/zip');
 } catch (e) {
   console.log('✗ derlenemedi:', e?.message);
-  rmSync(g, { recursive: true, force: true });
+  if (g) rmSync(g, { recursive: true, force: true });
   process.exit(1);
 }
 const { tutarOku, tarihOku, kolonlariBul, hareketleriCikar, izHesapla, eslestir, dagit, katla } = motor;
@@ -319,8 +292,8 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
   console.log('\n  ⊘ veritabanı katmanı atlandı: DATABASE_URL yerel değil');
 } else {
   try {
-    veri = await import(pathToFileURL(join(g, 'banka-ekstresi-veri.js')).href);
-    bakiye = await import(pathToFileURL(join(g, 'musteri-bakiye.js')).href);
+    veri = await ice('lib/banka-ekstresi-veri');
+    bakiye = await ice('lib/musteri-bakiye');
   } catch (e) {
     console.log('  ✗ veri katmanı derlenemedi —', e?.message);
     kaldi++;
@@ -456,7 +429,7 @@ if (veri) {
     await p.$disconnect();
     // Veri katmanının kendi istemcisi de kapanmalı: açık bağlantıyla çıkan
     // süreç Windows'ta Prisma motorunu kapanırken çökertiyordu (0xC0000409).
-    const shim = await import(pathToFileURL(join(g, 'prisma-shim.js')).href);
+    const shim = await ice('_shim/prisma');
     await shim.prisma.$disconnect();
   }
 }

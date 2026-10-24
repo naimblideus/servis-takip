@@ -6,14 +6,11 @@
 // diyor; bankaya, ortağa gösterilecek rakam bu. Yanlışsa en pahalı yerde
 // yanlış: sözleşme bitişinde kesilmeyen gelir, uydurulmuş zam, karışmış
 // para birimi ya da faturadan farklı sayfa ücreti. Hepsi burada kilitli.
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import { derle, KOK } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(join(KOK, 'package.json'));
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
@@ -23,26 +20,10 @@ const t = (ad, kosul, detay) => {
 const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLE ────────────────────────────────────────────────────────────────
-// Yeni lib dosyası eklenirse bu listeye eklenmeli.
-const g = mkdtempSync(join(tmpdir(), 'st-gelir-'));
-const DOSYALAR = ['gelecek-gelir', 'gelecek-gelir-veri', 'invoicing', 'sozlesme', 'fatura-donemi'];
-try {
-  execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'),
-    ...DOSYALAR.map((d) => join(KOK, `src/lib/${d}.ts`)),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck'], { stdio: 'pipe' });
-} catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
-for (const d of DOSYALAR) {
-  const yol = join(g, `${d}.js`);
-  let s = readFileSync(yol, 'utf8');
-  s = s.split("'@/lib/prisma'").join("'./prisma-shim.js'").split("'@prisma/client'").join(JSON.stringify(P));
-  for (const x of DOSYALAR) s = s.split(`'@/lib/${x}'`).join(`'./${x}.js'`);
-  writeFileSync(yol, s);
-}
-const gg = await import(pathToFileURL(join(g, 'gelecek-gelir.js')).href);
-const inv = await import(pathToFileURL(join(g, 'invoicing.js')).href);
-const veriMod = await import(pathToFileURL(join(g, 'gelecek-gelir-veri.js')).href);
+const { dizin: g, ice } = derle({ girisler: ['src/lib/gelecek-gelir.ts', 'src/lib/gelecek-gelir-veri.ts'], onEk: 'st-gelir-' });
+const gg = await ice('lib/gelecek-gelir');
+const inv = await ice('lib/invoicing');
+const veriMod = await ice('lib/gelecek-gelir-veri');
 
 const GUN = 86_400_000;
 const simdi = new Date(2026, 9, 18, 2, 0); // 18 Ekim 2026, yerel

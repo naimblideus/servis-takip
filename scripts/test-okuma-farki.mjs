@@ -11,43 +11,12 @@
 // aynı beyan hangi ekrandan verilirse verilsin aynı tutarı üretmeli. Bir
 // kiralamacı için "hangi düğmeye bastığına göre değişen fatura", yanlış
 // hesaptan daha büyük bir güven sorunudur.
-import { mkdtempSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { derle } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
-const g = mkdtempSync(join(tmpdir(), 'st-fark-'));
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/readings.ts'), join(KOK, 'src/lib/sayac-anomali.ts'),
-    join(KOK, 'src/lib/prisma.ts'), join(KOK, 'src/lib/invoicing.ts'),
-    join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/fatura-turu.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-    '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
-
-const { readFileSync, writeFileSync } = await import('node:fs');
-const PC = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-writeFileSync(join(g, 'prisma-shim.js'),
-  `import { PrismaClient } from ${JSON.stringify(PC)};\nexport const prisma = new PrismaClient();\n`);
-for (const [dosya, esle] of [
-  ['readings.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/invoicing'", "'./invoicing.js'"],
-    ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@prisma/client'", JSON.stringify(PC)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]],
-  ['invoicing.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(PC)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]],
-  ['fatura-turu.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]],
-]) {
-  const y = join(g, dosya);
-  let t = readFileSync(y, 'utf8');
-  for (const [a, b] of esle) t = t.split(a).join(b);
-  writeFileSync(y, t);
-}
-const { okumaFarki } = await import(pathToFileURL(join(g, 'readings.js')).href);
+const { ice } = derle({ girisler: ['src/lib/readings.ts'], onEk: 'st-fark-' });
+const { okumaFarki } = await ice('lib/readings');
 
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {

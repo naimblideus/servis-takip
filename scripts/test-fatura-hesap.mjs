@@ -6,42 +6,20 @@
 // paket TEK ay uygulanınca "ayda 1.000 dahil" anlaşmasında 2.500 sayfa için
 // 1.500 aşım kesiliyordu; doğrusu 500. Renkli sayaç e-postada gelmeyince son
 // değer taşınıyor, renkli sayfalar sonra topluca geliyordu — aynı hata.
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { derle, KOK } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
   if (kosul) { gecti++; console.log(`  ✓ ${ad}`); }
   else { kaldi++; console.log(`  ✗ ${ad}${detay !== undefined ? `\n      ${JSON.stringify(detay)}` : ''}`); }
 };
 
-const g = mkdtempSync(join(tmpdir(), 'st-fatura-hesap-'));
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/invoicing.ts'),
-    join(KOK, 'src/lib/invoice-appendix.ts'), join(KOK, 'src/lib/prisma.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip hataları ayrıca koşuyor */ }
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
-const duzelt = (dosya, esle) => {
-  const y = join(g, dosya); let s = readFileSync(y, 'utf8');
-  for (const [a, b] of esle) s = s.split(a).join(b);
-  writeFileSync(y, s);
-};
-const ORTAK = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]];
-duzelt('invoicing.js', ORTAK);
-duzelt('invoice-appendix.js', ORTAK);
-
-const d = await import(pathToFileURL(join(g, 'fatura-donemi.js')).href);
-const { buildInvoiceForCustomerPeriod } = await import(pathToFileURL(join(g, 'invoicing.js')).href);
-const { buildCounterAppendix } = await import(pathToFileURL(join(g, 'invoice-appendix.js')).href);
+const { ice, prismaIstemci: P } = derle({ girisler: ['src/lib/invoicing.ts', 'src/lib/invoice-appendix.ts'], onEk: 'st-fatura-hesap-' });
+const d = await ice('lib/fatura-donemi');
+const { buildInvoiceForCustomerPeriod } = await ice('lib/invoicing');
+const { buildCounterAppendix } = await ice('lib/invoice-appendix');
 
 console.log('\nAY ÇARPANI (saf)\n');
 t('hiç faturalanmış okuma yoksa 1', d.ayCarpani(null, '2026-07') === 1);

@@ -13,40 +13,19 @@
 // YA DA cihaz kartında kendi sayfa fiyatı olan müşteri makinesi. Bayinin
 // genel varsayılan fiyatı müşteri makinesine uygulanmaz.
 import { PrismaClient } from '@prisma/client';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { rmSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { derle, KOK } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
-const g = mkdtempSync(join(tmpdir(), 'st-yanma-'));
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
   if (kosul) { gecti++; console.log(`  ✓ ${ad}`); }
   else { kaldi++; console.log(`  ✗ ${ad}${detay !== undefined ? `\n      ${JSON.stringify(detay)}` : ''}`); }
 };
 
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/period-charges.ts'), join(KOK, 'src/lib/fatura-donemi.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip hataları önemsiz */ }
-writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
-const duzelt = (dosya, ciftler) => {
-  const yol = join(g, dosya);
-  let s = readFileSync(yol, 'utf8');
-  for (const [a, b] of ciftler) s = s.split(a).join(b);
-  writeFileSync(yol, s, 'utf8');
-};
-const ortak = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]];
-duzelt('invoicing.js', [...ortak, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-duzelt('period-charges.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-const inv = await import(pathToFileURL(join(g, 'invoicing.js')).href);
-const pc = await import(pathToFileURL(join(g, 'period-charges.js')).href);
+const { dizin: g, ice } = derle({ girisler: ['src/lib/period-charges.ts'], onEk: 'st-yanma-' });
+const inv = await ice('lib/invoicing');
+const pc = await ice('lib/period-charges');
 
 console.log('\nSayaç yanması — kural\n');
 {
@@ -128,7 +107,7 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
     const eski = await p.tenant.findFirst({ where: { slug: SLUG }, select: { id: true } }).catch(() => null);
     if (eski) await p.tenant.delete({ where: { id: eski.id } }).catch(() => {});
     await p.$disconnect();
-    const shim = await import(pathToFileURL(join(g, 'prisma-shim.js')).href);
+    const shim = await ice('_shim/prisma');
     await shim.prisma.$disconnect();
   }
 }

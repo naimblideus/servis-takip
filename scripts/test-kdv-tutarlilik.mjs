@@ -12,48 +12,14 @@
 // Test gerçek veritabanında uçtan uca çalışır: kiralık cihaz + okuma kurar,
 // bir müşteride faturalama yolunu, diğerinde cari yolunu işletir ve iki
 // bakiyenin EŞİT olmasını bekler.
-import { mkdtempSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
-import fs from 'node:fs';
 import { PrismaClient } from '@prisma/client';
+import { derle } from './_derle.mjs';
 
 // TS kaynaklarini calistirilabilir hale getir (depodaki diger testlerin deseni)
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
-const g = mkdtempSync(join(tmpdir(), 'st-kdv-'));
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/invoicing.ts'),
-    join(KOK, 'src/lib/period-charges.ts'),
-    join(KOK, 'src/lib/musteri-bakiye.ts'),
-    join(KOK, 'src/lib/prisma.ts'),
-    join(KOK, 'src/lib/fatura-donemi.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-    '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip hatalari onemsiz, tsc ayrica kosuyor */ }
-
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-fs.writeFileSync(join(g, 'prisma-shim.js'), [
-  `import { PrismaClient } from ${JSON.stringify(P)};`,
-  'export const prisma = new PrismaClient();',
-].join('\n'));
-const duzelt = (dosya, esle) => {
-  const y = join(g, dosya); let s = fs.readFileSync(y, 'utf8');
-  for (const [a, b] of esle) s = s.split(a).join(b);
-  fs.writeFileSync(y, s);
-};
-const ORTAK = [["'@/lib/prisma'", "'./prisma-shim.js'"], ['"@prisma/client"', JSON.stringify(P)], ["'@prisma/client'", JSON.stringify(P)]];
-duzelt('invoicing.js', [...ORTAK, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-duzelt('period-charges.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-duzelt('musteri-bakiye.js', ORTAK);
-
-const { buildInvoiceForCustomerPeriod, periodOf } = await import(pathToFileURL(join(g, 'invoicing.js')).href);
-const { commitPeriodCharges } = await import(pathToFileURL(join(g, 'period-charges.js')).href);
-const { tumBakiyeler } = await import(pathToFileURL(join(g, 'musteri-bakiye.js')).href);
+const { ice } = derle({ girisler: ['src/lib/period-charges.ts', 'src/lib/musteri-bakiye.ts'], onEk: 'st-kdv-' });
+const { buildInvoiceForCustomerPeriod, periodOf } = await ice('lib/invoicing');
+const { commitPeriodCharges } = await ice('lib/period-charges');
+const { tumBakiyeler } = await ice('lib/musteri-bakiye');
 
 const p = new PrismaClient();
 let gecti = 0, kaldi = 0;

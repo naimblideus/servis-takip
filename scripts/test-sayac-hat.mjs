@@ -12,13 +12,9 @@
  * VERİ YAZAR. Yazdığı her şeyi sonunda geri alır ama yine de ÜRETİMDE
  * ÇALIŞTIRILMAZ — aşağıdaki kapı yerel olmayan veritabanında durdurur.
  */
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { pathToFileURL } from 'node:url';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { rmSync, readFileSync } from 'node:fs';
+import { derle } from './_derle.mjs';
 
-const KOK = process.cwd().replace(/\\/g, '/');
 process.env.SAYAC_EPOSTA_SECRET = 'test-sir';
 
 // ── Üretim kapısı: bu test veri yazar, uzak veritabanında ASLA çalışmaz ──
@@ -40,54 +36,18 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(db)) {
 }
 
 
-const g = mkdtempSync(join(tmpdir(), 'st-hat-'));
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/app/api/sayac/eposta/route.ts'),
-    join(KOK, 'src/lib/counter-email.ts'),
-    join(KOK, 'src/lib/readings.ts'),
-    join(KOK, 'src/lib/sayac-anomali.ts'),
-    join(KOK, 'src/lib/prisma.ts'),
-    join(KOK, 'src/lib/invoicing.ts'),
-    join(KOK, 'src/lib/sayac-eposta.ts'),
-    join(KOK, 'src/lib/ek-dosya.ts'),
-    join(KOK, 'src/lib/fatura-donemi.ts'),
-    join(KOK, 'src/lib/fatura-turu.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-    '--moduleResolution', 'bundler', '--skipLibCheck', '--allowJs',
-  ], { stdio: 'pipe' });
-} catch { /* tip hataları önemli değil, JS üretildi */ }
+const { dizin: g, ice, prismaIstemci: P } = derle({
+  girisler: ['src/app/api/sayac/eposta/route.ts'],
+  onEk: 'st-hat-',
+  shimler: {
+    'next/server': 'export const NextResponse = { json: (veri, init) => ({ __json: veri, status: init?.status ?? 200 }) };\n',
+    // ucHatasi normalde çerezden dil okur; testte dil yok, KOD yeter:
+    // testler durum koduna ve koda bakıyor, cümleye değil.
+    '@/lib/uc-hata': 'export const ucHatasi = (kod, durum = 400) => ({ __json: { kod, error: kod }, status: durum });\n',
+  },
+});
 
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-const duzelt = (dosya, esle) => {
-  const y = join(g, dosya);
-  let s = readFileSync(y, 'utf8');
-  for (const [a, b] of esle) s = s.split(a).join(b);
-  writeFileSync(y, s);
-};
-writeFileSync(join(g, 'prisma-shim.js'),
-  `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
-writeFileSync(join(g, 'next-server-shim.js'),
-  'export const NextResponse = { json: (veri, init) => ({ __json: veri, status: init?.status ?? 200 }) };\n');
-writeFileSync(join(g, 'uc-hata-shim.js'),
-  // ucHatasi normalde çerezden dil okur; testte dil yok, KOD yeter:
-  // testler durum koduna ve koda bakıyor, cümleye değil.
-  'export const ucHatasi = (kod, durum = 400) => ({ __json: { kod, error: kod }, status: durum });\n');
-duzelt('app/api/sayac/eposta/route.js', [
-  ["'@/lib/prisma'", "'../../../../prisma-shim.js'"],
-  ["'@/lib/counter-email'", "'../../../../lib/counter-email.js'"],
-  ["'@/lib/readings'", "'../../../../lib/readings.js'"],
-  ["'next/server'", "'../../../../next-server-shim.js'"],
-  ["'@/lib/uc-hata'", "'../../../../uc-hata-shim.js'"],
-  ["'@/lib/sayac-eposta'", "'../../../../lib/sayac-eposta.js'"],
-  ["'@/lib/ek-dosya'", "'../../../../lib/ek-dosya.js'"],
-]);
-duzelt('lib/readings.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]);
-duzelt('lib/invoicing.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-duzelt('lib/fatura-turu.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-
-const { POST } = await import(pathToFileURL(join(g, 'app/api/sayac/eposta/route.js')).href);
+const { POST } = await ice('app/api/sayac/eposta/route');
 const { PrismaClient } = await import(P);
 const p = new PrismaClient();
 

@@ -9,44 +9,18 @@
 // 480.000 sayfa basmış ikinci el makineyi takar. Teknisyen 480.000 okur.
 // Eski davranış: delta = 480.000 → ₺0,42'den ₺201.600 YANLIŞ FATURA.
 // Doğrusu: yeni makinenin ömür boyu sayacı bu ayın kullanımı DEĞİLDİR.
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { PrismaClient } from '@prisma/client';
+import { derle } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
   if (kosul) { gecti++; console.log(`  ✓ ${ad}`); }
   else { kaldi++; console.log(`  ✗ ${ad}${detay !== undefined ? `\n      ${JSON.stringify(detay)}` : ''}`); }
 };
 
-const g = mkdtempSync(join(tmpdir(), 'st-cihaz-'));
-let createReading, ReadingError;
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/readings.ts'),
-    join(KOK, 'src/lib/sayac-anomali.ts'), join(KOK, 'src/lib/prisma.ts'), join(KOK, 'src/lib/invoicing.ts'),
-    join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/fatura-turu.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-    '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip denetimi ayrı koşuyor */ }
-
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-const duzelt = (dosya, esle) => {
-  const y = join(g, dosya); let s = readFileSync(y, 'utf8');
-  for (const [a, b] of esle) s = s.split(a).join(b);
-  writeFileSync(y, s);
-};
-writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
-duzelt('readings.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]);
-duzelt('invoicing.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-duzelt('fatura-turu.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-({ createReading, ReadingError } = await import(pathToFileURL(join(g, 'readings.js')).href));
+const { dizin: g, ice } = derle({ girisler: ['src/lib/readings.ts'], onEk: 'st-cihaz-' });
+const { createReading, ReadingError } = await ice('lib/readings');
 
 const p = new PrismaClient();
 const SLUG = 'test-cihaz-degisimi';

@@ -9,45 +9,21 @@
 // · Gerçek tarih saklanınca yeni bir risk doğar: koşusu bitmiş bir aya düşen
 //   geç okuma bir daha hiçbir faturaya girmez. Kural: o okuma ilk açık döneme kayar.
 // · Kesim günü 3 olan bayide ayın 1'inde gelen cihaz raporu GEÇEN ayındır.
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { derle, KOK } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
   if (kosul) { gecti++; console.log(`  ✓ ${ad}`); }
   else { kaldi++; console.log(`  ✗ ${ad}${detay !== undefined ? `\n      ${JSON.stringify(detay)}` : ''}`); }
 };
 
-const g = mkdtempSync(join(tmpdir(), 'st-okuma-zamani-'));
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/fatura-turu.ts'),
-    join(KOK, 'src/lib/readings.ts'), join(KOK, 'src/lib/sayac-anomali.ts'),
-    join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/prisma.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip hataları ayrıca koşuyor */ }
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
-const duzelt = (dosya, esle) => {
-  const y = join(g, dosya); let s = readFileSync(y, 'utf8');
-  for (const [a, b] of esle) s = s.split(a).join(b);
-  writeFileSync(y, s);
-};
-const ORTAK = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]];
-duzelt('fatura-turu.js', ORTAK);
-duzelt('invoicing.js', ORTAK);
-duzelt('readings.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]);
-
-const d = await import(pathToFileURL(join(g, 'fatura-donemi.js')).href);
-const { okumaAni, createReading } = await import(pathToFileURL(join(g, 'readings.js')).href);
-const { kosuDonemiKapatir, kosuyuKaydet } = await import(pathToFileURL(join(g, 'fatura-turu.js')).href);
-const { buildInvoiceForCustomerPeriod } = await import(pathToFileURL(join(g, 'invoicing.js')).href);
+const { ice, prismaIstemci: P } = derle({ girisler: ['src/lib/readings.ts', 'src/lib/fatura-turu.ts'], onEk: 'st-okuma-zamani-' });
+const d = await ice('lib/fatura-donemi');
+const { okumaAni, createReading } = await ice('lib/readings');
+const { kosuDonemiKapatir, kosuyuKaydet } = await ice('lib/fatura-turu');
+const { buildInvoiceForCustomerPeriod } = await ice('lib/invoicing');
 
 // İstanbul yerel saatiyle an kur: ist(2026, 11, 1, 10) = 1 Kasım 10:00 İstanbul.
 const ist = (y, m, gun, saat = 0, dk = 0) => new Date(Date.UTC(y, m - 1, gun, saat, dk) - 3 * 3_600_000);

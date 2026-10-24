@@ -19,14 +19,13 @@
 //     kodluyor; burada Node'da yazılmış sahte cihazlara karşı çalıştırılır
 //     ve çıktısı sunucunun ayıklayıcısından geçirilir.
 import { PrismaClient } from '@prisma/client';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { execFileSync, spawnSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import dgram from 'node:dgram';
+import { derle, KOK } from './_derle.mjs';
 
-const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 let gecti = 0, kaldi = 0;
 const t = (ad, kosul, detay) => {
@@ -35,26 +34,13 @@ const t = (ad, kosul, detay) => {
 };
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
-const g = mkdtempSync(join(tmpdir(), 'st-tarayici-'));
-let saf;
+let g, ice, saf;
 try {
-  try {
-    execFileSync(process.execPath, [
-      join(KOK, 'node_modules/typescript/bin/tsc'),
-      join(KOK, 'src/lib/sayac-tarama.ts'), join(KOK, 'src/lib/sayac-tarama-veri.ts'),
-      join(KOK, 'src/lib/readings.ts'), join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/sayac-anomali.ts'),
-      join(KOK, 'src/lib/verim-ogrenme.ts'), join(KOK, 'src/lib/toner-verimi.ts'), join(KOK, 'src/lib/reliability.ts'),
-      join(KOK, 'src/lib/fault-categories.ts'), join(KOK, 'src/lib/stok-maliyet.ts'), join(KOK, 'src/lib/device-brands.ts'),
-      join(KOK, 'src/lib/toner.ts'), join(KOK, 'src/lib/ticket-number.ts'), join(KOK, 'src/lib/ticket-asama.ts'),
-      join(KOK, 'src/lib/i18n/sozluk.ts'), join(KOK, 'src/lib/i18n/tr.ts'), join(KOK, 'src/lib/i18n/en.ts'),
-      join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/fatura-turu.ts'),
-      // invoicing'in kira kuralı (yeni dosya; yoksa derleme listesi bozulmasın)
-      ...(existsSync(join(KOK, 'src/lib/kira-donemi.ts')) ? [join(KOK, 'src/lib/kira-donemi.ts')] : []),
-      '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-      '--moduleResolution', 'bundler', '--skipLibCheck',
-    ], { stdio: 'pipe' });
-  } catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
-  saf = await import(pathToFileURL(join(g, 'sayac-tarama.js')).href);
+  ({ dizin: g, ice } = derle({
+    girisler: ['src/lib/sayac-tarama.ts', 'src/lib/sayac-tarama-veri.ts', 'src/lib/toner.ts', 'src/lib/i18n/tr.ts', 'src/lib/i18n/en.ts'],
+    onEk: 'st-tarayici-',
+  }));
+  saf = await ice('lib/sayac-tarama');
 } catch (e) {
   console.log('✗ sayac-tarama derlenemedi:', e?.message);
   process.exit(1);
@@ -255,7 +241,7 @@ console.log('\nCihaz durumu — arıza bitleri ve toner ölçümü\n');
 
 console.log('\nSarf — cihazın ölçtüğü yüzde tahminin önüne geçer\n');
 {
-  const { forecastChannel, olcumleBirlestir } = await import(pathToFileURL(join(g, 'toner.js')).href);
+  const { forecastChannel, olcumleBirlestir } = await ice('lib/toner');
   const tahmin = forecastChannel({ yieldPages: 10000, reset: 50000, current: 52000, rate: 100, channel: 'black' });
   t('sayaçtan tahmin: %80 kaldı, 80 gün', tahmin.remainingPct === 80 && tahmin.daysLeft === 80, tahmin);
   const b1 = olcumleBirlestir({ tahmin, olcum: 12, yieldPages: 10000, current: 52000, rate: 100, channel: 'black' });
@@ -381,8 +367,8 @@ const betik = join(KOK, 'public/tarayici/nextus-sayac-tarayici.ps1');
   const uyariBul = (o) => { if (!o || typeof o !== 'object') return null; if (o.uyari?.SERVIS_GEREKLI) return o.uyari; for (const v of Object.values(o)) { const r = uyariBul(v); if (r) return r; } return null; };
   let trU = null, enU = null;
   try {
-    trU = uyariBul((await import(pathToFileURL(join(g, 'i18n', 'tr.js')).href)).tr);
-    enU = uyariBul((await import(pathToFileURL(join(g, 'i18n', 'en.js')).href)).en);
+    trU = uyariBul((await ice('lib/i18n/tr')).tr);
+    enU = uyariBul((await ice('lib/i18n/en')).en);
   } catch (e) { console.log('  sözlük yüklenemedi:', e?.message); }
   const kodlar = Object.keys(saf.UYARI_TURU).sort();
   t('★ uyarı kodları ve türleri sunucudakiyle aynı', JSON.stringify(Object.keys(psAd).sort()) === JSON.stringify(kodlar) && kodlar.every((k) => psAd[k]?.tur === saf.UYARI_TURU[k]),
@@ -602,30 +588,7 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
   console.log('\n  ⊘ veritabanı katmanı atlandı: DATABASE_URL yerel değil');
 } else {
   try {
-    const istemci = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-    writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(istemci)};\nexport const prisma = new PrismaClient();\n`);
-    const duzelt = (dosya, ciftler) => {
-      const yol = join(g, dosya);
-      let s = readFileSync(yol, 'utf8');
-      for (const [a, b] of ciftler) s = s.split(a).join(b);
-      writeFileSync(yol, s, 'utf8');
-    };
-    const ortak = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(istemci)]];
-    duzelt('sayac-tarama-veri.js', [...ortak, ["'@/lib/readings'", "'./readings.js'"], ["'@/lib/sayac-tarama'", "'./sayac-tarama.js'"], ["'@/lib/verim-ogrenme'", "'./verim-ogrenme.js'"],
-      ["'@/lib/ticket-number'", "'./ticket-number.js'"], ["'@/lib/ticket-asama'", "'./ticket-asama.js'"], ["'@/lib/i18n/sozluk'", "'./i18n/sozluk.js'"],
-      ["'@/lib/device-brands'", "'./device-brands.js'"]]);
-    duzelt('ticket-number.js', ortak);
-    duzelt('ticket-asama.js', ortak);
-    duzelt('i18n/sozluk.js', [["from './tr'", "from './tr.js'"], ["from './en'", "from './en.js'"]]);
-    duzelt('verim-ogrenme.js', [...ortak, ["'@/lib/toner-verimi'", "'./toner-verimi.js'"], ["'@/lib/reliability'", "'./reliability.js'"]]);
-    duzelt('toner-verimi.js', [...ortak, ["'@/lib/device-brands'", "'./device-brands.js'"]]);
-    duzelt('reliability.js', [...ortak, ["'@/lib/fault-categories'", "'./fault-categories.js'"], ["'@/lib/stok-maliyet'", "'./stok-maliyet.js'"]]);
-    duzelt('stok-maliyet.js', ortak);
-    duzelt('fault-categories.js', ortak);
-    duzelt('readings.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]);
-    duzelt('invoicing.js', [...ortak, ["'@/lib/kira-donemi'", "'./kira-donemi.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-    duzelt('fatura-turu.js', [...ortak, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
-    veri = await import(pathToFileURL(join(g, 'sayac-tarama-veri.js')).href);
+    veri = await ice('lib/sayac-tarama-veri');
   } catch (e) {
     console.log('  ✗ veri katmanı derlenemedi —', e?.message);
     kaldi++;
@@ -714,7 +677,7 @@ if (veri) {
 
     // ── tarama ile onay arasında elle okuma (gerçek yoldan: okuma + kart)
     const r3 = await taramaKaydet(bayiId, taramaGovdesiAyikla({ bilgisayar: 'X', taranan: 1, cihazlar: [cihaz({ ozel: kyoOzel(97000, 32000), toplam: 129000 })] }), false);
-    const { createReading } = await import(pathToFileURL(join(g, 'readings.js')).href);
+    const { createReading } = await ice('lib/readings');
     await createReading({ tenantId: bayiId, deviceId: kyId, counterBlack: 98000, counterColor: 33000, source: 'ELLE' });
     const o3 = await taramaOnayla(bayiId, r3.id);
     t('★ onay GÜNCEL sayaca bakıyor: arada girilen okumadan düşük tarama yazılmıyor',
@@ -842,7 +805,7 @@ if (veri) {
     t('★ dolu toner ikinci taramada tekrar değişim sayılmıyor', (await degisimSay()) === 1);
 
     // Teknisyen aynı toneri fişe sonradan yazıyor: ikinci kayıt OLMAMALI.
-    const { degisimKaydet } = await import(pathToFileURL(join(g, 'verim-ogrenme.js')).href);
+    const { degisimKaydet } = await ice('lib/verim-ogrenme');
     const fis = await degisimKaydet({ tenantId: bayiId, deviceId: kyId, channel: 'BLACK', counterValue: 99600, source: 'FIS', note: 'TK-5240K' });
     const dg2 = await p.tonerChange.findUnique({ where: { id: dg.id } });
     t('★ fişteki toner tarayıcının kaydına eklendi, ikinci değişim yazılmadı', (await degisimSay()) === 1 && fis.id === dg.id && dg2.note === 'TK-5240K', { sayi: await degisimSay(), dg2 });
