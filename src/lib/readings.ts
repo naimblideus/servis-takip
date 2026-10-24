@@ -4,6 +4,28 @@
 import { prisma } from '@/lib/prisma';
 import { counterOverage } from '@/lib/invoicing';
 import { anomaliDegerlendir, type AnomaliSonucu } from '@/lib/sayac-anomali';
+import { donemOkumaKosulu, kesimGunu, okumaDonemiAta } from '@/lib/fatura-donemi';
+import { donemKapaliMi } from '@/lib/fatura-turu';
+
+/** Cihaz saati biraz ileride olabilir; bundan fazlası "gelecek" sayılır. */
+const GELECEK_TOLERANS_MS = 10 * 60_000;
+
+/**
+ * Okumanın kaydedileceği an.
+ * · Verilmediyse ya da geçersizse: şimdi (bugünkü davranış).
+ * · Gelecekteyse: şimdi — saati ileri bir cihaz/bilgisayar okumayı geleceğe yazmasın.
+ * · Cihazın son okumasından ESKİYSE: şimdi. Zincir tarih sırasıyla kurulur
+ *   (fark son okumaya göre); geriye tarihli bir okumayı araya sokmak hem bu
+ *   farkı hem bir sonrakinin farkını bozardı. Böyle bir okuma bugünkü gibi
+ *   "şimdi" alınmış sayılır — kayıp yok, sıra korunur.
+ */
+export function okumaAni(verilen: Date | string | null | undefined, sonOkuma: Date | null, simdi = new Date()): Date {
+  const d = verilen == null ? null : new Date(verilen);
+  if (!d || Number.isNaN(d.getTime())) return simdi;
+  if (d.getTime() > simdi.getTime() + GELECEK_TOLERANS_MS) return simdi;
+  if (sonOkuma && d.getTime() < sonOkuma.getTime()) return simdi;
+  return d > simdi ? simdi : d;
+}
 
 export class ReadingError extends Error {
   code: string;
@@ -41,6 +63,12 @@ export interface CreateReadingInput {
   resetTur?: 'CIHAZ_DEGISTI' | 'SAYAC_SIFIRLANDI';
   /** Okuma nereden geldi — tartışmada kanıt ağırlığını belirler (bkz. şema) */
   source?: OkumaKaynagi;
+  /**
+   * Sayacın GERÇEKTEN okunduğu an: portal talebinin gönderildiği, WhatsApp
+   * mesajının geldiği, cihaz raporunun tarihi. Verilmezse "şimdi" (bugünkü
+   * davranış). Kurallar okumaAni'de; fatura dönemi lib/fatura-donemi'de.
+   */
+  readingDate?: Date | string | null;
 }
 
 export type OkumaKaynagi =
@@ -166,9 +194,19 @@ export async function createReading(
   // gerçekten ayda 250.000 basan matbaa makinesi ise HER AY uyarı üretip
   // bayiyi uyarılara bakmaz hâle getiriyordu. Artık ölçüt makinenin kendi
   // geçmişi. Sıfırlama/cihaz değişiminde bakılmıyor: bayi zaten beyan etti.
+  // ── OKUMA ANI VE FATURA DÖNEMİ ──────────────────────────────────────
+  // Eskiden her okuma "şimdi" tarihiyle yazılıyordu: müşterinin 30 Ekim'de
+  // portala girdiği sayaç bayi 4 Kasım'da onaylayınca Kasım'ın okuması
+  // oluyordu. Artık gerçek an saklanıyor; dönem İstanbul saati + bayinin
+  // kesim günüyle belirleniyor ve koşusu bitmiş bir aya düşen geç okuma ilk
+  // açık döneme kayıyor (lib/fatura-donemi okumaDonemiAta).
+  const tarih = okumaAni(input.readingDate, prev ? new Date(prev.readingDate) : null);
+  const kesim = kesimGunu((tenant as { invoiceDayOfMonth?: number }).invoiceDayOfMonth);
+  const faturaDonemi = await okumaDonemiAta(tarih, kesim, (p) => donemKapaliMi(tenantId, p));
+
   let anomali: AnomaliSonucu | null = null;
   if (!reset) {
-    const gecenGun = prev ? (Date.now() - new Date(prev.readingDate).getTime()) / 86400000 : 1;
+    const gecenGun = prev ? (tarih.getTime() - new Date(prev.readingDate).getTime()) / 86400000 : 1;
     anomali = anomaliDegerlendir(deltaBlack + deltaColor, gecenGun, gecmis);
   }
   // Şüphe faturayı DURDURMAZ — okuma normal yazılır, karar bayinindir.
@@ -181,12 +219,10 @@ export async function createReading(
   let ch: ReturnType<typeof counterOverage> | null = null;
 
   if (device.isRental) {
-    // Bu dönemde daha önce okunan sayfalar — dahil paketi kümülatif uygula (mükerrer indirim önle)
-    const now = new Date();
-    const pStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const pEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    // Bu okumanın dönemindeki önceki sayfalar — dahil paketi kümülatif uygula
+    // (mükerrer indirim önle). Dönem faturayla AYNI kuraldan: donemOkumaKosulu.
     const prevAgg = await prisma.counterReading.aggregate({
-      where: { tenantId, deviceId, readingDate: { gte: pStart, lt: pEnd } },
+      where: { tenantId, deviceId, ...donemOkumaKosulu(faturaDonemi) },
       _sum: { deltaBlack: true, deltaColor: true },
     });
     ch = counterOverage(device as any, deltaBlack, deltaColor, tenant as any, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
@@ -211,6 +247,8 @@ export async function createReading(
       monthlyRent: monthlyRentAmount,
       photo: safePhotoOf(input.photo),
       source: input.source ?? 'ELLE',
+      readingDate: tarih,
+      faturaDonemi,
     },
   });
 

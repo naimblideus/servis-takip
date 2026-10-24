@@ -216,6 +216,7 @@ model Tenant {
   kurulumTakip        KurulumTakip?
   kurulumNotlari      KurulumNotu[]
   sorunBildirimleri   SorunBildirimi[]
+  faturaTurlari       FaturaTuru[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -1121,6 +1122,11 @@ model CounterReading {
   // > PORTAL (müşteri kendi girdi) > TOPLU / SERVIS_FISI / ELLE (bayi girdi).
   // Eski kayıtlar ELLE sayılır — kaynağı bilinmiyor, en zayıf kanıt seviyesi.
   source         String   @default("ELLE")
+  // Okumanın girdiği fatura dönemi ('YYYY-MM'). Kural lib/fatura-donemi:
+  // İstanbul saati + bayinin kesim günü; dönemin fatura koşusu bittiyse geç
+  // okuma ilk açık döneme kayar (kaybolmasın). Boşsa (eski kayıt ya da başka
+  // yoldan yazılmış okuma) dönem readingDate'in İstanbul ayıdır.
+  faturaDonemi   String?
   createdAt      DateTime @default(now())
 
   // Relations
@@ -1130,6 +1136,30 @@ model CounterReading {
 
   @@index([tenantId, deviceId, readingDate(sort: Desc)])
   @@index([tenantId, ticketId])
+  @@index([tenantId, faturaDonemi])
+}
+
+// Ay sonu fatura koşusu: bayi × dönem. Kapanmış bir dönemin koşusu bitince
+// TAMAM olur; o döneme düşen geç okumalar bir sonraki açık döneme yazılır
+// (lib/fatura-donemi okumaDonemiAta). Açık dönemi ayın ortasında elle
+// faturalamak koşuyu TAMAM yapmaz: dönem açık kalır, kalan okumalar o ayda.
+// Özet alanları ekrandaki "Ekim: 412 fatura · ₺1,23 M" bandını besler.
+model FaturaTuru {
+  id           String    @id @default(cuid())
+  tenantId     String
+  period       String // 'YYYY-MM'
+  durum        String    @default("CALISIYOR") // CALISIYOR | TAMAM | HATA
+  kaynak       String    @default("CRON") // CRON | ELLE
+  faturaSayisi Int       @default(0)
+  toplam       Decimal   @default(0) @db.Decimal(14, 2)
+  hataSayisi   Int       @default(0)
+  hatalar      Json?
+  baslangic    DateTime  @default(now())
+  bitis        DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, period])
 }
 
 // ============================================

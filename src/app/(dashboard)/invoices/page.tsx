@@ -34,6 +34,12 @@ export default function InvoicesPage() {
   const musteri = useMusteriDili(); // müşteriye giden mesaj bayinin dilinde
   const fmt = (n: number) => b.para(n);
   const fmtDate = (s: string) => b.tarih(s);
+  // 'YYYY-MM' → "Ekim 2026" (ayın ortası: saat dilimi ayı kaydırmasın)
+  const donemAdi = (p?: string) => {
+    if (!p) return '';
+    const [y, m] = p.split('-').map(Number);
+    return b.ayYil(new Date(Date.UTC(y, m - 1, 15)));
+  };
   const durumAdi = (k: string) => (t.faturalar.durum as Record<string, string>)[k] ?? k;
   const turAdi = (k: string) => (t.faturalar.tur as Record<string, string>)[k] ?? k;
   const { data: session } = useSession();
@@ -67,10 +73,11 @@ export default function InvoicesPage() {
   useEffect(() => { load(); }, [load]);
 
   // FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ — çıplak onay yerine "hangi cihazın sayacı okunmadı" ekranı
-  const openPreflight = async () => {
+  // Dönem verilmezse sunucu varsayılanı seçer (ayın ilk yarısı → kapanan ay).
+  const openPreflight = async (donem?: string) => {
     setPreflight({ loading: true, data: null });
     try {
-      const r = await fetch('/api/invoices/preflight');
+      const r = await fetch(`/api/invoices/preflight${donem ? `?period=${encodeURIComponent(donem)}` : ''}`);
       const d = await r.json();
       if (r.ok) setPreflight({ loading: false, data: d });
       else { setPreflight(null); setMsg('❌ ' + (d.error || t.faturalar.kontrolYapilamadi)); }
@@ -78,14 +85,16 @@ export default function InvoicesPage() {
   };
 
   const runBilling = async () => {
+    const donem: string | undefined = preflight?.data?.period;
     setPreflight(null);
     if ((session?.user as { demo?: boolean } | undefined)?.demo) { setMsg(t.demoOnizleme.faturaGenel); return; }
     setRunning(true); setMsg(null);
     try {
-      const res = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      // Dönem AÇIKÇA gönderilir: ekranda gösterilen ay ile kesilen ay aynı olsun.
+      const res = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donem ? { period: donem } : {}) });
       const d = await res.json();
       if (res.ok) {
-        setMsg(doldur(t.faturalar.kesildi, {
+        setMsg(doldur(t.faturalar.donemOnEki, { ay: donemAdi(d.period) }) + doldur(t.faturalar.kesildi, {
           n: d.created, tutar: fmt(d.total),
           ek: d.errors ? doldur(t.faturalar.hataEki, { n: d.errors }) : '',
         }));
@@ -102,7 +111,7 @@ export default function InvoicesPage() {
           <h1 className="text-2xl font-bold text-gray-900">{t.faturalar.baslik}</h1>
           <p className="text-sm text-gray-500 mt-1">{t.faturalar.alt}</p>
         </div>
-        <button onClick={openPreflight} disabled={running}
+        <button onClick={() => openPreflight()} disabled={running}
           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
           {running ? t.faturalar.kesiliyor : t.faturalar.faturala}
         </button>
@@ -124,6 +133,26 @@ export default function InvoicesPage() {
                     ? doldur(t.faturalar.okunmayan, { n: preflight.data.missingCount })
                     : t.faturalar.hepsiOkundu}
               </div>
+              {/* Hangi ay kesilecek — iki seçenek, seçili olan koyu. */}
+              {!preflight.loading && preflight.data?.secenekler && (
+                <div style={{ marginTop: '.7rem' }}>
+                  <div style={{ fontSize: '.8rem', color: '#5B6479', marginBottom: 6 }}>{t.faturalar.donemSec}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {([['kapanan', t.faturalar.kapananAy], ['acik', t.faturalar.buAy]] as const).map(([k, etiket]) => {
+                      const p: string = preflight.data.secenekler[k];
+                      const secili = p === preflight.data.period;
+                      return (
+                        <button key={k} type="button" onClick={() => { if (!secili) openPreflight(p); }}
+                          aria-pressed={secili}
+                          style={{ minHeight: 44, padding: '.5rem .9rem', borderRadius: 10, fontSize: '.86rem', fontWeight: 700, cursor: secili ? 'default' : 'pointer',
+                            border: secili ? '2px solid #0F2253' : '1px solid #d1d5db', background: secili ? '#EEF2FF' : 'white', color: '#0B1533' }}>
+                          {doldur(etiket, { ay: donemAdi(p) })}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {!preflight.loading && preflight.data?.missingCount > 0 && (
                 <p style={{ color: '#B45309', fontSize: '.88rem', margin: '.45rem 0 0', lineHeight: 1.55 }}>
                   {t.faturalar.okunmayanUyariOn} <b>{t.faturalar.okunmayanUyariVurgu}</b> {t.faturalar.okunmayanUyariSon}

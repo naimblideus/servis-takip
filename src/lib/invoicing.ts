@@ -8,6 +8,7 @@ import {
   InvoiceLineKind,
   InvoiceSource,
 } from '@prisma/client';
+import { donemAraligi, donemOf, donemOkumaKosulu } from '@/lib/fatura-donemi';
 
 type Tx = Prisma.TransactionClient;
 
@@ -114,18 +115,13 @@ export function fiyatTabani(d: { isRental: boolean }, tenant: PriceTenant): Pric
   return d.isRental ? tenant : { pricePerBlack: 0, pricePerColor: 0 };
 }
 
-/** Bugünün dönemi: "YYYY-MM" */
+/**
+ * Bir anın takvim ayı: "YYYY-MM" — İSTANBUL saatiyle. Eskiden sunucunun
+ * saat dilimini kullanıyordu (canlıda UTC): İstanbul'da ayın 1'i gece
+ * 00:00–03:00 arası hâlâ geçen ay sayılıyordu. Kural lib/fatura-donemi'de.
+ */
 export function periodOf(date: Date = new Date()): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-/** "YYYY-MM" dönemini [start, end) tarih aralığına çevir */
-function periodRange(period: string): { start: Date; end: Date } {
-  const [y, m] = period.split('-').map(Number);
-  return {
-    start: new Date(y, m - 1, 1, 0, 0, 0, 0),
-    end: new Date(y, m, 1, 0, 0, 0, 0), // bir sonraki ayın 1'i (hariç)
-  };
+  return donemOf(date);
 }
 
 interface LineInput {
@@ -179,7 +175,7 @@ async function nextInvoiceNumber(tx: Tx, tenantId: string): Promise<string> {
     data: { nextInvoiceSeq: { increment: 1 } },
     select: { nextInvoiceSeq: true },
   });
-  const year = new Date().getFullYear();
+  const year = donemOf(new Date()).slice(0, 4); // İstanbul yılı (yılbaşı gecesi UTC hâlâ eski yıl)
   return `SF-FAT-${year}-${String(t.nextInvoiceSeq).padStart(5, '0')}`;
 }
 
@@ -277,7 +273,11 @@ export async function buildInvoiceForCustomerPeriod(
   period: string = periodOf(),
   source: InvoiceSource = 'AUTO_MONTHLY'
 ) {
-  const { start, end } = periodRange(period);
+  // Kira kuralı dönem sonuna bakar (dönemden sonra kurulan cihazın o ayın
+  // kirası yok). Okumalar ise DÖNEM DAMGASIYLA seçilir (donemOkumaKosulu):
+  // kesim günü 3 olan bayide 1 Kasım'da gelen rapor Ekim'in okumasıdır.
+  const { end } = donemAraligi(period);
+  const donemdeki = donemOkumaKosulu(period);
 
   return prisma.$transaction(async (tx) => {
     // MÜŞTERİ FATURA KİLİDİ — işlemin İLK ifadesi olmak zorunda.
@@ -307,7 +307,7 @@ export async function buildInvoiceForCustomerPeriod(
       // kapatılmaz (bkz. sayfaUcretliMi: sessiz sayaç yanması).
       if (sayfaUcretliMi(device)) {
         const readings = await tx.counterReading.findMany({
-          where: { tenantId, deviceId: device.id, billed: false, readingDate: { gte: start, lt: end } },
+          where: { tenantId, deviceId: device.id, billed: false, ...donemdeki },
         });
         let sumBlack = 0;
         let sumColor = 0;
@@ -318,7 +318,7 @@ export async function buildInvoiceForCustomerPeriod(
         }
         // Dahil paketi dönem boyunca KÜMÜLATİF uygula: bu dönemde daha önce faturalanmış sayfaları çek
         const prevAgg = await tx.counterReading.aggregate({
-          where: { tenantId, deviceId: device.id, billed: true, readingDate: { gte: start, lt: end } },
+          where: { tenantId, deviceId: device.id, billed: true, ...donemdeki },
           _sum: { deltaBlack: true, deltaColor: true },
         });
         // Kademeli: dahil sayfa kira içinde; yalnız aşım faturalanır (included=0 ise düz fiyat)

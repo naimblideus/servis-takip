@@ -132,6 +132,8 @@ export async function POST(req: NextRequest) {
         resetTur,
         // Bayi elle eşleştirdi ama SAYI cihazın kendi raporundan geliyor.
         source: 'CIHAZ_EPOSTA',
+        // Sayaç raporun geldiği an okundu, bayinin eşleştirdiği an değil.
+        readingDate: kayit.receivedAt,
       });
       await prisma.counterEmail.update({
         where: { id: kayit.id },

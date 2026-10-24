@@ -31,6 +31,8 @@ try {
     join(KOK, 'src/lib/sayac-anomali.ts'),
     join(KOK, 'src/lib/invoicing.ts'),
     join(KOK, 'src/lib/prisma.ts'),
+    join(KOK, 'src/lib/fatura-donemi.ts'),
+    join(KOK, 'src/lib/fatura-turu.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
     '--moduleResolution', 'bundler', '--skipLibCheck',
   ], { stdio: 'pipe' });
@@ -47,8 +49,9 @@ const duzelt = (dosya, esle) => {
   fs.writeFileSync(y, s);
 };
 const ORTAK = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]];
-duzelt('readings.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"]]);
-duzelt('invoicing.js', ORTAK);
+duzelt('readings.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]);
+duzelt('invoicing.js', [...ORTAK, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
+duzelt('fatura-turu.js', [...ORTAK, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
 
 const { createReading, ReadingError } = await import(pathToFileURL(join(g, 'readings.js')).href);
 

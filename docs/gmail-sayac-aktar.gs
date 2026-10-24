@@ -86,6 +86,9 @@ function sayaclariAktar() {
             subject: mesaj.getSubject(),
             text: mesaj.getPlainBody(),
             attachments: ekler,
+            // Postanın gönderildiği an: sayaç o an okundu (köprü 15 dk'da bir
+            // çalışıyor; ayın son günü atılan rapor ertesi aya kaymasın).
+            date: mesaj.getDate().toISOString(),
           }),
           muteHttpExceptions: true,
         });
@@ -136,7 +139,7 @@ function etiketliKonularaGelenler() {
           headers: { 'x-sayac-secret': SIR },
           payload: JSON.stringify({
             to: to, from: mesaj.getFrom(), subject: mesaj.getSubject(),
-            text: mesaj.getPlainBody(), attachments: [],
+            text: mesaj.getPlainBody(), attachments: [], date: mesaj.getDate().toISOString(),
           }),
           muteHttpExceptions: true,
         });

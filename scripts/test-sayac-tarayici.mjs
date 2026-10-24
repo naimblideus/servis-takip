@@ -47,6 +47,7 @@ try {
       join(KOK, 'src/lib/fault-categories.ts'), join(KOK, 'src/lib/stok-maliyet.ts'), join(KOK, 'src/lib/device-brands.ts'),
       join(KOK, 'src/lib/toner.ts'), join(KOK, 'src/lib/ticket-number.ts'), join(KOK, 'src/lib/ticket-asama.ts'),
       join(KOK, 'src/lib/i18n/sozluk.ts'), join(KOK, 'src/lib/i18n/tr.ts'), join(KOK, 'src/lib/i18n/en.ts'),
+      join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/fatura-turu.ts'),
       // invoicing'in kira kuralı (yeni dosya; yoksa derleme listesi bozulmasın)
       ...(existsSync(join(KOK, 'src/lib/kira-donemi.ts')) ? [join(KOK, 'src/lib/kira-donemi.ts')] : []),
       '--outDir', g, '--module', 'esnext', '--target', 'es2022',
@@ -621,8 +622,9 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(veritabaniUrl())) {
     duzelt('reliability.js', [...ortak, ["'@/lib/fault-categories'", "'./fault-categories.js'"], ["'@/lib/stok-maliyet'", "'./stok-maliyet.js'"]]);
     duzelt('stok-maliyet.js', ortak);
     duzelt('fault-categories.js', ortak);
-    duzelt('readings.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"]]);
-    duzelt('invoicing.js', [...ortak, ["'@/lib/kira-donemi'", "'./kira-donemi.js'"]]);
+    duzelt('readings.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]);
+    duzelt('invoicing.js', [...ortak, ["'@/lib/kira-donemi'", "'./kira-donemi.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
+    duzelt('fatura-turu.js', [...ortak, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
     veri = await import(pathToFileURL(join(g, 'sayac-tarama-veri.js')).href);
   } catch (e) {
     console.log('  ✗ veri katmanı derlenemedi —', e?.message);

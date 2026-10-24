@@ -103,7 +103,9 @@ export default function KacanGelirPage() {
     try {
       const res = await fetch('/api/invoices', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hedefDonem ? { period: hedefDonem } : {}),
+        // Dönem AÇIKÇA: ekranın "bu dönem" dediği ay (sunucunun varsayılanı ayın
+        // başında kapanan ayı seçer; bu ekran açık ayın kaçağını gösteriyor).
+        body: JSON.stringify(hedefDonem ? { period: hedefDonem } : period ? { period } : {}),
       });
       const d = await res.json();
       if (res.ok) {

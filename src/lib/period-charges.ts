@@ -5,12 +5,9 @@
 import { prisma } from '@/lib/prisma';
 import { counterOverage, periodOf, sayfaUcretliMi, fiyatTabani, kiraKesilir, kiraIsaretiKosulu } from '@/lib/invoicing';
 import type { Prisma } from '@prisma/client';
+import { donemAraligi, donemOkumaKosulu } from '@/lib/fatura-donemi';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-function periodRange(period: string) {
-  const [y, m] = period.split('-').map(Number);
-  return { start: new Date(y, m - 1, 1, 0, 0, 0, 0), end: new Date(y, m, 1, 0, 0, 0, 0) };
-}
 
 export interface PeriodCharges {
   period: string;
@@ -37,7 +34,9 @@ export interface PeriodCharges {
 // Cari'ye YAZMADAN, müşterinin bu dönem kira + sayaç bedelini hesapla (faturalama ile aynı mantık).
 async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: string, customerId: string): Promise<PeriodCharges> {
   const period = periodOf();
-  const { start, end } = periodRange(period);
+  // Faturalama ile AYNI dönem kuralı (lib/fatura-donemi): İstanbul saati + okumanın dönem damgası.
+  const { end } = donemAraligi(period);
+  const donemdeki = donemOkumaKosulu(period);
   const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { pricePerBlack: true, pricePerColor: true, vatRate: true } });
   const devices = await tx.device.findMany({ where: { tenantId, customerId } });
 
@@ -54,11 +53,11 @@ async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: s
     const label = `${d.brand} ${d.model}`;
 
     // Sayaç: bu dönem faturalanmamış okumalar
-    const readings = await tx.counterReading.findMany({ where: { tenantId, deviceId: d.id, billed: false, readingDate: { gte: start, lt: end } } });
+    const readings = await tx.counterReading.findMany({ where: { tenantId, deviceId: d.id, billed: false, ...donemdeki } });
     let sb = 0, sc = 0;
     for (const r of readings) { sb += r.deltaBlack; sc += r.deltaColor; readingIds.push(r.id); }
     if (sb > 0 || sc > 0) {
-      const prevAgg = await tx.counterReading.aggregate({ where: { tenantId, deviceId: d.id, billed: true, readingDate: { gte: start, lt: end } }, _sum: { deltaBlack: true, deltaColor: true } });
+      const prevAgg = await tx.counterReading.aggregate({ where: { tenantId, deviceId: d.id, billed: true, ...donemdeki }, _sum: { deltaBlack: true, deltaColor: true } });
       const ch = counterOverage(d as any, sb, sc, fiyatTabani(d, tenant as any), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
       if (ch.total > 0) { counter += ch.total; counterDetail.push({ device: label, amount: ch.total }); }
     }

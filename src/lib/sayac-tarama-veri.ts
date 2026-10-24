@@ -65,11 +65,13 @@ async function sistemCihazlari(tenantId: string, ids?: readonly string[]): Promi
 type BayiKaydi = NonNullable<Awaited<ReturnType<typeof prisma.tenant.findUnique>>>;
 
 /** Yazılabilir sonucu okuma olarak kaydeder; okuma katmanı reddederse HATA. */
-async function yaz(tenantId: string, s: CihazSonucu, tenant: BayiKaydi): Promise<CihazSonucu> {
+async function yaz(tenantId: string, s: CihazSonucu, tenant: BayiKaydi, olcumAt?: Date): Promise<CihazSonucu> {
   if (s.durum !== 'YAZILABILIR' || !s.deviceId || s.siyah === null || s.renkli === null) return s;
   try {
+    // Okumanın anı TARAMANIN anı: bayi taramayı üç gün sonra onaylasa da sayaç
+    // o gün okundu (fatura dönemi lib/fatura-donemi'de).
     await createReading(
-      { tenantId, deviceId: s.deviceId, counterBlack: s.siyah, counterColor: s.renkli, source: KAYNAK_TARAMA },
+      { tenantId, deviceId: s.deviceId, counterBlack: s.siyah, counterColor: s.renkli, source: KAYNAK_TARAMA, readingDate: olcumAt },
       tenant,
     );
     return { ...s, durum: 'YAZILDI' };
@@ -302,7 +304,7 @@ export type OnayCevabi =
 export async function taramaOnayla(tenantId: string, id: string): Promise<OnayCevabi> {
   const kayit = await prisma.sayacTaramasi.findFirst({
     where: { id, tenantId },
-    select: { id: true, sonuc: true },
+    select: { id: true, sonuc: true, createdAt: true },
   });
   if (!kayit) return { durum: 'YOK' };
 
@@ -325,7 +327,7 @@ export async function taramaOnayla(tenantId: string, id: string): Promise<OnayCe
     if (!g || !tenant) { yeni.push({ ...s, durum: 'ESLESMEDI', deviceId: null }); continue; }
     const d = ilerlemeDurumu(s.siyah, s.renkli, g.counterBlack, g.counterColor);
     if (d !== 'YAZILABILIR') { yeni.push({ ...s, durum: d, sonSiyah: g.counterBlack, sonRenkli: g.counterColor }); continue; }
-    yeni.push(await yaz(tenantId, { ...s, sonSiyah: g.counterBlack, sonRenkli: g.counterColor }, tenant));
+    yeni.push(await yaz(tenantId, { ...s, sonSiyah: g.counterBlack, sonRenkli: g.counterColor }, tenant, kayit.createdAt));
   }
 
   const ozet = taramaOzeti(yeni);

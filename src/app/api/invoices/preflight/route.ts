@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
-import { periodOf } from '@/lib/invoicing';
+import { acikDonem, donemOkumaKosulu, gecerliDonem, kapananDonem, kesimGunu, varsayilanElleDonem } from '@/lib/fatura-donemi';
 
 // GET /api/invoices/preflight?period=YYYY-MM
 // FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ: bu dönem sayacı HİÇ okunmamış kiralık cihazlar.
@@ -13,14 +13,16 @@ export async function GET(req: NextRequest) {
   try { await requireAdminUser(); } catch (e) { return authErrorResponse(e); }
   try {
     const { tenantId } = await requireTenantUser();
-    const period = new URL(req.url).searchParams.get('period') || periodOf();
-
-    const [y, m] = period.split('-').map(Number);
-    if (!y || !m || m < 1 || m > 12) {
+    // Dönem faturalama ucuyla AYNI kuraldan (lib/fatura-donemi): ekran hangi ayı
+    // keseceğini gösterir, bayi kapanan ay ile bu ay arasında seçebilir.
+    const ayar = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { invoiceDayOfMonth: true } });
+    const kesim = kesimGunu(ayar?.invoiceDayOfMonth);
+    const simdi = new Date();
+    const secenekler = { kapanan: kapananDonem(simdi, kesim), acik: acikDonem(simdi, kesim) };
+    const period = new URL(req.url).searchParams.get('period') || varsayilanElleDonem(simdi, kesim);
+    if (!gecerliDonem(period)) {
       return ucHatasi('GECERSIZ_DONEM', 400);
     }
-    const start = new Date(y, m - 1, 1, 0, 0, 0, 0);
-    const end = new Date(y, m, 1, 0, 0, 0, 0);
 
     // Kiralık cihazlar (fatura yalnız bunlarda sayaç bekler)
     const devices = await prisma.device.findMany({
@@ -31,13 +33,13 @@ export async function GET(req: NextRequest) {
       },
     });
     if (devices.length === 0) {
-      return NextResponse.json({ period, missingCount: 0, customerCount: 0, totalRental: 0, customers: [] });
+      return NextResponse.json({ period, secenekler, missingCount: 0, customerCount: 0, totalRental: 0, customers: [] });
     }
 
     // Bu dönemde okuması OLAN cihazlar — TOPLU (N+1 yok)
     const read = await prisma.counterReading.groupBy({
       by: ['deviceId'],
-      where: { tenantId, deviceId: { in: devices.map((d) => d.id) }, readingDate: { gte: start, lt: end } },
+      where: { tenantId, deviceId: { in: devices.map((d) => d.id) }, ...donemOkumaKosulu(period) },
     });
     const readSet = new Set(read.map((r) => r.deviceId));
 
@@ -59,6 +61,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       period,
+      secenekler,
       missingCount: missing.length,
       customerCount: customers.length,
       totalRental: devices.length,

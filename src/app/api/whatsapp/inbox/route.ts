@@ -240,6 +240,8 @@ export async function POST(req: NextRequest) {
           // kutu bir şey vaat ediyor, sistem başkasını yapıyordu.
           resetTur,
           source: 'WHATSAPP_FOTO',
+          // Sayaç fotoğrafın geldiği an okundu (bayi rakamı sonra yazıyor).
+          readingDate: msg.receivedAt,
         });
         await prisma.whatsAppMessage.update({
           where: { id: msg.id },

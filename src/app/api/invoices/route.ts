@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { buildInvoiceForCustomerPeriod, periodOf } from '@/lib/invoicing';
+import { buildInvoiceForCustomerPeriod } from '@/lib/invoicing';
+import { gecerliDonem, kesimGunu, varsayilanElleDonem } from '@/lib/fatura-donemi';
+import { kosuDonemiKapatir, kosuyuKaydet } from '@/lib/fatura-turu';
 import { docToken } from '@/lib/doc-token';
 import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { ucHatasi } from '@/lib/uc-hata';
@@ -115,11 +117,18 @@ export async function POST(req: Request) {
   } catch {
     /* boş */
   }
-  const period = body.period || periodOf();
+  // DÖNEM. Eskiden varsayılan BUGÜNÜN ayıydı: ayın 2'sinde basan bayi yeni
+  // ayı (neredeyse boş) kesiyor, kapanan ayı kesmiyordu. Varsayılan artık
+  // lib/fatura-donemi varsayilanElleDonem (ayın ilk yarısı → kapanan ay,
+  // ikinci yarısı → bu ay); ekran dönemi açıkça gönderiyor.
+  if (body.period && !gecerliDonem(body.period)) return ucHatasi('GECERSIZ_DONEM', 400);
+  const tenantId = user.tenantId;
+  const ayar = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { invoiceDayOfMonth: true } });
+  const kesim = kesimGunu(ayar?.invoiceDayOfMonth);
+  const period: string = body.period || varsayilanElleDonem(new Date(), kesim);
 
   // Aynı bayide faturalama zaten sürüyorsa ikinciyi başlatma (bkz. FATURALAMA_SURUYOR).
   // Denetleme ile ekleme arasında await YOK: iki istek aynı anda giremez.
-  const tenantId = user.tenantId;
   if (FATURALAMA_SURUYOR.has(tenantId)) return ucHatasi('FATURALAMA_SURUYOR', 409);
   FATURALAMA_SURUYOR.add(tenantId);
   try {
@@ -130,7 +139,7 @@ export async function POST(req: Request) {
 
     let created = 0;
     let total = 0;
-    let errors = 0;
+    const hatalar: { customerId: string; hata: string }[] = [];
     for (const c of customers) {
       try {
         const inv = await buildInvoiceForCustomerPeriod(tenantId, c.id, period, 'AUTO_MONTHLY');
@@ -139,12 +148,22 @@ export async function POST(req: Request) {
           total += Number(inv.totalAmount);
         }
       } catch (e: any) {
-        errors++;
+        hatalar.push({ customerId: c.id, hata: String(e?.message ?? e).slice(0, 300) });
         console.error('INVOICE MANUAL ERROR:', e?.message);
       }
     }
 
-    return NextResponse.json({ ok: true, period, created, total: round2(total), errors });
+    // Kapanmış ayı faturalamak dönemi kapatır (geç okumalar sonraki aya kayar);
+    // açık ayı ayın ortasında faturalamak ara faturadır, dönem açık kalır.
+    try {
+      await kosuyuKaydet(tenantId, period, 'ELLE',
+        { faturaSayisi: created, toplam: round2(total), hataSayisi: hatalar.length, hatalar },
+        kosuDonemiKapatir(period, kesim));
+    } catch (e: any) {
+      console.error('FATURA TURU KAYIT HATASI:', e?.message);
+    }
+
+    return NextResponse.json({ ok: true, period, created, total: round2(total), errors: hatalar.length });
   } finally {
     FATURALAMA_SURUYOR.delete(tenantId);
   }

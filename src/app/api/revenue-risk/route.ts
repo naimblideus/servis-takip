@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { acikDonem, donemAraligi, donemOkumaKosulu, kesimGunu, oncekiDonem, okumaninDonemi } from '@/lib/fatura-donemi';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -19,14 +20,15 @@ export async function GET() {
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: user.tenantId },
-    select: { pricePerBlack: true, pricePerColor: true },
+    select: { pricePerBlack: true, pricePerColor: true, invoiceDayOfMonth: true },
   });
   if (!tenant) return ucHatasi('TENANT_BULUNAMADI', 404);
 
-  const now = new Date();
-  const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  // Açık dönem faturalamayla AYNI kuraldan (lib/fatura-donemi): İstanbul saati
+  // + kesim günü. Okumalar dönem damgasıyla seçilir (donemOkumaKosulu).
+  const period = acikDonem(new Date(), kesimGunu(tenant.invoiceDayOfMonth));
+  const { end } = donemAraligi(period);
+  const donemdeki = donemOkumaKosulu(period);
 
   // Kiralık cihazlar + kendi sayfa fiyatı olan müşteri makineleri (kopya
   // başı anlaşma). Faturalamayla aynı kural: lib/invoicing sayfaUcretliMi.
@@ -39,7 +41,7 @@ export async function GET() {
   // Bu dönem faturalanmamış okumalar (tek sorgu, JS'te grupla)
   const readings = ids.length
     ? await prisma.counterReading.findMany({
-        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: false, readingDate: { gte: start, lt: end } },
+        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: false, ...donemdeki },
         select: { deviceId: true, deltaBlack: true, deltaColor: true },
       })
     : [];
@@ -53,7 +55,7 @@ export async function GET() {
   // Bu dönemde daha önce faturalanmış sayfalar — dahil paketin kümülatif (mükerrer indirimsiz) hesabı için
   const billedReadings = ids.length
     ? await prisma.counterReading.findMany({
-        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: true, readingDate: { gte: start, lt: end } },
+        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: true, ...donemdeki },
         select: { deviceId: true, deltaBlack: true, deltaColor: true },
       })
     : [];
@@ -76,11 +78,12 @@ export async function GET() {
   // değil: okumanın tutarına kira da karışabiliyor, sayfa temiz sinyal.
   const SOK_KAT = 2;          // kendi ortalamasının bu katı
   const SOK_TABAN_TUTAR = 400; // bunun altındaki fatura için kimse aranmaz
-  const ucAyOnce = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  // Son üç dönem (açık dönem hariç), dönem kuralı faturayla aynı.
+  const ucDonemOnce = oncekiDonem(oncekiDonem(oncekiDonem(period)));
   const sokGecmisi = ids.length
     ? await prisma.counterReading.findMany({
-        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: true, readingDate: { gte: ucAyOnce, lt: start } },
-        select: { deviceId: true, readingDate: true, deltaBlack: true, deltaColor: true },
+        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: true, readingDate: { gte: donemAraligi(ucDonemOnce).start }, NOT: donemdeki },
+        select: { deviceId: true, readingDate: true, faturaDonemi: true, deltaBlack: true, deltaColor: true },
       })
     : [];
   // Cihaz → dönem → sayfa. Dönem başına toplayıp dönemlerin ORTALAMASINI
@@ -88,7 +91,8 @@ export async function GET() {
   // yapay olarak küçük gösterirdi.
   const cihazDonem = new Map<string, Map<string, number>>();
   for (const r of sokGecmisi) {
-    const dnm = `${r.readingDate.getFullYear()}-${r.readingDate.getMonth()}`;
+    const dnm = okumaninDonemi(r);
+    if (dnm >= period || dnm < ucDonemOnce) continue;
     const m = cihazDonem.get(r.deviceId) ?? new Map<string, number>();
     m.set(dnm, (m.get(dnm) ?? 0) + r.deltaBlack + r.deltaColor);
     cihazDonem.set(r.deviceId, m);
@@ -157,15 +161,18 @@ export async function GET() {
   // eklemek hem kendi ayının paketini yer hem de tutarı kaydırır.
   // Yapılan şey: bayiye GÖSTERMEK. Faturalama ucu zaten dönem alıyor, o
   // dönemi tek düğmeyle kesebiliyor.
-  const gecmisOkumalar = ids.length
+  // Geçmiş dönem = dönemi açık dönemden ÖNCE olan faturalanmamış okuma
+  // (dönem damgası varsa damga, yoksa tarihinin İstanbul ayı).
+  const gecmisAdaylar = ids.length
     ? await prisma.counterReading.findMany({
-        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: false, readingDate: { lt: start } },
-        select: { readingDate: true, calculatedCost: true, deviceId: true },
+        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: false, NOT: donemdeki },
+        select: { readingDate: true, faturaDonemi: true, calculatedCost: true, deviceId: true },
       })
     : [];
+  const gecmisOkumalar = gecmisAdaylar.filter((r) => okumaninDonemi(r) < period);
   const gecmisHarita = new Map<string, { okuma: number; tutar: number; cihazlar: Set<string> }>();
   for (const r of gecmisOkumalar) {
-    const dnm = `${r.readingDate.getFullYear()}-${String(r.readingDate.getMonth() + 1).padStart(2, '0')}`;
+    const dnm = okumaninDonemi(r);
     const g = gecmisHarita.get(dnm) ?? { okuma: 0, tutar: 0, cihazlar: new Set<string>() };
     g.okuma++;
     g.tutar += Number(r.calculatedCost);

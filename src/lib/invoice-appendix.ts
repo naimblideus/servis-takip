@@ -2,6 +2,7 @@
 // Amaç: "Bu ay niye 4.300, geçen ay 3.100'dü?" telefonunu bitirmek.
 // Tek kaynak: hem authed yazdırma hem müşteriye giden public belge bunu kullanır.
 import { prisma } from '@/lib/prisma';
+import { donemOkumaKosulu } from '@/lib/fatura-donemi';
 
 export interface CounterAppendixRow {
   device: string;
@@ -25,10 +26,6 @@ export interface CounterAppendix {
   hasIncluded: boolean; // hiçbir cihazda dahil paket yoksa "Dahil/Aşım" sütunları gizlenir
 }
 
-function periodRange(period: string) {
-  const [y, m] = period.split('-').map(Number);
-  return { start: new Date(y, m - 1, 1, 0, 0, 0, 0), end: new Date(y, m, 1, 0, 0, 0, 0) };
-}
 
 /**
  * Faturanın COUNTER satırlarını, o dönemdeki sayaç okumalarıyla zenginleştirir.
@@ -45,7 +42,8 @@ export async function buildCounterAppendix(
   const counterLines = invoice.lines.filter((l) => l.kind === 'COUNTER' && l.deviceId);
   if (counterLines.length === 0) return null;
 
-  const { start, end } = periodRange(invoice.period);
+  // Faturayla aynı dönem kuralı: okumanın dönem damgası (lib/fatura-donemi).
+  const donemdeki = donemOkumaKosulu(invoice.period);
   const deviceIds = Array.from(new Set(counterLines.map((l) => l.deviceId!)));
 
   const [devices, readings] = await Promise.all([
@@ -54,7 +52,7 @@ export async function buildCounterAppendix(
       select: { id: true, brand: true, model: true, location: true, includedBlack: true, includedColor: true },
     }),
     prisma.counterReading.findMany({
-      where: { tenantId, deviceId: { in: deviceIds }, readingDate: { gte: start, lt: end } },
+      where: { tenantId, deviceId: { in: deviceIds }, ...donemdeki },
       orderBy: { readingDate: 'asc' },
       select: { deviceId: true, readingDate: true, counterBlack: true, counterColor: true, deltaBlack: true, deltaColor: true },
     }),

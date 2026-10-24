@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
   const subject = String(body?.subject ?? '').slice(0, 500);
   const from = String(body?.from ?? '').slice(0, 200);
   const to = String(body?.to ?? '').slice(0, 1000);
+  // Postanın gönderildiği an (köprü yeni sürümde `date` gönderir). Yoksa ya da
+  // geçersizse okuma "şimdi" alınır — bugünkü davranış (lib/readings okumaAni).
+  const postaTarihi = typeof body?.date === 'string' ? body.date.slice(0, 40) : null;
 
   // ── EK DOSYALAR ─────────────────────────────────────────────────────────
   // Filo yazılımları (Kyocera Fleet Services, Lexmark Fleet Manager, MPS
@@ -308,6 +311,7 @@ export async function POST(req: NextRequest) {
         counterBlack: okuma.black!,
         counterColor: okuma.color ?? sonRenk.get(cihaz.id) ?? 0,
         source: 'CIHAZ_EPOSTA',
+        readingDate: postaTarihi,
       }, cihaz.tenantId === bayi?.id ? bayiKaydi : undefined);
       await prisma.counterEmail.update({
         where: { id: kayit.id },
