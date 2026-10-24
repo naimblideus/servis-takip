@@ -45,6 +45,9 @@ export default function SettingsPage() {
     // Sayaçsız kapanmaz: tek anahtar, basınca kaydedilir (ayrı düğme yok).
     const [sayacZorunlu, setSayacZorunlu] = useState(false);
     const [kuralMsg, setKuralMsg] = useState<{ ok: boolean; metin: string } | null>(null);
+    // Dönem faturası onayı (lib/fatura-bekletme): açıkken her fatura taslakta bekler.
+    const [faturaOnayiElle, setFaturaOnayiElle] = useState(false);
+    const [onayMsg, setOnayMsg] = useState<{ ok: boolean; metin: string } | null>(null);
     const [takvimMsg, setTakvimMsg] = useState('');
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -64,6 +67,7 @@ export default function SettingsPage() {
                 sayacHatirlatma: data.sayacHatirlatma === true,
             });
             setSayacZorunlu(data.sayacZorunlu === true);
+            setFaturaOnayiElle(data.faturaOnayi === 'ELLE');
             setOdeme({
                 odemeIban: data.odemeIban ? String(data.odemeIban).replace(/(.{4})/g, '$1 ').trim() : '',
                 odemeHesapAdi: data.odemeHesapAdi || '',
@@ -107,6 +111,20 @@ export default function SettingsPage() {
         setSayacZorunlu(!acik);
         const j = res ? await res.json().catch(() => null) : null;
         setKuralMsg({ ok: false, metin: j?.error ?? t.genel.baglantiHatasi });
+    };
+
+    const faturaOnayiDegistir = async (elle: boolean) => {
+        setFaturaOnayiElle(elle);
+        setOnayMsg(null);
+        const res = await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ faturaOnayi: elle ? 'ELLE' : 'OTOMATIK' }),
+        }).catch(() => null);
+        if (res?.ok) { setOnayMsg({ ok: true, metin: t.sahaSuresi.kuralKaydedildi }); return; }
+        setFaturaOnayiElle(!elle);
+        const j = res ? await res.json().catch(() => null) : null;
+        setOnayMsg({ ok: false, metin: j?.error ?? t.genel.baglantiHatasi });
     };
 
     const takvimKaydet = async () => {
@@ -351,6 +369,20 @@ export default function SettingsPage() {
                     </span>
                 </label>
                 {kuralMsg && <p role={kuralMsg.ok ? 'status' : 'alert'} style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: kuralMsg.ok ? '#166534' : '#b91c1c' }}>{kuralMsg.metin}</p>}
+            </div>
+
+            {/* ── DÖNEM FATURASI ONAYI ── varsayılan kapalı (gece işi keser, şüpheliler bekler). */}
+            <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.75rem' }}>{t.faturalar.onayBaslik}</h2>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', minHeight: 44 }}>
+                    <input type="checkbox" checked={faturaOnayiElle} style={{ marginTop: '0.2rem', width: 20, height: 20, cursor: 'pointer', flexShrink: 0 }}
+                        onChange={e => faturaOnayiDegistir(e.target.checked)} />
+                    <span style={{ fontSize: '0.875rem' }}>
+                        <b>{t.faturalar.onayEtiket}</b>
+                        <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem', lineHeight: 1.5 }}>{t.faturalar.onayAlt}</span>
+                    </span>
+                </label>
+                {onayMsg && <p role={onayMsg.ok ? 'status' : 'alert'} style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: onayMsg.ok ? '#166534' : '#b91c1c' }}>{onayMsg.metin}</p>}
             </div>
 
             {/* ── ÜRETİCİ İLE PAYLAŞIM ── anonim paylaşım + adıyla görünme (yalnız yönetici). */}

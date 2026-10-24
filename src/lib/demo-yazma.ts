@@ -69,7 +69,8 @@ const YAZMA_KAPALI_ONEKLER = [
  * Önek değil tam yol: /api/invoices/<id>/... tahsilatları açık kalsın.
  */
 const DEMO_VITRIN = [
-  /^\/api\/invoices$/,
+  // Taslak kesmek/atmak da vitrini tüketir (bekleyen taslaklar demoda gösterilir).
+  /^\/api\/invoices(\/taslak)?$/,
   /^\/api\/sayac\/tarayici\/(?!ayar$)[^/]+(\/cihaz)?$/,
   /^\/api\/toner-sevk$/,
   // Yedek bırakmak, iade, kayıp ve sayım müşteride duran toner vitrinini herkes için değiştirir.

@@ -114,11 +114,16 @@ if (COCUK) {
 console.log('\nKaynak\n');
 {
   const inv = oku('src/lib/invoicing.ts');
-  const govde = inv.slice(inv.indexOf('export async function buildInvoiceForCustomerPeriod'));
-  const ACILIS = 'prisma.$transaction(async (tx) => {';
-  const ilkIfade = govde.slice(govde.indexOf(ACILIS) + ACILIS.length)
-    .split('\n').map((s) => s.trim()).find((s) => s && !s.startsWith('//'));
-  t('★ faturada müşteri kilidi işlemin İLK ifadesi (okumalar kilitten sonra)', /^await tx\.\$executeRaw`SELECT pg_advisory_xact_lock\(/.test(ilkIfade ?? ''), ilkIfade);
+  // Kilit tek yardımcıda (musteriFaturaKilidi); kesme ve taslak yolu ikisi de onunla açılır.
+  const kilit = inv.slice(inv.indexOf('async function musteriFaturaKilidi'));
+  t('kilit yardımcısı danışma kilidi alıyor', /^async function musteriFaturaKilidi[^{]*\{\s*await tx\.\$executeRaw`SELECT pg_advisory_xact_lock\(/.test(kilit), kilit.slice(0, 160));
+  for (const fn of ['buildInvoiceForCustomerPeriod', 'donemFaturasiHazirla']) {
+    const govde = inv.slice(inv.indexOf(`export async function ${fn}`));
+    const ACILIS = 'prisma.$transaction(async (tx) => {';
+    const ilkIfade = govde.slice(govde.indexOf(ACILIS) + ACILIS.length)
+      .split('\n').map((s) => s.trim()).find((s) => s && !s.startsWith('//'));
+    t(`★ ${fn}: müşteri kilidi işlemin İLK ifadesi (okumalar kilitten sonra)`, /^await musteriFaturaKilidi\(tx, tenantId, customerId\);$/.test(ilkIfade ?? ''), ilkIfade);
+  }
   const fis = oku('src/app/api/tickets/route.ts');
   t('★ fiş ucu ham hata mesajını istemciye göndermiyor', !/error:\s*e\.message/.test(fis));
   t('fiş ucu numarayı tekrar denemeli yoldan alıyor', /fisNumarasiylaOlustur\(/.test(fis) && !/generateTicketNumber\(/.test(fis));

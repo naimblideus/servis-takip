@@ -58,6 +58,9 @@ model Tenant {
   pmDefaultMonths    Int?
   autoInvoiceEnabled Boolean @default(true) // Otomatik dönem faturalama açık mı
   invoiceDayOfMonth  Int     @default(1) // Cron kesim günü
+  // Dönem faturası: OTOMATIK = gece işi keser (şüpheliler taslakta bekler),
+  // ELLE = her fatura taslakta bekler, bayi kontrol edip keser (lib/fatura-bekletme).
+  faturaOnayi        String  @default("OTOMATIK")
   nextInvoiceSeq     Int     @default(1) // Fatura sıra sayacı (atomik artar)
 
   // ── e-BELGE KİMLİĞİ (satıcı) ────────────────────────────────────────
@@ -217,6 +220,7 @@ model Tenant {
   kurulumNotlari      KurulumNotu[]
   sorunBildirimleri   SorunBildirimi[]
   faturaTurlari       FaturaTuru[]
+  faturaTaslaklari    FaturaTaslagi[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -574,6 +578,7 @@ model Customer {
   transactions      FinancialTransaction[]
   accountEntries    AccountEntry[]
   customerInvoices  CustomerInvoice[]
+  faturaTaslaklari  FaturaTaslagi[]
   payments          Payment[]
   whatsappMessages  WhatsAppMessage[]
   portalRequests    PortalRequest[]
@@ -1132,6 +1137,9 @@ model CounterReading {
   // için okunmamış sayılır, sonraki gerçek renkli okuma o ayların dahil
   // paketini de hak eder (lib/invoicing sayacAyCarpanlari).
   renkliOlculdu  Boolean  @default(true)
+  // Anomali (lib/sayac-anomali): makinenin kendi hızına göre inanılmaz artış.
+  // Okuma yazılır ama dönem faturası taslakta bekler (lib/fatura-bekletme).
+  supheli        Boolean  @default(false)
   createdAt      DateTime @default(now())
 
   // Relations
@@ -1159,12 +1167,40 @@ model FaturaTuru {
   toplam       Decimal   @default(0) @db.Decimal(14, 2)
   hataSayisi   Int       @default(0)
   hatalar      Json?
+  // Kesilmeyip taslakta bekleyen fatura sayısı (koşu anındaki)
+  bekleyenSayisi Int     @default(0)
   baslangic    DateTime  @default(now())
   bitis        DateTime?
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, period])
+}
+
+// Kesilmemiş dönem faturası: bekletme gerekçesi (şüpheli okuma, fatura şoku)
+// ya da bayi "kesmeden önce ben bakayım" dediği için. Ayrı tablo: CustomerInvoice
+// toplamlarına (bakiye, KDV, portal, e-belge) hiç girmez. Okumalar ve kira
+// işareti DOKUNULMAZ; kesilirken hesap kilit içinde yeniden yapılır.
+// Müşteri × dönem başına tek BEKLIYOR (kısmi tekil indeks, göçte).
+model FaturaTaslagi {
+  id          String   @id @default(cuid())
+  tenantId    String
+  customerId  String
+  period      String // 'YYYY-MM'
+  durum       String   @default("BEKLIYOR") // BEKLIYOR | KESILDI | ATILDI
+  gerekceler  Json // [{ kod, deviceId?, cihaz?, ... }] — boş: bayi onayı (ELLE)
+  satirlar    Json // önizleme: [{ kind, description, quantity, unitPrice, lineTotal }]
+  araToplam   Decimal  @db.Decimal(14, 2)
+  toplam      Decimal  @db.Decimal(14, 2)
+  invoiceId   String?
+  olusturuldu DateTime @default(now())
+  guncellendi DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, period, durum])
+  @@index([tenantId, customerId])
 }
 
 // ============================================

@@ -37,7 +37,8 @@ export interface ZamanlanmisIsTanimi {
 export const ISLER: ZamanlanmisIsTanimi[] = [
   { anahtar: 'demo', tur: 'gunluk', saat: 3, dakika: 30 },
   { anahtar: 'wa-temizlik', tur: 'gunluk', saat: 4, dakika: 0, yol: '/api/cron/whatsapp-temizlik' },
-  { anahtar: 'faturalar', tur: 'aylik', gun: 1, saat: 6, dakika: 0, yol: '/api/cron/generate-customer-invoices' },
+  // Günlük: her bayi kendi kesim gününde kapanan dönemine bakar (koşusu bittiyse atlar).
+  { anahtar: 'faturalar', tur: 'gunluk', saat: 6, dakika: 0, yol: '/api/cron/generate-customer-invoices' },
   { anahtar: 'crm-sinyal', tur: 'gunluk', saat: 8, dakika: 0, yol: '/api/cron/crm-sinyal' },
   { anahtar: 'sahip-ozet', tur: 'gunluk', saat: 8, dakika: 30, yol: '/api/cron/sahip-ozet' },
   { anahtar: 'hatirlatma', tur: 'gunluk', saat: 9, dakika: 0, yol: '/api/cron/overdue-reminders' },

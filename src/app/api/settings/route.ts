@@ -23,6 +23,8 @@ export async function GET() {
             vadeHatirlatma: true, sayacHatirlatma: true,
             // Sayaçsız kapanmaz (lib/sayac-zorunlu.ts).
             sayacZorunlu: true,
+            // Dönem faturası kesilmeden önce bayi onayı (lib/fatura-bekletme).
+            faturaOnayi: true,
             // Çalışma takvimi — SLA ölçümü mesai saatine göre yapılır.
             workTimezone: true, workDays: true, workStartMin: true, workEndMin: true, workHolidays: true,
         },
@@ -46,7 +48,7 @@ export async function PATCH(req: Request) {
     const {
         name, phone, address, pricePerBlack, pricePerColor, portalShowFinancials,
         workTimezone, workDays, workStartMin, workEndMin, workHolidays,
-        odemeIban, odemeHesapAdi, odemeLinki, vadeHatirlatma, sayacHatirlatma, sayacZorunlu,
+        odemeIban, odemeHesapAdi, odemeLinki, vadeHatirlatma, sayacHatirlatma, sayacZorunlu, faturaOnayi,
     } = body;
 
     // MÜŞTERİDEN ÖDEME — yanlış IBAN parayı başka hesaba gönderir, bozuk
@@ -101,6 +103,8 @@ export async function PATCH(req: Request) {
             ...(typeof sayacHatirlatma === 'boolean' && { sayacHatirlatma }),
             // Kiralık cihazın fişi sayaçsız teslim edilemesin (yalnız true/false).
             ...(typeof sayacZorunlu === 'boolean' && { sayacZorunlu }),
+            // Yalnız iki değer: başka bir metin faturaları sessizce otomatiğe düşürmesin.
+            ...((faturaOnayi === 'OTOMATIK' || faturaOnayi === 'ELLE') && { faturaOnayi }),
             ...(workTimezone !== undefined && workTimezone !== '' && { workTimezone: String(workTimezone) }),
             ...(workDays !== undefined && { workDays: gunListesi(workDays) ?? '1,2,3,4,5' }),
             ...(bas !== null && { workStartMin: bas }),

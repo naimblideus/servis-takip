@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { buildInvoiceForCustomerPeriod } from '@/lib/invoicing';
+import { donemFaturasiHazirla } from '@/lib/invoicing';
 import { tekSeferlik } from '@/lib/zamanlanmis-is';
-import { gecerliDonem, kapananDonem, kesimGunu } from '@/lib/fatura-donemi';
-import { kosuDonemiKapatir, kosuyuKaydet } from '@/lib/fatura-turu';
+import { donemAraligi, gecerliDonem, kapananDonem, kesimGunu } from '@/lib/fatura-donemi';
+import { donemKapaliMi, kosuDonemiKapatir, kosuyuKaydet } from '@/lib/fatura-turu';
 
 // Vercel function timeout (saniye) — büyük tenant'lar için
 export const maxDuration = 300;
@@ -29,6 +29,15 @@ export const maxDuration = 300;
  * FaturaTuru'na yazılır: dönem TAMAM olur, o aya düşen geç okumalar bir
  * sonraki açık döneme kayar (kaybolmasın) ve müşteri başına hatalar sunucu
  * günlüğünde kaybolmaz.
+ *
+ * GÜNLÜK ÇALIŞIR (2026-10-25): kesim günü 1 olmayan bayide dönem ayın 1'inde
+ * kapanmıyor. İş her sabah bayi bayi kapanan döneme bakar; koşusu bitmişse
+ * (FaturaTuru TAMAM) atlar — yani dönem başına fiilen bir kez çalışır.
+ * Bayi açılmadan önce biten dönem koşulmaz (orada faturalanacak gerçek iş yok;
+ * koşulsaydı yeni bayinin teslim edilmiş fişleri "geçen ay faturası" olurdu).
+ *
+ * Şüpheli okuma ve fatura şoku olan müşteri faturası kesilmez, taslakta
+ * bekler (lib/fatura-bekletme); bayi isterse her fatura bekler (faturaOnayi).
  */
 
 // CRON_SECRET ile koruma (Vercel Cron: Authorization: Bearer <secret>)
@@ -49,7 +58,7 @@ async function run(elleDonem: string | null, tenantId?: string) {
       autoInvoiceEnabled: true,
       ...(tenantId ? { id: tenantId } : {}),
     },
-    select: { id: true, name: true, invoiceDayOfMonth: true },
+    select: { id: true, name: true, invoiceDayOfMonth: true, createdAt: true },
   });
 
   const results: {
@@ -59,11 +68,17 @@ async function run(elleDonem: string | null, tenantId?: string) {
     invoices: number;
     total: number;
     errors: number;
+    bekleyen: number;
+    atlandi?: true;
   }[] = [];
 
   for (const tenant of tenants) {
     const kesim = kesimGunu(tenant.invoiceDayOfMonth);
     const period = elleDonem ?? kapananDonem(new Date(), kesim);
+    if (!elleDonem && (donemAraligi(period).end <= tenant.createdAt || (await donemKapaliMi(tenant.id, period)))) {
+      results.push({ tenantId: tenant.id, tenantName: tenant.name, period, invoices: 0, total: 0, errors: 0, bekleyen: 0, atlandi: true });
+      continue;
+    }
     const customers = await prisma.customer.findMany({
       where: { tenantId: tenant.id },
       select: { id: true },
@@ -71,15 +86,16 @@ async function run(elleDonem: string | null, tenantId?: string) {
 
     let invoices = 0;
     let total = 0;
+    let bekleyen = 0;
     const hatalar: { customerId: string; hata: string }[] = [];
 
     for (const c of customers) {
       try {
-        const inv = await buildInvoiceForCustomerPeriod(tenant.id, c.id, period, 'AUTO_MONTHLY');
-        if (inv) {
+        const s = await donemFaturasiHazirla(tenant.id, c.id, period, { source: 'AUTO_MONTHLY' });
+        if (s?.tur === 'KESILDI') {
           invoices++;
-          total += Number(inv.totalAmount);
-        }
+          total += Number(s.invoice.totalAmount);
+        } else if (s?.tur === 'TASLAK') bekleyen++;
       } catch (e: any) {
         hatalar.push({ customerId: c.id, hata: String(e?.message ?? e).slice(0, 300) });
         console.error(`INVOICE CRON ERROR tenant=${tenant.id} customer=${c.id}:`, e?.message);
@@ -102,6 +118,7 @@ async function run(elleDonem: string | null, tenantId?: string) {
       invoices,
       total: toplam,
       errors: hatalar.length,
+      bekleyen,
     });
   }
 
@@ -118,7 +135,7 @@ export async function GET(req: NextRequest) {
     const results = await run(elle);
     return NextResponse.json({ ok: true, period: elle ?? 'kapanan', tenants: results.length, results });
   };
-  return elle ? calistir() : tekSeferlik(req, 'faturalar', 'aylik', calistir);
+  return elle ? calistir() : tekSeferlik(req, 'faturalar', 'gunluk', calistir);
 }
 
 // Manuel tetik (admin) — body: { period?, tenantId? }

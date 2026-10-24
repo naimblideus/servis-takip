@@ -9,6 +9,7 @@ import {
   InvoiceSource,
 } from '@prisma/client';
 import { ayCarpani, donemAraligi, donemOf, donemOkumaKosulu } from '@/lib/fatura-donemi';
+import { bekletmeGerekceleri, type CihazOzeti, type Gerekce } from '@/lib/fatura-bekletme';
 
 type Tx = Prisma.TransactionClient;
 
@@ -218,6 +219,13 @@ export const kiraIsaretiKosulu = (period: string) => ({
   OR: [{ lastInvoicedPeriod: null }, { lastInvoicedPeriod: { lt: period } }],
 });
 
+/** Fatura toplamları — kesilen fatura ve taslak AYNI hesaptan. */
+export function faturaToplami(lines: { lineTotal: number }[], vatRate: number) {
+  const subtotal = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
+  const vatAmount = round2((subtotal * vatRate) / 100);
+  return { subtotal, vatAmount, totalAmount: round2(subtotal + vatAmount) };
+}
+
 /** Per-tenant atomik fatura numarası: SF-FAT-2026-00001 */
 async function nextInvoiceNumber(tx: Tx, tenantId: string): Promise<string> {
   const t = await tx.tenant.update({
@@ -250,10 +258,8 @@ async function postInvoice(
   const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new Error('Tenant bulunamadı');
 
-  const subtotal = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
   const vatRate = Number(tenant.vatRate);
-  const vatAmount = round2((subtotal * vatRate) / 100);
-  const totalAmount = round2(subtotal + vatAmount);
+  const { subtotal, vatAmount, totalAmount } = faturaToplami(lines, vatRate);
 
   const invoiceDate = new Date();
   const dueDate = new Date(invoiceDate.getTime() + tenant.paymentTermDays * 86400000);
@@ -313,11 +319,227 @@ async function postInvoice(
 }
 
 /**
- * Bir müşterinin verilen dönemi için TEK fatura oluşturur (idempotent):
+ * MÜŞTERİ FATURA KİLİDİ — işlemin İLK ifadesi olmak zorunda.
+ * "Bu Dönemi Faturala" aynı anda iki sekmeden / iki yöneticiden (ya da
+ * herkese açık demoda) basılınca her işlem okumaları ve kira işaretini
+ * ötekinin yazmasından ÖNCE okuyordu: dönemde müşteri başına 3 fatura,
+ * kira ve aşım 3 kez kesildi. Kilit işlem bitene kadar ikinciyi bekletir;
+ * ikinci, birincinin billed / lastInvoicedPeriod / invoiceId işaretlerini
+ * görür, satır çıkmaz, null döner. Bu yüzden bütün okumalar kilitten SONRA.
+ * Anahtar dönemsiz (bayi + müşteri): iş emri satırları döneme bağlı değil;
+ * aynı müşteride iki FARKLI dönem aynı anda kesilirse (gece işi Eylül'ü,
+ * yönetici Ekim'i) aynı fiş iki faturaya girerdi. Taslak da aynı kilitle
+ * yazılır ve kesilir.
+ */
+async function musteriFaturaKilidi(tx: Tx, tenantId: string, customerId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId}), hashtext(${`fatura:${customerId}`}))`;
+}
+
+/**
+ * Kilit beklemesi işlem süresine sayılır: öndeki müşterinin faturası çok
+ * cihazlıysa bekleyen işlem varsayılan 5 sn'de boşuna düşmesin. Bekleyen
+ * işlemler bağlantı tuttuğu için havuzdan bağlantı alma süresi de uzun.
+ */
+const FATURA_ISLEMI = { timeout: 30_000, maxWait: 10_000 } as const;
+
+/** Bir dönem faturasının hesabı — veritabanına HİÇBİR ŞEY yazmaz. */
+interface FaturaHesabi {
+  tenant: Prisma.TenantGetPayload<object>;
+  customerId: string;
+  period: string;
+  lines: LineInput[];
+  readingIdsToBill: string[];
+  deviceRentToMark: string[];
+  ticketIdsToMark: string[];
+  /** Sayaç satırı olan cihazlar — bekletme kuralları buna bakar */
+  cihazlar: CihazOzeti[];
+}
+
+/**
+ * Bir müşterinin dönem faturasını HESAPLAR (kilit içinde çağrılır):
  *  - Faturalanmamış sayaç okumaları (mono/renkli delta × birim fiyat)
  *  - Sabit aylık kira (dönem başına 1 kez)
  *  - Teslim edilmiş, faturalanmamış iş emirleri (parça + işçilik)
- * Faturalanacak bir şey yoksa null döner.
+ * Kesmek ayrı adım (faturaKes): taslakta bekleyen fatura hiçbir işareti
+ * değiştirmez, kesilirken hesap yeniden yapılır.
+ */
+async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, period: string): Promise<FaturaHesabi> {
+  // Kira kuralı dönem sonuna bakar (dönemden sonra kurulan cihazın o ayın
+  // kirası yok). Okumalar ise DÖNEM DAMGASIYLA seçilir (donemOkumaKosulu):
+  // kesim günü 3 olan bayide 1 Kasım'da gelen rapor Ekim'in okumasıdır.
+  const { end } = donemAraligi(period);
+  const donemdeki = donemOkumaKosulu(period);
+
+  const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
+  if (!tenant) throw new Error('Tenant bulunamadı');
+
+  const lines: LineInput[] = [];
+  const readingIdsToBill: string[] = [];
+  const deviceRentToMark: string[] = [];
+  const cihazlar: CihazOzeti[] = [];
+
+  const devices = await tx.device.findMany({ where: { tenantId, customerId } });
+  // Okunmayan ayların dahil paketi (tek sorgu): bkz. sayacAyCarpanlari.
+  const carpanlar = await sayacAyCarpanlari(tx, tenantId, devices.filter(sayfaUcretliMi).map((d) => d.id), period);
+
+  for (const device of devices) {
+    // a) Faturalanmamış sayaç okumaları (bu dönem) — YALNIZ sayfa başı
+    // ücretli cihazda. Ücretsiz cihazın okuması "faturalandı" diye
+    // kapatılmaz (bkz. sayfaUcretliMi: sessiz sayaç yanması).
+    if (sayfaUcretliMi(device)) {
+      const readings = await tx.counterReading.findMany({
+        where: { tenantId, deviceId: device.id, billed: false, ...donemdeki },
+      });
+      let sumBlack = 0;
+      let sumColor = 0;
+      let supheli = 0;
+      for (const r of readings) {
+        sumBlack += r.deltaBlack;
+        sumColor += r.deltaColor;
+        if (r.supheli) supheli++;
+        readingIdsToBill.push(r.id);
+      }
+      // Dahil paketi dönem boyunca KÜMÜLATİF uygula: bu dönemde daha önce faturalanmış sayfaları çek
+      const prevAgg = await tx.counterReading.aggregate({
+        where: { tenantId, deviceId: device.id, billed: true, ...donemdeki },
+        _sum: { deltaBlack: true, deltaColor: true },
+      });
+      // Kademeli: dahil sayfa kira içinde; yalnız aşım faturalanır (included=0 ise düz fiyat).
+      // Okunmayan ay varsa dahil paket o kadar ay uygulanır (dahilCarpanli).
+      const k = carpanlar.get(device.id) ?? { siyah: 1, renkli: 1 };
+      const ch = counterOverage(dahilCarpanli(device, k), sumBlack, sumColor, fiyatTabani(device, tenant), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+      const fmtN = (n: number) => n.toLocaleString('tr-TR');
+      const ayEki = (n: number) => (n > 1 ? ` (${n} ay)` : '');
+      // Müşteri makinesinde fiyatı girilmemiş kanal (yalnız S/B anlaşması
+      // yapılmış renkli makine gibi) ₺0'lık satır olarak faturaya düşmesin.
+      const kanalVar = (tutar: number) => device.isRental || tutar > 0;
+      let tutar = 0;
+      if (ch.billB > 0 && kanalVar(ch.blackTotal)) {
+        tutar += ch.blackTotal;
+        lines.push({
+          tenantId,
+          kind: 'COUNTER',
+          description: `Sayaç (S/B) — ${device.brand} ${device.model}${ch.inclB > 0 ? ` · ${fmtN(sumBlack)} okundu, ${fmtN(ch.inclB)} dahil${ayEki(k.siyah)}, ${fmtN(ch.billB)} aşım` : ''}`,
+          deviceId: device.id,
+          quantity: ch.billB,
+          unitPrice: ch.overBlack,
+          lineTotal: ch.blackTotal,
+          dahilSayfa: ch.inclB,
+          ayCarpani: k.siyah,
+        });
+      }
+      if (ch.billC > 0 && kanalVar(ch.colorTotal)) {
+        tutar += ch.colorTotal;
+        lines.push({
+          tenantId,
+          kind: 'COUNTER',
+          description: `Sayaç (Renkli) — ${device.brand} ${device.model}${ch.inclC > 0 ? ` · ${fmtN(sumColor)} okundu, ${fmtN(ch.inclC)} dahil${ayEki(k.renkli)}, ${fmtN(ch.billC)} aşım` : ''}`,
+          deviceId: device.id,
+          quantity: ch.billC,
+          unitPrice: ch.overColor,
+          lineTotal: ch.colorTotal,
+          dahilSayfa: ch.inclC,
+          ayCarpani: k.renkli,
+        });
+      }
+      if (readings.length)
+        cihazlar.push({
+          deviceId: device.id,
+          cihaz: `${device.brand} ${device.model}${device.serialNo ? ` · ${device.serialNo}` : ''}`,
+          sayfa: sumBlack + sumColor,
+          tutar: round2(tutar),
+          carpan: k.siyah,
+          supheli,
+        });
+    }
+
+    // b) Sabit kira — dönem başına 1 kez; geçmiş dönem kesimi kirayı tekrar yazmaz (kiraKesilir)
+    if (kiraKesilir(device, period, end)) {
+      lines.push({
+        tenantId,
+        kind: 'RENTAL',
+        description: `Aylık kira — ${device.brand} ${device.model}`,
+        deviceId: device.id,
+        quantity: 1,
+        unitPrice: Number(device.monthlyRent),
+        lineTotal: round2(Number(device.monthlyRent)),
+      });
+      deviceRentToMark.push(device.id);
+    }
+  }
+
+  // c) Teslim edilmiş, faturalanmamış ve HENÜZ ÖDENMEMİŞ iş emirleri (parça + işçilik).
+  // Fişten doğrudan ödenmiş (PAID) servisler gelirini ödeme anında yazdığı için
+  // burada tekrar faturalanmaz (mükerrer gelir önlenir).
+  // Cariye (AccountEntry) otomatik işlenmiş servis fişlerini aylık faturadan HARİÇ tut — çift sayım önle
+  const cariRows = await tx.accountEntry.findMany({
+    where: { tenantId, customerId, ticketId: { not: null } },
+    select: { ticketId: true },
+  });
+  const cariTicketIds = cariRows.map((r) => r.ticketId).filter((x): x is string => !!x);
+
+  const tickets = await tx.serviceTicket.findMany({
+    where: {
+      tenantId, customerId, status: 'DELIVERED', invoiceId: null, deletedAt: null, paymentStatus: 'UNPAID',
+      ...(cariTicketIds.length ? { id: { notIn: cariTicketIds } } : {}),
+    },
+    include: { ticketParts: { include: { part: true } } },
+  });
+  const ticketIdsToMark: string[] = [];
+  for (const t of tickets) {
+    for (const tp of t.ticketParts) {
+      lines.push({
+        tenantId,
+        kind: 'PART',
+        description: `Parça: ${tp.part.name} (${t.ticketNumber})`,
+        ticketId: t.id,
+        partId: tp.partId,
+        quantity: tp.quantity,
+        unitPrice: Number(tp.unitPrice),
+        lineTotal: round2(tp.quantity * Number(tp.unitPrice)),
+      });
+    }
+    if (Number(t.laborCost) > 0) {
+      lines.push({
+        tenantId,
+        kind: 'LABOR',
+        description: `İşçilik (${t.ticketNumber})`,
+        ticketId: t.id,
+        quantity: 1,
+        unitPrice: Number(t.laborCost),
+        lineTotal: round2(Number(t.laborCost)),
+      });
+    }
+    ticketIdsToMark.push(t.id);
+  }
+
+  return { tenant, customerId, period, lines, readingIdsToBill, deviceRentToMark, ticketIdsToMark, cihazlar };
+}
+
+/** Hesabı keser: fatura + satırlar + "faturalandı" işaretleri (aynı işlem). Satır yoksa null. */
+async function faturaKes(tx: Tx, h: FaturaHesabi, source: InvoiceSource) {
+  const { tenant, customerId, period } = h;
+  const tenantId = tenant.id;
+  const invoice = await postInvoice(tx, { tenantId, customerId, period, source, lines: h.lines });
+  if (!invoice) return null;
+
+  // Idempotency işaretleri — aynı transaction
+  if (h.readingIdsToBill.length)
+    await tx.counterReading.updateMany({ where: { id: { in: h.readingIdsToBill } }, data: { billed: true } });
+  if (h.deviceRentToMark.length)
+    await tx.device.updateMany({ where: { id: { in: h.deviceRentToMark }, ...kiraIsaretiKosulu(period) }, data: { lastInvoicedPeriod: period } });
+  if (h.ticketIdsToMark.length)
+    await tx.serviceTicket.updateMany({
+      where: { id: { in: h.ticketIdsToMark } },
+      data: { invoiceId: invoice.id, invoicedAt: invoice.invoiceDate },
+    });
+  return invoice;
+}
+
+/**
+ * Bir müşterinin verilen dönemi için TEK fatura keser (idempotent), bekletme
+ * kurallarına BAKMADAN. Faturalanacak bir şey yoksa null döner. Gece işi ve
+ * "Dönem Faturala" bunu değil donemFaturasiHazirla'yı kullanır.
  */
 export async function buildInvoiceForCustomerPeriod(
   tenantId: string,
@@ -325,170 +547,79 @@ export async function buildInvoiceForCustomerPeriod(
   period: string = periodOf(),
   source: InvoiceSource = 'AUTO_MONTHLY'
 ) {
-  // Kira kuralı dönem sonuna bakar (dönemden sonra kurulan cihazın o ayın
-  // kirası yok). Okumalar ise DÖNEM DAMGASIYLA seçilir (donemOkumaKosulu):
-  // kesim günü 3 olan bayide 1 Kasım'da gelen rapor Ekim'in okumasıdır.
-  const { end } = donemAraligi(period);
-  const donemdeki = donemOkumaKosulu(period);
-
   return prisma.$transaction(async (tx) => {
-    // MÜŞTERİ FATURA KİLİDİ — işlemin İLK ifadesi olmak zorunda.
-    // "Bu Dönemi Faturala" aynı anda iki sekmeden / iki yöneticiden (ya da
-    // herkese açık demoda) basılınca her işlem okumaları ve kira işaretini
-    // ötekinin yazmasından ÖNCE okuyordu: dönemde müşteri başına 3 fatura,
-    // kira ve aşım 3 kez kesildi. Kilit işlem bitene kadar ikinciyi bekletir;
-    // ikinci, birincinin billed / lastInvoicedPeriod / invoiceId işaretlerini
-    // görür, satır çıkmaz, null döner. Bu yüzden bütün okumalar kilitten SONRA.
-    // Anahtar dönemsiz (bayi + müşteri): iş emri satırları döneme bağlı değil;
-    // aynı müşteride iki FARKLI dönem aynı anda kesilirse (gece işi Eylül'ü,
-    // yönetici Ekim'i) aynı fiş iki faturaya girerdi.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId}), hashtext(${`fatura:${customerId}`}))`;
+    await musteriFaturaKilidi(tx, tenantId, customerId);
+    const h = await faturaHesapla(tx, tenantId, customerId, period);
+    return faturaKes(tx, h, source);
+  }, FATURA_ISLEMI);
+}
 
-    const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) throw new Error('Tenant bulunamadı');
+/**
+ * ── TASLAK → KONTROL → KES ────────────────────────────────────────────────
+ * Dönem faturasını hazırlar. Kesilir; ya da bekletme gerekçesi varsa
+ * (lib/fatura-bekletme) veya bayi her faturayı önce görmek istiyorsa
+ * (Tenant.faturaOnayi = ELLE) taslakta bekler. Taslak hiçbir işareti
+ * değiştirmez: okumalar faturalanmamış, kira işareti yerinde kalır.
+ *
+ * `taslakId` verilirse bayi o taslağı onaylıyor demektir ("yine de kes"):
+ * gerekçelere bakılmaz ama hesap kilit içinde YENİDEN yapılır. Toplam
+ * taslaktakinden farklıysa (o arada okuma geldi, fiş teslim edildi) kesilmez;
+ * taslak yeni rakamlarla güncellenir ve DEGISTI döner — bayi gördüğünden
+ * başka bir tutarı onaylamış olmasın.
+ */
+export type HazirlamaSonucu =
+  | { tur: 'KESILDI'; invoice: NonNullable<Awaited<ReturnType<typeof postInvoice>>> }
+  | { tur: 'TASLAK'; taslakId: string; toplam: number; gerekceler: Gerekce[] }
+  | { tur: 'DEGISTI'; taslakId: string; toplam: number }
+  | null;
 
-    const lines: LineInput[] = [];
-    const readingIdsToBill: string[] = [];
-    const deviceRentToMark: string[] = [];
+export async function donemFaturasiHazirla(
+  tenantId: string,
+  customerId: string,
+  period: string,
+  opts: { source?: InvoiceSource; taslakId?: string } = {},
+): Promise<HazirlamaSonucu> {
+  const source = opts.source ?? 'AUTO_MONTHLY';
+  return prisma.$transaction(async (tx) => {
+    await musteriFaturaKilidi(tx, tenantId, customerId);
+    const bekleyen = await tx.faturaTaslagi.findFirst({ where: { tenantId, customerId, period, durum: 'BEKLIYOR' } });
+    // Onaylanan taslak hâlâ bekliyor mu (başka sekmede kesildi / atıldı mı)?
+    if (opts.taslakId && bekleyen?.id !== opts.taslakId) return null;
 
-    const devices = await tx.device.findMany({ where: { tenantId, customerId } });
-    // Okunmayan ayların dahil paketi (tek sorgu): bkz. sayacAyCarpanlari.
-    const carpanlar = await sayacAyCarpanlari(tx, tenantId, devices.filter(sayfaUcretliMi).map((d) => d.id), period);
+    const h = await faturaHesapla(tx, tenantId, customerId, period);
+    if (h.lines.length === 0) {
+      // Faturalanacak bir şey kalmadı (başka yoldan kesildi): taslak düşer.
+      if (bekleyen) await tx.faturaTaslagi.update({ where: { id: bekleyen.id }, data: { durum: 'ATILDI' } });
+      return null;
+    }
+    const { subtotal, totalAmount } = faturaToplami(h.lines, Number(h.tenant.vatRate));
+    const onizleme = h.lines.map((l) => ({ kind: l.kind, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, lineTotal: l.lineTotal }));
 
-    for (const device of devices) {
-      // a) Faturalanmamış sayaç okumaları (bu dönem) — YALNIZ sayfa başı
-      // ücretli cihazda. Ücretsiz cihazın okuması "faturalandı" diye
-      // kapatılmaz (bkz. sayfaUcretliMi: sessiz sayaç yanması).
-      if (sayfaUcretliMi(device)) {
-        const readings = await tx.counterReading.findMany({
-          where: { tenantId, deviceId: device.id, billed: false, ...donemdeki },
+    if (opts.taslakId && bekleyen) {
+      if (Math.abs(Number(bekleyen.toplam) - totalAmount) > 0.005) {
+        const gerekceler = await bekletmeGerekceleri(tx, tenantId, period, h.cihazlar);
+        await tx.faturaTaslagi.update({
+          where: { id: bekleyen.id },
+          data: { satirlar: onizleme, gerekceler, araToplam: subtotal, toplam: totalAmount },
         });
-        let sumBlack = 0;
-        let sumColor = 0;
-        for (const r of readings) {
-          sumBlack += r.deltaBlack;
-          sumColor += r.deltaColor;
-          readingIdsToBill.push(r.id);
-        }
-        // Dahil paketi dönem boyunca KÜMÜLATİF uygula: bu dönemde daha önce faturalanmış sayfaları çek
-        const prevAgg = await tx.counterReading.aggregate({
-          where: { tenantId, deviceId: device.id, billed: true, ...donemdeki },
-          _sum: { deltaBlack: true, deltaColor: true },
-        });
-        // Kademeli: dahil sayfa kira içinde; yalnız aşım faturalanır (included=0 ise düz fiyat).
-        // Okunmayan ay varsa dahil paket o kadar ay uygulanır (dahilCarpanli).
-        const k = carpanlar.get(device.id) ?? { siyah: 1, renkli: 1 };
-        const ch = counterOverage(dahilCarpanli(device, k), sumBlack, sumColor, fiyatTabani(device, tenant), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
-        const fmtN = (n: number) => n.toLocaleString('tr-TR');
-        const ayEki = (n: number) => (n > 1 ? ` (${n} ay)` : '');
-        // Müşteri makinesinde fiyatı girilmemiş kanal (yalnız S/B anlaşması
-        // yapılmış renkli makine gibi) ₺0'lık satır olarak faturaya düşmesin.
-        const kanalVar = (tutar: number) => device.isRental || tutar > 0;
-        if (ch.billB > 0 && kanalVar(ch.blackTotal))
-          lines.push({
-            tenantId,
-            kind: 'COUNTER',
-            description: `Sayaç (S/B) — ${device.brand} ${device.model}${ch.inclB > 0 ? ` · ${fmtN(sumBlack)} okundu, ${fmtN(ch.inclB)} dahil${ayEki(k.siyah)}, ${fmtN(ch.billB)} aşım` : ''}`,
-            deviceId: device.id,
-            quantity: ch.billB,
-            unitPrice: ch.overBlack,
-            lineTotal: ch.blackTotal,
-            dahilSayfa: ch.inclB,
-            ayCarpani: k.siyah,
-          });
-        if (ch.billC > 0 && kanalVar(ch.colorTotal))
-          lines.push({
-            tenantId,
-            kind: 'COUNTER',
-            description: `Sayaç (Renkli) — ${device.brand} ${device.model}${ch.inclC > 0 ? ` · ${fmtN(sumColor)} okundu, ${fmtN(ch.inclC)} dahil${ayEki(k.renkli)}, ${fmtN(ch.billC)} aşım` : ''}`,
-            deviceId: device.id,
-            quantity: ch.billC,
-            unitPrice: ch.overColor,
-            lineTotal: ch.colorTotal,
-            dahilSayfa: ch.inclC,
-            ayCarpani: k.renkli,
-          });
+        return { tur: 'DEGISTI', taslakId: bekleyen.id, toplam: totalAmount };
       }
-
-      // b) Sabit kira — dönem başına 1 kez; geçmiş dönem kesimi kirayı tekrar yazmaz (kiraKesilir)
-      if (kiraKesilir(device, period, end)) {
-        lines.push({
-          tenantId,
-          kind: 'RENTAL',
-          description: `Aylık kira — ${device.brand} ${device.model}`,
-          deviceId: device.id,
-          quantity: 1,
-          unitPrice: Number(device.monthlyRent),
-          lineTotal: round2(Number(device.monthlyRent)),
-        });
-        deviceRentToMark.push(device.id);
+    } else {
+      const gerekceler = await bekletmeGerekceleri(tx, tenantId, period, h.cihazlar);
+      if (gerekceler.length > 0 || h.tenant.faturaOnayi === 'ELLE') {
+        const veri = { satirlar: onizleme, gerekceler, araToplam: subtotal, toplam: totalAmount };
+        const taslak = bekleyen
+          ? await tx.faturaTaslagi.update({ where: { id: bekleyen.id }, data: veri })
+          : await tx.faturaTaslagi.create({ data: { tenantId, customerId, period, ...veri } });
+        return { tur: 'TASLAK', taslakId: taslak.id, toplam: totalAmount, gerekceler };
       }
     }
 
-    // c) Teslim edilmiş, faturalanmamış ve HENÜZ ÖDENMEMİŞ iş emirleri (parça + işçilik).
-    // Fişten doğrudan ödenmiş (PAID) servisler gelirini ödeme anında yazdığı için
-    // burada tekrar faturalanmaz (mükerrer gelir önlenir).
-    // Cariye (AccountEntry) otomatik işlenmiş servis fişlerini aylık faturadan HARİÇ tut — çift sayım önle
-    const cariRows = await tx.accountEntry.findMany({
-      where: { tenantId, customerId, ticketId: { not: null } },
-      select: { ticketId: true },
-    });
-    const cariTicketIds = cariRows.map((r) => r.ticketId).filter((x): x is string => !!x);
-
-    const tickets = await tx.serviceTicket.findMany({
-      where: {
-        tenantId, customerId, status: 'DELIVERED', invoiceId: null, deletedAt: null, paymentStatus: 'UNPAID',
-        ...(cariTicketIds.length ? { id: { notIn: cariTicketIds } } : {}),
-      },
-      include: { ticketParts: { include: { part: true } } },
-    });
-    const ticketIdsToMark: string[] = [];
-    for (const t of tickets) {
-      for (const tp of t.ticketParts) {
-        lines.push({
-          tenantId,
-          kind: 'PART',
-          description: `Parça: ${tp.part.name} (${t.ticketNumber})`,
-          ticketId: t.id,
-          partId: tp.partId,
-          quantity: tp.quantity,
-          unitPrice: Number(tp.unitPrice),
-          lineTotal: round2(tp.quantity * Number(tp.unitPrice)),
-        });
-      }
-      if (Number(t.laborCost) > 0) {
-        lines.push({
-          tenantId,
-          kind: 'LABOR',
-          description: `İşçilik (${t.ticketNumber})`,
-          ticketId: t.id,
-          quantity: 1,
-          unitPrice: Number(t.laborCost),
-          lineTotal: round2(Number(t.laborCost)),
-        });
-      }
-      ticketIdsToMark.push(t.id);
-    }
-
-    const invoice = await postInvoice(tx, { tenantId, customerId, period, source, lines });
+    const invoice = await faturaKes(tx, h, source);
     if (!invoice) return null;
-
-    // Idempotency işaretleri — aynı transaction
-    if (readingIdsToBill.length)
-      await tx.counterReading.updateMany({ where: { id: { in: readingIdsToBill } }, data: { billed: true } });
-    if (deviceRentToMark.length)
-      await tx.device.updateMany({ where: { id: { in: deviceRentToMark }, ...kiraIsaretiKosulu(period) }, data: { lastInvoicedPeriod: period } });
-    if (ticketIdsToMark.length)
-      await tx.serviceTicket.updateMany({
-        where: { id: { in: ticketIdsToMark } },
-        data: { invoiceId: invoice.id, invoicedAt: invoice.invoiceDate },
-      });
-
-    return invoice;
-    // Kilit beklemesi işlem süresine sayılır: öndeki müşterinin faturası çok
-    // cihazlıysa bekleyen işlem varsayılan 5 sn'de boşuna düşmesin. Bekleyen
-    // işlemler bağlantı tuttuğu için havuzdan bağlantı alma süresi de uzun.
-  }, { timeout: 30_000, maxWait: 10_000 });
+    if (bekleyen) await tx.faturaTaslagi.update({ where: { id: bekleyen.id }, data: { durum: 'KESILDI', invoiceId: invoice.id } });
+    return { tur: 'KESILDI', invoice };
+  }, FATURA_ISLEMI);
 }
 
 /**

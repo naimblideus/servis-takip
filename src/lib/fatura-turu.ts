@@ -48,6 +48,13 @@ export interface KosuOzeti {
   hatalar?: { customerId: string; hata: string }[];
 }
 
+/** Dönemin taslakta bekleyen fatura sayısını FaturaTuru'na yazar (taslak kesilince/atılınca da). */
+export async function bekleyenSayisiniTazele(tenantId: string, period: string): Promise<number> {
+  const n = await prisma.faturaTaslagi.count({ where: { tenantId, period, durum: 'BEKLIYOR' } });
+  await prisma.faturaTuru.updateMany({ where: { tenantId, period }, data: { bekleyenSayisi: n } });
+  return n;
+}
+
 /**
  * Koşunun sonucunu yazar. `kapat` doğruysa dönem TAMAM olur (geç okumalar
  * sonraki döneme kayar); değilse özet tutulur, dönem açık kalır. Aynı dönem
@@ -82,6 +89,7 @@ export async function kosuyuKaydet(
       ...(hatalar && hatalar.length ? { hatalar } : {}),
     },
   });
+  await bekleyenSayisiniTazele(tenantId, period);
   onbellek.set(`${tenantId}:${period}`, { kapali: kapat || (await donemKapaliMiTaze(tenantId, period)), son: Date.now() });
 }
 

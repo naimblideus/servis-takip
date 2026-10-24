@@ -16,6 +16,11 @@ interface Invoice {
   lines: Line[];
 }
 interface Summary { count: number; total: number; open: number; overdue: number; paidCount: number; }
+type Gerekce = { kod: string; cihaz?: string; okumaSayisi?: number; sayfa?: number; ortalama?: number; tutar?: number };
+interface Taslak {
+  id: string; period: string; customer: { id: string; name: string } | null;
+  gerekceler: Gerekce[]; satirlar: Line[]; araToplam: number; toplam: number;
+}
 
 // Etiketler sözlükte (faturalar.durum / faturalar.tur); burada yalnız renk.
 const STATUS_CLS: Record<string, string> = {
@@ -53,6 +58,11 @@ export default function InvoicesPage() {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [preflight, setPreflight] = useState<{ loading: boolean; data: any } | null>(null);
+  // Taslakta bekleyen dönem faturaları (lib/fatura-bekletme)
+  const [taslaklar, setTaslaklar] = useState<Taslak[]>([]);
+  const [taslakToplam, setTaslakToplam] = useState(0);
+  const [taslakAcik, setTaslakAcik] = useState(false);
+  const [taslakIslem, setTaslakIslem] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +81,40 @@ export default function InvoicesPage() {
   }, [status, search]);
 
   useEffect(() => { load(); }, [load]);
+
+  const taslakYukle = useCallback(async () => {
+    try {
+      const r = await fetch('/api/invoices/taslak');
+      if (r.ok) { const d = await r.json(); setTaslaklar(d.taslaklar); setTaslakToplam(d.toplam); }
+    } catch { /* yoksay */ }
+  }, []);
+  useEffect(() => { taslakYukle(); }, [taslakYukle]);
+
+  const gerekceMetni = (g: Gerekce) => doldur((t.faturalar.gerekce as Record<string, string>)[g.kod] ?? g.kod, {
+    cihaz: g.cihaz ?? '', sayfa: b.sayi(g.sayfa ?? 0), ort: b.sayi(g.ortalama ?? 0), tutar: fmt(g.tutar ?? 0),
+  });
+
+  // "Kes" / "Bu ay kesme": sunucu kesmeden önce hesabı yeniden yapar; tutar
+  // değiştiyse kesmez, taslağı günceller (ekran yeni tutarı gösterir).
+  const taslakUygula = async (ids: string[], islem: 'KES' | 'AT') => {
+    if ((session?.user as { demo?: boolean } | undefined)?.demo) { setMsg(t.demoOnizleme.faturaGenel); return; }
+    setTaslakIslem(true); setMsg(null);
+    try {
+      const r = await fetch('/api/invoices/taslak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, islem }) });
+      const d = await r.json();
+      if (r.ok) {
+        const parca = [
+          d.kesilen ? doldur(t.faturalar.taslakKesildi, { n: d.kesilen, tutar: fmt(d.tutar) }) : '',
+          d.atilan ? doldur(t.faturalar.taslakAtildi, { n: d.atilan }) : '',
+          d.degisen ? doldur(t.faturalar.taslakDegisti, { n: d.degisen }) : '',
+          d.hata ? doldur(t.faturalar.taslakHata, { n: d.hata }) : '',
+        ].filter(Boolean);
+        setMsg(parca.join(' '));
+        load(); taslakYukle();
+      } else setMsg('❌ ' + (d.error || t.genel.hata));
+    } catch { setMsg('❌ ' + t.sayacTuru.sunucuYok); }
+    setTaslakIslem(false);
+  };
 
   // FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ — çıplak onay yerine "hangi cihazın sayacı okunmadı" ekranı
   // Dönem verilmezse sunucu varsayılanı seçer (ayın ilk yarısı → kapanan ay).
@@ -96,9 +140,10 @@ export default function InvoicesPage() {
       if (res.ok) {
         setMsg(doldur(t.faturalar.donemOnEki, { ay: donemAdi(d.period) }) + doldur(t.faturalar.kesildi, {
           n: d.created, tutar: fmt(d.total),
-          ek: d.errors ? doldur(t.faturalar.hataEki, { n: d.errors }) : '',
+          ek: (d.errors ? doldur(t.faturalar.hataEki, { n: d.errors }) : '') + (d.bekleyen ? doldur(t.faturalar.bekleyenEki, { n: d.bekleyen }) : ''),
         }));
-        load();
+        load(); taslakYukle();
+        if (d.bekleyen) setTaslakAcik(true);
       } else setMsg('❌ ' + (d.error || t.genel.hata));
     } catch { setMsg('❌ ' + t.sayacTuru.sunucuYok); }
     setRunning(false);
@@ -117,7 +162,66 @@ export default function InvoicesPage() {
         </button>
       </div>
 
-      {msg && <div className="mb-4 p-3 rounded-lg bg-gray-50 border text-sm text-gray-700">{msg}</div>}
+      {msg && <div role="status" className="mb-4 p-3 rounded-lg bg-gray-50 border text-sm text-gray-700">{msg}</div>}
+
+      {/* TASLAKTA BEKLEYEN FATURALAR — kendiliğinden kesilmedi, gerekçesiyle. */}
+      {taslaklar.length > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <p className="font-semibold text-amber-900">{doldur(t.faturalar.taslakBaslik, { n: taslaklar.length, tutar: fmt(taslakToplam) })}</p>
+              <p className="text-sm text-amber-800 mt-1">{t.faturalar.taslakAlt}</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => setTaslakAcik((a) => !a)} aria-expanded={taslakAcik}
+                className="min-h-[44px] px-4 py-2 bg-white border border-amber-300 text-amber-900 rounded-lg text-sm font-medium hover:bg-amber-100">
+                {taslakAcik ? t.faturalar.taslakKapat : t.faturalar.taslakAc}
+              </button>
+              <button onClick={() => taslakUygula(taslaklar.map((x) => x.id), 'KES')} disabled={taslakIslem}
+                className="min-h-[44px] px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                {doldur(t.faturalar.hepsiniKes, { n: taslaklar.length })}
+              </button>
+            </div>
+          </div>
+          {taslakAcik && (
+            <div className="mt-4 grid gap-3">
+              {taslaklar.map((x) => (
+                <div key={x.id} className="bg-white rounded-lg border border-amber-200 p-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900">{x.customer?.name ?? '—'} <span className="text-gray-400 font-normal text-sm">· {donemAdi(x.period)}</span></p>
+                      <ul className="mt-1 space-y-0.5">
+                        {(x.gerekceler.length ? x.gerekceler : [{ kod: 'ONAY' }]).map((g, i) => (
+                          <li key={i} className="text-sm text-amber-900 [overflow-wrap:anywhere]">⚠ {gerekceMetni(g)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <p className="font-bold text-gray-900 tabular-nums">{fmt(x.toplam)}</p>
+                  </div>
+                  <details className="mt-2">
+                    <summary className="text-xs text-gray-500 cursor-pointer select-none min-h-[32px] flex items-center">{t.faturalar.kalem} ({x.satirlar.length})</summary>
+                    <ul className="mt-1 text-xs text-gray-600 space-y-1">
+                      {x.satirlar.map((l, i) => (
+                        <li key={i} className="flex justify-between gap-3"><span className="[overflow-wrap:anywhere]">{l.description}</span><span className="tabular-nums whitespace-nowrap">{fmt(l.lineTotal)}</span></li>
+                      ))}
+                    </ul>
+                  </details>
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    <button onClick={() => taslakUygula([x.id], 'KES')} disabled={taslakIslem}
+                      className="min-h-[44px] px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                      {t.faturalar.taslakKes}
+                    </button>
+                    <button onClick={() => taslakUygula([x.id], 'AT')} disabled={taslakIslem}
+                      className="min-h-[44px] px-4 py-2 bg-white border text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium disabled:opacity-50">
+                      {t.faturalar.taslakAt}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ */}
       {preflight && (

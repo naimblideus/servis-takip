@@ -215,8 +215,10 @@ export async function createReading(
     const gecenGun = prev ? (tarih.getTime() - new Date(prev.readingDate).getTime()) / 86400000 : 1;
     anomali = anomaliDegerlendir(deltaBlack + deltaColor, gecenGun, gecmis);
   }
-  // Şüphe faturayı DURDURMAZ — okuma normal yazılır, karar bayinindir.
-  // Sistemin sessizce para tutması, yanlış faturadan daha kötü bir sürprizdir.
+  // Şüphe okumayı REDDETMEZ — okuma normal yazılır, karar bayinindir. Dönem
+  // faturası ise kendiliğinden kesilmez: gerekçesiyle taslakta bekler, bayi
+  // bakıp "yine de kes" der (lib/fatura-bekletme). Sessizce para tutulmaz:
+  // bekleyen taslak Faturalar ekranının en üstünde durur.
   const warning = anomali?.supheli ? anomali.aciklama : null;
 
   // Kiralık cihazda kademeli (dahil paket + aşım) ücret — gerçek fatura mantığıyla AYNI kaynak
@@ -258,6 +260,8 @@ export async function createReading(
       readingDate: tarih,
       faturaDonemi,
       renkliOlculdu: input.renkliOlculdu ?? true,
+      // Şüpheli okuma yazılır; dönem faturası taslakta bekler (lib/fatura-bekletme).
+      supheli: anomali?.supheli === true,
     },
   });
 

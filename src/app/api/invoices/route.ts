@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { buildInvoiceForCustomerPeriod } from '@/lib/invoicing';
+import { donemFaturasiHazirla } from '@/lib/invoicing';
 import { gecerliDonem, kesimGunu, varsayilanElleDonem } from '@/lib/fatura-donemi';
 import { kosuDonemiKapatir, kosuyuKaydet } from '@/lib/fatura-turu';
 import { docToken } from '@/lib/doc-token';
@@ -139,14 +139,16 @@ export async function POST(req: Request) {
 
     let created = 0;
     let total = 0;
+    let bekleyen = 0;
     const hatalar: { customerId: string; hata: string }[] = [];
     for (const c of customers) {
       try {
-        const inv = await buildInvoiceForCustomerPeriod(tenantId, c.id, period, 'AUTO_MONTHLY');
-        if (inv) {
+        // Şüpheli / şoklu fatura (ya da bayi onayı açıksa hepsi) taslakta bekler.
+        const s = await donemFaturasiHazirla(tenantId, c.id, period, { source: 'AUTO_MONTHLY' });
+        if (s?.tur === 'KESILDI') {
           created++;
-          total += Number(inv.totalAmount);
-        }
+          total += Number(s.invoice.totalAmount);
+        } else if (s?.tur === 'TASLAK') bekleyen++;
       } catch (e: any) {
         hatalar.push({ customerId: c.id, hata: String(e?.message ?? e).slice(0, 300) });
         console.error('INVOICE MANUAL ERROR:', e?.message);
@@ -163,7 +165,7 @@ export async function POST(req: Request) {
       console.error('FATURA TURU KAYIT HATASI:', e?.message);
     }
 
-    return NextResponse.json({ ok: true, period, created, total: round2(total), errors: hatalar.length });
+    return NextResponse.json({ ok: true, period, created, total: round2(total), errors: hatalar.length, bekleyen });
   } finally {
     FATURALAMA_SURUYOR.delete(tenantId);
   }
