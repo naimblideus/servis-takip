@@ -26,6 +26,7 @@ try {
     join(KOK, 'node_modules/typescript/bin/tsc'),
     join(KOK, 'src/lib/readings.ts'), join(KOK, 'src/lib/sayac-anomali.ts'),
     join(KOK, 'src/lib/prisma.ts'), join(KOK, 'src/lib/invoicing.ts'),
+    join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/fatura-turu.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
     '--moduleResolution', 'bundler', '--skipLibCheck',
   ], { stdio: 'pipe' });
@@ -37,8 +38,9 @@ writeFileSync(join(g, 'prisma-shim.js'),
   `import { PrismaClient } from ${JSON.stringify(PC)};\nexport const prisma = new PrismaClient();\n`);
 for (const [dosya, esle] of [
   ['readings.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/invoicing'", "'./invoicing.js'"],
-    ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@prisma/client'", JSON.stringify(PC)]]],
-  ['invoicing.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(PC)]]],
+    ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@prisma/client'", JSON.stringify(PC)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]],
+  ['invoicing.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(PC)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]],
+  ['fatura-turu.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]],
 ]) {
   const y = join(g, dosya);
   let t = readFileSync(y, 'utf8');

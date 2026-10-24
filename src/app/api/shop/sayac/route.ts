@@ -88,6 +88,8 @@ export async function POST(req: Request) {
       counterBlack: counterBlack as number,
       counterColor: renkli,
       source: 'PORTAL',
+      // Renkli girilmediyse son değer taşındı: renkli bu ay okunmadı (dahil paket çarpanı).
+      renkliOlculdu: Number.isFinite(counterColor) && (counterColor as number) >= 0,
     });
     return NextResponse.json({ ok: true, uyari: sonuc.warning, deltaSb: sonuc.deltaBlack });
   } catch (e) {

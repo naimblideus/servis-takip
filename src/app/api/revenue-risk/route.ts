@@ -3,7 +3,7 @@ import { acikDonem, donemAraligi, donemOkumaKosulu, kesimGunu, oncekiDonem, okum
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { counterOverage, fiyatTabani, SAYFA_UCRETLI_CIHAZ, kiraKesilir } from '@/lib/invoicing';
+import { counterOverage, dahilCarpanli, fiyatTabani, sayacAyCarpanlari, SAYFA_UCRETLI_CIHAZ, kiraKesilir } from '@/lib/invoicing';
 import { oturumKullanicisi } from '@/lib/api-auth';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -37,6 +37,8 @@ export async function GET() {
     include: { customer: { select: { id: true, name: true, phone: true, address: true } } },
   });
   const ids = devices.map((d) => d.id);
+  // Okunmayan ayların dahil paketi — faturayla aynı kural (tek sorgu).
+  const carpanlar = await sayacAyCarpanlari(prisma, user.tenantId, ids, period);
 
   // Bu dönem faturalanmamış okumalar (tek sorgu, JS'te grupla)
   const readings = ids.length
@@ -113,7 +115,7 @@ export async function GET() {
   for (const d of devices) {
     const s = sums.get(d.id) || { b: 0, c: 0 };
     const prev = prevSums.get(d.id) || { b: 0, c: 0 };
-    const ch = counterOverage(d, s.b, s.c, fiyatTabani(d, tenant), prev.b, prev.c);
+    const ch = counterOverage(dahilCarpanli(d, carpanlar.get(d.id)), s.b, s.c, fiyatTabani(d, tenant), prev.b, prev.c);
     const counterAmount = ch.total; // aşım tutarı (dahil paket düşülmüş)
     const rentUncut = kiraKesilir(d, period, end);
     const rentAmount = rentUncut ? round2(Number(d.monthlyRent)) : 0;

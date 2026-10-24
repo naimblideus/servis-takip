@@ -42,7 +42,7 @@ let veri;
 try { execFileSync(process.execPath, [
   join(KOK, 'node_modules/typescript/bin/tsc'),
   join(KOK, 'src/lib/filo-veri.ts'), join(KOK, 'src/lib/filo.ts'),
-  join(KOK, 'src/lib/toner.ts'), join(KOK, 'src/lib/invoicing.ts'),
+  join(KOK, 'src/lib/toner.ts'), join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/fatura-donemi.ts'),
   '--outDir', g, '--module', 'esnext', '--target', 'es2022',
   '--moduleResolution', 'bundler', '--skipLibCheck',
 ], { stdio: 'pipe' }); } catch { /* yukarıdaki not */ }
@@ -66,7 +66,7 @@ try {
     ["'@/lib/invoicing'", "'./invoicing.js'"],
     ["'@/lib/filo'", "'./filo.js'"],
   ]);
-  duzelt('invoicing.js', [prismaYolu, prismaPaketi]);
+  duzelt('invoicing.js', [prismaYolu, prismaPaketi, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
   veri = await import(pathToFileURL(join(g, 'filo-veri.js')).href);
 } catch (e) {
   console.log('ATLANDI: filo-veri derlenemedi —', e?.message);

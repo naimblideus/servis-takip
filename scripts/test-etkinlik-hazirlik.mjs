@@ -45,7 +45,7 @@ console.log('\nKalabalık (tek otel IP, yüzlerce kayıt)\n');
   t('yeni bayinin ilk faturası 00001', /nextInvoiceSeq: 0/.test(tm) && existsSync(join(KOK, 'prisma/migrations/20261015100000_fatura_sayaci/migration.sql')));
   const a = oku('src/lib/auth.ts');
   t('★ giriş e-postası büyük/küçük harf duyarsız (lower=lower, ILIKE değil)', /lower\("email"\) = \$\{eposta\}/.test(a) && !/mode: 'insensitive'/.test(a));
-  t('★ yanlış şifre sınırı e-postaya bağlı ve demo kilitlenmez', /girisKilitli\(eposta\)/.test(a) && /girisHatasi\(eposta, adaylar\.some\(\(a\) => \(a as any\)\.tenant\?\.demo\)\)/.test(a));
+  t('★ yanlış şifre sınırı e-postaya bağlı ve demo kilitlenmez', /girisKilitli\(eposta\)/.test(a) && /girisHatasi\(eposta, adaylar\.some\(\(a\) => \(a as any\)\.tenant\?\.demo( && !\(a as any\)\.tenant\?\.ekipTest)?\)\)/.test(a));
   const c = oku('src/app/api/auth/2fa/check/route.ts');
   t('2FA kontrolü IP + e-posta ile sınırlı (salonda herkes aynı IP)', /2fa-check:\$\{clientIp\(req\)\}:\$\{eposta\}/.test(c));
   const s = oku('src/lib/sifre-sifirlama.ts');
@@ -74,7 +74,7 @@ console.log('\nOrtak demo (400 kişi aynı hesapta)\n');
 {
   t('★ demoda dil seçimi ortak kullanıcının kaydına yazılmaz', /if \(kullaniciId && !\(oturum\?\.user as any\)\?\.demo\)/.test(oku('src/app/api/locale/route.ts')));
   const l = oku('src/app/(dashboard)/layout.tsx');
-  t('★ demoda WhatsApp/arama bağlantıları gerçek numaraya gitmez, metin gösterilir', /demo\?: boolean \} \| undefined\)\?\.demo && <DemoBaglantiKoruma \/>/.test(l)
+  t('★ demoda WhatsApp/arama bağlantıları gerçek numaraya gitmez, metin gösterilir', /demo\?: boolean \} \| undefined\)\?\.demo( \|\| ekipTest\))? && <DemoBaglantiKoruma \/>/.test(l)
     && /wa\\\.me/.test(oku('src/components/DemoBaglantiKoruma.tsx')));
   t('★ demoda faturala/onayla/ekle/toner gönder önizleme gösterir (vitrin tükenmez)', /if \(demo\) \{\s*setMsg\(hedefDonem/.test(oku('src/app/(dashboard)/kacan-gelir/page.tsx'))
     && /if \(demo\) \{ setHata\(null\); setBilgi\(doldur\(t\.demoOnizleme\.cihaz/.test(oku('src/app/(dashboard)/sayac-tarayici/page.tsx'))

@@ -2,7 +2,7 @@
 // Hem tekil uç (/api/devices/[id]/readings) hem toplu uç (/api/readings/bulk) bunu çağırır.
 // KRİTİK: bu mantık kopyalanmamalı — aşım/dahil-paket hesabı ikiye çatallanırsa fatura hatası olur.
 import { prisma } from '@/lib/prisma';
-import { counterOverage } from '@/lib/invoicing';
+import { counterOverage, dahilCarpanli, sayacAyCarpanlari } from '@/lib/invoicing';
 import { anomaliDegerlendir, type AnomaliSonucu } from '@/lib/sayac-anomali';
 import { donemOkumaKosulu, kesimGunu, okumaDonemiAta } from '@/lib/fatura-donemi';
 import { donemKapaliMi } from '@/lib/fatura-turu';
@@ -69,6 +69,12 @@ export interface CreateReadingInput {
    * davranış). Kurallar okumaAni'de; fatura dönemi lib/fatura-donemi'de.
    */
   readingDate?: Date | string | null;
+  /**
+   * Renkli sayaç bu okumada GERÇEKTEN ölçüldü mü? Rapor/beyan renkliyi
+   * vermediyse çağıran son değeri taşır ve false geçer: o ay renkli için
+   * okunmamış sayılır (dahil paket çarpanı, lib/invoicing). Varsayılan true.
+   */
+  renkliOlculdu?: boolean;
 }
 
 export type OkumaKaynagi =
@@ -225,7 +231,9 @@ export async function createReading(
       where: { tenantId, deviceId, ...donemOkumaKosulu(faturaDonemi) },
       _sum: { deltaBlack: true, deltaColor: true },
     });
-    ch = counterOverage(device as any, deltaBlack, deltaColor, tenant as any, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+    // Okunmayan ayların dahil paketi — faturayla aynı kural (sayacAyCarpanlari).
+    const k = (await sayacAyCarpanlari(prisma, tenantId, [deviceId], faturaDonemi)).get(deviceId);
+    ch = counterOverage(dahilCarpanli(device as any, k), deltaBlack, deltaColor, tenant as any, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
     calculatedCost = ch.total;
 
     if (includeMonthlyRent) {
@@ -249,6 +257,7 @@ export async function createReading(
       source: input.source ?? 'ELLE',
       readingDate: tarih,
       faturaDonemi,
+      renkliOlculdu: input.renkliOlculdu ?? true,
     },
   });
 

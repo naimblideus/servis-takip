@@ -88,6 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         source: 'PORTAL',
         // Sayaç müşterinin talebi gönderdiği an okundu, bayinin onayladığı an değil.
         readingDate: talep.createdAt,
+        renkliOlculdu: talep.sayacColor != null,
       });
       await prisma.portalRequest.update({
         where: { id },

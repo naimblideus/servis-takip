@@ -25,7 +25,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 // ── DERLE ────────────────────────────────────────────────────────────────
 // Yeni lib dosyası eklenirse bu listeye eklenmeli.
 const g = mkdtempSync(join(tmpdir(), 'st-gelir-'));
-const DOSYALAR = ['gelecek-gelir', 'gelecek-gelir-veri', 'invoicing', 'sozlesme'];
+const DOSYALAR = ['gelecek-gelir', 'gelecek-gelir-veri', 'invoicing', 'sozlesme', 'fatura-donemi'];
 try {
   execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'),
     ...DOSYALAR.map((d) => join(KOK, `src/lib/${d}.ts`)),

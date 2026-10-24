@@ -31,7 +31,7 @@ const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).hre
 try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/period-charges.ts'),
+    join(KOK, 'src/lib/invoicing.ts'), join(KOK, 'src/lib/period-charges.ts'), join(KOK, 'src/lib/fatura-donemi.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck',
   ], { stdio: 'pipe' });
 } catch { /* tip hataları önemsiz */ }
@@ -43,8 +43,8 @@ const duzelt = (dosya, ciftler) => {
   writeFileSync(yol, s, 'utf8');
 };
 const ortak = [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]];
-duzelt('invoicing.js', ortak);
-duzelt('period-charges.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"]]);
+duzelt('invoicing.js', [...ortak, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
+duzelt('period-charges.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
 const inv = await import(pathToFileURL(join(g, 'invoicing.js')).href);
 const pc = await import(pathToFileURL(join(g, 'period-charges.js')).href);
 

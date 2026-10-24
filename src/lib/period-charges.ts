@@ -3,7 +3,7 @@
 // Mükerrer engeli faturalama ile AYNI bayraklar: CounterReading.billed + Device.lastInvoicedPeriod.
 // Böylece bu yol ile "Bu Dönemi Faturala" yolu birbirini çift saymaz.
 import { prisma } from '@/lib/prisma';
-import { counterOverage, periodOf, sayfaUcretliMi, fiyatTabani, kiraKesilir, kiraIsaretiKosulu } from '@/lib/invoicing';
+import { counterOverage, dahilCarpanli, periodOf, sayacAyCarpanlari, sayfaUcretliMi, fiyatTabani, kiraKesilir, kiraIsaretiKosulu } from '@/lib/invoicing';
 import type { Prisma } from '@prisma/client';
 import { donemAraligi, donemOkumaKosulu } from '@/lib/fatura-donemi';
 
@@ -39,6 +39,8 @@ async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: s
   const donemdeki = donemOkumaKosulu(period);
   const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { pricePerBlack: true, pricePerColor: true, vatRate: true } });
   const devices = await tx.device.findMany({ where: { tenantId, customerId } });
+  // Okunmayan ayların dahil paketi — faturayla aynı kural.
+  const carpanlar = await sayacAyCarpanlari(tx as any, tenantId, devices.filter(sayfaUcretliMi).map((d) => d.id), period);
 
   let rent = 0, counter = 0;
   const rentDetail: { device: string; amount: number }[] = [];
@@ -58,7 +60,7 @@ async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: s
     for (const r of readings) { sb += r.deltaBlack; sc += r.deltaColor; readingIds.push(r.id); }
     if (sb > 0 || sc > 0) {
       const prevAgg = await tx.counterReading.aggregate({ where: { tenantId, deviceId: d.id, billed: true, ...donemdeki }, _sum: { deltaBlack: true, deltaColor: true } });
-      const ch = counterOverage(d as any, sb, sc, fiyatTabani(d, tenant as any), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+      const ch = counterOverage(dahilCarpanli(d as any, carpanlar.get(d.id)), sb, sc, fiyatTabani(d, tenant as any), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
       if (ch.total > 0) { counter += ch.total; counterDetail.push({ device: label, amount: ch.total }); }
     }
 

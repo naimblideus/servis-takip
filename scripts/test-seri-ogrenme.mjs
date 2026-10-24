@@ -42,6 +42,7 @@ try {
     join(KOK, 'src/lib/sayac-eposta.ts'),
     join(KOK, 'src/lib/sayac-anomali.ts'),
     join(KOK, 'src/lib/ek-dosya.ts'),
+    join(KOK, 'src/lib/fatura-donemi.ts'), join(KOK, 'src/lib/fatura-turu.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
     '--moduleResolution', 'bundler', '--skipLibCheck', '--allowJs',
   ], { stdio: 'pipe' });
@@ -65,8 +66,9 @@ duzelt('app/api/sayac/eposta/route.js', [
   ["'@/lib/sayac-eposta'", "'../../../../lib/sayac-eposta.js'"],
   ["'@/lib/ek-dosya'", "'../../../../lib/ek-dosya.js'"],
 ]);
-duzelt('lib/readings.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"]]);
-duzelt('lib/invoicing.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]]);
+duzelt('lib/readings.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/sayac-anomali'", "'./sayac-anomali.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"], ["'@/lib/fatura-turu'", "'./fatura-turu.js'"]]);
+duzelt('lib/invoicing.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
+duzelt('lib/fatura-turu.js', [["'@/lib/prisma'", "'../prisma-shim.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
 
 const { POST } = await import(pathToFileURL(join(g, 'app/api/sayac/eposta/route.js')).href);
 const { PrismaClient } = await import(P);

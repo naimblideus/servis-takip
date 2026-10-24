@@ -32,7 +32,7 @@ try {
   try {
     execFileSync(process.execPath, [
       join(KOK, 'node_modules/typescript/bin/tsc'),
-      ...['banka-ekstresi', 'banka-ekstresi-veri', 'tablo-oku', 'ek-dosya', 'sheet-import', 'zip', 'invoicing', 'musteri-bakiye', 'tr-katla']
+      ...['banka-ekstresi', 'banka-ekstresi-veri', 'tablo-oku', 'ek-dosya', 'sheet-import', 'zip', 'invoicing', 'musteri-bakiye', 'tr-katla', 'fatura-donemi']
         .map((f) => join(KOK, `src/lib/${f}.ts`)),
       '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck',
     ], { stdio: 'pipe' });
@@ -48,7 +48,7 @@ try {
   duzelt('banka-ekstresi.js', [["'@/lib/tr-katla'", "'./tr-katla.js'"]]);
   duzelt('tablo-oku.js', [["'@/lib/ek-dosya'", "'./ek-dosya.js'"], ["'@/lib/sheet-import'", "'./sheet-import.js'"]]);
   duzelt('banka-ekstresi-veri.js', [...ortak, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/banka-ekstresi'", "'./banka-ekstresi.js'"]]);
-  duzelt('invoicing.js', ortak);
+  duzelt('invoicing.js', [...ortak, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
   duzelt('musteri-bakiye.js', ortak);
   duzelt('banka-ekstresi-veri.js', [["'@/lib/musteri-bakiye'", "'./musteri-bakiye.js'"]]);
   motor = await import(pathToFileURL(join(g, 'banka-ekstresi.js')).href);

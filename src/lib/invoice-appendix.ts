@@ -36,7 +36,7 @@ export async function buildCounterAppendix(
   invoice: {
     period: string;
     customerId: string;
-    lines: { kind: string; description: string; deviceId?: string | null; quantity: any; unitPrice: any; lineTotal: any }[];
+    lines: { kind: string; description: string; deviceId?: string | null; quantity: any; unitPrice: any; lineTotal: any; dahilSayfa?: number | null }[];
   },
 ): Promise<CounterAppendix | null> {
   const counterLines = invoice.lines.filter((l) => l.kind === 'COUNTER' && l.deviceId);
@@ -102,7 +102,9 @@ export async function buildCounterAppendix(
       prev,
       current,
       pages,
-      included: (channel === 'BLACK' ? dev.includedBlack : dev.includedColor) ?? 0,
+      // Faturada UYGULANAN dahil sayfa (okunmayan ay varsa çarpanlı); eski
+      // satırlarda yok → cihazın dahil paketi.
+      included: line.dahilSayfa ?? ((channel === 'BLACK' ? dev.includedBlack : dev.includedColor) ?? 0),
       billed: Number(line.quantity) || 0,
       unitPrice: Number(line.unitPrice) || 0,
       lineTotal: Number(line.lineTotal) || 0,

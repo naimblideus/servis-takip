@@ -312,6 +312,8 @@ export async function POST(req: NextRequest) {
         counterColor: okuma.color ?? sonRenk.get(cihaz.id) ?? 0,
         source: 'CIHAZ_EPOSTA',
         readingDate: postaTarihi,
+        // Rapor renkli sayaç vermediyse son değer taşındı: renkli bu ay okunmadı.
+        renkliOlculdu: okuma.color != null,
       }, cihaz.tenantId === bayi?.id ? bayiKaydi : undefined);
       await prisma.counterEmail.update({
         where: { id: kayit.id },

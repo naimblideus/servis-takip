@@ -69,6 +69,27 @@ export function oncekiDonem(period: string): string {
   return m === 1 ? `${y - 1}-12` : `${y}-${iki(m - 1)}`;
 }
 
+/** İki dönem arasındaki ay farkı: ayFarki('2026-08', '2026-10') = 2. */
+export function ayFarki(a: string, b: string): number {
+  const [ya, ma] = a.split('-').map(Number);
+  const [yb, mb] = b.split('-').map(Number);
+  return (yb * 12 + mb) - (ya * 12 + ma);
+}
+
+/** Dahil paket çarpanının üst sınırı: veri hatası (10 yıl önceki devir okuması) paketi şişirmesin. */
+export const AY_CARPANI_UST = 12;
+
+/**
+ * Dahil sayfa kaç aylık uygulanır? Son faturalanmış sayaç dönemi ile bu dönem
+ * arasındaki ay sayısı (1..12). Okunmayan ay kaybolmaz: Eylül hiç okunmadıysa
+ * Ekim okuması iki ayın sayfasını taşır ve İKİ ayın dahil paketini hak eder.
+ * Daha önce hiç faturalanmış okuma yoksa 1.
+ */
+export function ayCarpani(sonFaturalanan: string | null | undefined, period: string): number {
+  if (!sonFaturalanan) return 1;
+  return Math.min(AY_CARPANI_UST, Math.max(1, ayFarki(sonFaturalanan, period)));
+}
+
 /** Bayinin kesim günü: 1–28 (29–31 her ayda yok). Geçersizse 1. */
 export function kesimGunu(x: unknown): number {
   const n = Math.trunc(Number(x));

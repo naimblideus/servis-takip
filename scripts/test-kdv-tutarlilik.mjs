@@ -30,6 +30,7 @@ try {
     join(KOK, 'src/lib/period-charges.ts'),
     join(KOK, 'src/lib/musteri-bakiye.ts'),
     join(KOK, 'src/lib/prisma.ts'),
+    join(KOK, 'src/lib/fatura-donemi.ts'),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022',
     '--moduleResolution', 'bundler', '--skipLibCheck',
   ], { stdio: 'pipe' });
@@ -46,8 +47,8 @@ const duzelt = (dosya, esle) => {
   fs.writeFileSync(y, s);
 };
 const ORTAK = [["'@/lib/prisma'", "'./prisma-shim.js'"], ['"@prisma/client"', JSON.stringify(P)], ["'@prisma/client'", JSON.stringify(P)]];
-duzelt('invoicing.js', ORTAK);
-duzelt('period-charges.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"]]);
+duzelt('invoicing.js', [...ORTAK, ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
+duzelt('period-charges.js', [...ORTAK, ["'@/lib/invoicing'", "'./invoicing.js'"], ["'@/lib/fatura-donemi'", "'./fatura-donemi.js'"]]);
 duzelt('musteri-bakiye.js', ORTAK);
 
 const { buildInvoiceForCustomerPeriod, periodOf } = await import(pathToFileURL(join(g, 'invoicing.js')).href);

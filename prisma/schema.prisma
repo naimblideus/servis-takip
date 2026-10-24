@@ -1127,6 +1127,11 @@ model CounterReading {
   // okuma ilk açık döneme kayar (kaybolmasın). Boşsa (eski kayıt ya da başka
   // yoldan yazılmış okuma) dönem readingDate'in İstanbul ayıdır.
   faturaDonemi   String?
+  // Renkli sayaç bu okumada GERÇEKTEN ölçüldü mü? Cihaz e-postasında ya da
+  // müşteri beyanında renkli yoksa son değer taşınır (fark 0) — o ay renkli
+  // için okunmamış sayılır, sonraki gerçek renkli okuma o ayların dahil
+  // paketini de hak eder (lib/invoicing sayacAyCarpanlari).
+  renkliOlculdu  Boolean  @default(true)
   createdAt      DateTime @default(now())
 
   // Relations
@@ -2029,6 +2034,11 @@ model InvoiceLine {
   // aynen duruyor. Alan, farklı oranlı kalem gerektiğinde faturanın
   // bunu TEMSİL EDEBİLMESİ için var; e-belgede KDV oran oran ayrışır.
   vatRate     Decimal?        @db.Decimal(5, 2)
+  // Sayaç satırında UYGULANAN dahil sayfa (okunmayan ay varsa çarpanlı) ve
+  // kaç aylık uygulandığı. Fatura eki bunu gösterir: cihazın bugünkü dahil
+  // paketi kesilen faturadakinden farklı olabilir. Eski satırlarda boş.
+  dahilSayfa  Int?
+  ayCarpani   Int?
   createdAt   DateTime        @default(now())
 
   // Relations

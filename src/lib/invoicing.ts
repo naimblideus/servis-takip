@@ -8,7 +8,7 @@ import {
   InvoiceLineKind,
   InvoiceSource,
 } from '@prisma/client';
-import { donemAraligi, donemOf, donemOkumaKosulu } from '@/lib/fatura-donemi';
+import { ayCarpani, donemAraligi, donemOf, donemOkumaKosulu } from '@/lib/fatura-donemi';
 
 type Tx = Prisma.TransactionClient;
 
@@ -80,6 +80,52 @@ export function counterOverage(
 }
 
 /**
+ * ── OKUNMAYAN AY FAZLA FATURA ÜRETMEZ ─────────────────────────────────────
+ * Eylül'de sayaç hiç okunmadıysa Eylül faturasında sayaç satırı yoktu (yalnız
+ * kira). Ekim okuması iki ayın sayfasını taşır ama dahil paket TEK ay
+ * uygulanıyordu: "ayda 1.000 dahil" anlaşmasında 2.500 sayfa için 1.500 aşım
+ * kesiliyordu, doğrusu 500. Müşteri fazla ödüyordu ve itiraz ettiğinde haklıydı.
+ *
+ * Çarpan = son faturalanmış sayaç dönemi ile bu dönem arasındaki ay sayısı
+ * (lib/fatura-donemi ayCarpani, 1..12). Renkli kanal ayrı sayılır: e-posta
+ * raporunda renkli sayaç yoksa son değer taşınır (renkliOlculdu=false); o
+ * aylar renkli için "okunmamış" sayılır, renkli sayfalar gelince paketi de gelir.
+ */
+export type AyCarpani = { siyah: number; renkli: number };
+
+/** Cihazların bu dönem için dahil paket çarpanları — tek sorgu (N+1 yok). */
+export async function sayacAyCarpanlari(
+  db: Pick<Tx, '$queryRaw'>,
+  tenantId: string,
+  deviceIds: string[],
+  period: string,
+): Promise<Map<string, AyCarpani>> {
+  const harita = new Map<string, AyCarpani>();
+  if (deviceIds.length === 0) return harita;
+  // Dönem: damga varsa damga, yoksa okumanın İstanbul ayı (fatura-donemi ile aynı kural).
+  const satirlar = await db.$queryRaw<{ deviceId: string; son: string | null; sonRenkli: string | null }[]>`
+    SELECT "deviceId",
+      MAX(donem) FILTER (WHERE donem < ${period}) AS "son",
+      MAX(donem) FILTER (WHERE donem < ${period} AND "renkliOlculdu") AS "sonRenkli"
+    FROM (
+      SELECT "deviceId", "renkliOlculdu",
+        COALESCE("faturaDonemi", to_char("readingDate" + interval '3 hours', 'YYYY-MM')) AS donem
+      FROM "CounterReading"
+      WHERE "tenantId" = ${tenantId} AND "deviceId" = ANY(${deviceIds}) AND "billed" = true
+    ) r
+    GROUP BY "deviceId"
+  `;
+  for (const s of satirlar) harita.set(s.deviceId, { siyah: ayCarpani(s.son, period), renkli: ayCarpani(s.sonRenkli, period) });
+  return harita;
+}
+
+/** Dahil paketi çarpanla genişletilmiş cihaz (counterOverage'a verilir). */
+export function dahilCarpanli<T extends PriceDevice>(d: T, k: AyCarpani | undefined): T {
+  if (!k || (k.siyah === 1 && k.renkli === 1)) return d;
+  return { ...d, includedBlack: (d.includedBlack ?? 0) * k.siyah, includedColor: (d.includedColor ?? 0) * k.renkli };
+}
+
+/**
  * ── SAYFA BAŞI ÜCRETLİ Mİ ─────────────────────────────────────────────────
  * İki durumda sayfa faturalanır:
  *   • kiralık cihaz (kira + dahil paket + aşım), ya da
@@ -135,6 +181,10 @@ interface LineInput {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  /** Sayaç satırında UYGULANAN dahil sayfa (çarpanlı) — fatura eki bunu gösterir */
+  dahilSayfa?: number | null;
+  /** Dahil paket kaç aylık uygulandı (okunmayan ay varsa >1) */
+  ayCarpani?: number | null;
 }
 
 /**
@@ -240,6 +290,8 @@ async function postInvoice(
       quantity: l.quantity,
       unitPrice: l.unitPrice,
       lineTotal: l.lineTotal,
+      dahilSayfa: l.dahilSayfa ?? null,
+      ayCarpani: l.ayCarpani ?? null,
     })),
   });
 
@@ -300,6 +352,8 @@ export async function buildInvoiceForCustomerPeriod(
     const deviceRentToMark: string[] = [];
 
     const devices = await tx.device.findMany({ where: { tenantId, customerId } });
+    // Okunmayan ayların dahil paketi (tek sorgu): bkz. sayacAyCarpanlari.
+    const carpanlar = await sayacAyCarpanlari(tx, tenantId, devices.filter(sayfaUcretliMi).map((d) => d.id), period);
 
     for (const device of devices) {
       // a) Faturalanmamış sayaç okumaları (bu dönem) — YALNIZ sayfa başı
@@ -321,9 +375,12 @@ export async function buildInvoiceForCustomerPeriod(
           where: { tenantId, deviceId: device.id, billed: true, ...donemdeki },
           _sum: { deltaBlack: true, deltaColor: true },
         });
-        // Kademeli: dahil sayfa kira içinde; yalnız aşım faturalanır (included=0 ise düz fiyat)
-        const ch = counterOverage(device, sumBlack, sumColor, fiyatTabani(device, tenant), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+        // Kademeli: dahil sayfa kira içinde; yalnız aşım faturalanır (included=0 ise düz fiyat).
+        // Okunmayan ay varsa dahil paket o kadar ay uygulanır (dahilCarpanli).
+        const k = carpanlar.get(device.id) ?? { siyah: 1, renkli: 1 };
+        const ch = counterOverage(dahilCarpanli(device, k), sumBlack, sumColor, fiyatTabani(device, tenant), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
         const fmtN = (n: number) => n.toLocaleString('tr-TR');
+        const ayEki = (n: number) => (n > 1 ? ` (${n} ay)` : '');
         // Müşteri makinesinde fiyatı girilmemiş kanal (yalnız S/B anlaşması
         // yapılmış renkli makine gibi) ₺0'lık satır olarak faturaya düşmesin.
         const kanalVar = (tutar: number) => device.isRental || tutar > 0;
@@ -331,21 +388,25 @@ export async function buildInvoiceForCustomerPeriod(
           lines.push({
             tenantId,
             kind: 'COUNTER',
-            description: `Sayaç (S/B) — ${device.brand} ${device.model}${ch.inclB > 0 ? ` · ${fmtN(sumBlack)} okundu, ${fmtN(ch.inclB)} dahil, ${fmtN(ch.billB)} aşım` : ''}`,
+            description: `Sayaç (S/B) — ${device.brand} ${device.model}${ch.inclB > 0 ? ` · ${fmtN(sumBlack)} okundu, ${fmtN(ch.inclB)} dahil${ayEki(k.siyah)}, ${fmtN(ch.billB)} aşım` : ''}`,
             deviceId: device.id,
             quantity: ch.billB,
             unitPrice: ch.overBlack,
             lineTotal: ch.blackTotal,
+            dahilSayfa: ch.inclB,
+            ayCarpani: k.siyah,
           });
         if (ch.billC > 0 && kanalVar(ch.colorTotal))
           lines.push({
             tenantId,
             kind: 'COUNTER',
-            description: `Sayaç (Renkli) — ${device.brand} ${device.model}${ch.inclC > 0 ? ` · ${fmtN(sumColor)} okundu, ${fmtN(ch.inclC)} dahil, ${fmtN(ch.billC)} aşım` : ''}`,
+            description: `Sayaç (Renkli) — ${device.brand} ${device.model}${ch.inclC > 0 ? ` · ${fmtN(sumColor)} okundu, ${fmtN(ch.inclC)} dahil${ayEki(k.renkli)}, ${fmtN(ch.billC)} aşım` : ''}`,
             deviceId: device.id,
             quantity: ch.billC,
             unitPrice: ch.overColor,
             lineTotal: ch.colorTotal,
+            dahilSayfa: ch.inclC,
+            ayCarpani: k.renkli,
           });
       }
 
