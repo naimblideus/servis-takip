@@ -1,0 +1,48 @@
+// EKSTRE ARALIĞI — dönem + devreden bakiye (lib/ekstre-aralik)
+// Çalıştır:  node scripts/test-ekstre-aralik.mjs
+//
+// NEDEN BU TEST
+// Eski müşterinin ekstresi ekranda ve kâğıtta bütün geçmişi döküyordu. Artık
+// dönem seçiliyor; öncesi tek "devreden bakiye" satırı. Bakiye ASLA değişmemeli.
+import { derle } from './_derle.mjs';
+
+let gecti = 0, kaldi = 0;
+const t = (ad, kosul, detay) => {
+  if (kosul) { gecti++; console.log(`  ✓ ${ad}`); }
+  else { kaldi++; console.log(`  ✗ ${ad}${detay !== undefined ? `\n      ${JSON.stringify(detay)}` : ''}`); }
+};
+
+const { ice } = derle({ girisler: ['src/lib/ekstre-aralik.ts'], onEk: 'st-ekstre-aralik-' });
+const e = await ice('lib/ekstre-aralik');
+
+console.log('\nARALIK\n');
+const an = new Date('2026-10-26T09:00:00Z');
+t('son 3 ay: iki ay önceki ayın 1\'i (26 Eki → 1 Ağu)', e.aralikCoz('SON3', an).bas === '2026-08-01');
+t('yıl geçişi: 15 Şubat → 1 Aralık', e.aralikCoz('SON3', new Date('2026-02-15T09:00:00Z')).bas === '2025-12-01');
+t('bu yıl: 1 Ocak', e.aralikCoz('BU_YIL', an).bas === '2026-01-01');
+t('tümü sınırsız', e.aralikCoz('TUMU', an).bas === null && e.aralikCoz('TUMU', an).bit === null);
+t('özel: ters girilen tarihler düzelir', JSON.stringify(e.aralikCoz('OZEL', an, '2026-09-30', '2026-01-01')) === JSON.stringify({ bas: '2026-01-01', bit: '2026-09-30' }));
+t('özel: geçersiz gün yok sayılır', e.aralikCoz('OZEL', an, '2026-02-31', 'x').bas === null);
+t('İstanbul günü: 31 Ara 22:30 UTC = 1 Ocak', e.istanbulGunu('2025-12-31T22:30:00Z') === '2026-01-01');
+
+console.log('\nKESİT\n');
+const s = (tip, tutar, tarih) => ({ tip, tutar, tarih });
+const hepsi = [
+  s('BORC', 1000, '2025-03-18T10:00:00Z'),
+  s('BORC', 2000, '2026-04-01T10:00:00Z'),
+  s('ODEME', 1500, '2026-04-21T10:00:00Z'),
+  s('BORC', 500, '2026-09-17T10:00:00Z'),
+  s('ODEME', 200, '2026-10-01T10:00:00Z'),
+  s('BORC', 999, '2026-11-05T10:00:00Z'),
+];
+const tam = e.ekstreKes(hepsi, null, null);
+const k = e.ekstreKes(hepsi, '2026-08-01', null);
+t('★ aralık bakiyeyi değiştirmez (devir + dönem = tümü)', k.kapanis === tam.kapanis, { k: k.kapanis, tam: tam.kapanis });
+t('devir = öncekilerin bakiyesi (1000 + 2000 − 1500)', k.devir === 1500 && k.onceki === 3);
+t('dönemde yalnız ağustos sonrası satırlar', k.satirlar.length === 3 && k.donemBorc === 1499 && k.donemOdeme === 200);
+const b = e.ekstreKes(hepsi, '2026-08-01', '2026-10-31');
+t('bitişten sonrası sayılmaz', b.satirlar.length === 2 && b.kapanis === 1800, b);
+t('sıra korunur (ekran yeniden eskiye verir)', e.ekstreKes([...hepsi].reverse(), '2026-08-01', null).satirlar[0].tutar === 999);
+
+console.log(`\n${gecti} geçti, ${kaldi} kaldı`);
+process.exit(kaldi ? 1 : 0);

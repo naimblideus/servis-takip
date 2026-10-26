@@ -7,9 +7,17 @@ import { ekstre } from '@/lib/musteri-bakiye';
 import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
 import { bicimYap } from '@/lib/bicim';
 import { belgeMagazaAdresi } from '@/lib/magaza-baglanti';
+import { aralikCoz, ekstreKes, istanbulGunu } from '@/lib/ekstre-aralik';
 
-export default async function CariEkstrePrintPage({ params }: { params: Promise<{ customerId: string }> }) {
+export default async function CariEkstrePrintPage({ params, searchParams }: {
+  params: Promise<{ customerId: string }>;
+  searchParams: Promise<{ bas?: string; bit?: string }>;
+}) {
   const { customerId } = await params;
+  // Aralık ekrandan gelir (Muhasebe → Son 3 ay / Bu yıl / Tarih seç). Verilmezse
+  // eskisi gibi bütün hareketler. Geçersiz gün yok sayılır (lib/ekstre-aralik).
+  const q = await searchParams;
+  const aralik = aralikCoz('OZEL', new Date(), q.bas, q.bit);
   const session = await auth();
   if (!session) redirect('/login');
 
@@ -34,10 +42,19 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
   // Eskiden yalnız AccountEntry basılıyordu; müşteriye verilen ekstrede kira
   // faturası borcu HİÇ görünmüyordu, yani bayi eksik belge veriyordu.
   const [satirlar, magazaAdresi] = await Promise.all([ekstre(user.tenantId, customerId), belgeMagazaAdresi(user.tenantId)]);
-  const eskidenYeniye = [...satirlar].reverse(); // ekstre() yeniden eskiye döner
+  // ekstre() yeniden eskiye döner. Aynı GÜN borç önce: aynı gün kesilip ödenen
+  // faturada tahsilat faturadan önce basılınca bakiye bir satırlığına eksiye düşüyordu.
+  const eskidenYeniye = [...satirlar].reverse().sort((a, b) => {
+    const ga = istanbulGunu(a.tarih), gb = istanbulGunu(b.tarih);
+    if (ga !== gb) return ga < gb ? -1 : 1;
+    return a.tip === b.tip ? 0 : a.tip === 'BORC' ? -1 : 1;
+  });
+  // Dönem öncesi TEK satır (devreden bakiye); bakiye sütunu oradan yürür.
+  const kesit = ekstreKes(eskidenYeniye, aralik.bas, aralik.bit);
+  const devirVar = !!aralik.bas && kesit.onceki > 0;
 
-  let running = 0;
-  const rows = eskidenYeniye.map((s) => {
+  let running = kesit.devir;
+  const rows = kesit.satirlar.map((s) => {
     const borc = s.tip === 'BORC';
     running += borc ? s.tutar : -s.tutar;
     return {
@@ -51,9 +68,13 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
     };
   });
 
-  const totalDebit = rows.reduce((s, r) => s + r.debit, 0);
-  const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
-  const balance = totalDebit - totalCredit;
+  const totalDebit = kesit.donemBorc;
+  const totalCredit = kesit.donemOdeme;
+  const balance = kesit.kapanis;
+  const gunYaz = (g: string) => fmtDate(new Date(`${g}T12:00:00Z`));
+  const donemMetni = aralik.bas || aralik.bit
+    ? doldur(S.donem, { bas: aralik.bas ? gunYaz(aralik.bas) : '…', bit: gunYaz(aralik.bit ?? new Date().toISOString().slice(0, 10)) })
+    : null;
   const t = customer.tenant;
 
   return (
@@ -134,7 +155,7 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
             <div className="header-right">
               <div className="doc-label">{S.etiket}</div>
               <div className="doc-title">{fmt(balance)}</div>
-              <div className="doc-date">{doldur(S.itibariyla, { tarih: fmtDate(new Date()) })}</div>
+              <div className="doc-date">{donemMetni ?? doldur(S.itibariyla, { tarih: fmtDate(new Date()) })}</div>
             </div>
           </div>
 
@@ -153,7 +174,7 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
 
             {/* EKSTRE TABLOSU */}
             <div className="section-title">{S.hareketler}</div>
-            {rows.length === 0 ? (
+            {rows.length === 0 && !devirVar ? (
               <div className="empty">{S.hareketYok}</div>
             ) : (
               <table className="ext-table">
@@ -167,6 +188,15 @@ export default async function CariEkstrePrintPage({ params }: { params: Promise<
                   </tr>
                 </thead>
                 <tbody>
+                  {devirVar && (
+                    <tr style={{ background: '#f9fafb' }}>
+                      <td style={{ color: '#6b7280', fontSize: '11.5px' }}>{gunYaz(aralik.bas!)}</td>
+                      <td style={{ fontWeight: 700 }}>{S.devreden}</td>
+                      <td className="num" style={{ color: '#d1d5db' }}>—</td>
+                      <td className="num" style={{ color: '#d1d5db' }}>—</td>
+                      <td className="num" style={{ fontWeight: 700, color: kesit.devir > 0 ? '#b91c1c' : '#059669' }}>{fmt(kesit.devir)}</td>
+                    </tr>
+                  )}
                   {rows.map((r, i) => (
                     <tr key={i}>
                       <td style={{ color: '#6b7280', fontSize: '11.5px' }}>{fmtDate(r.date)}</td>

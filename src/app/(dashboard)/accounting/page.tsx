@@ -5,6 +5,7 @@ import { openPrintable } from '@/lib/print';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { sablonDoldur, SABLON_DEGISKENLERI } from '@/lib/mesaj-sablonu';
+import { aralikCoz, ekstreKes, ARALIKLAR, VARSAYILAN_ARALIK, type AralikSecimi } from '@/lib/ekstre-aralik';
 const StockTab = dynamic(() => import('@/components/StockTab'), { ssr: false });
 const ExpenseTab = dynamic(() => import('@/components/ExpenseTab'), { ssr: false });
 
@@ -34,6 +35,13 @@ export default function AccountingPage() {
   const [selCust, setSelCust] = useState<Customer|null>(null);
   const [detail, setDetail] = useState<CustDetail|null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // EKSTRE ARALIĞI (lib/ekstre-aralik): eski müşteride yüzlerce satır tek
+  // seferde dökülüyordu. Seçilen dönem + "devreden bakiye"; yazdırma da aynı aralık.
+  const [aralik, setAralik] = useState<AralikSecimi>(VARSAYILAN_ARALIK);
+  const [ozelBas, setOzelBas] = useState('');
+  const [ozelBit, setOzelBit] = useState('');
+  const SAYFA = 50;
+  const [gosterilen, setGosterilen] = useState(SAYFA);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string|null>(null);
@@ -126,6 +134,15 @@ export default function AccountingPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (selCust) loadDetail(selCust.id); }, [selCust, loadDetail]);
+  useEffect(() => { setGosterilen(SAYFA); }, [selCust, aralik, ozelBas, ozelBit]);
+  const secilenAralik = aralikCoz(aralik, new Date(), ozelBas, ozelBit);
+  const ekstreYazdirAdresi = (id: string) => {
+    const q = new URLSearchParams();
+    if (secilenAralik.bas) q.set('bas', secilenAralik.bas);
+    if (secilenAralik.bit) q.set('bit', secilenAralik.bit);
+    const s = q.toString();
+    return `/accounting/${id}/print${s ? `?${s}` : ''}`;
+  };
 
   const filteredFormCusts = allCustomers.filter(c =>
     c.name.toLowerCase().includes(formCustSearch.toLowerCase()) ||
@@ -904,7 +921,7 @@ export default function AccountingPage() {
                     <div style={{fontSize:'0.8rem',opacity:0.8,marginTop:'0.25rem'}}>📞 {detail.customer.phone} {detail.customer.address && `• 📍 ${detail.customer.address}`}</div>
                   </div>
                   <div style={{display:'flex',gap:'0.5rem'}} className="print-hide">
-                    <button onClick={() => openPrintable(`/accounting/${selCust.id}/print`)} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>{sz.muhasebe.ekstreYazdir}</button>
+                    <button onClick={() => openPrintable(ekstreYazdirAdresi(selCust.id))} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>{sz.muhasebe.ekstreYazdir}</button>
                     {detail.summary.balance > 0 && (
                       <button onClick={() => sendWhatsApp(detail.customer, detail.summary.balance)} style={{backgroundColor:'#25d366',color:'white',border:'none',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>📱 WhatsApp</button>
                     )}
@@ -955,14 +972,38 @@ export default function AccountingPage() {
                     bayinin sorduğu soruya cevap vermiyordu, kaldırıldı
                     (detay satırın altında küçük yazıyla duruyor). */}
                 {(() => {
-                  const satirlar = detail.ekstre ?? [];
+                  const kesit = ekstreKes(detail.ekstre ?? [], secilenAralik.bas, secilenAralik.bit);
+                  const satirlar = kesit.satirlar.slice(0, gosterilen);
+                  const kalan = kesit.satirlar.length - satirlar.length;
+                  const etiket: Record<AralikSecimi, string> = { SON3: sz.muhasebe.aralikSon3, BU_YIL: sz.muhasebe.aralikBuYil, TUMU: sz.muhasebe.aralikTumu, OZEL: sz.muhasebe.aralikOzel };
                   return (
                     <>
-                      <div style={{padding:'0.75rem 1rem',borderBottom:'1px solid #e5e7eb',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                        <span style={{fontWeight:'600',fontSize:'0.9rem'}}>{sz.muhasebe.hareketler}</span>
-                        <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{doldur(sz.muhasebe.hareketSayisi, { n: satirlar.length })}</span>
+                      <div style={{padding:'0.75rem 1rem',borderBottom:'1px solid #e5e7eb'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'0.5rem',flexWrap:'wrap'}}>
+                          <span style={{fontWeight:'600',fontSize:'0.9rem'}}>{sz.muhasebe.hareketler}</span>
+                          <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{doldur(sz.muhasebe.hareketSayisi, { n: kesit.satirlar.length })}</span>
+                        </div>
+                        <div role="group" aria-label={sz.muhasebe.aralikBaslik} style={{display:'flex',gap:'0.4rem',flexWrap:'wrap',marginTop:'0.6rem'}} className="print-hide">
+                          {ARALIKLAR.map((a) => (
+                            <button key={a} type="button" onClick={() => setAralik(a)} aria-pressed={aralik === a}
+                              style={{minHeight:36,padding:'0.35rem 0.8rem',borderRadius:'9999px',fontSize:'0.78rem',fontWeight:600,cursor:'pointer',
+                                border: aralik === a ? '1.5px solid #1e3a5f' : '1px solid #d1d5db', background: aralik === a ? '#e8eef7' : 'white', color:'#1f2937'}}>
+                              {etiket[a]}
+                            </button>
+                          ))}
+                        </div>
+                        {aralik === 'OZEL' && (
+                          <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginTop:'0.5rem',alignItems:'center'}} className="print-hide">
+                            <label style={{fontSize:'0.75rem',color:'#6b7280',display:'flex',alignItems:'center',gap:'0.35rem'}}>{sz.muhasebe.basTarih}
+                              <input type="date" value={ozelBas} onChange={(e) => setOzelBas(e.target.value)} style={{padding:'0.35rem 0.5rem',border:'1px solid #d1d5db',borderRadius:'0.4rem',fontSize:'0.8rem'}} />
+                            </label>
+                            <label style={{fontSize:'0.75rem',color:'#6b7280',display:'flex',alignItems:'center',gap:'0.35rem'}}>{sz.muhasebe.bitTarih}
+                              <input type="date" value={ozelBit} onChange={(e) => setOzelBit(e.target.value)} style={{padding:'0.35rem 0.5rem',border:'1px solid #d1d5db',borderRadius:'0.4rem',fontSize:'0.8rem'}} />
+                            </label>
+                          </div>
+                        )}
                       </div>
-                      {satirlar.length === 0 ? (
+                      {kesit.satirlar.length === 0 && kesit.onceki === 0 ? (
                         <div style={{padding:'3rem',textAlign:'center',color:'#9ca3af',fontSize:'0.85rem'}}>
                           {sz.muhasebe.hareketYok}
                           <br/>
@@ -1014,6 +1055,31 @@ export default function AccountingPage() {
                                 </tr>
                               );
                             })}
+                            {kalan > 0 && (
+                              <tr className="print-hide">
+                                <td colSpan={5} style={{padding:'0.5rem',textAlign:'center'}}>
+                                  <button type="button" onClick={() => setGosterilen((n) => n + SAYFA)}
+                                    style={{minHeight:40,padding:'0.45rem 1rem',background:'white',border:'1px solid #d1d5db',borderRadius:'0.5rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:600,color:'#374151'}}>
+                                    {doldur(sz.muhasebe.dahaFazla, { n: kalan })}
+                                  </button>
+                                </td>
+                              </tr>
+                            )}
+                            {/* Dönem öncesi TEK satır: bakiye doğru kalır, eski satırlar dökülmez. */}
+                            {kalan === 0 && kesit.onceki > 0 && secilenAralik.bas && (
+                              <tr style={{backgroundColor:'#f3f4f6',borderTop:'2px solid #e5e7eb'}}>
+                                <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem',color:'#6b7280',whiteSpace:'nowrap'}}>{b.tarih(`${secilenAralik.bas}T12:00:00Z`)}</td>
+                                <td />
+                                <td style={{padding:'0.6rem 0.875rem',fontSize:'0.85rem',fontWeight:600,color:'#374151'}}>
+                                  {sz.muhasebe.devreden}
+                                  <div style={{fontSize:'0.7rem',color:'#9ca3af',fontWeight:400}}>{doldur(sz.muhasebe.devredenAlt, { n: kesit.onceki })}</div>
+                                </td>
+                                <td style={{padding:'0.6rem 0.875rem',fontSize:'0.95rem',fontWeight:'700',textAlign:'right',whiteSpace:'nowrap',color:kesit.devir>0?'#f59e0b':'#10b981'}}>
+                                  {b.para(kesit.devir)}
+                                </td>
+                                <td />
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       )}
