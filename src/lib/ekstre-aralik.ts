@@ -11,8 +11,12 @@
  * Günler İSTANBUL takvimiyle (gece yarısından sonraki tahsilat ertesi güne).
  */
 
-export type AralikSecimi = 'SON3' | 'BU_YIL' | 'TUMU' | 'OZEL';
-export const ARALIKLAR: AralikSecimi[] = ['SON3', 'BU_YIL', 'TUMU', 'OZEL'];
+/** ACIK = tarih aralığı değil: yalnız ödenmemiş kalemler (acikKalemler). */
+export type AralikSecimi = 'SON3' | 'BU_YIL' | 'TUMU' | 'OZEL' | 'ACIK';
+export const ARALIKLAR: AralikSecimi[] = ['SON3', 'BU_YIL', 'TUMU', 'OZEL', 'ACIK'];
+
+/** Basılı ekstre bu kadar satırı aşınca sıkı düzene geçer (bir sayfaya ~2 katı). */
+export const SIKI_BASKI_ESIGI = 30;
 export const VARSAYILAN_ARALIK: AralikSecimi = 'SON3';
 
 /** Bir anın İstanbul günü: 'YYYY-MM-DD'. */
@@ -81,4 +85,63 @@ export function ekstreKes<T extends Satir>(satirlar: T[], bas: string | null, bi
     donemOdeme: r2(donemOdeme),
     kapanis: r2(devir + donemBorc - donemOdeme),
   };
+}
+
+/**
+ * ── YALNIZ ÖDENMEMİŞ KALEMLER ────────────────────────────────────────────
+ * Tahsilata giderken müşteriye "şunları ödemediniz" listesi verilir; bütün
+ * geçmiş değil. Bakiyenin iki kaynağı ayrı kapanır (lib/musteri-bakiye ile aynı):
+ *   • Kira/sayaç faturası: faturanın kendi ödenen tutarı (fatura başına mahsup).
+ *   • Servis kalemleri: tahsilat bir kaleme bağlı değil — en eski borçtan
+ *     başlayarak düşülür (FIFO). Kalan kısmı olan kalem açık sayılır.
+ * Servis tahsilatı servis borcunu aşarsa fark "fazla ödeme" satırıdır (eksi).
+ * Toplam her zaman bütün ekstrenin bakiyesine eşittir.
+ */
+type EkstreGirdisi = Satir & { id: string; kaynak: 'SERVIS' | 'FATURA'; aciklama: string; detay?: string | null };
+
+export type AcikKalem = {
+  id: string;
+  tarih: string;
+  aciklama: string;
+  detay?: string | null;
+  tutar: number;
+  odenen: number;
+  kalan: number;
+  /** Servis tahsilatı borcu aşınca: kalan eksi */
+  fazlaOdeme?: true;
+};
+
+export function acikKalemler(satirlar: EkstreGirdisi[]): { kalemler: AcikKalem[]; toplam: number } {
+  const kalemler: AcikKalem[] = [];
+
+  // Fatura: borç satırı + aynı faturanın "-pay" tahsilat satırı.
+  const odenenFatura = new Map<string, number>();
+  for (const s of satirlar) if (s.kaynak === 'FATURA' && s.tip === 'ODEME') {
+    const id = s.id.replace(/-pay$/, '');
+    odenenFatura.set(id, (odenenFatura.get(id) ?? 0) + s.tutar);
+  }
+  for (const s of satirlar) if (s.kaynak === 'FATURA' && s.tip === 'BORC') {
+    const odenen = r2(odenenFatura.get(s.id) ?? 0);
+    const kalan = r2(s.tutar - odenen);
+    if (kalan > 0.005) kalemler.push({ id: s.id, tarih: s.tarih, aciklama: s.aciklama, detay: s.detay, tutar: s.tutar, odenen, kalan });
+  }
+
+  // Servis: tahsilat havuzu en eski borçtan düşülür.
+  const servis = satirlar.filter((s) => s.kaynak === 'SERVIS');
+  let havuz = servis.filter((s) => s.tip === 'ODEME').reduce((a, s) => a + s.tutar, 0);
+  const borclar = servis.filter((s) => s.tip === 'BORC')
+    .sort((a, b) => new Date(a.tarih).getTime() - new Date(b.tarih).getTime());
+  for (const s of borclar) {
+    const dus = Math.min(havuz, s.tutar);
+    havuz -= dus;
+    const kalan = r2(s.tutar - dus);
+    if (kalan > 0.005) kalemler.push({ id: s.id, tarih: s.tarih, aciklama: s.aciklama, detay: s.detay, tutar: s.tutar, odenen: r2(dus), kalan });
+  }
+  if (havuz > 0.005) {
+    const son = servis.filter((s) => s.tip === 'ODEME').sort((a, b) => b.tarih.localeCompare(a.tarih))[0];
+    kalemler.push({ id: 'fazla-odeme', tarih: son?.tarih ?? new Date().toISOString(), aciklama: '', tutar: 0, odenen: r2(havuz), kalan: -r2(havuz), fazlaOdeme: true });
+  }
+
+  kalemler.sort((a, b) => new Date(a.tarih).getTime() - new Date(b.tarih).getTime());
+  return { kalemler, toplam: r2(kalemler.reduce((a, k) => a + k.kalan, 0)) };
 }

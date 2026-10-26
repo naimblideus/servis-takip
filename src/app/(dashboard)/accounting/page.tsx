@@ -5,7 +5,7 @@ import { openPrintable } from '@/lib/print';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { sablonDoldur, SABLON_DEGISKENLERI } from '@/lib/mesaj-sablonu';
-import { aralikCoz, ekstreKes, ARALIKLAR, VARSAYILAN_ARALIK, type AralikSecimi } from '@/lib/ekstre-aralik';
+import { aralikCoz, ekstreKes, acikKalemler, ARALIKLAR, VARSAYILAN_ARALIK, type AralikSecimi } from '@/lib/ekstre-aralik';
 const StockTab = dynamic(() => import('@/components/StockTab'), { ssr: false });
 const ExpenseTab = dynamic(() => import('@/components/ExpenseTab'), { ssr: false });
 
@@ -138,6 +138,8 @@ export default function AccountingPage() {
   const secilenAralik = aralikCoz(aralik, new Date(), ozelBas, ozelBit);
   const ekstreYazdirAdresi = (id: string) => {
     const q = new URLSearchParams();
+    // "Ödenmemişler" seçiliyse kâğıda da yalnız açık kalemler basılır.
+    if (aralik === 'ACIK') return `/accounting/${id}/print?acik=1`;
     if (secilenAralik.bas) q.set('bas', secilenAralik.bas);
     if (secilenAralik.bit) q.set('bit', secilenAralik.bit);
     const s = q.toString();
@@ -975,13 +977,14 @@ export default function AccountingPage() {
                   const kesit = ekstreKes(detail.ekstre ?? [], secilenAralik.bas, secilenAralik.bit);
                   const satirlar = kesit.satirlar.slice(0, gosterilen);
                   const kalan = kesit.satirlar.length - satirlar.length;
-                  const etiket: Record<AralikSecimi, string> = { SON3: sz.muhasebe.aralikSon3, BU_YIL: sz.muhasebe.aralikBuYil, TUMU: sz.muhasebe.aralikTumu, OZEL: sz.muhasebe.aralikOzel };
+                  const etiket: Record<AralikSecimi, string> = { SON3: sz.muhasebe.aralikSon3, BU_YIL: sz.muhasebe.aralikBuYil, TUMU: sz.muhasebe.aralikTumu, OZEL: sz.muhasebe.aralikOzel, ACIK: sz.muhasebe.aralikAcik };
+                  const acik = aralik === 'ACIK' ? acikKalemler(detail.ekstre ?? []) : null;
                   return (
                     <>
                       <div style={{padding:'0.75rem 1rem',borderBottom:'1px solid #e5e7eb'}}>
                         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'0.5rem',flexWrap:'wrap'}}>
                           <span style={{fontWeight:'600',fontSize:'0.9rem'}}>{sz.muhasebe.hareketler}</span>
-                          <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{doldur(sz.muhasebe.hareketSayisi, { n: kesit.satirlar.length })}</span>
+                          <span style={{fontSize:'0.8rem',color:'#6b7280'}}>{acik ? doldur(sz.muhasebe.acikSayisi, { n: acik.kalemler.filter((k) => !k.fazlaOdeme).length }) : doldur(sz.muhasebe.hareketSayisi, { n: kesit.satirlar.length })}</span>
                         </div>
                         <div role="group" aria-label={sz.muhasebe.aralikBaslik} style={{display:'flex',gap:'0.4rem',flexWrap:'wrap',marginTop:'0.6rem'}} className="print-hide">
                           {ARALIKLAR.map((a) => (
@@ -1003,7 +1006,39 @@ export default function AccountingPage() {
                           </div>
                         )}
                       </div>
-                      {kesit.satirlar.length === 0 && kesit.onceki === 0 ? (
+                      {/* YALNIZ ÖDENMEMİŞLER (lib/ekstre-aralik acikKalemler): tahsilata giderken. */}
+                      {acik ? (
+                        acik.kalemler.length === 0 ? (
+                          <div style={{padding:'3rem',textAlign:'center',color:'#059669',fontSize:'0.9rem',fontWeight:600}}>{sz.muhasebe.acikYok}</div>
+                        ) : (
+                          <table style={{width:'100%',borderCollapse:'collapse'}}>
+                            <thead>
+                              <tr style={{backgroundColor:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
+                                {[sz.genel.tarih,sz.muhasebe.sutunAciklama,sz.muhasebe.acikOdenen,sz.muhasebe.acikKalan].map((h,hi) => (
+                                  <th key={hi} style={{padding:'0.6rem 0.875rem',textAlign:hi>=2?'right':'left',fontSize:'0.75rem',fontWeight:'600',color:'#374151'}}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {acik.kalemler.map((k, i) => (
+                                <tr key={k.id} style={{borderBottom:'1px solid #f3f4f6',backgroundColor:i%2===0?'white':'#fafafa'}}>
+                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.78rem',color:'#6b7280',whiteSpace:'nowrap'}}>{b.tarih(k.tarih)}</td>
+                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.875rem',fontWeight:'500'}}>
+                                    {k.fazlaOdeme ? sz.muhasebe.fazlaOdemeSatir : k.aciklama}
+                                    {!k.fazlaOdeme && <div style={{fontSize:'0.7rem',color:'#9ca3af',fontWeight:'400'}}>{[k.detay, doldur(sz.muhasebe.acikTutar, { tutar: b.para(k.tutar) })].filter(Boolean).join(' · ')}</div>}
+                                  </td>
+                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.85rem',textAlign:'right',whiteSpace:'nowrap',color:'#10b981'}}>{k.odenen ? b.para(k.odenen) : '—'}</td>
+                                  <td style={{padding:'0.6rem 0.875rem',fontSize:'0.95rem',fontWeight:'700',textAlign:'right',whiteSpace:'nowrap',color:k.kalan>0?'#dc2626':'#10b981'}}>{b.para(k.kalan)}</td>
+                                </tr>
+                              ))}
+                              <tr style={{backgroundColor:'#f3f4f6',borderTop:'2px solid #e5e7eb'}}>
+                                <td colSpan={3} style={{padding:'0.6rem 0.875rem',fontSize:'0.8rem',fontWeight:700,color:'#374151',textAlign:'right'}}>{sz.muhasebe.acikToplam}</td>
+                                <td style={{padding:'0.6rem 0.875rem',fontSize:'1rem',fontWeight:'800',textAlign:'right',whiteSpace:'nowrap',color:acik.toplam>0?'#dc2626':'#10b981'}}>{b.para(acik.toplam)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        )
+                      ) : kesit.satirlar.length === 0 && kesit.onceki === 0 ? (
                         <div style={{padding:'3rem',textAlign:'center',color:'#9ca3af',fontSize:'0.85rem'}}>
                           {sz.muhasebe.hareketYok}
                           <br/>

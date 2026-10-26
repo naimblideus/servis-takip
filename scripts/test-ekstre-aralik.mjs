@@ -44,5 +44,26 @@ const b = e.ekstreKes(hepsi, '2026-08-01', '2026-10-31');
 t('bitişten sonrası sayılmaz', b.satirlar.length === 2 && b.kapanis === 1800, b);
 t('sıra korunur (ekran yeniden eskiye verir)', e.ekstreKes([...hepsi].reverse(), '2026-08-01', null).satirlar[0].tutar === 999);
 
+console.log('\nYALNIZ ÖDENMEMİŞLER\n');
+const x = (id, kaynak, tip, tutar, tarih) => ({ id, kaynak, tip, tutar, tarih, aciklama: id });
+const karma = [
+  x('s1', 'SERVIS', 'BORC', 1000, '2025-03-18T10:00:00Z'),
+  x('s2', 'SERVIS', 'BORC', 2000, '2025-05-01T10:00:00Z'),
+  x('s3', 'SERVIS', 'BORC', 500, '2026-09-17T10:00:00Z'),
+  x('p1', 'SERVIS', 'ODEME', 2500, '2026-04-21T10:00:00Z'),
+  x('f1', 'FATURA', 'BORC', 3000, '2026-08-28T10:00:00Z'),
+  x('f1-pay', 'FATURA', 'ODEME', 3000, '2026-08-28T10:00:00Z'),
+  x('f2', 'FATURA', 'BORC', 3176.16, '2026-10-01T10:00:00Z'),
+  x('f3', 'FATURA', 'BORC', 1000, '2026-09-01T10:00:00Z'),
+  x('f3-pay', 'FATURA', 'ODEME', 400, '2026-09-01T10:00:00Z'),
+];
+const a = e.acikKalemler(karma);
+t('★ ödenmemişler toplamı = ekstre bakiyesi', a.toplam === e.ekstreKes(karma, null, null).kapanis, { a: a.toplam, b: e.ekstreKes(karma, null, null).kapanis });
+t('servis tahsilatı en eski borçtan düşülür (s1 kapandı, s2 yarım)', !a.kalemler.find((k) => k.id === 's1') && a.kalemler.find((k) => k.id === 's2')?.kalan === 500);
+t('ödenmiş fatura listede yok, kısmi ödenen kalanıyla var', !a.kalemler.find((k) => k.id === 'f1') && a.kalemler.find((k) => k.id === 'f3')?.kalan === 600);
+t('eskiden yeniye sıralı', a.kalemler.map((k) => k.id).join(',') === 's2,f3,s3,f2', a.kalemler.map((k) => k.id));
+const fazla = e.acikKalemler([x('s1', 'SERVIS', 'BORC', 100, '2026-01-01T10:00:00Z'), x('p', 'SERVIS', 'ODEME', 250, '2026-02-01T10:00:00Z')]);
+t('servis fazla ödemesi eksi satır', fazla.kalemler.length === 1 && fazla.kalemler[0].fazlaOdeme && fazla.toplam === -150);
+
 console.log(`\n${gecti} geçti, ${kaldi} kaldı`);
 process.exit(kaldi ? 1 : 0);

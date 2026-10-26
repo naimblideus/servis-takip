@@ -7,17 +7,19 @@ import { ekstre } from '@/lib/musteri-bakiye';
 import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
 import { bicimYap } from '@/lib/bicim';
 import { belgeMagazaAdresi } from '@/lib/magaza-baglanti';
-import { aralikCoz, ekstreKes, istanbulGunu } from '@/lib/ekstre-aralik';
+import { aralikCoz, ekstreKes, acikKalemler, istanbulGunu, SIKI_BASKI_ESIGI } from '@/lib/ekstre-aralik';
 
 export default async function CariEkstrePrintPage({ params, searchParams }: {
   params: Promise<{ customerId: string }>;
-  searchParams: Promise<{ bas?: string; bit?: string }>;
+  searchParams: Promise<{ bas?: string; bit?: string; acik?: string }>;
 }) {
   const { customerId } = await params;
   // Aralık ekrandan gelir (Muhasebe → Son 3 ay / Bu yıl / Tarih seç). Verilmezse
   // eskisi gibi bütün hareketler. Geçersiz gün yok sayılır (lib/ekstre-aralik).
   const q = await searchParams;
-  const aralik = aralikCoz('OZEL', new Date(), q.bas, q.bit);
+  // ?acik=1 → yalnız ödenmemiş kalemler (tahsilata giderken); tarih aralığı yok sayılır.
+  const acikMod = q.acik === '1';
+  const aralik = acikMod ? { bas: null, bit: null } : aralikCoz('OZEL', new Date(), q.bas, q.bit);
   const session = await auth();
   if (!session) redirect('/login');
 
@@ -68,11 +70,15 @@ export default async function CariEkstrePrintPage({ params, searchParams }: {
     };
   });
 
+  const acik = acikMod ? acikKalemler(eskidenYeniye) : null;
   const totalDebit = kesit.donemBorc;
   const totalCredit = kesit.donemOdeme;
-  const balance = kesit.kapanis;
+  const balance = acik ? acik.toplam : kesit.kapanis;
+  // Satır çoksa sıkı düzen: aynı belge bir sayfaya yaklaşık iki katı satır sığdırır.
+  const siki = (acik ? acik.kalemler.length : rows.length) > SIKI_BASKI_ESIGI;
   const gunYaz = (g: string) => fmtDate(new Date(`${g}T12:00:00Z`));
-  const donemMetni = aralik.bas || aralik.bit
+  const donemMetni = acik ? doldur(S.acikBaslik, { tarih: fmtDate(new Date()) })
+    : aralik.bas || aralik.bit
     ? doldur(S.donem, { bas: aralik.bas ? gunYaz(aralik.bas) : '…', bit: gunYaz(aralik.bit ?? new Date().toISOString().slice(0, 10)) })
     : null;
   const t = customer.tenant;
@@ -135,12 +141,22 @@ export default async function CariEkstrePrintPage({ params, searchParams }: {
         .footer { text-align: center; font-size: 10px; color: #9ca3af; padding: 10px 24px 14px; border-top: 1px solid #f3f4f6; background: #fafafa; }
         .magaza-satiri { margin-top: 5px; font-size: 11px; font-weight: 600; color: #374151; }
         .empty { text-align: center; color: #9ca3af; padding: 28px; font-size: 13px; }
+        .ext-table tr { break-inside: avoid; }
+        .siki .header { padding: 12px 20px; }
+        .siki .body { padding: 12px 18px; }
+        .siki .info-card { margin-bottom: 10px; }
+        .siki .info-card-body { padding: 6px 12px; gap: 3px 14px; }
+        .siki .ext-table th { padding: 5px 8px; }
+        .siki .ext-table td { padding: 3px 8px; font-size: 11px; }
+        .siki .pay-box { padding: 8px 14px; }
+        .siki .pay-value { font-size: 17px; }
+        .siki .sig-area { height: 38px; }
       `}</style>
 
       <PrintNowButton />
 
       <div className="print-wrapper" lang={dil}>
-        <div className="receipt">
+        <div className={`receipt${siki ? ' siki' : ''}`}>
           {/* HEADER */}
           <div className="header">
             <div className="header-left">
@@ -173,8 +189,39 @@ export default async function CariEkstrePrintPage({ params, searchParams }: {
             </div>
 
             {/* EKSTRE TABLOSU */}
-            <div className="section-title">{S.hareketler}</div>
-            {rows.length === 0 && !devirVar ? (
+            <div className="section-title">{acik ? S.acikKalemler : S.hareketler}</div>
+            {acik ? (
+              acik.kalemler.length === 0 ? (
+                <div className="empty">{S.acikYok}</div>
+              ) : (
+                <table className="ext-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '80px' }}>{sz.genel.tarih}</th>
+                      <th>{sz.muhasebe.sutunAciklama}</th>
+                      <th className="num" style={{ width: '90px' }}>{S.tutar}</th>
+                      <th className="num" style={{ width: '90px' }}>{S.odenen}</th>
+                      <th className="num" style={{ width: '100px' }}>{S.kalan}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {acik.kalemler.map((k) => (
+                      <tr key={k.id}>
+                        <td style={{ color: '#6b7280', fontSize: '11.5px' }}>{fmtDate(new Date(k.tarih))}</td>
+                        <td style={{ fontWeight: 600 }}>{k.fazlaOdeme ? S.fazlaOdeme : k.aciklama}{!k.fazlaOdeme && k.detay ? <span style={{ color: '#9ca3af', fontWeight: 400 }}> — {k.detay}</span> : ''}</td>
+                        <td className="num">{k.fazlaOdeme ? '—' : fmt(k.tutar)}</td>
+                        <td className="num" style={{ color: k.odenen ? '#059669' : '#d1d5db' }}>{k.odenen ? fmt(k.odenen) : '—'}</td>
+                        <td className="num" style={{ fontWeight: 700, color: k.kalan > 0 ? '#b91c1c' : '#059669' }}>{fmt(k.kalan)}</td>
+                      </tr>
+                    ))}
+                    <tr className="ext-total">
+                      <td colSpan={4} style={{ textAlign: 'right', fontSize: '11px', color: '#6b7280' }}>{S.toplam}</td>
+                      <td className="num" style={{ color: balance > 0 ? '#b91c1c' : '#059669' }}>{fmt(balance)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              )
+            ) : rows.length === 0 && !devirVar ? (
               <div className="empty">{S.hareketYok}</div>
             ) : (
               <table className="ext-table">
@@ -218,8 +265,8 @@ export default async function CariEkstrePrintPage({ params, searchParams }: {
 
             {/* ÖZET */}
             <div className="pay-row">
-              <div className="pay-box"><div className="pay-label">{S.toplamBorc}</div><div className="pay-value" style={{ color: '#b91c1c' }}>{fmt(totalDebit)}</div></div>
-              <div className="pay-box" style={{ borderColor: '#86efac', background: '#f0fdf4' }}><div className="pay-label">{S.toplamTahsilat}</div><div className="pay-value" style={{ color: '#059669' }}>{fmt(totalCredit)}</div></div>
+              {!acik && <div className="pay-box"><div className="pay-label">{S.toplamBorc}</div><div className="pay-value" style={{ color: '#b91c1c' }}>{fmt(totalDebit)}</div></div>}
+              {!acik && <div className="pay-box" style={{ borderColor: '#86efac', background: '#f0fdf4' }}><div className="pay-label">{S.toplamTahsilat}</div><div className="pay-value" style={{ color: '#059669' }}>{fmt(totalCredit)}</div></div>}
               <div className="pay-box" style={{ borderColor: balance > 0 ? '#fca5a5' : '#86efac', background: balance > 0 ? '#fef2f2' : '#f0fdf4' }}>
                 <div className="pay-label">{balance > 0 ? S.kalanBorc : S.bakiye}</div>
                 <div className="pay-value" style={{ color: balance > 0 ? '#dc2626' : '#059669' }}>{fmt(Math.abs(balance))}</div>
