@@ -368,7 +368,7 @@ export default function AccountingPage() {
 
   const handlePrint = () => {
     if (!selCust) { alert(sz.muhasebe.yazdirSec); return; }
-    openPrintable(`/accounting/${selCust.id}/print`);
+    openPrintable(ekstreYazdirAdresi(selCust.id)); // ekranda seçili dönem
   };
 
   if (loading) return <div style={{padding:'2rem',color:'#6b7280'}}>{sz.genel.yukleniyor}</div>;
