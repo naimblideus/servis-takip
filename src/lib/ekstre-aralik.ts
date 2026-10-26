@@ -91,13 +91,17 @@ export function ekstreKes<T extends Satir>(satirlar: T[], bas: string | null, bi
  * ── YALNIZ ÖDENMEMİŞ KALEMLER ────────────────────────────────────────────
  * Tahsilata giderken müşteriye "şunları ödemediniz" listesi verilir; bütün
  * geçmiş değil. Bakiyenin iki kaynağı ayrı kapanır (lib/musteri-bakiye ile aynı):
- *   • Kira/sayaç faturası: faturanın kendi ödenen tutarı (fatura başına mahsup).
- *   • Servis kalemleri: tahsilat bir kaleme bağlı değil — en eski borçtan
- *     başlayarak düşülür (FIFO). Kalan kısmı olan kalem açık sayılır.
+ *   • Kira/sayaç faturası: faturanın kendi tahsilatları (bagli = fatura).
+ *   • Servis kalemleri, üç adımda:
+ *       1. Fişten alınan tahsilat (bagli = fiş) önce O FİŞİ kapatır.
+ *       2. Peşin barkodlu satış: aynı anda yazılan satış satırları ve onların
+ *          toplamı kadar tahsilat birbirini kapatır.
+ *       3. Kalan bağsız tahsilat (elle girilen, banka) en eski borçtan düşülür.
+ *     Kalan kısmı olan kalem açık sayılır.
  * Servis tahsilatı servis borcunu aşarsa fark "fazla ödeme" satırıdır (eksi).
  * Toplam her zaman bütün ekstrenin bakiyesine eşittir.
  */
-type EkstreGirdisi = Satir & { id: string; kaynak: 'SERVIS' | 'FATURA'; aciklama: string; detay?: string | null };
+type EkstreGirdisi = Satir & { id: string; kaynak: 'SERVIS' | 'FATURA'; aciklama: string; detay?: string | null; bagli?: string | null };
 
 export type AcikKalem = {
   id: string;
@@ -114,10 +118,11 @@ export type AcikKalem = {
 export function acikKalemler(satirlar: EkstreGirdisi[]): { kalemler: AcikKalem[]; toplam: number } {
   const kalemler: AcikKalem[] = [];
 
-  // Fatura: borç satırı + aynı faturanın "-pay" tahsilat satırı.
+  // Fatura: borç satırı + aynı faturanın tahsilat satırları (bagli; eski veride id öneki).
+  const faturaAnahtari = (s: EkstreGirdisi) => s.bagli ?? s.id.replace(/-pay(-.*)?$/, '');
   const odenenFatura = new Map<string, number>();
   for (const s of satirlar) if (s.kaynak === 'FATURA' && s.tip === 'ODEME') {
-    const id = s.id.replace(/-pay$/, '');
+    const id = faturaAnahtari(s);
     odenenFatura.set(id, (odenenFatura.get(id) ?? 0) + s.tutar);
   }
   for (const s of satirlar) if (s.kaynak === 'FATURA' && s.tip === 'BORC') {
@@ -126,16 +131,39 @@ export function acikKalemler(satirlar: EkstreGirdisi[]): { kalemler: AcikKalem[]
     if (kalan > 0.005) kalemler.push({ id: s.id, tarih: s.tarih, aciklama: s.aciklama, detay: s.detay, tutar: s.tutar, odenen, kalan });
   }
 
-  // Servis: tahsilat havuzu en eski borçtan düşülür.
+  // Servis.
   const servis = satirlar.filter((s) => s.kaynak === 'SERVIS');
-  let havuz = servis.filter((s) => s.tip === 'ODEME').reduce((a, s) => a + s.tutar, 0);
   const borclar = servis.filter((s) => s.tip === 'BORC')
     .sort((a, b) => new Date(a.tarih).getTime() - new Date(b.tarih).getTime());
+  const kalanlar = new Map(borclar.map((s) => [s.id, s.tutar]));
+  const odenenler = new Map<string, number>();
+  const dus = (id: string, tutar: number) => {
+    const once = kalanlar.get(id) ?? 0;
+    const d = Math.min(once, tutar);
+    kalanlar.set(id, once - d);
+    odenenler.set(id, (odenenler.get(id) ?? 0) + d);
+    return tutar - d;
+  };
+  let havuz = 0;
+  const bagsizOdemeler: EkstreGirdisi[] = [];
+  // 1. Fişe bağlı tahsilat kendi fişini kapatır; artanı havuza.
+  for (const o of servis) if (o.tip === 'ODEME') {
+    const fis = o.bagli ? borclar.find((s) => s.bagli === o.bagli) : undefined;
+    if (fis) havuz += dus(fis.id, o.tutar);
+    else bagsizOdemeler.push(o);
+  }
+  // 2. Peşin satış: aynı anda yazılmış bağsız satışların toplamına eşit tahsilat.
+  for (const o of bagsizOdemeler) {
+    const ayni = borclar.filter((s) => !s.bagli && s.tarih === o.tarih && (kalanlar.get(s.id) ?? 0) > 0.005);
+    const toplam = r2(ayni.reduce((a, s) => a + (kalanlar.get(s.id) ?? 0), 0));
+    if (ayni.length && Math.abs(toplam - o.tutar) < 0.005) for (const s of ayni) dus(s.id, kalanlar.get(s.id) ?? 0);
+    else havuz += o.tutar;
+  }
+  // 3. Kalan havuz en eski borçtan.
+  for (const s of borclar) if (havuz > 0.005) havuz = dus(s.id, havuz);
   for (const s of borclar) {
-    const dus = Math.min(havuz, s.tutar);
-    havuz -= dus;
-    const kalan = r2(s.tutar - dus);
-    if (kalan > 0.005) kalemler.push({ id: s.id, tarih: s.tarih, aciklama: s.aciklama, detay: s.detay, tutar: s.tutar, odenen: r2(dus), kalan });
+    const kalan = r2(kalanlar.get(s.id) ?? 0);
+    if (kalan > 0.005) kalemler.push({ id: s.id, tarih: s.tarih, aciklama: s.aciklama, detay: s.detay, tutar: s.tutar, odenen: r2(odenenler.get(s.id) ?? 0), kalan });
   }
   if (havuz > 0.005) {
     const son = servis.filter((s) => s.tip === 'ODEME').sort((a, b) => b.tarih.localeCompare(a.tarih))[0];

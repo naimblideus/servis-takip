@@ -65,5 +65,33 @@ t('eskiden yeniye sıralı', a.kalemler.map((k) => k.id).join(',') === 's2,f3,s3
 const fazla = e.acikKalemler([x('s1', 'SERVIS', 'BORC', 100, '2026-01-01T10:00:00Z'), x('p', 'SERVIS', 'ODEME', 250, '2026-02-01T10:00:00Z')]);
 t('servis fazla ödemesi eksi satır', fazla.kalemler.length === 1 && fazla.kalemler[0].fazlaOdeme && fazla.toplam === -150);
 
+console.log('\nBAĞLI TAHSİLAT\n');
+const y = (id, tip, tutar, tarih, bagli) => ({ id, kaynak: 'SERVIS', tip, tutar, tarih, aciklama: id, bagli });
+const bagli = e.acikKalemler([
+  y('eski', 'BORC', 1000, '2026-01-01T10:00:00Z', 'fisA'),
+  y('yeni', 'BORC', 800, '2026-05-01T10:00:00Z', 'fisB'),
+  y('o', 'ODEME', 800, '2026-05-02T10:00:00Z', 'fisB'),
+]);
+t('★ fişten alınan tahsilat O fişi kapatır (en eskiyi değil)', bagli.kalemler.length === 1 && bagli.kalemler[0].id === 'eski', bagli.kalemler.map((k) => k.id));
+const pesin = e.acikKalemler([
+  y('eski', 'BORC', 1000, '2026-01-01T10:00:00Z', null),
+  y('toner', 'BORC', 1250, '2026-06-25T09:00:00Z', null),
+  y('drum', 'BORC', 1750, '2026-06-25T09:00:00Z', null),
+  y('pesin', 'ODEME', 3000, '2026-06-25T09:00:00Z', null),
+]);
+t('★ peşin barkodlu satış kendi satırlarını kapatır', pesin.kalemler.length === 1 && pesin.kalemler[0].id === 'eski', pesin.kalemler.map((k) => k.id));
+const artan = e.acikKalemler([
+  y('a', 'BORC', 500, '2026-01-01T10:00:00Z', 'fisA'),
+  y('b', 'BORC', 700, '2026-02-01T10:00:00Z', 'fisB'),
+  y('o', 'ODEME', 900, '2026-02-02T10:00:00Z', 'fisB'),
+]);
+t('fişe fazla ödenen artan en eski borçtan düşer', artan.kalemler.length === 1 && artan.kalemler[0].id === 'a' && artan.kalemler[0].kalan === 300 && artan.toplam === 300, artan.kalemler);
+const fat = e.acikKalemler([
+  { id: 'f', kaynak: 'FATURA', tip: 'BORC', tutar: 1000, tarih: '2026-10-01T10:00:00Z', aciklama: 'f', bagli: 'f' },
+  { id: 'f-pay-1', kaynak: 'FATURA', tip: 'ODEME', tutar: 400, tarih: '2026-10-20T10:00:00Z', aciklama: 'p', bagli: 'f' },
+  { id: 'f-pay-2', kaynak: 'FATURA', tip: 'ODEME', tutar: 600, tarih: '2026-10-25T10:00:00Z', aciklama: 'p', bagli: 'f' },
+]);
+t('fatura birden çok tahsilatla kapanır', fat.kalemler.length === 0 && fat.toplam === 0);
+
 console.log(`\n${gecti} geçti, ${kaldi} kaldı`);
 process.exit(kaldi ? 1 : 0);

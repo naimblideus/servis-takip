@@ -29,6 +29,9 @@ export type BakiyeSatiri = {
   tutar: number;                // her zaman pozitif
   tarih: string;                // ISO
   detay?: string | null;        // yöntem / dönem / fiş no
+  /** Satırın bağlı olduğu belge: servis kaleminde fiş (ticketId), faturada fatura id.
+   *  Fişten alınan tahsilat o fişi kapatır (lib/ekstre-aralik acikKalemler). */
+  bagli?: string | null;
 };
 
 export type MusteriBakiye = {
@@ -119,7 +122,7 @@ export async function ekstre(tenantId: string, customerId: string): Promise<Baki
   const [entries, invoices] = await Promise.all([
     prisma.accountEntry.findMany({
       where: { tenantId, customerId },
-      select: { id: true, type: true, product: true, amount: true, method: true, notes: true, date: true },
+      select: { id: true, type: true, product: true, amount: true, method: true, notes: true, date: true, ticketId: true },
     }),
     // DRAFT ve CANCELLED ekstrede de GÖRÜNMEZ. Taslak henüz kesilmemiş bir
     // faturadır; ekstrede gösterip bakiyeye katmamak, ekstre toplamı ile
@@ -127,7 +130,12 @@ export async function ekstre(tenantId: string, customerId: string): Promise<Baki
     // Ekstre ile bakiye AYNI faturaları görmek zorunda.
     prisma.customerInvoice.findMany({
       where: { tenantId, customerId, deletedAt: null, status: { notIn: ['DRAFT', 'CANCELLED'] } },
-      select: { id: true, invoiceNumber: true, period: true, totalAmount: true, paidAmount: true, invoiceDate: true, status: true },
+      select: {
+        id: true, invoiceNumber: true, period: true, totalAmount: true, paidAmount: true, invoiceDate: true, status: true,
+        // Tahsilatın GERÇEK tarihi: eskiden ödeme satırı faturanın tarihiyle basılıyordu
+        // (1 Ekim'de kesilip 20 Ekim'de ödenen fatura iki satırda da "1 Ekim").
+        payments: { select: { id: true, amount: true, allocatedAt: true, payment: { select: { paymentDate: true } } } },
+      },
     }),
   ]);
 
@@ -142,6 +150,7 @@ export async function ekstre(tenantId: string, customerId: string): Promise<Baki
       tutar: Number(e.amount),
       tarih: e.date.toISOString(),
       detay: e.notes,
+      bagli: e.ticketId,
     });
   }
 
@@ -156,17 +165,38 @@ export async function ekstre(tenantId: string, customerId: string): Promise<Baki
       tutar: Number(inv.totalAmount),
       tarih: inv.invoiceDate.toISOString(),
       detay: inv.invoiceNumber,
+      bagli: inv.id,
     });
+    // Her tahsilat kendi tarihiyle. Toplam yine faturanın ödenen tutarı: mahsup
+    // kaydı olmayan (eski/elle) kısım faturanın tarihiyle tek satır kalır.
     const odenen = Number(inv.paidAmount);
-    if (odenen > 0) {
+    let yazilan = 0;
+    for (const ip of inv.payments) {
+      const tutar = Math.min(Number(ip.amount), yuvarla(odenen - yazilan));
+      if (tutar <= 0.004) continue;
+      yazilan = yuvarla(yazilan + tutar);
+      satirlar.push({
+        id: `${inv.id}-pay-${ip.id}`,
+        kaynak: 'FATURA',
+        tip: 'ODEME',
+        aciklama: `Fatura tahsilatı · ${inv.period}`,
+        tutar,
+        tarih: (ip.payment?.paymentDate ?? ip.allocatedAt).toISOString(),
+        detay: inv.invoiceNumber,
+        bagli: inv.id,
+      });
+    }
+    const kalanOdenen = yuvarla(odenen - yazilan);
+    if (kalanOdenen > 0.004) {
       satirlar.push({
         id: `${inv.id}-pay`,
         kaynak: 'FATURA',
         tip: 'ODEME',
         aciklama: `Fatura tahsilatı · ${inv.period}`,
-        tutar: odenen,
+        tutar: kalanOdenen,
         tarih: inv.invoiceDate.toISOString(),
         detay: inv.invoiceNumber,
+        bagli: inv.id,
       });
     }
   }
