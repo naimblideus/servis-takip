@@ -527,8 +527,8 @@ export default function AccountingPage() {
                   </div>
 
                   {/* İlerleme çubuğu */}
-                  <div style={{backgroundColor:'#f3f4f6',borderRadius:'9999px',height:'8px',marginBottom:'1.25rem'}}>
-                    <div style={{backgroundColor:'#22c55e',borderRadius:'9999px',height:'8px',width:`${((bulkIdx+1)/bulkQueue.length)*100}%`,transition:'width 0.3s'}} />
+                  <div style={{backgroundColor:'#f3f4f6',borderRadius:'9999px',height:'8px',marginBottom:'1.25rem',overflow:'hidden'}}>
+                    <div style={{backgroundColor:'#22c55e',height:'8px',width:'100%',transformOrigin:'left',transform:`scaleX(${(bulkIdx+1)/bulkQueue.length})`,transition:'transform 0.3s'}} />
                   </div>
 
                   {/* Gönderilen kişi */}
