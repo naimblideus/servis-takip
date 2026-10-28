@@ -204,6 +204,14 @@ const tohum = oku('scripts/seed-bayi-demo.mjs');
 const demoModuller = (tohum.match(/modules: \[([^\]]+)\]/)?.[1] ?? '').match(/'([A-Z_]+)'/g)?.map((x) => x.slice(1, -1)) ?? [];
 t('★ demo bayisinde BÜTÜN modüller açık (yeni modül eklenince bu test hatırlatır)', mod.ALL_MODULE_KEYS.every((k) => demoModuller.includes(k)), { eksik: mod.ALL_MODULE_KEYS.filter((k) => !demoModuller.includes(k)) });
 t('demo bayileri demo bayrağıyla kuruluyor', /demo: true,/.test(tohum));
+// Panel jetonu lib/portal.ts'in kabul ettiği biçimde olmalı; "mbs-portal-1-…"
+// gibi elle uydurulmuş jeton biçim kontrolünde düşer ve demodaki bütün müşteri
+// paneli bağlantıları 404 verir (satış videosunda böyle yakalandı).
+const portalKaynak = oku('src/lib/portal.ts');
+const JETON_BICIMI = new RegExp(portalKaynak.match(/function jetonBicimiGecerli[\s\S]*?\/(\^[^/]+\$)\/\.test/)?.[1] ?? '^$');
+const tohumJetonlari = [...tohum.matchAll(/portalToken: ([^\n]+)/g)].map((m) => m[1]);
+t('★ demo tohumu müşteri paneli jetonunu 64 hex üretiyor (portal.ts biçimi)', JETON_BICIMI.test('a'.repeat(64))
+  && tohumJetonlari.length > 0 && tohumJetonlari.every((x) => /randomBytes\(32\)\.toString\('hex'\)/.test(x) && !/`/.test(x)), tohumJetonlari);
 t('★ demo şifre özeti ucuz (şifre zaten açık; salonda yüzlerce giriş sunucuyu kilitlemesin)', /const DEMO_SIFRE_MALIYETI = 4;/.test(tohum) && !/bcrypt\.hash\(bayi\.sifre \?\? SIFRE, 12\)/.test(tohum));
 t('★ gece kurulumu YALNIZ demo işaretli bayiyi siliyor (gerçek bayi aynı adı taşısa bile)', /if \(!eski\.demo\) throw/.test(tohum) && /if \(var_ && !var_\.demo\) throw/.test(tohum));
 const goc = oku('prisma/migrations/20261010100000_zamanlayici_kayit_demo/migration.sql');
@@ -454,6 +462,13 @@ if (!durumIstegi) {
   if (!demo || !girisEposta) {
     console.log('  ⊘ demo koruması atlandı: herkese açık demo yerelde kurulu değil (node scripts/seed-bayi-demo.mjs)');
   } else {
+    const panelli = await p.customer.findMany({ where: { tenantId: demo.id, portalEnabled: true }, select: { portalToken: true } });
+    t('★ demoda panelli müşteriler var ve hepsinin jetonu biçim kontrolünden geçiyor', panelli.length > 0 && panelli.every((m) => JETON_BICIMI.test(m.portalToken ?? '')),
+      panelli.map((m) => m.portalToken));
+    if (panelli[0]?.portalToken) {
+      const panel = await istek(`/m/${panelli[0].portalToken}`);
+      t('★ demo müşterisinin paneli (/m/<jeton>) oturumsuz açılıyor', panel?.status === 200, panel?.status);
+    }
     const cerez = await girisYap(girisEposta, girisSifre);
     t('★ herkese açık demo giriş sayfasındaki bilgilerle açılıyor', !!cerez);
     if (cerez) {

@@ -27,6 +27,7 @@
  * Çalıştır:  node scripts/seed-bayi-demo.mjs
  * Tazele:    aynı komut — mevcut veri silinip yeniden kurulur (idempotent).
  */
+import crypto from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -553,7 +554,11 @@ async function kur(bayi) {
         email: m.eposta ?? null,
         eInvoiceUser: m.mukellef === undefined ? null : m.mukellef,
         portalEnabled: mi < 6,
-        portalToken: mi < 6 ? `mbs-portal-${mi + 1}-${Math.random().toString(36).slice(2, 10)}` : null,
+        // Jeton lib/portal.ts yeniPortalJetonu() ile aynı biçimde: 64 hex.
+        // jetonBicimiGecerli başka biçimi veritabanına sormadan reddeder;
+        // eskiden burada "mbs-portal-1-…" yazılıyordu ve demodaki bütün
+        // müşteri paneli bağlantıları "Sayfa bulunamadı" veriyordu.
+        portalToken: mi < 6 ? crypto.randomBytes(32).toString('hex') : null,
       },
     });
     musteriler.push(musteri);

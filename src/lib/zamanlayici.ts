@@ -68,7 +68,7 @@ export function vakitGeldiMi(is: ZamanlanmisIsTanimi, an = new Date()): boolean 
  * çıkarsa ekran ertesi geceye kadar demoda boş görünür — tam da o sabah
  * gösterilecekken. Sürüm başına bir kez çalışır (ZamanlanmisIs 'demo-surum').
  */
-export const DEMO_TOHUM_SURUMU = '2026-10-21-ekip-test';
+export const DEMO_TOHUM_SURUMU = '2026-10-28-panel-jetonu';
 
 /**
  * EKİP TEST HESAPLARI (scripts/seed-bayi-demo.mjs ile aynı kural): sunucuda
