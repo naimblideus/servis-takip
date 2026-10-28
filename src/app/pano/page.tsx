@@ -365,7 +365,7 @@ export default function CanliPanoSayfasi() {
 
             <div className="cp-sag">
               <CihazSagligi t={t} c={veri.cihaz} />
-              {(veri.talepler.portal || veri.talepler.whatsapp) && (
+              {(veri.talepler.portal || veri.talepler.whatsapp || veri.talepler.site) && (
                 <div className="cp-kutu">
                   <div className="cp-bolum-baslik"><h2>{p.talepler}</h2></div>
                   <div className="cp-cihaz">
@@ -376,6 +376,10 @@ export default function CanliPanoSayfasi() {
                     {veri.talepler.whatsapp && (
                       <Rakam etiket={p.whatsapp} n={veri.talepler.whatsapp.adet} vurgu={veri.talepler.whatsapp.adet > 0 ? 'uyari' : null}
                         alt={veri.talepler.whatsapp.enEski ? doldur(p.enEski, { sure: goreliYaz(t, veri.talepler.whatsapp.enEski, suan) }) : null} />
+                    )}
+                    {veri.talepler.site && (
+                      <Rakam etiket={p.site} n={veri.talepler.site.adet} vurgu={veri.talepler.site.adet > 0 ? 'uyari' : null}
+                        alt={veri.talepler.site.enEski ? doldur(p.enEski, { sure: goreliYaz(t, veri.talepler.site.enEski, suan) }) : null} />
                     )}
                   </div>
                 </div>

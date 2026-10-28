@@ -62,6 +62,8 @@ export interface CanliPanoVerisi {
     portal: { adet: number; enEski: string | null } | null;
     /** null = WhatsApp kurulu değil (kutu çizilmez). */
     whatsapp: { adet: number; enEski: string | null } | null;
+    /** null = mağaza yok. Sitedeki formdan gelen, yazılmamış talepler (son 14 gün, sabah listesiyle aynı). */
+    site: { adet: number; enEski: string | null } | null;
   };
   /**
    * Mağaza işleri — null: bayinin mağazası yok (kutu çizilmez). Yalnız SAYI:
@@ -120,7 +122,7 @@ export async function canliPanoVerisi(
     durumlar, bugunAcilan, kapanislar, atanmamis, atananIsler, kisiler, hedefler,
     cihazSatiri, yoldaToner, portal, whatsapp,
     yeniFisler, gecisler, portalOlaylari, uyariOlaylari,
-    magazaSatiri, siparisOlaylari,
+    magazaSatiri, siparisOlaylari, siteTalepleri,
   ] = await Promise.all([
     prisma.serviceTicket.groupBy({
       by: ['status'],
@@ -256,6 +258,12 @@ export async function canliPanoVerisi(
           ORDER BY "createdAt" DESC LIMIT ${OLAY_SAYISI}
         `.catch(() => [] as { id: string; no: string; aliciAd: string; createdAt: Date }[])
       : Promise.resolve([] as { id: string; no: string; aliciAd: string; createdAt: Date }[]),
+    magazaId
+      ? prisma.$queryRaw<{ adet: number; enEski: Date | null }[]>`
+          SELECT count(*)::int AS "adet", min("createdAt") AS "enEski" FROM shop."ShopTalep"
+          WHERE "tenantId" = ${magazaId} AND durum = 'YENI' AND "createdAt" > ${new Date(simdi.getTime() - 14 * GUN)}
+        `.catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   // ── SLA ────────────────────────────────────────────────────────────────
@@ -382,6 +390,9 @@ export async function canliPanoVerisi(
         : null,
       whatsapp: whatsapp
         ? { adet: whatsapp._count._all, enEski: whatsapp._min.receivedAt?.toISOString() ?? null }
+        : null,
+      site: magazaId && siteTalepleri?.[0]
+        ? { adet: siteTalepleri[0].adet, enEski: siteTalepleri[0].enEski ? new Date(siteTalepleri[0].enEski).toISOString() : null }
         : null,
     },
     magaza: magazaId && m

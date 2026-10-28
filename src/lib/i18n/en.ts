@@ -2825,6 +2825,7 @@ export const en: Sozluk = {
     talepler: 'Waiting requests',
     portal: 'Customer portal',
     whatsapp: 'WhatsApp awaiting reply',
+    site: 'Website requests',
     enEski: 'oldest {sure} ago',
     magaza: 'Store',
     yeniSiparis: 'New orders',

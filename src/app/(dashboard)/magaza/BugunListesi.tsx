@@ -7,7 +7,17 @@ import { useDil } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { magazaSiparisMetni, type MagazaSiparisMetni } from '@/lib/magaza-siparis-metin';
 import { SiparisEylemi } from './SiparisEylemi';
-import { MAVI, dugme, kodMetni, siparisleriGetir, type Siparis, type SiparisVerisi } from './siparis-ortak';
+import {
+  MAVI,
+  dugme,
+  kodMetni,
+  siparisleriGetir,
+  talepIsaretle,
+  talepleriGetir,
+  type SiparisVerisi,
+  type Siparis,
+  type SiteTalebi,
+} from './siparis-ortak';
 
 /**
  * BUGÜN — mağaza ve stokla ilgili yapılacak her iş, tek liste.
@@ -98,6 +108,9 @@ export function BugunListesi({ servis }: { servis: { stokAzaldi: number; toner: 
   const [kod, setKod] = useState<string | null>(null);
   // Bu oturumda biten işler: satır kısa bir süre "✓" ile kalır, sayı hemen düşer.
   const [bitenler, setBitenler] = useState<Record<string, string>>({});
+  // Siteden gelen talepler (servis, kiralama, teklif): mağaza eskiyse liste boş kalır.
+  const [talepler, setTalepler] = useState<SiteTalebi[]>([]);
+  const [talepMesaji, setTalepMesaji] = useState<Record<string, { tur: 'ok' | 'hata'; metin: string }>>({});
 
   useEffect(() => {
     let iptal = false;
@@ -108,7 +121,12 @@ export function BugunListesi({ servis }: { servis: { stokAzaldi: number; toner: 
         setKod(null);
       } else setKod(r.kod);
     };
-    const yenile = () => void siparisleriGetir('ACIK').then(isle);
+    const yenile = () => {
+      void siparisleriGetir('ACIK').then(isle);
+      void talepleriGetir().then((r) => {
+        if (!iptal && 'talepler' in r) setTalepler(r.talepler);
+      });
+    };
     yenile();
     // Liste kendiliğinden yenilenir: sekmeye dönünce ve iki dakikada bir.
     const gorununce = () => document.visibilityState === 'visible' && yenile();
@@ -142,7 +160,16 @@ export function BugunListesi({ servis }: { servis: { stokAzaldi: number; toner: 
     { anahtar: 'fiyatsiz' as const, n: servis.fiyatsiz, etiket: sm.etiketFiyatsiz, alt: sm.altFiyatsiz, href: '/magaza/urunler?filtre=FIYATSIZ', dugme: sm.dFiyatGir },
   ].filter((x) => x.n > 0);
 
-  const kalan = satirlar.filter((x) => !(x.s.id in bitenler)).length + servisSatirlari.length;
+  async function talepBitir(t: SiteTalebi, durum: 'YAZILDI' | 'KAPANDI') {
+    const r = await talepIsaretle(t.id, durum);
+    setTalepMesaji((m) => ({
+      ...m,
+      [t.id]: r.ok ? { tur: 'ok', metin: durum === 'YAZILDI' ? sm.okYazildi : sm.okKapandi } : { tur: 'hata', metin: r.hata ?? kodMetni(r.kod, sm) },
+    }));
+  }
+
+  const acikTalep = talepler.filter((t) => talepMesaji[t.id]?.tur !== 'ok').length;
+  const kalan = satirlar.filter((x) => !(x.s.id in bitenler)).length + acikTalep + servisSatirlari.length;
 
   return (
     <section style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, marginTop: 14, overflow: 'hidden' }}>
@@ -212,6 +239,47 @@ export function BugunListesi({ servis }: { servis: { stokAzaldi: number; toner: 
                       {sm.dMusteriyeYaz} ↗
                     </a>
                   )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Siteden talep: hazır cevapla WhatsApp (ya da ara) → "yazıldı"; iş yoksa kapat. */}
+      {talepler.map((t) => {
+        const sonuc = talepMesaji[t.id];
+        const bitti = sonuc?.tur === 'ok';
+        const etiketAdi = sm[`etiketTalep${t.tur}` as keyof MagazaSiparisMetni] ?? sm.etiketTalepDIGER;
+        return (
+          <div key={t.id} style={{ ...satirKutusu, opacity: bitti ? 0.75 : 1 }}>
+            <div style={{ minWidth: 0, flex: '1 1 260px' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Rozet renk={['#f4ebff', '#6941c6']} metin={etiketAdi} />
+                <span style={{ fontWeight: 700, fontSize: '0.93rem' }}>{t.ad} · {t.telefon}</span>
+              </div>
+              <p style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.8rem', overflowWrap: 'anywhere' }}>
+                {[t.konu, t.mesaj, t.servisSonuc].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+            <div style={{ flex: '0 1 auto' }}>
+              {bitti ? (
+                <span style={{ color: '#05603a', fontSize: '0.86rem', fontWeight: 600 }}>✓ {sonuc.metin}</span>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <a
+                    href={t.waLink ?? `tel:${t.telefon}`}
+                    target={t.waLink ? '_blank' : undefined}
+                    rel="noopener noreferrer"
+                    onClick={() => void talepBitir(t, 'YAZILDI')}
+                    style={dugme('#0e9f6e')}
+                  >
+                    {t.waLink ? `${sm.dWhatsappYaz} ↗` : sm.dAra}
+                  </a>
+                  <button type="button" onClick={() => void talepBitir(t, 'KAPANDI')} style={dugme('#6b7280', true)}>
+                    {sm.dKapat}
+                  </button>
+                  {sonuc?.tur === 'hata' && <span style={{ color: '#b42318', fontSize: '0.8rem', flexBasis: '100%' }}>{sonuc.metin}</span>}
                 </div>
               )}
             </div>

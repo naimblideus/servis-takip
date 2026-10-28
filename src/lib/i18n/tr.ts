@@ -2930,6 +2930,7 @@ export const tr = {
     talepler: 'Bekleyen talepler',
     portal: 'Müşteri paneli',
     whatsapp: 'WhatsApp cevap bekliyor',
+    site: 'Siteden talep',
     enEski: 'en eskisi {sure} önce',
     magaza: 'Mağaza',
     yeniSiparis: 'Yeni sipariş',

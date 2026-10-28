@@ -92,6 +92,47 @@ export async function siparisIslemi(islem: IslemAdi, orderId: string, kargo?: { 
   }
 }
 
+/** Siteden gelen talep (servis, kiralama, teklif) — mağazanın /api/servis/talepler biçimi. */
+export interface SiteTalebi {
+  id: string;
+  tur: 'SERVIS' | 'KIRALAMA' | 'TEKLIF' | 'DIGER';
+  ad: string;
+  telefon: string;
+  konu: string | null;
+  mesaj: string | null;
+  tarih: string;
+  /** Servis talebi Servis'e iletildiyse sonucu (mağazanın cümlesi). */
+  servisSonuc: string | null;
+  /** Hazır cevapla WhatsApp; sabit hatta null (aranır). */
+  waLink: string | null;
+}
+
+export async function talepleriGetir(): Promise<{ talepler: SiteTalebi[] } | { kod: string }> {
+  try {
+    const r = await fetch('/api/magaza/talepler', { cache: 'no-store' });
+    const g = (await r.json().catch(() => null)) as { ok?: boolean; kod?: string; talepler?: SiteTalebi[] } | null;
+    if (!r.ok || !g || g.ok === false || !Array.isArray(g.talepler)) return { kod: g?.kod ?? 'GENEL' };
+    return { talepler: g.talepler };
+  } catch {
+    return { kod: 'ULASILAMADI' };
+  }
+}
+
+/** YAZILDI: panelin sabah listesinden de düşer. KAPANDI: iş bitti. */
+export async function talepIsaretle(talepId: string, durum: 'YAZILDI' | 'KAPANDI'): Promise<IslemSonucu> {
+  try {
+    const r = await fetch('/api/magaza/talepler', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ talepId, durum }),
+    });
+    const g = (await r.json().catch(() => null)) as IslemSonucu | null;
+    return { ...(g ?? {}), ok: r.ok && !!g && g.ok !== false };
+  } catch {
+    return { ok: false, kod: 'ULASILAMADI' };
+  }
+}
+
 /**
  * Mağazanın kargo bildirimi cevabı bu cümleyle başlıyorsa müşteriye otomatik
  * WhatsApp gitti (nextus-magaza lib/siparis-islem.ts → siparisDurumuYaz).
