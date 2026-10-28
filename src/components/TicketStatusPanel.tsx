@@ -42,6 +42,9 @@ interface Props {
     tenantName?: string;
     // Arıza kategorisi — boşsa fiş kapanırken tek dokunuşla sorulur
     currentFaultCategory?: string | null;
+    currentHataKodu?: string | null;
+    currentPlanlananTarih?: string | null; // ISO
+    currentBosKartusAdet?: number | null;
     // ── SAYAÇ DÜZENLEME ──────────────────────────────────────────────────
     // Fişin KENDİ okuması (varsa). Yoksa panelden yeni okuma eklenebilir.
     // billed=true ise düzenlenemez: o değer faturaya girmiştir, sessizce
@@ -68,6 +71,9 @@ export default function TicketStatusPanel({
     ticketNumber,
     tenantName,
     currentFaultCategory,
+    currentHataKodu,
+    currentPlanlananTarih,
+    currentBosKartusAdet,
     deviceId,
     reading,
 }: Props) {
@@ -108,6 +114,9 @@ export default function TicketStatusPanel({
         actionText: currentActionText,
         notes: currentNotes,
         createdAt: toLocalInput(currentCreatedAt),
+        hataKodu: currentHataKodu ?? '',
+        planlananTarih: currentPlanlananTarih ? currentPlanlananTarih.slice(0, 10) : '',
+        bosKartusAdet: currentBosKartusAdet != null ? String(currentBosKartusAdet) : '',
     });
     const [acilis, setAcilis] = useState<FisDuzenTamponu>(sunucudan);
     const [assignedUserId, setAssignedUserId] = useState(acilis.assignedUserId);
@@ -119,6 +128,9 @@ export default function TicketStatusPanel({
     const [issueText, setIssueText] = useState(acilis.issueText);
     const [actionText, setActionText] = useState(acilis.actionText);
     const [notes, setNotes] = useState(acilis.notes);
+    const [hataKodu, setHataKodu] = useState(acilis.hataKodu ?? '');
+    const [planlananTarih, setPlanlananTarih] = useState(acilis.planlananTarih ?? '');
+    const [bosKartusAdet, setBosKartusAdet] = useState(acilis.bosKartusAdet ?? '');
     const [createdAt, setCreatedAt] = useState(acilis.createdAt);
     // Panel AÇIKKEN parça eklenirse (masaüstünde parça paneli aynı ekranda)
     // tutar kutusu da güncellensin — kullanıcı kutuya yazmadıysa.
@@ -222,6 +234,7 @@ export default function TicketStatusPanel({
         // Yalnız DEĞİŞEN alanlar gider; tutar yalnız kutuya yazıldıysa.
         const govde = fisDuzenGovdesi(acilis, {
             assignedUserId, paymentStatus, totalCost, issueText, actionText, notes, createdAt,
+            hataKodu, planlananTarih, bosKartusAdet,
         }, toplamElle);
         if (Object.keys(govde).length > 0) {
             const res = await fetch(`/api/tickets/${ticketId}`, {
@@ -254,6 +267,9 @@ export default function TicketStatusPanel({
             setIssueText(s.issueText);
             setActionText(s.actionText);
             setNotes(s.notes);
+            setHataKodu(s.hataKodu ?? '');
+            setPlanlananTarih(s.planlananTarih ?? '');
+            setBosKartusAdet(s.bosKartusAdet ?? '');
             setCreatedAt(s.createdAt);
             setSayacB(reading ? String(reading.counterBlack) : '');
             setSayacR(reading ? String(reading.counterColor) : '');
@@ -461,6 +477,25 @@ export default function TicketStatusPanel({
                                 onChange={e => setNotes(e.target.value)}
                                 placeholder={t.fisPanel.notYer}
                             />
+                        </div>
+
+                        {/* Saha ekleri — üçü de isteğe bağlı, tek satırda. */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                            <div>
+                                <label style={fieldLabel}>{t.fisPanel.hataKodu}</label>
+                                <input style={{ ...textarea, minHeight: 0 }} value={hataKodu} maxLength={40}
+                                    onChange={e => setHataKodu(e.target.value)} placeholder={t.fisPanel.hataKoduYer} />
+                            </div>
+                            <div>
+                                <label style={fieldLabel}>{t.fisPanel.planlananGun}</label>
+                                <input type="date" style={{ ...textarea, minHeight: 0 }} value={planlananTarih}
+                                    onChange={e => setPlanlananTarih(e.target.value)} />
+                            </div>
+                            <div>
+                                <label style={fieldLabel}>{t.fisPanel.bosKartus}</label>
+                                <input inputMode="numeric" style={{ ...textarea, minHeight: 0 }} value={bosKartusAdet} maxLength={3}
+                                    onChange={e => setBosKartusAdet(e.target.value.replace(/\D/g, ''))} placeholder="0" />
+                            </div>
                         </div>
                     </div>
 

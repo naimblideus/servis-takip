@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { mapsUrl } from '@/lib/share';
 import ContactActions from '@/components/ContactActions';
+import { AracaYukle } from '@/components/AracaYukle';
 import { useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
@@ -150,6 +151,9 @@ export default function RotaPage() {
           </a>
         )}
       </div>
+
+      {/* Mağazada "Teknisyen getirsin" denmiş siparişler: yük + tek dokunuşla rotaya. */}
+      <AracaYukle rotada={selected} ekle={add} />
 
       {/* Müşteri ara → rotaya ekle */}
       <div style={{ position: 'relative', margin: '1rem 0 0.75rem' }}>

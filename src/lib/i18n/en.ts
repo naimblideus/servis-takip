@@ -949,6 +949,10 @@ export const en: Sozluk = {
 
   fisPanel: {
     cariIslendi: '💼 {n} posted to the customer account (Accounting).',
+    hataKodu: 'Error code',
+    hataKoduYer: 'Code on the display (e.g. E-02)',
+    planlananGun: 'Planned day',
+    bosKartus: 'Empty cartridges collected',
     bildirelimMi: 'Status updated — shall we tell the customer?',
     whatsappBildir: '📱 Notify on WhatsApp',
     sorunNeydi: 'What was wrong on this job?',
@@ -2497,6 +2501,9 @@ export const en: Sozluk = {
   },
 
   rota: {
+    aracaYukle: '📦 Load the van — {n} store {n|order|orders} going with the technician',
+    rotayaEkle: 'Add to route',
+    rotada: '✓ On route',
     baslik: '🗺️ Plan a route',
     alt: 'Search and pick the customers you are visiting, order them, get one set of directions.',
     haritadaAc: '🗺️ Open in Maps',

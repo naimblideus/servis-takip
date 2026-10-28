@@ -20,6 +20,10 @@ export interface FisDuzenTamponu {
     actionText: string;
     notes: string;
     createdAt: string;   // datetime-local metni ("2026-10-14T09:30")
+    // Saha ekleri (isteğe bağlı; boş metin = temizle)
+    hataKodu?: string;
+    planlananTarih?: string; // "2026-10-29"
+    bosKartusAdet?: string;
 }
 
 /**
@@ -38,6 +42,9 @@ export function fisDuzenGovdesi(
     if (simdi.issueText !== acilis.issueText) govde.issueText = simdi.issueText;
     if (simdi.actionText !== acilis.actionText) govde.actionText = simdi.actionText;
     if (simdi.notes !== acilis.notes) govde.notes = simdi.notes;
+    if ((simdi.hataKodu ?? '') !== (acilis.hataKodu ?? '')) govde.hataKodu = (simdi.hataKodu ?? '').trim();
+    if ((simdi.planlananTarih ?? '') !== (acilis.planlananTarih ?? '')) govde.planlananTarih = simdi.planlananTarih ?? '';
+    if ((simdi.bosKartusAdet ?? '') !== (acilis.bosKartusAdet ?? '')) govde.bosKartusAdet = (simdi.bosKartusAdet ?? '').trim();
     if (simdi.createdAt && simdi.createdAt !== acilis.createdAt) {
         const d = new Date(simdi.createdAt);
         if (!isNaN(d.getTime())) govde.createdAt = d.toISOString();

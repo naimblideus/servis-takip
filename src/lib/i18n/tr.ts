@@ -1003,6 +1003,10 @@ export const tr = {
   // Fiş durum/düzenleme paneli (fiş detayının sağ üstü).
   fisPanel: {
     cariIslendi: '💼 {n} müşteri carisine (Muhasebe) işlendi.',
+    hataKodu: 'Hata kodu',
+    hataKoduYer: 'Ekrandaki kod (ör. E-02)',
+    planlananGun: 'Planlanan gün',
+    bosKartus: 'Toplanan boş kartuş',
     bildirelimMi: 'Durum güncellendi — müşteriye haber verelim mi?',
     whatsappBildir: '📱 WhatsApp ile bildir',
     sorunNeydi: 'Bu işte sorun neydi?',
@@ -2593,6 +2597,9 @@ export const tr = {
 
   // Rota planlama (saha turu).
   rota: {
+    aracaYukle: '📦 Araca yüklenecek — {n} mağaza siparişi teknisyenle gidecek',
+    rotayaEkle: 'Rotaya ekle',
+    rotada: '✓ Rotada',
     baslik: '🗺️ Rota Planla',
     alt: 'Gideceğin müşterileri ara/seç, sırala, tek haritada yol tarifi al.',
     haritadaAc: '🗺️ Haritada aç',

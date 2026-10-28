@@ -76,6 +76,11 @@ console.log('\nDİĞER ALANLAR\n');
   t('değişen fiş tarihi ISO olarak gidiyor', g3.createdAt === new Date('2026-10-13T08:00').toISOString(), g3);
   const g4 = fisDuzenGovdesi(acilis, { ...acilis, createdAt: '' }, false);
   t('boşaltılan tarih gönderilmiyor', !('createdAt' in g4), g4);
+  const g5 = fisDuzenGovdesi(acilis, { ...acilis, hataKodu: ' E-02 ', planlananTarih: '2026-10-29', bosKartusAdet: '3' }, false);
+  t('saha ekleri: hata kodu kırpılıp, gün ve boş kartuş gidiyor', g5.hataKodu === 'E-02' && g5.planlananTarih === '2026-10-29' && g5.bosKartusAdet === '3', g5);
+  const g6 = fisDuzenGovdesi({ ...acilis, hataKodu: 'E-02' }, { ...acilis, hataKodu: '' }, false);
+  t('saha ekleri: boşaltılan hata kodu temizlenmek üzere gidiyor', g6.hataKodu === '', g6);
+  t('saha ekleri: dokunulmayan ek gönderilmiyor', !('hataKodu' in fisDuzenGovdesi(acilis, { ...acilis }, false)));
 }
 
 console.log('\nEKRANLAR SUNUCUDAKİ SON TUTARI GÖSTERİYOR (kaynak denetimi)\n');

@@ -83,6 +83,19 @@ export async function PATCH(
         if (body.issueText !== undefined) updateData.issueText = body.issueText;
         if (body.actionText !== undefined) updateData.actionText = body.actionText;
         if (body.notes !== undefined) updateData.notes = body.notes;
+        // Saha ekleri: boş metin = temizle; biçimsiz değer sessizce yok sayılır.
+        if (body.hataKodu !== undefined) updateData.hataKodu = String(body.hataKodu).trim().slice(0, 40) || null;
+        if (body.planlananTarih !== undefined) {
+            const g = String(body.planlananTarih);
+            // Öğlen: saat dilimi kayması günü değiştirmesin.
+            if (!g) updateData.planlananTarih = null;
+            else if (/^\d{4}-\d{2}-\d{2}$/.test(g)) updateData.planlananTarih = new Date(`${g}T12:00:00`);
+        }
+        if (body.bosKartusAdet !== undefined) {
+            const n = String(body.bosKartusAdet).trim();
+            if (!n) updateData.bosKartusAdet = null;
+            else if (/^\d{1,3}$/.test(n)) updateData.bosKartusAdet = Number(n);
+        }
         if (body.totalCost !== undefined) updateData.totalCost = parseFloat(body.totalCost);
         if (body.laborCost !== undefined) updateData.laborCost = parseFloat(body.laborCost);
         if (body.createdAt !== undefined && body.createdAt) {

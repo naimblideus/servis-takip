@@ -174,6 +174,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                 billed: fisOkumasi.billed,
               } : null}
               currentFaultCategory={ticket.faultCategory}
+              currentHataKodu={ticket.hataKodu}
+              currentPlanlananTarih={ticket.planlananTarih?.toISOString() ?? null}
+              currentBosKartusAdet={ticket.bosKartusAdet}
             />
           </div>
         </div>
@@ -338,6 +341,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           {[
             [sz.fisDetay.teknisyen, ticket.assignedUser?.name ?? '-'],
             [sz.fisDetay.arizaKategorisi, (sz.ariza as Record<string, string>)[ticket.faultCategory ?? ''] ?? '—'],
+            // Saha ekleri yalnız girildiyse görünür.
+            ...(ticket.hataKodu ? [[sz.fisPanel.hataKodu, ticket.hataKodu]] : []),
+            ...(ticket.planlananTarih ? [[sz.fisPanel.planlananGun, b.tarih(ticket.planlananTarih)]] : []),
+            ...(ticket.bosKartusAdet != null ? [[sz.fisPanel.bosKartus, String(ticket.bosKartusAdet)]] : []),
             [sz.fisDetay.olusturan, ticket.createdBy?.name ?? '-'],
             [sz.fisDetay.toplamTutar, b.para(Number(ticket.totalCost))],
             [sz.fisDetay.odeme, (sz.durum.odeme as Record<string, string>)[ticket.paymentStatus] ?? '-'],

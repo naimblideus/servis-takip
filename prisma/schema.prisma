@@ -915,6 +915,12 @@ model ServiceTicket {
   // fişin durum değişikliği bunu vermiyor. Konum TUTULMAZ — yalnız saat.
   varisAt         DateTime?
   ayrilisAt       DateTime?
+  // SAHA EKLERİ — hepsi isteğe bağlı. hataKodu: makinenin ekranındaki kod;
+  // planlananTarih: gidilecek gün (mağaza "yarın sizdeyiz" mesajı); bosKartusAdet:
+  // ziyarette toplanan boş kartuş (sayaçsız kaçak toner işareti).
+  hataKodu        String?
+  planlananTarih  DateTime?
+  bosKartusAdet   Int?
   statusUpdatedAt DateTime       @default(now())
   deletedAt       DateTime? // Soft-delete: null = aktif, set = çöp kutusu
   createdAt       DateTime       @default(now())
@@ -941,6 +947,7 @@ model ServiceTicket {
   @@index([tenantId, assignedUserId])
   @@index([tenantId, deletedAt])
   @@index([tenantId, faultCategory])
+  @@index([tenantId, planlananTarih])
   // Kiracıdan bağımsız toplu analiz (marka/model güvenilirliği) bu indeksi kullanır
   @@index([faultCategory, createdAt])
 }
