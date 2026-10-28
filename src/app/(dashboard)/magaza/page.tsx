@@ -138,6 +138,25 @@ export default async function MagazaSayfasi() {
         )}
       </div>
 
+      {/* Ayarlar Servis'in içinden: ödeme, iletişim, kargo, yasal, logo, kampanya
+          (mağaza paneline gitmeden; kural mağazada, bkz. magaza/ayarlar). */}
+      {yoneticiMi(user) && (
+        <Link
+          href="/magaza/ayarlar"
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 14,
+            background: 'white', border: '1px solid #c7d2fe', borderRadius: 12, padding: '0.9rem 1rem',
+            textDecoration: 'none', color: '#111827',
+          }}
+        >
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem' }}>⚙ {km.ayDugme}</span>
+            <span style={{ display: 'block', color: '#6b7280', fontSize: '0.8rem', marginTop: 2 }}>{km.ayDugmeAlt}</span>
+          </span>
+          <span aria-hidden style={{ color: '#1d4ed8', fontWeight: 800 }}>→</span>
+        </Link>
+      )}
+
       {/* Panel girişi: yalnız yönetici ve adresi olan mağaza (adressiz davet açılmaz). */}
       {magaza.adresli && yoneticiMi(user) && <PanelGiris />}
 
