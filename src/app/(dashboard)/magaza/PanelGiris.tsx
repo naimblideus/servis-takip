@@ -13,7 +13,28 @@ import { magazaKurulumMetni } from '@/lib/magaza-kurulum-metin';
  * Burada kurulum ucu yeniden çağrılır; uç idempotent, mevcut mağaza için
  * yalnız yeni davet döner. Bağlantı ekranda düğme olarak gösterilir —
  * istekten sonra pencereyi kendiliğinden açmak tarayıcıda engellenebiliyor.
+ *
+ * KISAYOLLAR: aynı davet `?devam=/yonetim/…` ile paneli doğrudan o ekranda
+ * açar. Davet tek kullanımlık ama mağaza, girişli tarayıcıdan gelen ikinci
+ * kısayolu da istenen ekrana geçirir (nextus-magaza davet rotası).
  */
+const KISAYOLLAR = [
+  { yol: '/yonetim/sabah', ad: 'kisaSabah' },
+  { yol: '/yonetim/kampanya', ad: 'kisaKampanya' },
+  { yol: '/yonetim/siparisler', ad: 'kisaSiparis' },
+  { yol: '/yonetim/ayarlar', ad: 'kisaAyarlar' },
+] as const;
+
+function hedefli(davet: string, yol: string): string {
+  try {
+    const u = new URL(davet);
+    u.searchParams.set('devam', yol);
+    return u.toString();
+  } catch {
+    return davet;
+  }
+}
+
 export function PanelGiris() {
   const { dil } = useDil();
   const m = magazaKurulumMetni(dil);
@@ -51,7 +72,7 @@ export function PanelGiris() {
             href={davet}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => setTimeout(() => setDavet(null), 500)}
+            onClick={() => setTimeout(() => setDavet(null), 60_000)}
             style={{
               display: 'inline-block', marginTop: 8, padding: '0.6rem 1rem', background: '#16a34a', color: 'white',
               borderRadius: 8, fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none',
@@ -59,6 +80,23 @@ export function PanelGiris() {
           >
             {m.paneliAc} →
           </a>
+          <div style={{ fontSize: '0.8rem', color: '#4b5563', marginTop: 10 }}>{m.kisayolBaslik}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+            {KISAYOLLAR.map((k) => (
+              <a
+                key={k.yol}
+                href={hedefli(davet, k.yol)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: '0.4rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 8, color: '#111827',
+                  fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none', background: 'white',
+                }}
+              >
+                {m[k.ad]}
+              </a>
+            ))}
+          </div>
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>

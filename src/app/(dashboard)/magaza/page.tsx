@@ -67,15 +67,34 @@ export default async function MagazaSayfasi() {
    */
   const magazaId = await magazaKiraciId(user.tenantId);
 
-  const [urun, yayinda, fiyatsiz, yeniSiparis, stokBekleyen] = await Promise.all([
+  // Yeni mağaza tabloları (kampanya, arama talebi) mağaza güncellenmeden yok olabilir:
+  // o sorgular sessizce 0/boş döner, sayfa açılır.
+  const yok = [{ c: 0 }];
+  const [urun, yayinda, fiyatsiz, yeniSiparis, stokBekleyen, teknisyen, aranan, kampanyalar] = await Promise.all([
     prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${magazaId}`,
     prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${magazaId} AND durum = 'YAYINDA'`,
     prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopProduct" WHERE "tenantId" = ${magazaId} AND fiyat IS NULL`,
     prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopOrder" WHERE "tenantId" = ${magazaId} AND durum = 'YENI'`,
     prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopOrder" WHERE "tenantId" = ${magazaId} AND durum = 'STOK_BEKLIYOR'`,
+    // Mağazada "Teknisyen getirsin" denmiş, henüz teslim edilmemiş (Rota'daki "Araca yüklenecek" ile aynı kural).
+    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopOrder" WHERE "tenantId" = ${magazaId} AND teslimat = 'TEKNISYEN' AND durum IN ('YENI','ONAY_KUYRUKTA','ONAYLANDI','HAZIRLANIYOR','STOK_BEKLIYOR')`.catch(() => yok),
+    prisma.$queryRaw<{ c: number }[]>`SELECT count(*)::int c FROM shop."ShopAramaTalebi" WHERE "tenantId" = ${magazaId} AND "createdAt" > now() - interval '7 days'`.catch(() => yok),
+    prisma.$queryRaw<{ tur: string; yuzde: number | null; bitis: Date }[]>`
+      SELECT tur, yuzde, bitis FROM shop."ShopKampanya"
+      WHERE "tenantId" = ${magazaId} AND NOT durduruldu AND baslangic <= now() AND bitis > now()
+      ORDER BY "createdAt" DESC LIMIT 4`.catch(() => [] as { tur: string; yuzde: number | null; bitis: Date }[]),
   ]);
 
   const s = (r: { c: number }[]) => r[0]?.c ?? 0;
+
+  // Süren kampanya: tür başına en yenisi (mağazadaki kuralın aynısı, lib/kampanya.ts).
+  const tarih = (d: Date) =>
+    new Intl.DateTimeFormat(dil === 'en' ? 'en-GB' : 'tr-TR', { day: 'numeric', month: 'long', timeZone: 'Europe/Istanbul' }).format(new Date(d));
+  const kampanya = ['SEPET_INDIRIM', 'KARGO_BEDAVA']
+    .map((tur) => kampanyalar.find((k) => k.tur === tur))
+    .filter((k): k is { tur: string; yuzde: number | null; bitis: Date } => !!k)
+    .map((k) => `${k.tur === 'KARGO_BEDAVA' ? km.kampanyaKargo : doldur(km.kampanyaIndirim, { n: k.yuzde ?? 0 })} · ${doldur(km.kampanyaBitis, { t: tarih(k.bitis) })}`)
+    .join('  ·  ');
 
   const kutu = (baslik: string, deger: number, alt: string, uyari = false) => (
     <div
@@ -143,6 +162,23 @@ export default async function MagazaSayfasi() {
         {kutu(sz.magaza.kartFiyatsiz, s(fiyatsiz), sz.magaza.kartFiyatsizAlt, true)}
         {kutu(sz.magaza.kartYeniSiparis, s(yeniSiparis), sz.magaza.kartYeniSiparisAlt, true)}
         {kutu(sz.magaza.kartStokBekleyen, s(stokBekleyen), sz.magaza.kartStokBekleyenAlt, true)}
+        {kutu(km.kartTeknisyen, s(teknisyen), km.kartTeknisyenAlt, true)}
+        {kutu(km.kartAranan, s(aranan), km.kartArananAlt, true)}
+      </div>
+
+      {kampanya && (
+        <div style={{ background: '#ecfdf5', border: '1px solid #abefc6', borderRadius: 10, padding: '0.6rem 0.9rem', margin: '0 0 1rem', color: '#05603a', fontSize: '0.86rem' }}>
+          <b>{km.kampanyaSuruyor}</b> {kampanya}
+        </div>
+      )}
+
+      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.1rem', marginBottom: 12 }}>
+        <div style={{ fontWeight: 700, marginBottom: 6, fontSize: '0.95rem' }}>{km.baglantiBaslik}</div>
+        <ul style={{ margin: 0, paddingLeft: '1.1rem', color: '#374151', fontSize: '0.86rem', lineHeight: 1.9 }}>
+          <li><b>{km.baglantiTeknisyenVurgu}</b> {km.baglantiTeknisyen} <Link href="/rota" style={{ color: '#1d4ed8' }}>Rota →</Link></li>
+          <li><b>{km.baglantiPlanVurgu}</b> {km.baglantiPlan}</li>
+          <li><b>{km.baglantiSayacVurgu}</b> {km.baglantiSayac}</li>
+        </ul>
       </div>
 
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.1rem' }}>
