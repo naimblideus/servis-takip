@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import QRCode from 'qrcode';
 import { useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
@@ -17,17 +18,16 @@ export default function DeviceQRCode({ publicCode, deviceName }: Props) {
 
     const qrUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/qr/${publicCode}`;
 
+    // Yerel kütüphaneyle: eskiden dış bir QR servisine gidiyordu (cihaz kodu
+    // ve adres üçüncü tarafa çıkıyor, servis kapalıysa QR hiç çıkmıyordu).
     useEffect(() => {
         if (!open) return;
-        generateQR();
-    }, [open]);
-
-    const generateQR = async () => {
-        // QR kodu canvas'a çiz (harici kütüphane olmadan, Google Charts API ile)
-        const size = 250;
-        const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(qrUrl)}&margin=10`;
-        setQrDataUrl(url);
-    };
+        let iptal = false;
+        QRCode.toDataURL(qrUrl, { width: 500, margin: 2, errorCorrectionLevel: 'M' })
+            .then((u) => { if (!iptal) setQrDataUrl(u); })
+            .catch(() => undefined);
+        return () => { iptal = true; };
+    }, [open, qrUrl]);
 
     const printQR = () => {
         const w = window.open('', '_blank');

@@ -4410,8 +4410,9 @@ export const tr = {
 
   // Barkod etiketi yazdırma (cihaz ve parça).
   barkodEtiket: {
-    cihazBaslik: '🏷️ Cihaz Barkod Etiketi',
-    cihazAlt: 'Her makineye Code 128 etiket bas, cihaza yapıştır. Okutunca cihaz kaydı (ve müşterisi) açılır.',
+    cihazBaslik: '🏷️ Cihaz Etiketi (QR + barkod)',
+    cihazAlt: 'Her makineye etiket bas, cihaza yapıştır. Müşteri QR’ı telefonuyla okutup toner sipariş eder, arıza ve sayaç bildirir; barkodu sizin el okuyucunuz okur.',
+    qrIpucu: 'Toner · arıza · sayaç: telefonla okutun',
     parcaBaslik: '🏷️ Barkod Etiketi Yazdır',
     parcaAlt: 'Parçaya Code 128 etiket bas, ürüne/rafa yapıştır, okuyucuyla okut. Barkodu olmayan parçada SKU kullanılır.',
     yazdir: '🖨️ Yazdır ({n} etiket)',

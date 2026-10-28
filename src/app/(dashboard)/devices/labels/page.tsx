@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
+import QRCode from 'qrcode';
 import { useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
@@ -28,6 +29,24 @@ function Barcode({ value, height, uyumsuz }: { value: string; height: number; uy
   return <svg ref={ref} style={{ maxWidth: '100%' }} />;
 }
 
+/**
+ * QR — müşteri telefon kamerasıyla okutur (kamera barkodu okumaz): /qr/<kod>
+ * sayfası açılır; toner siparişi, arıza ve sayaç oradan. Sunucuda değil
+ * tarayıcıda, yerel kütüphaneyle çizilir — cihaz kodu dış servise gitmez.
+ */
+function Qr({ deger, boyut }: { deger: string; boyut: number }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    let iptal = false;
+    QRCode.toDataURL(deger, { margin: 0, width: boyut * 3, errorCorrectionLevel: 'M' })
+      .then((u) => { if (!iptal) setSrc(u); })
+      .catch(() => undefined);
+    return () => { iptal = true; };
+  }, [deger, boyut]);
+  // eslint-disable-next-line @next/next/no-img-element
+  return src ? <img src={src} width={boyut} height={boyut} alt="" /> : <div style={{ width: boyut, height: boyut }} />;
+}
+
 export default function DeviceLabelsPage() {
   const t = useT();
   const [devices, setDevices] = useState<Device[]>([]);
@@ -36,6 +55,10 @@ export default function DeviceLabelsPage() {
   const [copies, setCopies] = useState(1);
   const [cols, setCols] = useState(3);
   const [showCustomer, setShowCustomer] = useState(true);
+  // QR adresi bu panelin kendi alan adından (müşteri okutunca /qr/<kod> açılır).
+  const [koken, setKoken] = useState('');
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- adres yalnız tarayıcıda bilinir
+  useEffect(() => setKoken(window.location.origin), []);
 
   useEffect(() => {
     fetch('/api/devices').then((r) => r.json()).then((d: Device[]) => {
@@ -128,10 +151,17 @@ export default function DeviceLabelsPage() {
               border: '1px solid #d1d5db', borderRadius: 6, padding: '8px 10px', textAlign: 'center',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 104, background: 'white',
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.15, marginBottom: 1 }}>{l.brand} {l.model}</div>
-              <div style={{ fontSize: 9.5, color: '#6b7280', marginBottom: 4 }}>{doldur(t.barkodEtiket.seri, { n: l.serial })}{showCustomer && l.customer ? ` · ${l.customer}` : ''}</div>
-              <Barcode value={l.code} height={36} uyumsuz={t.barkodEtiket.barkodUyumsuz} />
-              <div style={{ fontSize: 11, fontFamily: 'monospace', letterSpacing: 1, marginTop: 2 }}>{l.code}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+                {koken && <Qr deger={`${koken}/qr/${encodeURIComponent(l.code)}`} boyut={cols >= 4 ? 64 : 76} />}
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.15, marginBottom: 1 }}>{l.brand} {l.model}</div>
+                  <div style={{ fontSize: 9.5, color: '#6b7280', marginBottom: 2 }}>{doldur(t.barkodEtiket.seri, { n: l.serial })}{showCustomer && l.customer ? ` · ${l.customer}` : ''}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700 }}>{t.barkodEtiket.qrIpucu}</div>
+                </div>
+              </div>
+              {/* Barkod da kalır: teknisyenin el okuyucusu cihaz kaydını açar. */}
+              <Barcode value={l.code} height={22} uyumsuz={t.barkodEtiket.barkodUyumsuz} />
+              <div style={{ fontSize: 10, fontFamily: 'monospace', letterSpacing: 1 }}>{l.code}</div>
             </div>
           ))}
         </div>

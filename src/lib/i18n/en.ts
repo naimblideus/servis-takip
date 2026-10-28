@@ -4268,8 +4268,9 @@ export const en: Sozluk = {
   },
 
   barkodEtiket: {
-    cihazBaslik: '🏷️ Device barcode labels',
-    cihazAlt: 'Print a Code 128 label for each machine and stick it on. Scanning it opens the device record and its customer.',
+    cihazBaslik: '🏷️ Device labels (QR + barcode)',
+    cihazAlt: 'Print a label for each machine and stick it on. Customers scan the QR with their phone to order toner and report faults or meter readings; your handheld scanner reads the barcode.',
+    qrIpucu: 'Toner · faults · meter: scan with your phone',
     parcaBaslik: '🏷️ Print barcode labels',
     parcaAlt: 'Print a Code 128 label for a part and stick it on the item or the shelf, then scan it. Parts with no barcode use the SKU.',
     yazdir: '🖨️ Print ({n} {n|label|labels})',
