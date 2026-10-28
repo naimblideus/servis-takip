@@ -324,7 +324,7 @@ export function kapanisSayilari(satirlar: readonly { ticketId: string; atananId:
 // Olay akışı
 // ─────────────────────────────────────────────────────────────────────────
 
-export type OlayTuru = 'YENI_FIS' | 'DURUM' | 'PORTAL' | 'UYARI';
+export type OlayTuru = 'YENI_FIS' | 'DURUM' | 'PORTAL' | 'UYARI' | 'SIPARIS';
 
 export interface PanoOlayi {
   id: string;
@@ -334,17 +334,18 @@ export interface PanoOlayi {
   ticketNumber: string | null;
   musteri: string | null;
   cihaz: string | null;
-  /** DURUM: yeni durum kodu · PORTAL: ARIZA | SAYAC · UYARI: uyarı kodu. Metin ekranda sözlükten. */
+  /** DURUM: yeni durum kodu · PORTAL: ARIZA | SAYAC · UYARI: uyarı kodu. Metin ekranda sözlükten.
+   *  SIPARIS: mağaza siparişi — `ticketNumber` sipariş numarasıdır. */
   kod: string | null;
   /** DURUM: önceki durum kodu. */
   onceki: string | null;
 }
 
 /** Aynı ANDAKİ olayların sırası: cihazın sesi önce, iç kayıt sonra. */
-const TUR_SIRASI: Record<OlayTuru, number> = { UYARI: 0, PORTAL: 1, YENI_FIS: 2, DURUM: 3 };
+const TUR_SIRASI: Record<OlayTuru, number> = { UYARI: 0, PORTAL: 1, SIPARIS: 1, YENI_FIS: 2, DURUM: 3 };
 
 /**
- * Dört kaynağın (fiş, aşama geçmişi, müşteri paneli, cihaz uyarısı) son
+ * Kaynakların (fiş, aşama geçmişi, müşteri paneli, cihaz uyarısı, mağaza siparişi) son
  * olaylarını tek akışta birleştirir: en yeni önce, en fazla `enFazla`.
  * Her kaynaktan zaten son N olay çekiliyor; birleşimin ilk N'i doğrudur.
  * Eşit anlar türe, sonra kimliğe göre sıralanır — her yoklamada aynı sıra.

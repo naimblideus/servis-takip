@@ -29,7 +29,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 // denetimi ayrıca koşuyor (npx tsc --noEmit). Yeni lib dosyası eklenirse
 // bu listeye ve aşağıdaki yeniden yazma tablosuna eklenmeli.
 const g = mkdtempSync(join(tmpdir(), 'st-pano-'));
-const DOSYALAR = ['canli-pano', 'canli-pano-veri', 'sla', 'sla-veri', 'sayac-tarama', 'modules'];
+const DOSYALAR = ['canli-pano', 'canli-pano-veri', 'sla', 'sla-veri', 'sayac-tarama', 'modules', 'magaza-baglanti'];
 try {
   execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'),
     ...DOSYALAR.map((d) => join(KOK, `src/lib/${d}.ts`)),
@@ -171,6 +171,9 @@ console.log('\nOlay akışı\n');
   const cok = cp.olayAkisi([Array.from({ length: 15 }, (_, i) => o(`x${i}`, 'YENI_FIS', i)), [o('x3', 'YENI_FIS', 3)]]);
   t('★ en fazla 10 olay, tekrar yok', cok.length === 10 && new Set(cok.map((x) => x.id)).size === 10, cok.length);
   t('bozuk zamanlı olay akışı bozmaz', cp.olayAkisi([[{ ...o('z', 'PORTAL', 0), zaman: 'yok' }]]).length === 0);
+  // Mağaza siparişi müşteriden gelir: aynı anda iç kayıttan (yeni fiş, durum) önce.
+  const es = cp.olayAkisi([[o('f1', 'YENI_FIS', 5)], [o('s1', 'SIPARIS', 5)]]);
+  t('aynı anda mağaza siparişi yeni fişten önce', es[0]?.tur === 'SIPARIS' && es[1]?.tur === 'YENI_FIS', es.map((x) => x.tur));
 }
 
 // ── EKRAN YARDIMCILARI ───────────────────────────────────────────────────
@@ -197,6 +200,10 @@ console.log('\nKaynak\n');
     && /const ESIK_GUN = 35;/.test(oku('src/app/api/sayac/eksik/route.ts')));
   t('★ pano verisi TUTAR seçmiyor (oda herkese açık)', !/monthlyRent|totalCost|laborCost|sellPrice|buyPrice|amount|price|paidAmount|totalAmount|financial/i.test(veri));
   t('★ pano ekranı para biçimlemiyor', !/useBicim|\.para\(|b\.para/.test(sayfa));
+  // Mağaza kutusu: sipariş tablosundan yalnız durum ve teslim biçimi sayılır, tutar sütunu okunmaz.
+  const magazaSorgulari = veri.match(/SELECT[\s\S]*?FROM shop\."ShopOrder"/g) ?? [];
+  t('★ mağaza kutusu sipariş TUTARI okumuyor (toplam, kargo, KDV)', magazaSorgulari.length === 2
+    && magazaSorgulari.every((q) => !/toplam|araToplam|kdvTutar|kargo"|"kargo/i.test(q)), magazaSorgulari.length);
   t('sekme görünmezken sorulmuyor, görünür olunca hemen soruluyor', /if \(document\.hidden\) return;/.test(sayfa) && /visibilitychange/.test(sayfa));
   t('bağlantı koparsa son veri kalıyor (hata veriyi silmiyor)', /setHata\(true\)/.test(sayfa) && !/setVeri\(null\)/.test(sayfa));
   t('tam ekran düğmesi ve 3 sn sonra gizlenen imleç', /requestFullscreen\(\)/.test(sayfa) && /setImlecGizli\(true\), 3000/.test(sayfa) && /cursor: imlecGizli \? 'none'/.test(sayfa));
@@ -313,6 +320,7 @@ if (!yerelDb) {
     t('★ cevapta para yok (98765 kira hiçbir alanda geçmiyor)', !/98765|monthlyRent/.test(j));
     const baska = await veriMod.canliPanoVerisi('olmayan-bayi');
     t('olmayan bayi: null (uç 404 döner)', baska === null);
+    t('mağazası olmayan bayide mağaza kutusu yok', v.magaza === null, v.magaza);
 
     const demo = await p.tenant.findFirst({ where: { slug: 'demo', demo: true }, select: { id: true } });
     if (demo) {

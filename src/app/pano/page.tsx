@@ -380,6 +380,17 @@ export default function CanliPanoSayfasi() {
                   </div>
                 </div>
               )}
+              {veri.magaza && (
+                <div className="cp-kutu">
+                  <div className="cp-bolum-baslik"><h2>{p.magaza}</h2></div>
+                  <div className="cp-cihaz">
+                    <Rakam etiket={p.yeniSiparis} n={veri.magaza.yeni} vurgu={veri.magaza.yeni > 0 ? 'uyari' : null} alt={p.yeniSiparisAlt} />
+                    <Rakam etiket={p.hazirlanacak} n={veri.magaza.hazirlanacak} alt={p.hazirlanacakAlt} />
+                    <Rakam etiket={p.aracaYuklenecek} n={veri.magaza.aracaYuklenecek} alt={p.aracaAlt} />
+                    <Rakam etiket={p.stokBekleyen} n={veri.magaza.stokBekleyen} vurgu={veri.magaza.stokBekleyen > 0 ? 'uyari' : null} alt={p.stokBekleyenAlt} />
+                  </div>
+                </div>
+              )}
               <Olaylar t={t} olaylar={veri.olaylar} suan={suan} />
             </div>
           </section>
@@ -518,13 +529,14 @@ function olayMetni(t: Sozluk, o: PanoOlayi): { tur: string; ayrinti: string } {
     return { tur: doldur(p.olay.DURUM, { durum: ad }), ayrinti: fis + kim };
   }
   if (o.tur === 'PORTAL') return { tur: o.kod === 'SAYAC' ? p.olay.PORTAL_SAYAC : p.olay.PORTAL_ARIZA, ayrinti: kim };
+  if (o.tur === 'SIPARIS') return { tur: p.olay.SIPARIS, ayrinti: fis + kim };
   const uyari = (t.tarayici.uyari as Record<string, string>)[o.kod ?? ''] ?? p.olay.UYARI;
   return { tur: uyari, ayrinti: kim };
 }
 
 function Olaylar({ t, olaylar, suan }: { t: Sozluk; olaylar: PanoOlayi[]; suan: number }) {
   const p = t.canliPano;
-  const isaret: Record<PanoOlayi['tur'], string> = { YENI_FIS: '#3987E5', DURUM: '#7D8BA6', PORTAL: '#C98500', UYARI: '#E05555' };
+  const isaret: Record<PanoOlayi['tur'], string> = { YENI_FIS: '#3987E5', DURUM: '#7D8BA6', PORTAL: '#C98500', UYARI: '#E05555', SIPARIS: '#14A37F' };
   return (
     <div className="cp-kutu" style={{ minHeight: 0 }}>
       <div className="cp-bolum-baslik"><h2>{p.olaylar}</h2></div>

@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { oturumKullanicisi, yoneticiMi } from '@/lib/api-auth';
 import { magazaKurulumMetni } from '@/lib/magaza-kurulum-metin';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
+import { magazaSiparisMetni } from '@/lib/magaza-siparis-metin';
+import { MagazaSekmeleri } from '../MagazaSekmeleri';
 import { MagazaAyarlari } from './MagazaAyarlari';
 
 export const dynamic = 'force-dynamic';
@@ -30,5 +32,5 @@ export default async function MagazaAyarlariSayfasi() {
       </div>
     );
   }
-  return <MagazaAyarlari />;
+  return <MagazaAyarlari sekmeler={<MagazaSekmeleri aktif="site" sm={magazaSiparisMetni(dil)} />} />;
 }

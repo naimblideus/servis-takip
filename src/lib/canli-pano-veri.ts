@@ -18,6 +18,7 @@ import { olaylariCikar, type SlaHedefi } from '@/lib/sla';
 import { slaHedefleri, takvimKur } from '@/lib/sla-veri';
 import { DURUM_TAZE_MS, SERVIS_UYARILARI, TONER_KRITIK, UYARI_TURU, type UyariKodu } from '@/lib/sayac-tarama';
 import { effectiveModules } from '@/lib/modules';
+import { magazaKiraciId } from '@/lib/magaza-baglanti';
 import {
   ACIK_DURUMLAR, OLAY_SAYISI, SAYAC_GEC_GUN, SURUYOR,
   fisSayilari, gununBasi, kapanisSayilari, olayAkisi, slaKutusu, teknisyenSatirlari,
@@ -62,6 +63,20 @@ export interface CanliPanoVerisi {
     /** null = WhatsApp kurulu değil (kutu çizilmez). */
     whatsapp: { adet: number; enEski: string | null } | null;
   };
+  /**
+   * Mağaza işleri — null: bayinin mağazası yok (kutu çizilmez). Yalnız SAYI:
+   * sipariş tutarı ekrana gelmez (oda herkese açık).
+   */
+  magaza: {
+    /** Onay bekleyen yeni sipariş. */
+    yeni: number;
+    /** Onaylı, kargoya ya da dükkândan teslime hazırlanacak. */
+    hazirlanacak: number;
+    /** Teknisyen götürecek, henüz teslim edilmedi (Rota'daki "araca yüklenecek"le aynı kural). */
+    aracaYuklenecek: number;
+    /** Stok yetmediği için bekleyen sipariş. */
+    stokBekleyen: number;
+  } | null;
   olaylar: PanoOlayi[];
 }
 
@@ -91,6 +106,8 @@ export async function canliPanoVerisi(
   if (!bayi) return null;
 
   const takvim = takvimKur(bayi);
+  // Mağazanın kendi kimliği (servis kimliği değil); mağazası yoksa null.
+  const magazaId = await magazaKiraciId(tenantId).catch(() => null);
   const gunBasi = gununBasi(simdi, takvim.zamanDilimi);
   const taze = new Date(simdi.getTime() - DURUM_TAZE_MS);
   const sayacEsik = new Date(simdi.getTime() - SAYAC_GEC_GUN * GUN);
@@ -103,6 +120,7 @@ export async function canliPanoVerisi(
     durumlar, bugunAcilan, kapanislar, atanmamis, atananIsler, kisiler, hedefler,
     cihazSatiri, yoldaToner, portal, whatsapp,
     yeniFisler, gecisler, portalOlaylari, uyariOlaylari,
+    magazaSatiri, siparisOlaylari,
   ] = await Promise.all([
     prisma.serviceTicket.groupBy({
       by: ['status'],
@@ -218,6 +236,26 @@ export async function canliPanoVerisi(
         device: { select: { brand: true, model: true, customer: { select: { name: true } } } },
       },
     }),
+    // MAĞAZA — tek taramada dört sayı; mağaza tabloları yoksa (mağaza kurulmamış
+    // ortam) kutu çizilmez. Yalnız durum ve teslim biçimi okunur.
+    magazaId
+      ? prisma.$queryRaw<{ yeni: number; hazirlanacak: number; aracaYuklenecek: number; stokBekleyen: number }[]>`
+          SELECT
+            (COUNT(*) FILTER (WHERE durum = 'YENI'))::int AS "yeni",
+            (COUNT(*) FILTER (WHERE durum IN ('ONAYLANDI','HAZIRLANIYOR') AND teslimat <> 'TEKNISYEN'))::int AS "hazirlanacak",
+            (COUNT(*) FILTER (WHERE teslimat = 'TEKNISYEN'
+              AND durum IN ('YENI','ONAY_KUYRUKTA','ONAYLANDI','HAZIRLANIYOR','STOK_BEKLIYOR')))::int AS "aracaYuklenecek",
+            (COUNT(*) FILTER (WHERE durum = 'STOK_BEKLIYOR'))::int AS "stokBekleyen"
+          FROM shop."ShopOrder" WHERE "tenantId" = ${magazaId}
+        `.catch(() => null)
+      : Promise.resolve(null),
+    magazaId
+      ? prisma.$queryRaw<{ id: string; no: string; aliciAd: string; createdAt: Date }[]>`
+          SELECT id, no, "aliciAd", "createdAt" FROM shop."ShopOrder"
+          WHERE "tenantId" = ${magazaId} AND "createdAt" <= ${simdi}
+          ORDER BY "createdAt" DESC LIMIT ${OLAY_SAYISI}
+        `.catch(() => [] as { id: string; no: string; aliciAd: string; createdAt: Date }[])
+      : Promise.resolve([] as { id: string; no: string; aliciAd: string; createdAt: Date }[]),
   ]);
 
   // ── SLA ────────────────────────────────────────────────────────────────
@@ -305,7 +343,13 @@ export async function canliPanoVerisi(
       ticketNumber: null, musteri: u.device?.customer?.name ?? null, cihaz: cihazAdi(u.device) || null,
       kod: u.kod, onceki: null,
     })),
+    siparisOlaylari.map((s): PanoOlayi => ({
+      id: s.id, tur: 'SIPARIS', zaman: new Date(s.createdAt).toISOString(),
+      ticketNumber: s.no, musteri: s.aliciAd || null, cihaz: null,
+      kod: null, onceki: null,
+    })),
   ]);
+  const m = magazaSatiri?.[0];
 
   const c = cihazSatiri[0];
   const portalAdet = portal._count._all;
@@ -340,6 +384,9 @@ export async function canliPanoVerisi(
         ? { adet: whatsapp._count._all, enEski: whatsapp._min.receivedAt?.toISOString() ?? null }
         : null,
     },
+    magaza: magazaId && m
+      ? { yeni: m.yeni, hazirlanacak: m.hazirlanacak, aracaYuklenecek: m.aracaYuklenecek, stokBekleyen: m.stokBekleyen }
+      : null,
     olaylar,
   };
 }

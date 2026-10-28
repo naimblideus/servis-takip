@@ -100,7 +100,7 @@ async function ayarlariGetir(): Promise<{ durum: Durum } | { govde: Record<strin
   }
 }
 
-export function MagazaAyarlari() {
+export function MagazaAyarlari({ sekmeler }: { sekmeler?: React.ReactNode }) {
   const { dil } = useDil();
   const km = magazaKurulumMetni(dil);
   const [durum, setDurum] = useState<Durum | null>(null);
@@ -257,9 +257,11 @@ export function MagazaAyarlari() {
 
   return (
     <div style={{ padding: '1.5rem 1rem', maxWidth: 820, margin: '0 auto' }}>
-      <Link href="/magaza" style={{ color: '#1d4ed8', fontSize: '0.85rem', textDecoration: 'none' }}>{km.ayGeri}</Link>
+      {!sekmeler && <Link href="/magaza" style={{ color: '#1d4ed8', fontSize: '0.85rem', textDecoration: 'none' }}>{km.ayGeri}</Link>}
       <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '0.4rem 0 0' }}>{km.ayBaslik}</h1>
-      <p style={{ color: '#6b7280', margin: '0.25rem 0 1rem', fontSize: '0.9rem' }}>{km.ayAlt}</p>
+      {/* Mağaza sekmeleri (Bugün · Siparişler · Ürünler · Site): sayfa verirse başlığın altında. */}
+      {sekmeler}
+      <p style={{ color: '#6b7280', margin: sekmeler ? '0.9rem 0 1rem' : '0.25rem 0 1rem', fontSize: '0.9rem' }}>{km.ayAlt}</p>
 
       {!durum && !yukHata && <p style={{ color: '#6b7280' }}>{km.ayYukleniyor}</p>}
       {yukHata && (

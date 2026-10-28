@@ -8,18 +8,24 @@ import { PanelGiris } from './PanelGiris';
 import { bayiMagazasi, magazaKiraciId } from '@/lib/magaza-baglanti';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
+import { magazaSiparisMetni } from '@/lib/magaza-siparis-metin';
+import { siparisVerisi } from '@/lib/tedarik-siparisi-veri';
+import { tonerDurumu } from '@/lib/toner-veri';
+import { BugunListesi } from './BugunListesi';
+import { MagazaSekmeleri } from './MagazaSekmeleri';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * NEXTUS MAĞAZA — modül sayfası.
+ * NEXTUS MAĞAZA — modül sayfası, "Bugün".
  *
- * Mağaza ayrı bir uygulamada çalışır; burası ona AÇILAN KAPI ve durum
- * özetidir. Bilerek yalın: mağazanın yönetimi mağazanın kendi panelinde,
- * iki yerde yönetim iki farklı doğru üretir.
+ * Mağaza ayrı bir uygulamada çalışır ama bayi onu buradan yönetir: bugünkü
+ * işler (sipariş onayı, kargo, teslim, havale; azalan stok, biten toner,
+ * fiyatsız ürün) tek listede, siparişler / ürünler / site ayarları
+ * sekmelerde. Kurallar mağazada kalır (iki yerde iki doğru olmasın): Servis
+ * mağazanın /api/servis/* uçlarını çağırır, mesajını aynen gösterir.
  *
- * Buradaki sayılar okunur ve TEK SORU'ya cevap verir: "mağazam çalışıyor mu,
- * bekleyen bir işim var mı".
+ * Yönetici olmayan kullanıcı yalnız durum özetini görür (onay stok düşürür).
  */
 export default async function MagazaSayfasi() {
   const session = await auth();
@@ -86,6 +92,17 @@ export default async function MagazaSayfasi() {
   ]);
 
   const s = (r: { c: number }[]) => r[0]?.c ?? 0;
+  const yonetici = yoneticiMi(user);
+  const sm = magazaSiparisMetni(dil);
+
+  // Bugün listesinin Servis tarafı: asgari stoğun altındaki ürün ve yakında
+  // biten toner (ilgili ekranlarla aynı hesap). Hesap düşerse satır çıkmaz.
+  const [stokAzaldi, toner] = yonetici
+    ? await Promise.all([
+        siparisVerisi(user.tenantId).then((d) => d.kritikSayisi).catch(() => 0),
+        tonerDurumu(user.tenantId).then((d) => d.urgent).catch(() => 0),
+      ])
+    : [0, 0];
 
   // Süren kampanya: tür başına en yenisi (mağazadaki kuralın aynısı, lib/kampanya.ts).
   const tarih = (d: Date) =>
@@ -138,27 +155,8 @@ export default async function MagazaSayfasi() {
         )}
       </div>
 
-      {/* Ayarlar Servis'in içinden: ödeme, iletişim, kargo, yasal, logo, kampanya
-          (mağaza paneline gitmeden; kural mağazada, bkz. magaza/ayarlar). */}
-      {yoneticiMi(user) && (
-        <Link
-          href="/magaza/ayarlar"
-          style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 14,
-            background: 'white', border: '1px solid #c7d2fe', borderRadius: 12, padding: '0.9rem 1rem',
-            textDecoration: 'none', color: '#111827',
-          }}
-        >
-          <span style={{ minWidth: 0 }}>
-            <span style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem' }}>⚙ {km.ayDugme}</span>
-            <span style={{ display: 'block', color: '#6b7280', fontSize: '0.8rem', marginTop: 2 }}>{km.ayDugmeAlt}</span>
-          </span>
-          <span aria-hidden style={{ color: '#1d4ed8', fontWeight: 800 }}>→</span>
-        </Link>
-      )}
-
-      {/* Panel girişi: yalnız yönetici ve adresi olan mağaza (adressiz davet açılmaz). */}
-      {magaza.adresli && yoneticiMi(user) && <PanelGiris />}
+      {/* Bugün · Siparişler · Ürünler ve stok · Site ayarları — mağaza paneline gitmeden. */}
+      {yonetici && <MagazaSekmeleri aktif="bugun" sm={sm} />}
 
       {!magaza.adresli && (
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '0.9rem 1rem', marginTop: 14 }}>
@@ -176,22 +174,33 @@ export default async function MagazaSayfasi() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '1rem 0' }}>
-        {kutu(sz.magaza.kartYayindaki, s(yayinda), doldur(sz.magaza.kartKayit, { n: s(urun) }))}
-        {kutu(sz.magaza.kartFiyatsiz, s(fiyatsiz), sz.magaza.kartFiyatsizAlt, true)}
-        {kutu(sz.magaza.kartYeniSiparis, s(yeniSiparis), sz.magaza.kartYeniSiparisAlt, true)}
-        {kutu(sz.magaza.kartStokBekleyen, s(stokBekleyen), sz.magaza.kartStokBekleyenAlt, true)}
-        {kutu(km.kartTeknisyen, s(teknisyen), km.kartTeknisyenAlt, true)}
-        {kutu(km.kartAranan, s(aranan), km.kartArananAlt, true)}
-      </div>
+      {/* Yönetici: bugünkü işler tek listede, her satırda tek düğme. Diğerleri: durum özeti. */}
+      {yonetici ? (
+        <BugunListesi servis={{ stokAzaldi, toner, fiyatsiz: s(fiyatsiz) }} />
+      ) : (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '1rem 0' }}>
+          {kutu(sz.magaza.kartYayindaki, s(yayinda), doldur(sz.magaza.kartKayit, { n: s(urun) }))}
+          {kutu(sz.magaza.kartFiyatsiz, s(fiyatsiz), sz.magaza.kartFiyatsizAlt, true)}
+          {kutu(sz.magaza.kartYeniSiparis, s(yeniSiparis), sz.magaza.kartYeniSiparisAlt, true)}
+          {kutu(sz.magaza.kartStokBekleyen, s(stokBekleyen), sz.magaza.kartStokBekleyenAlt, true)}
+          {kutu(km.kartTeknisyen, s(teknisyen), km.kartTeknisyenAlt, true)}
+          {kutu(km.kartAranan, s(aranan), km.kartArananAlt, true)}
+        </div>
+      )}
 
       {kampanya && (
-        <div style={{ background: '#ecfdf5', border: '1px solid #abefc6', borderRadius: 10, padding: '0.6rem 0.9rem', margin: '0 0 1rem', color: '#05603a', fontSize: '0.86rem' }}>
+        <div style={{ background: '#ecfdf5', border: '1px solid #abefc6', borderRadius: 10, padding: '0.6rem 0.9rem', margin: '1rem 0', color: '#05603a', fontSize: '0.86rem' }}>
           <b>{km.kampanyaSuruyor}</b> {kampanya}
         </div>
       )}
 
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.1rem', marginBottom: 12 }}>
+      {/* Panel girişi: ürün fotoğrafı, teklif gibi henüz Servis'e gelmeyen işler için.
+          Yalnız yönetici ve adresi olan mağaza (adressiz davet açılmaz). */}
+      {magaza.adresli && yonetici && <PanelGiris />}
+
+      <details style={{ marginTop: 14 }}>
+        <summary style={{ cursor: 'pointer', color: '#4b5563', fontSize: '0.88rem', fontWeight: 600 }}>{sm.nasilBagli}</summary>
+      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.1rem', margin: '10px 0 12px' }}>
         <div style={{ fontWeight: 700, marginBottom: 6, fontSize: '0.95rem' }}>{km.baglantiBaslik}</div>
         <ul style={{ margin: 0, paddingLeft: '1.1rem', color: '#374151', fontSize: '0.86rem', lineHeight: 1.9 }}>
           <li><b>{km.baglantiTeknisyenVurgu}</b> {km.baglantiTeknisyen} <Link href="/rota" style={{ color: '#1d4ed8' }}>Rota →</Link></li>
@@ -209,6 +218,7 @@ export default async function MagazaSayfasi() {
           <li><b>{sz.magaza.beslenmeTonerVurgu}</b> {sz.magaza.beslenmeTonerOn} <Link href="/sarf" style={{ color: '#1d4ed8' }}>{sz.magaza.beslenmeTonerLink}</Link> {sz.magaza.beslenmeTonerSon}</li>
         </ul>
       </div>
+      </details>
     </div>
   );
 }
