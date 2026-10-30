@@ -165,15 +165,15 @@ export async function verimleriOgren(tenantId: string): Promise<OgrenilenVerim> 
  * "marka+model+kanal → kaç sayfa".
  */
 export async function populasyonVerimleri(): Promise<Map<string, VerimOzeti>> {
-  // ── RIZA ŞART ──────────────────────────────────────────────
-  // Bu depoda üretici veri ürünü için kural zaten yazılmış: "bayinin
-  // verisini başkasına açmak sözleşmesel izin ister; izin varsayılan
-  // olamaz." Bir bayinin ölçtüğü verimi BAŞKA bir bayiye göstermek de
-  // aynı şey — topluluklaştırılmış olması izni gereksiz kılmıyor.
+  // ── PAYLAŞIM AÇIK OLAN BAYİLER ─────────────────────────────
+  // Bir bayinin ölçtüğü verimi BAŞKA bir bayiye göstermek, veriyi
+  // üreticiye açmakla aynı izne bağlı: `oemDataSharing`. Varsayılan
+  // açık (2026-10-30), dayanağı gizlilik metni; kapatan bayi havuzdan
+  // çıkar. Topluluklaştırılmış olması bu kapıyı gereksiz kılmıyor.
   //
-  // Bu fonksiyon ilk yazıldığında rızayı sormuyordu. Artık yalnız
+  // Bu fonksiyon ilk yazıldığında izni sormuyordu. Artık yalnız
   // `oemDataSharing` açık, aktif ve silinmemiş bayiler havuza giriyor —
-  // ve aynı bayiler havuzdan faydalanmaya da o rızayla hak kazanıyor.
+  // ve aynı bayiler havuzdan faydalanmaya da o izinle hak kazanıyor.
   const rizaliBayiler = await prisma.tenant.findMany({
     where: { deletedAt: null, isActive: true, oemDataSharing: true },
     select: { id: true },

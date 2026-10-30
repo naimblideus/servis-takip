@@ -2350,7 +2350,7 @@ export const tr = {
     ureticiBaslik: 'Üretici ile veri paylaşımı',
     ureticiAlt: 'Cihaz markanızın distribütörü (ör. Pantum Türkiye) yalnız en az 3 bayinin toplu sayılarını görür. Müşteri adı, adresi ve seri numarası hiçbir zaman paylaşılmaz.',
     ureticiPaylas: 'Üretici ile anonim veri paylaş',
-    ureticiPaylasAlt: 'Cihaz, sayaç, toner ve arıza sayılarınız diğer bayilerle birlikte, adınız olmadan toplanır.',
+    ureticiPaylasAlt: 'Varsayılan olarak açıktır: cihaz, sayaç, toner ve arıza sayılarınız diğer bayilerinkiyle birlikte, adınız olmadan işlenir. Karşılığında toner verim tahminleriniz bütün bayilerin ölçümünden öğrenir. İstemezseniz kutuyu kaldırmanız yeterli.',
     ureticiAd: 'Adımı üreticiye göster',
     ureticiAdAlt: 'Distribütör listesinde firma adınız, iliniz, telefonunuz ve bu markadaki cihaz sayınız görünür. Yalnız paylaşım açıkken çalışır.',
     ureticiKaydedildi: 'Kaydedildi.',

@@ -2,8 +2,8 @@
  * DİSTRİBÜTÖR PANELİ — veri katmanı. Kurallar saf dosyada (distributor.ts).
  *
  * ── KAPSAM ───────────────────────────────────────────────────────────────
- * Yalnız üretici veri paylaşımına AÇIK RIZA vermiş (oemDataSharing), aktif,
- * silinmemiş ve DEMO OLMAYAN bayiler. Demo bayilerin tohum verisi sahadan
+ * Yalnız üretici veri paylaşımı açık (oemDataSharing — varsayılan açık, bayi
+ * Ayarlar'dan kapatır), aktif, silinmemiş ve DEMO OLMAYAN bayiler. Demo bayilerin tohum verisi sahadan
  * gelmiyor; distribütöre "sahada böyle" diye gösterilemez.
  *
  * ── 5.000 BAYİ ───────────────────────────────────────────────────────────

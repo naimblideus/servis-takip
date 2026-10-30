@@ -267,13 +267,12 @@ model Tenant {
   // seferlik, müşterinin kendi çözdüğü bir sıkışma fiş kuyruğunu kirletmesin.
   tarayiciOtomatikFis Boolean @default(false)
 
-  // ÜRETİCİ VERİ PAYLAŞIMI — bayinin AÇIK RIZASI. Varsayılan KAPALI.
-  // Bu bayrak açık DEĞİLSE bayinin hiçbir verisi /api/oem/reliability kapsamına
-  // girmez. Toplulaştırılmış ve anonim olsa bile, bayinin verisini onun kendi
-  // tedarikçisine açmak sözleşmesel izin gerektirir; izin varsayılan olamaz.
-  // Geriye dönük rıza toplamak pratikte imkânsız olduğu için bu alan ilk bayiden
-  // itibaren doldurulmalıdır.
-  oemDataSharing   Boolean   @default(false)
+  // ÜRETİCİ VERİ PAYLAŞIMI — anonim, toplu (en az 3 bayi). Varsayılan AÇIK
+  // (2026-10-30 kararı; önceden kapalıydı). Dayanağı: kayıtta onaylanan
+  // gizlilik metni (/gizlilik "Üreticiyle anonim istatistik") ve Ayarlar'daki
+  // açıklama; bayi istediği an kapatır, kapatınca hiçbir verisi /api/oem/*,
+  // distribütör paneli ve verim havuzu kapsamına girmez.
+  oemDataSharing   Boolean   @default(true)
   oemDataSharingAt DateTime?
   // ADIYLA GÖRÜNME İZNİ — üretici/distribütör panelinde bayinin ADI görünsün mü.
   // oemDataSharing açık olsa bile varsayılan KAPALI: veri yalnız toplu sayıya

@@ -171,6 +171,10 @@ console.log('\n★ KAYNAK\n');
   t('müşteri adı, seri no, adres seçilmiyor', !/serialNo|customer|"address"|"Customer"/.test(veri.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')));
   const ayar = oku('src/app/api/settings/marka-paylasimi/route.ts');
   t('ayar ucu yalnız yönetici, denetim kaydı yazıyor', /yoneticiMi\(user\)/.test(ayar) && /writeAudit\(/.test(ayar) && /MARKA_PAYLASIMI_DEGISTI/.test(ayar));
+  // 2026-10-30: anonim paylaşım varsayılan AÇIK; ad izni (firma adı, telefon) KAPALI kalır.
+  const sema = oku('prisma/schema.prisma');
+  t('★ yeni bayide anonim paylaşım açık, adıyla görünme kapalı', /oemDataSharing\s+Boolean\s+@default\(true\)/.test(sema) && /markaAdIzni\s+Boolean\s+@default\(false\)/.test(sema));
+  t('★ gizlilik metni paylaşımı ve kapatma yolunu anlatıyor (kayıtta onaylanan metin)', /Üreticiyle anonim istatistik/.test(oku('public/gizlilik.html')) && /Ayarlar'dan istediği an kapatır/.test(oku('public/gizlilik.html')));
 }
 
 // ───────────────────────────────────────────────────────────────────────────

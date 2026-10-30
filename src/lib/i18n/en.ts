@@ -2261,7 +2261,7 @@ export const en: Sozluk = {
     ureticiBaslik: 'Data sharing with the manufacturer',
     ureticiAlt: 'Your device brand’s distributor (e.g. Pantum Turkey) only sees totals pooled from at least 3 dealers. Customer names, addresses and serial numbers are never shared.',
     ureticiPaylas: 'Share anonymous data with the manufacturer',
-    ureticiPaylasAlt: 'Your device, meter, toner and fault figures are pooled with other dealers, without your name.',
+    ureticiPaylasAlt: 'On by default: your device, meter, toner and fault figures are processed together with other dealers’, without your name. In return, your toner yield estimates learn from every dealer’s measurements. Untick the box if you don’t want this.',
     ureticiAd: 'Show my name to the manufacturer',
     ureticiAdAlt: 'The distributor’s list shows your company name, province, phone and number of devices of their brand. Works only while sharing is on.',
     ureticiKaydedildi: 'Saved.',
