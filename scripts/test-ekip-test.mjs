@@ -30,10 +30,13 @@ const e = await import(pathToFileURL(join(g, 'ekip-test.js')).href);
 rmSync(g, { recursive: true, force: true });
 
 console.log('\nKısa adla giriş\n');
-t('test3 → test3@nextusservis.com', e.girisAdiniCoz('test3') === 'test3@nextusservis.com');
-t('teknisyen adı da açılır, büyük harf ve boşluk tolere edilir', e.girisAdiniCoz('  Test12-Teknisyen ') === 'test12-teknisyen@nextusservis.com');
-t('★ kalıp dışı kısa ad açılmaz (test21, test0, admin)', ['test21', 'test0', 'admin'].every((x) => e.girisAdiniCoz(x) === x));
-t('★ tam e-posta olduğu gibi kalır (küçültülür)', e.girisAdiniCoz('Ali@Firma.com') === 'ali@firma.com' && e.girisAdiniCoz('test1@baska.com') === 'test1@baska.com');
+t('teknik3 → teknik3@nextusservis.com', e.girisAdiniCoz('teknik3') === 'teknik3@nextusservis.com');
+t('teknisyen adı da açılır, büyük harf ve boşluk tolere edilir', e.girisAdiniCoz('  Teknik12-Teknisyen ') === 'teknik12-teknisyen@nextusservis.com');
+t('★ kalıp dışı kısa ad açılmaz (teknik21, teknik0, test1, admin)', ['teknik21', 'teknik0', 'test1', 'admin'].every((x) => e.girisAdiniCoz(x) === x));
+t('★ tam e-posta olduğu gibi kalır (küçültülür)', e.girisAdiniCoz('Ali@Firma.com') === 'ali@firma.com' && e.girisAdiniCoz('teknik1@baska.com') === 'teknik1@baska.com');
+t('★ test bayisi hesapları teknikN adında', /patronEposta: `teknik\$\{i \+ 1\}@nextusservis\.com`/.test(oku('scripts/seed-bayi-demo.mjs')));
+t('★ süper admin girişi de kısa adı çözüyor (teknik1 → Ekip hesabı)', /loginSuperAdmin\(girisAdiniCoz\(String\(email\)\)/.test(oku('src/app/api/super-admin/login/route.ts'))
+  && !/type="email"/.test(oku('src/app/(super-admin)/super-admin/login/page.tsx')));
 const auth = oku('src/lib/auth.ts');
 t('giriş kısa adı çözüyor', /const eposta = girisAdiniCoz\(String\(credentials\.email\)\)/.test(auth));
 t('giriş alanı kısa adı tarayıcıda reddetmiyor (type="text")', /id="eposta" type="text"/.test(oku('src/app/login/page.tsx')));

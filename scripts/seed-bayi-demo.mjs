@@ -97,7 +97,7 @@ const EKIP_TESTLERI = EKIP_TEST_ACIK
       slug: `ekip-test-${i + 1}`, ad: `Ekip Test ${i + 1} · Örnek Veri`,
       sehir: 'İstanbul', adres: 'Barbaros Bulvarı No:64 Kat:3', tohum: 20260920, vknOn: '7660', telOn: '0537666', onEk: 'OFS',
       patronAd: 'Deniz Arslan', teknisyenAd: 'Can Yılmaz',
-      patronEposta: `test${i + 1}@nextusservis.com`, teknisyenEposta: `test${i + 1}-teknisyen@nextusservis.com`,
+      patronEposta: `teknik${i + 1}@nextusservis.com`, teknisyenEposta: `teknik${i + 1}-teknisyen@nextusservis.com`,
     }))
   : [];
 const HESAPLAR = [...BAYILER, ...EKIP_TESTLERI];

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loginSuperAdmin, createSuperAdminSession, SA_COOKIE, SA_MAX_AGE } from '@/lib/super-admin-auth';
 import { rateLimit, clientIp, tooMany } from '@/lib/rate-limit';
+import { girisAdiniCoz } from '@/lib/ekip-test';
 
 // POST — giriş yap
 export async function POST(req: NextRequest) {
@@ -16,7 +17,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ hata: 'ALAN_EKSIK' }, { status: 400 });
         }
 
-        const r = await loginSuperAdmin(email, password, totp);
+        // Ekip kısa adla da girer: "teknik1" → teknik1@nextusservis.com (lib/ekip-test).
+        const r = await loginSuperAdmin(girisAdiniCoz(String(email)), password, totp);
         if (!r.ok) {
             // needsTotp YALNIZCA şifre doğruyken döner — giriş ekranı kod alanını
             // bu sinyalle açar. Şifre yanlışsa bu bilgi verilmez (hesap varlığı sızmasın).
