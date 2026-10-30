@@ -24,6 +24,11 @@ interface Durum {
   kampanya: { indirim: Kampanya; kargo: Kampanya };
   kaliplar: { tur: string; yuzde: number | null; gun: number }[];
   sinir: { azamiYuzde: number; azamiGun: number };
+  // Eski mağaza sürümü göndermez: o zaman hizmet/bölüm kartları çizilmez.
+  secenekler?: {
+    bolumler?: { id: string; ad: string }[];
+    hizmetler?: { anahtar: string; ad: string; varsayilanMetin: string }[];
+  };
 }
 type Alan = { ad: string; etiket: keyof MagazaKurulumMetni; ipucu?: keyof MagazaKurulumMetni; tip?: 'cok' | 'sayi' | 'anahtar'; yer?: keyof MagazaKurulumMetni };
 
@@ -78,6 +83,16 @@ const GELISMIS: Alan[] = [
   { ad: 'bildirimTelefon', etiket: 'ayBildirimTel', ipucu: 'ayBildirimTelIpucu' },
   { ad: 'kurMarjiYuzde', etiket: 'ayKurMarji', ipucu: 'ayKurMarjiIpucu', tip: 'sayi' },
 ];
+
+// Listeler mağazadan gelir (secenekler); ad burada yalnız dil için. Bilinmeyen
+// kimlikte mağazanın verdiği ad yazılır.
+const HIZMET_ADI: Record<string, keyof MagazaKurulumMetni> = {
+  hizmetServis: 'ayHzServis', hizmetKiralama: 'ayHzKiralama', hizmetMakine: 'ayHzMakine', hizmetDolum: 'ayHzDolum',
+};
+const BOLUM_ADI: Record<string, keyof MagazaKurulumMetni> = {
+  modeller: 'ayBlModeller', 'one-cikan': 'ayBlOneCikan', hizmetler: 'ayBlHizmetler', kategoriler: 'ayBlKategoriler',
+  guven: 'ayBlGuven', markalar: 'ayBlMarkalar', sss: 'ayBlSss',
+};
 
 const kart: React.CSSProperties = { background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.1rem', marginBottom: 12 };
 const girdi: React.CSSProperties = {
@@ -219,6 +234,17 @@ export function MagazaAyarlari({ sekmeler }: { sekmeler?: React.ReactNode }) {
     }
     if (dosyaRef.current) dosyaRef.current.value = '';
     setMesgul(null);
+  };
+
+  // Yalnız mağazanın ayar olarak da gönderdiği alanlar çizilir: listede olup
+  // değeri gelmeyen bir alan kaydedilince mağazada karşılığı olmazdı.
+  const hizmetler = (durum?.secenekler?.hizmetler ?? []).filter((h) => durum && h.anahtar in durum.ayar);
+  const bolumler = durum && 'gizliBolumler' in durum.ayar ? durum.secenekler?.bolumler ?? [] : [];
+  const gizli = new Set(String(form.gizliBolumler ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+  const bolumDegis = (id: string, goster: boolean) => {
+    const yeni = new Set(gizli);
+    if (goster) yeni.delete(id); else yeni.add(id);
+    ayarla('gizliBolumler', [...yeni].join(','));
   };
 
   const tarih = (iso: string) =>
@@ -388,11 +414,61 @@ export function MagazaAyarlari({ sekmeler }: { sekmeler?: React.ReactNode }) {
                 <div style={{ ...izgara, marginTop: 12 }}>{b.alanlar.map(alanCiz)}</div>
               </section>
             ))}
+
+            {/* Hizmetler: işaretlenen sitede kartıyla görünür; not isteğe bağlı. */}
+            {hizmetler.length > 0 && (
+              <section style={kart}>
+                <h2 style={{ fontSize: '0.98rem', fontWeight: 700, margin: 0 }}>{km.ayHizmetler}</h2>
+                <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0.2rem 0 0' }}>{km.ayHizmetlerAlt}</p>
+                <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                  {hizmetler.map((h) => {
+                    const acik = form[h.anahtar] === true;
+                    const id = `ay-${h.anahtar}`;
+                    return (
+                      <div key={h.anahtar} style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: '0.6rem 0.8rem' }}>
+                        <label htmlFor={id} style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', minHeight: 44 }}>
+                          <input id={id} type="checkbox" checked={acik} onChange={(e) => ayarla(h.anahtar, e.target.checked)}
+                            style={{ width: 20, height: 20, flexShrink: 0, cursor: 'pointer' }} />
+                          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{HIZMET_ADI[h.anahtar] ? km[HIZMET_ADI[h.anahtar]] : h.ad}</span>
+                        </label>
+                        {acik && (
+                          <textarea aria-label={HIZMET_ADI[h.anahtar] ? km[HIZMET_ADI[h.anahtar]] : h.ad} rows={2} maxLength={300}
+                            value={typeof form[h.anahtar + 'Not'] === 'string' ? (form[h.anahtar + 'Not'] as string) : ''}
+                            placeholder={h.varsayilanMetin} onChange={(e) => ayarla(h.anahtar + 'Not', e.target.value)}
+                            style={{ ...girdi, resize: 'vertical', marginTop: 6 }} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Ana sayfa bölümleri: işaretli = görünür (mağaza gizlenenleri tutar). */}
+            {bolumler.length > 0 && (
+              <section style={kart}>
+                <h2 style={{ fontSize: '0.98rem', fontWeight: 700, margin: 0 }}>{km.ayBolumler}</h2>
+                <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0.2rem 0 0' }}>{km.ayBolumlerAlt}</p>
+                <div style={{ ...izgara, marginTop: 12, gap: '0.2rem 1rem' }}>
+                  {bolumler.map((b) => (
+                    <label key={b.id} style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', minHeight: 44 }}>
+                      <input type="checkbox" checked={!gizli.has(b.id)} onChange={(e) => bolumDegis(b.id, e.target.checked)}
+                        style={{ width: 20, height: 20, flexShrink: 0, cursor: 'pointer' }} />
+                      <span style={{ fontSize: '0.9rem', color: '#111827' }}>{BOLUM_ADI[b.id] ? km[BOLUM_ADI[b.id]] : b.ad}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <details style={kart}>
               <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.98rem', minHeight: 32 }}>
                 {km.ayGelismis} <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: '0.8rem' }}>· {km.ayGelismisAlt}</span>
               </summary>
-              <div style={{ ...izgara, marginTop: 12 }}>{GELISMIS.map(alanCiz)}</div>
+              <div style={{ ...izgara, marginTop: 12 }}>
+                {GELISMIS.map(alanCiz)}
+                {'googleDogrulama' in durum.ayar && alanCiz({ ad: 'googleDogrulama', etiket: 'ayGoogle', ipucu: 'ayGoogleIpucu', tip: 'cok', yer: 'ayGoogleYer' })}
+              </div>
             </details>
 
             {/* Kaydet çubuğu: ekranın altına yapışır; telefonda alt menünün üstünde
