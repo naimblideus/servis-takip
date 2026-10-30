@@ -9,6 +9,13 @@ import bcrypt from 'bcryptjs';
 // adresi bilen herkes kendine süper admin açabilirdi.
 //
 // Artık sabit yedek YOK: sır tanımlı değilse uç kapalı (fail-closed).
+//
+// Aynı sebeple e-posta ve şifrenin de varsayılanı YOK. Eskiden gövdede
+// gelmezse koddaki sabit hesap bilgisine düşüyordu; depo public olduğu için
+// varsayılanla kurulmuş her süper admin hesabının şifresi herkesçe biliniyordu.
+// Şifre en az 12 karakter: bu hesap bütün bayilerin verisini görür.
+const EN_KISA_SIFRE = 12;
+
 export async function POST(req: NextRequest) {
     try {
         const beklenen = process.env.SETUP_SECRET;
@@ -22,15 +29,24 @@ export async function POST(req: NextRequest) {
             return ucHatasi('YETKISIZ_ERISIM', 403);
         }
 
-        const adminEmail = email || 'superadmin@demo.com';
-        const adminPassword = password || 'admin170305';
+        const adminEmail = typeof email === 'string' ? email.trim() : '';
+        const adminPassword = typeof password === 'string' ? password : '';
+        if (!adminEmail || !adminPassword) {
+            return ucHatasi('KURULUM_EPOSTA_SIFRE_ZORUNLU', 400);
+        }
+        if (adminPassword.length < EN_KISA_SIFRE) {
+            return ucHatasi('KURULUM_SIFRE_EN_AZ_12', 400);
+        }
         const adminName = name || 'Süper Admin';
 
-        // Varsa sil, yeniden oluştur
+        // Varsa sil, yeniden oluştur. Silmek hesabın 2FA kaydını (TOTP sırrı,
+        // kurtarma kodları) da götürür: yeni hesap 2FA'sız başlar. Bunu sessizce
+        // yapmıyoruz, yanıtta söylüyoruz ki kurulumu yapan 2FA'yı yeniden açsın.
         const existing = await (prisma as any).superAdmin.findUnique({
             where: { email: adminEmail }
         });
 
+        const ikiAdimSifirlandi = !!existing?.totpEnabled;
         if (existing) {
             await (prisma as any).superAdmin.delete({ where: { email: adminEmail } });
         }
@@ -46,10 +62,15 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: 'Süper Admin oluşturuldu',
+            message: existing ? 'Süper Admin yeniden oluşturuldu (eski hesap silindi)' : 'Süper Admin oluşturuldu',
             id: admin.id,
             email: adminEmail,
             loginUrl: '/super-admin/login',
+            eskiHesapDegisti: !!existing,
+            ikiAdimSifirlandi,
+            ...(ikiAdimSifirlandi && {
+                uyari: "Eski hesabın iki adımlı doğrulaması (2FA) silindi. Girişten sonra 2FA'yı yeniden açın.",
+            }),
         });
     } catch (error: any) {
         console.error('Setup error:', error);

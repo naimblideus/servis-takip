@@ -16,9 +16,18 @@ export async function POST(req: NextRequest) {
         if (!beklenen) {
             return ucHatasi('KURULUM_UCU_KAPALI_SETUP_SECRET', 503);
         }
-        const { secret } = await req.json();
+        const { secret, password } = await req.json();
         if (secret !== beklenen) {
             return NextResponse.json({ error: 'Yetkisiz' }, { status: 403 });
+        }
+        // Demo admin şifresinin de varsayılanı YOK: eskiden koddaki sabit şifreyle
+        // kuruyor/sıfırlıyordu ve depo public. Şifre gövdede gelir, yanıtta dönmez.
+        const demoSifre = typeof password === 'string' ? password : '';
+        if (!demoSifre) {
+            return ucHatasi('KURULUM_EPOSTA_SIFRE_ZORUNLU', 400);
+        }
+        if (demoSifre.length < 12) {
+            return ucHatasi('KURULUM_SIFRE_EN_AZ_12', 400);
         }
 
         const results: string[] = [];
@@ -38,7 +47,7 @@ export async function POST(req: NextRequest) {
         const adminEmail = 'admin@demo.com';
         const existingAdmin = await prisma.user.findFirst({ where: { email: adminEmail, tenantId: tenant.id } });
         if (!existingAdmin) {
-            const hash = await bcrypt.hash('admin170305', 10);
+            const hash = await bcrypt.hash(demoSifre, 10);
             await prisma.user.create({
                 data: {
                     tenantId: tenant.id,
@@ -49,35 +58,35 @@ export async function POST(req: NextRequest) {
                     isActive: true,
                 },
             });
-            results.push('✅ Admin oluşturuldu: admin@demo.com / admin170305');
+            results.push('✅ Admin oluşturuldu: admin@demo.com');
         } else {
             // Şifreyi sıfırla
-            const hash = await bcrypt.hash('admin170305', 10);
+            const hash = await bcrypt.hash(demoSifre, 10);
             await prisma.user.update({
                 where: { id: existingAdmin.id },
                 data: { passwordHash: hash, isActive: true },
             });
-            results.push('✅ Admin şifresi sıfırlandı: admin@demo.com / admin170305');
+            results.push('✅ Admin şifresi sıfırlandı: admin@demo.com');
         }
 
         // admindemo@gmail.com kullanıcısı
         const demoEmail = 'admindemo@gmail.com';
         const existingDemo = await prisma.user.findFirst({ where: { email: demoEmail } });
         if (existingDemo) {
-            const hash = await bcrypt.hash('admin170305', 10);
+            const hash = await bcrypt.hash(demoSifre, 10);
             await prisma.user.update({
                 where: { id: existingDemo.id },
                 data: { passwordHash: hash, isActive: true },
             });
-            results.push('✅ admindemo@gmail.com şifresi sıfırlandı: admin170305');
+            results.push('✅ admindemo@gmail.com şifresi sıfırlandı');
         }
 
         return NextResponse.json({
             success: true,
             results,
             credentials: [
-                { email: 'admin@demo.com', password: 'admin170305', role: 'ADMIN' },
-                { email: 'admindemo@gmail.com', password: 'admin170305', role: 'ADMIN (şifre sıfırlandı)' },
+                { email: 'admin@demo.com', role: 'ADMIN' },
+                { email: 'admindemo@gmail.com', role: 'ADMIN (şifre sıfırlandı)' },
             ],
         });
     } catch (error: any) {

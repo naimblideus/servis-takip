@@ -5181,6 +5181,8 @@ export const en: Sozluk = {
     KOLONLAR_TANINAMADI_EN_AZINDAN_MUSTERI: 'The columns were not recognised. At least a customer column, or brand/model/serial number, is needed.',
     KULLANICI_BULUNAMADI: 'The user was not found',
     KURULUM_UCU_KAPALI_SETUP_SECRET: 'The setup endpoint is closed — SETUP_SECRET is not set.',
+    KURULUM_EPOSTA_SIFRE_ZORUNLU: 'Email and password are required — setup has no default account details.',
+    KURULUM_SIFRE_EN_AZ_12: 'The password must be at least 12 characters.',
     LOGO_2MB_DAN_KUCUK_OLMALIDIR: 'The logo must be smaller than 2MB',
     LOGO_DOSYASI_GEREKLI: 'A logo file is required',
     LOGO_ENTEGRASYONU_AKTIF_DEGIL: 'The Logo integration is not switched on',

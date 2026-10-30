@@ -1,5 +1,6 @@
 import { PrismaClient, UserRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -15,7 +16,10 @@ async function main() {
 
   console.log('✅ Tenant created:', tenant.name);
 
-  const adminPassword = await bcrypt.hash('admin170305', 10);
+  // Demo admin şifresi koda gömülmez (depo public): SEED_ADMIN_PASSWORD ya da
+  // her tohumda rastgele üretilen bir şifre (sonda ekrana basılır, yalnız yerelde).
+  const adminPlain = process.env.SEED_ADMIN_PASSWORD || randomBytes(12).toString('base64url');
+  const adminPassword = await bcrypt.hash(adminPlain, 10);
   const admin = await prisma.user.create({
     data: {
       tenantId: tenant.id,
@@ -174,7 +178,7 @@ async function main() {
 
   console.log('🎉 Seeding completed!');
   console.log('\n📝 Demo Credentials:');
-  console.log('Admin: admin@demo.com / admin170305');
+  console.log(`Admin: admin@demo.com / ${adminPlain}`);
   console.log('Technician: teknisyen@demo.com / tech170305');
   console.log('\n📝 Import Test Credentials:');
   console.log('Import Test: test@import.com / test123');

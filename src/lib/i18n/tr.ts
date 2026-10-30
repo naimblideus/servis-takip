@@ -5381,6 +5381,8 @@ export const tr = {
     KOLONLAR_TANINAMADI_EN_AZINDAN_MUSTERI: 'Kolonlar tanınamadı. En azından "Müşteri" ya da "Marka/Model/Seri No" kolonu gerekli.',
     KULLANICI_BULUNAMADI: 'Kullanıcı bulunamadı',
     KURULUM_UCU_KAPALI_SETUP_SECRET: 'Kurulum ucu kapalı — SETUP_SECRET tanımlı değil.',
+    KURULUM_EPOSTA_SIFRE_ZORUNLU: 'E-posta ve şifre zorunlu — kurulumun varsayılan hesap bilgisi yok.',
+    KURULUM_SIFRE_EN_AZ_12: 'Şifre en az 12 karakter olmalı.',
     LOGO_2MB_DAN_KUCUK_OLMALIDIR: 'Logo 2MB\'dan küçük olmalıdır',
     LOGO_DOSYASI_GEREKLI: 'Logo dosyası gerekli',
     LOGO_ENTEGRASYONU_AKTIF_DEGIL: 'Logo entegrasyonu aktif değil',
