@@ -20,6 +20,7 @@ import {
   cihazSonucu, tekrarlariAyikla, taramaOzeti, ilerlemeDurumu, tonerDegistiMi,
   dikkatSirasi, TONER_KRITIK, DURUM_TAZE_MS, SESSIZ_MS, TARAYICI_SURUMU,
   olayFarki, fisAcacakOlaylar, UYARI_KATEGORISI, PARCA_KRITIK, seriEsle, seriNormal, karsilastirmaSayaci,
+  taniAyikla, kurulumIpuclari, KURULUM_ALFABESI, KURULUM_KODU_UZUNLUK, KURULUM_KODU_SURE_MS,
   type CihazSonucu, type TaramaGovdesi, type TaramaOzeti, type UyariKodu, type SarfKalemi, type SistemCihazi,
 } from '@/lib/sayac-tarama';
 
@@ -37,13 +38,145 @@ export function anahtarUret(): { anahtar: string; ozet: string } {
 
 const ANAHTAR_DESENI = /^nst_[A-Za-z0-9_-]{20,64}$/;
 
-/** Tarayıcının anahtarından bayi. Biçimsiz anahtar veritabanına sorulmaz. */
+const BAYI_ALANLARI = { id: true, isActive: true, isSuspended: true, deletedAt: true, tarayiciOtomatikYaz: true } as const;
+
+/**
+ * Tarayıcının anahtarından bayi. Biçimsiz anahtar veritabanına sorulmaz.
+ * İki tür anahtar var: bayinin tek anahtarı (dosya olarak indirilen) ve
+ * kuruluma özel anahtar (kurulum koduyla kurulan; kapatılmışsa geçmez).
+ */
 export async function anahtarlaBayi(anahtar: string | null | undefined) {
   if (!anahtar || !ANAHTAR_DESENI.test(anahtar)) return null;
-  return prisma.tenant.findUnique({
-    where: { tarayiciAnahtarHash: anahtarOzeti(anahtar) },
-    select: { id: true, isActive: true, isSuspended: true, deletedAt: true, tarayiciOtomatikYaz: true },
+  const ozet = anahtarOzeti(anahtar);
+  const bayi = await prisma.tenant.findUnique({ where: { tarayiciAnahtarHash: ozet }, select: BAYI_ALANLARI });
+  if (bayi) return { ...bayi, kurulumId: null as string | null };
+  const k = await prisma.tarayiciKurulumu.findUnique({
+    where: { anahtarOzet: ozet },
+    select: { id: true, iptalAt: true, tenant: { select: BAYI_ALANLARI } },
   });
+  if (!k || k.iptalAt) return null;
+  return { ...k.tenant, kurulumId: k.id };
+}
+
+// ── KURULUM KODU ─────────────────────────────────────────────────────────
+
+function kurulumKoduUret(): string {
+  const b = randomBytes(KURULUM_KODU_UZUNLUK);
+  // 256 % 31 sapması kurulum kodu için önemsiz; tahmin edilebilirlik değil
+  // uzunluk koruyor (31^8 ≈ 8,5·10^11).
+  return [...b].map((x) => KURULUM_ALFABESI[x % KURULUM_ALFABESI.length]).join('');
+}
+
+/** Teknisyen için yeni kurulum kodu. Anahtar henüz YOK: kod kullanılınca üretilir. */
+export async function kurulumOlustur(
+  tenantId: string,
+  girdi: { hedef: string | null; topluluk: string | null; userId?: string | null },
+  simdi = new Date(),
+) {
+  for (let deneme = 0; deneme < 5; deneme++) {
+    try {
+      return await prisma.tarayiciKurulumu.create({
+        data: {
+          tenantId, kod: kurulumKoduUret(), kodBitis: new Date(simdi.getTime() + KURULUM_KODU_SURE_MS),
+          hedef: girdi.hedef, topluluk: girdi.topluluk, createdById: girdi.userId ?? null,
+        },
+        select: { id: true, kod: true, kodBitis: true, hedef: true, topluluk: true },
+      });
+    } catch (e) {
+      // Aynı kod denk geldi: yenisini dene.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') continue;
+      throw e;
+    }
+  }
+  throw new Error('kurulum kodu üretilemedi');
+}
+
+/** Kod hâlâ kullanılabilir mi (önyükleyici betiği verilmeden önce). */
+export async function kurulumKoduBul(kod: string, simdi = new Date()) {
+  const k = await prisma.tarayiciKurulumu.findUnique({
+    where: { kod },
+    select: { id: true, kodBitis: true, kullanildiAt: true, iptalAt: true, tenant: { select: { ...BAYI_ALANLARI, locale: true } } },
+  });
+  if (!k || k.iptalAt || !k.tenant.isActive || k.tenant.isSuspended || k.tenant.deletedAt) return { durum: 'YOK' as const, dil: null };
+  // Müşteri bilgisayarında yazılar bayinin dilinde: bilgisayarın bölge ayarı
+  // (çoğu ofiste İngilizce Windows) bayinin dilini söylemez.
+  const dil = k.tenant.locale === 'en' ? 'en' as const : 'tr' as const;
+  if (k.kullanildiAt) return { durum: 'KULLANILDI' as const, dil };
+  if (k.kodBitis.getTime() < simdi.getTime()) return { durum: 'SURESI_DOLDU' as const, dil };
+  return { durum: 'GECERLI' as const, dil };
+}
+
+/**
+ * Kodu kullanır: kuruluma özel anahtar üretir ve BİR KEZ döner. Aynı kod
+ * ikinci kez kullanılamaz (iki bilgisayarda aynı anda çalıştırılırsa
+ * yalnız biri alır).
+ */
+export async function kurulumKoduKullan(kod: string, bilgisayar: string | null, simdi = new Date()) {
+  const bul = await kurulumKoduBul(kod, simdi);
+  if (bul.durum !== 'GECERLI') return bul;
+  const { anahtar, ozet } = anahtarUret();
+  const al = await prisma.tarayiciKurulumu.updateMany({
+    where: { kod, kullanildiAt: null, iptalAt: null, kodBitis: { gte: simdi } },
+    data: { anahtarOzet: ozet, kullanildiAt: simdi, bilgisayar, nabiz: { asama: 'INDIRILDI', at: simdi.toISOString() } },
+  });
+  if (al.count !== 1) return { durum: 'KULLANILDI' as const, dil: bul.dil };
+  const k = await prisma.tarayiciKurulumu.findUniqueOrThrow({ where: { kod }, select: { id: true, hedef: true, topluluk: true } });
+  return { durum: 'TAMAM' as const, anahtar, dil: bul.dil, ...k };
+}
+
+export type NabizAsamasi = 'BASLADI' | 'GONDERILIYOR';
+
+/** Tarayıcının canlı sinyali: kurulum ekranı "bağlandı, N adres taranıyor" der. */
+export async function nabizYaz(kurulumId: string, girdi: { asama: NabizAsamasi; hedefSayisi: number | null; bilgisayar: string | null }, simdi = new Date()) {
+  await prisma.tarayiciKurulumu.update({
+    where: { id: kurulumId },
+    data: {
+      nabiz: { asama: girdi.asama, hedefSayisi: girdi.hedefSayisi, at: simdi.toISOString() },
+      sonGorulme: simdi,
+      ...(girdi.bilgisayar ? { bilgisayar: girdi.bilgisayar } : {}),
+    },
+  });
+}
+
+/** Kurulum ekranının durumu: kod, canlı sinyal ve bu kurulumun son taraması + ipuçları. */
+export async function kurulumDurumu(tenantId: string, id: string) {
+  const k = await prisma.tarayiciKurulumu.findFirst({
+    where: { id, tenantId },
+    select: { id: true, kod: true, kodBitis: true, hedef: true, topluluk: true, kullanildiAt: true, bilgisayar: true, nabiz: true, sonGorulme: true, iptalAt: true, createdAt: true },
+  });
+  if (!k) return null;
+  const t = await prisma.sayacTaramasi.findFirst({
+    where: { tenantId, kurulumId: id },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, createdAt: true, taranan: true, bulunan: true, eslesen: true, yazilabilir: true, yazilan: true, sonuc: true, tani: true, onaylandiAt: true },
+  });
+  const tarama = t ? (() => {
+    const sonuc = (Array.isArray(t.sonuc) ? t.sonuc : []) as unknown as CihazSonucu[];
+    const tani = taniAyikla(t.tani);
+    return {
+      id: t.id, createdAt: t.createdAt, taranan: t.taranan, bulunan: t.bulunan, eslesen: t.eslesen,
+      yazilabilir: t.yazilabilir, yazilan: t.yazilan, onaylandiAt: t.onaylandiAt, tani,
+      cihazlar: sonuc.map((s) => ({ ip: s.ip, marka: s.marka, model: s.model, seri: s.seri, durum: s.durum, toplam: s.toplam })),
+      ipuclari: kurulumIpuclari({ bulunan: t.bulunan, tani, sonuc }),
+    };
+  })() : null;
+  return { ...k, tarama };
+}
+
+/** Bayinin kurulumları (kullanılmış olanlar): hangi ofiste hangi bilgisayar, en son ne zaman. */
+export async function kurulumListesi(tenantId: string) {
+  return prisma.tarayiciKurulumu.findMany({
+    where: { tenantId, kullanildiAt: { not: null } },
+    orderBy: { kullanildiAt: 'desc' },
+    take: 200,
+    select: { id: true, bilgisayar: true, kullanildiAt: true, sonGorulme: true, iptalAt: true, hedef: true },
+  });
+}
+
+/** Tek kurulumu kapatır: o bilgisayardaki tarayıcı bundan sonra reddedilir. Öbürleri çalışmaya devam eder. */
+export async function kurulumKapat(tenantId: string, id: string, simdi = new Date()): Promise<boolean> {
+  const r = await prisma.tarayiciKurulumu.updateMany({ where: { id, tenantId, iptalAt: null }, data: { iptalAt: simdi } });
+  return r.count === 1;
 }
 
 /**
@@ -246,6 +379,7 @@ export async function taramaKaydet(
   tenantId: string,
   govde: TaramaGovdesi,
   otomatik: boolean,
+  kurulumId: string | null = null,
 ): Promise<{ id: string; ozet: TaramaOzeti; sonuclar: CihazSonucu[] }> {
   const cihazlar = await sistemCihazlari(tenantId);
   let sonuclar = tekrarlariAyikla(govde.cihazlar.map((c) => cihazSonucu(c, cihazlar)));
@@ -278,9 +412,18 @@ export async function taramaKaydet(
       yazilan: ozet.yazilan,
       sonuc: sonuclar as unknown as object,
       onaylandiAt,
+      tani: govde.tani ? (govde.tani as unknown as object) : undefined,
+      kurulumId,
     },
     select: { id: true },
   });
+  if (kurulumId) {
+    const simdi = new Date();
+    await prisma.tarayiciKurulumu.update({
+      where: { id: kurulumId },
+      data: { sonGorulme: simdi, nabiz: { asama: 'BITTI', at: simdi.toISOString() }, ...(govde.bilgisayar ? { bilgisayar: govde.bilgisayar } : {}) },
+    });
+  }
   return { id: kayit.id, ozet, sonuclar };
 }
 

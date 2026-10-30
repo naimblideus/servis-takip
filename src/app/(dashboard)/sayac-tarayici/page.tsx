@@ -15,6 +15,7 @@ import { useT, useBicim, useDil, useMusteriDili } from '@/lib/i18n/client';
 import { useSession } from 'next-auth/react';
 import { waUrl, waGecerliMi } from '@/lib/share';
 import { doldur } from '@/lib/i18n/sozluk';
+import KurulumSihirbazi from './KurulumSihirbazi';
 import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, PARCA_KRITIK, parcaKategorisi, type UyariKodu, type UyariTuru } from '@/lib/sayac-tarama';
 
 type Durum = 'YAZILABILIR' | 'YAZILDI' | 'DEGISMEDI' | 'GERILEDI' | 'ESLESMEDI' | 'BIRDEN_FAZLA' | 'AYRIM_YOK' | 'SAYAC_YOK' | 'HATA';
@@ -56,6 +57,7 @@ interface Liste {
   cihazlar: Record<string, { etiket: string; seri: string; musteri: string | null; musteriId?: string | null }>;
   durum?: { izlenen: number; cihazlar: DikkatCihazi[] };
   bilgisayarlar?: Bilgisayar[];
+  kurulumlar?: { id: string; bilgisayar: string | null; kullanildiAt: string; sonGorulme: string | null; iptalAt: string | null; hedef: string | null }[];
 }
 
 const TUR_RENGI: Record<UyariTuru, { bg: string; fg: string }> = {
@@ -201,6 +203,17 @@ export default function SayacTarayiciPage() {
     setMesgul(false);
   };
 
+  // Kurulum taraması gelince liste tazelenir ve o tarama açılır: eşleşmeyen
+  // yazıcıyı ekleme kutusu ve onay düğmesi hemen altta görünsün.
+  const kurulumBitti = useCallback((taramaId: string) => { setAcik(taramaId); yukle(); }, [yukle]);
+  const kurulumKapat = async (id: string) => {
+    if (!window.confirm(tt.kurulum.kapatUyari)) return;
+    setMesgul(true); setHata(null);
+    const r = await fetch(`/api/sayac/tarayici/kurulum?id=${id}`, { method: 'DELETE' });
+    if (!r.ok) setHata((await r.json().catch(() => ({})))?.error ?? tt.kaydedilemedi);
+    await yukle();
+    setMesgul(false);
+  };
   const demo = Boolean((oturum?.user as { demo?: boolean } | undefined)?.demo);
   const onayla = async (id: string) => {
     if (demo) {
@@ -430,9 +443,13 @@ export default function SayacTarayiciPage() {
         </section>
       )}
 
-      {/* ── İndir ── */}
-      <section style={kart}>
-        <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 0.5rem' }}>{tt.indirBaslik}</h2>
+      {/* ── Kurulum ── Asıl yol: kurulum kodu + tek komut + canlı geri bildirim. */}
+      <KurulumSihirbazi onBitti={kurulumBitti} />
+
+      {/* ── İndir ── Eski yol (USB): dosya bayinin tek anahtarını taşır. */}
+      <details style={kart}>
+        <summary style={{ fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer' }}>{tt.kurulum.dosyaBaslik}</summary>
+        <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0.8rem 0 0.5rem' }}>{tt.indirBaslik}</h2>
         {telefon && (
           <div style={{ margin: '0 0 0.8rem', padding: '0.7rem 0.85rem', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.88rem' }}>
             <div>{tt.telefonNot}</div>
@@ -451,7 +468,7 @@ export default function SayacTarayiciPage() {
           {ayar?.anahtarVar ? tt.yeniIndir : tt.indir}
         </button>
         <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0.6rem 0 0' }}>{tt.neYapmaz}</p>
-      </section>
+      </details>
 
       {/* ── Otomatik ── */}
       <section style={kart}>
@@ -472,6 +489,41 @@ export default function SayacTarayiciPage() {
           </span>
         </label>
       </section>
+
+      {/* ── Kurulumlar ── Her ofisin kendi anahtarı: biri kapatılınca öbürleri çalışır. */}
+      {(liste?.kurulumlar?.length ?? 0) > 0 && (
+        <section style={kart}>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 0.6rem' }}>{tt.kurulum.kurulumlarBaslik}</h2>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem', minWidth: 560 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>
+                  {tt.kurulum.kurulumlarSutun.map((s: string) => <th key={s} style={{ padding: '0.4rem 0.5rem', fontWeight: 600 }}>{s}</th>)}
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {liste!.kurulumlar!.map((k) => (
+                  <tr key={k.id} style={{ borderBottom: '1px solid #f3f4f6', color: k.iptalAt ? '#9ca3af' : undefined }}>
+                    <td style={{ padding: '0.45rem 0.5rem', fontWeight: 600 }}>{k.bilgisayar ?? '—'}</td>
+                    <td style={{ padding: '0.45rem 0.5rem', whiteSpace: 'nowrap' }}>{b.tarihSaat(k.kullanildiAt)}</td>
+                    <td style={{ padding: '0.45rem 0.5rem', whiteSpace: 'nowrap' }}>{k.sonGorulme ? b.tarihSaat(k.sonGorulme) : '—'}</td>
+                    <td style={{ padding: '0.45rem 0.5rem', fontFamily: 'ui-monospace, monospace' }}>{k.hedef ?? '—'}</td>
+                    <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right' }}>
+                      {k.iptalAt ? tt.kurulum.kapali : (
+                        <button type="button" disabled={mesgul} onClick={() => kurulumKapat(k.id)}
+                          style={{ padding: '0.3rem 0.7rem', border: '1px solid #fecaca', color: '#991b1b', background: 'white', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
+                          {tt.kurulum.kapat}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* ── Tarayan bilgisayarlar ── Susan tarayıcı = duran sayaç; bayi bunu
           fatura günü değil ilk sessiz günde görmeli. */}

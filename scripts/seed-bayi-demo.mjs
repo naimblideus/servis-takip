@@ -226,7 +226,7 @@ const sifreOzeti = (bayi) => bayi.ekipTest
   : bcrypt.hash(bayi.sifre ?? SIFRE, DEMO_SIFRE_MALIYETI);
 // lib/sayac-tarama TARAYICI_SURUMU ile AYNI olmalı (test-sayac-tarayici
 // karşılaştırıyor); geride kalırsa demodaki bilgisayar "eski sürüm" görünür.
-const TARAYICI_SURUMU = 3;
+const TARAYICI_SURUMU = 4;
 
 const BUGUN = new Date();
 const gunOnce = (n) => new Date(BUGUN.getTime() - n * 86400000);
