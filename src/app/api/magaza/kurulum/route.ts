@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi, yoneticiMi } from '@/lib/api-auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { adresCalisiyor, magazaKurdur, vitrinAdi } from '@/lib/magaza-kurulum';
+import { magazaKiraciId } from '@/lib/magaza-baglanti';
+import { hasModule } from '@/lib/modules';
 import { talepKaydet } from '@/lib/talep';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +25,9 @@ export const maxDuration = 120;
  *   HAZIR          mağaza kuruldu, adresi var, panel daveti döndü
  *   ADRES_BEKLIYOR mağaza kuruldu ama alan adı yok (bağlanınca davet WhatsApp'tan)
  *   TALEP          kendiliğinden kurulamadı; talep alındı, elle kurulacak
+ *   PAKET_DISI     paketinde Mağaza (SHOP) yok; mağaza açılmadı, teklif için
+ *                  talep alındı. Mağaza menüde her pakette görünüyor, ama
+ *                  kendiliğinden kurulum yalnız paketinde olana.
  *
  * Mağazası KURULU bayi de buraya basar ("Mağaza paneline girin"): uç
  * idempotent, mevcut mağaza için yalnız yeni bir tek kullanımlık panel
@@ -47,10 +52,29 @@ export async function POST() {
 
   const t = await prisma.tenant.findUnique({
     where: { id: user.tenantId },
-    select: { name: true, phone: true, email: true, city: true, ownerName: true, demo: true },
+    select: { name: true, phone: true, email: true, city: true, ownerName: true, demo: true, plan: true, modules: true, marketEnabled: true },
   });
   if (!t) return NextResponse.json({ ok: false, hata: 'Tenant not found' }, { status: 404 });
   if (t.demo) return NextResponse.json({ ok: false, kod: 'DEMO' }, { status: 403 });
+
+  // Paketinde Mağaza olmayan bayiye mağaza açılmaz: platform sahibine teklif
+  // talebi düşer. Mağazası zaten kurulu olan (paketi sonradan değişmiş olsa
+  // da) aşağıda yalnız panel davetini alır — kendi mağazasından kilitlenmez.
+  if (!hasModule(t, 'SHOP') && !(await magazaKiraciId(user.tenantId))) {
+    await talepKaydet(
+      {
+        firma: t.name,
+        ad: user.name ?? t.ownerName,
+        telefon: t.phone,
+        eposta: t.email ?? user.email,
+        il: t.city,
+        mesaj: `Mağaza istiyor; paketinde Mağaza yok (paket: ${t.plan ?? '—'}). Mağaza açılmadı — fiyat için arayın.`,
+        utm_source: 'magaza',
+      },
+      'magaza'
+    ).catch((e) => console.error('[magaza-kurulum] talep kaydedilemedi:', (e as Error).message));
+    return NextResponse.json({ ok: true, durum: 'PAKET_DISI' });
+  }
 
   const r = await magazaKurdur({
     tenantId: user.tenantId,

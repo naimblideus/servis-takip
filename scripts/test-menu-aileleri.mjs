@@ -138,6 +138,11 @@ console.log('\nMenü aileleri\n');
   t('paket kapısı: kapalı modülün ekranı görünmüyor', !g2.includes('/kacan-gelir') && !g2.includes('/sla') && !g2.includes('/musteri-bildirimleri'), g2);
   t('paketsiz bayide Kurumsal ailesi düşüyor', !aileler(e).includes('kurumsal'), aileler(e));
   t('çekirdek ekranlar pakete bağlı değil', ['/tickets', '/customers', '/devices', '/sayac-turu', '/inventory'].every((h) => g2.includes(h)));
+  // Mağaza her pakette bulunabilir; paket yalnız kendiliğinden kurulumu belirler.
+  t('★ Mağaza en küçük pakette de menüde', g2.includes('/magaza'), g2);
+  const kur = readFileSync(join(KOK, 'src/app/api/magaza/kurulum/route.ts'), 'utf8');
+  t('★ paketinde Mağaza olmayana mağaza açılmıyor, teklif talebi düşüyor',
+    /hasModule\(t, 'SHOP'\)/.test(kur) && /PAKET_DISI/.test(kur) && kur.indexOf("hasModule(t, 'SHOP')") < kur.indexOf('magazaKurdur({'));
 }
 {
   t('WhatsApp kurulmamışsa menüde yok', !gorunen(erisim({ whatsappKurulu: false })).includes('/whatsapp'));

@@ -31,8 +31,12 @@ export const MODULES: Record<ModuleKey, { hrefs: string[] }> = {
   SLA:          { hrefs: ['/sla', '/bakim', '/teknisyen', '/kurumsal'] },
   // Nextus Mağaza — bayinin kendi stoğundan beslenen e-ticaret vitrini.
   // Ayrı uygulamada çalışır (nextus-magaza); burada YALNIZ yetki anahtarı
-  // tutulur: mağaza açılırken bayinin bu modülü var mı diye bakılır.
-  SHOP:         { hrefs: ['/magaza'] },
+  // tutulur: "Mağazamı kurun" kendiliğinden kurulumu yalnız bu modülü olan
+  // bayiye yapar (api/magaza/kurulum), diğerine teklif talebi düşer.
+  // Ekranı BİLEREK kapıya bağlı değil (2026-10-30): Mağaza her pakette
+  // menüde görünsün ki bayi bulabilsin; mağazası kurulu ama paketinde SHOP
+  // olmayan bayi de kendi mağazasına buradan ulaşsın.
+  SHOP:         { hrefs: [] },
 };
 
 export const ALL_MODULE_KEYS = Object.keys(MODULES) as ModuleKey[];

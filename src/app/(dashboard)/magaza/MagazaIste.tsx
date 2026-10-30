@@ -8,7 +8,8 @@ import { magazaKurulumMetni } from '@/lib/magaza-kurulum-metin';
 type Sonuc =
   | { durum: 'HAZIR'; davet: string; urun: number }
   | { durum: 'ADRES_BEKLIYOR'; urun: number }
-  | { durum: 'TALEP' };
+  | { durum: 'TALEP' }
+  | { durum: 'PAKET_DISI' };
 
 /**
  * "MAĞAZAMI KURUN" — tek dokunuş. Sonuç ne olursa olsun bayiye ne olacağı
@@ -55,7 +56,9 @@ export function MagazaIste({ yonetici }: { yonetici: boolean }) {
               : m.hazirBos
             : sonuc.durum === 'ADRES_BEKLIYOR'
               ? doldur(m.adresBekliyor, { n: sonuc.urun })
-              : m.talepAlindi}
+              : sonuc.durum === 'PAKET_DISI'
+                ? m.paketDisi
+                : m.talepAlindi}
         </div>
         {sonuc.durum === 'HAZIR' && (
           <>
