@@ -6,7 +6,7 @@ import { Shield, Eye, EyeOff } from 'lucide-react';
 import { useT } from '@/lib/i18n/client';
 
 /** Uç noktanın döndürdüğü hata kodları — cümleyi ekran kurar. */
-type GirisHatasi = 'ALAN_EKSIK' | 'TOTP_HATALI' | 'KIMLIK_HATALI' | 'SUNUCU_HATASI';
+type GirisHatasi = 'ALAN_EKSIK' | 'TOTP_HATALI' | 'KIMLIK_HATALI' | 'SUNUCU_HATASI' | 'COK_DENEME';
 
 export default function SuperAdminLoginPage() {
     const router = useRouter();
@@ -39,6 +39,11 @@ export default function SuperAdminLoginPage() {
                 // bir şey yapmadı, sadece ikinci adım gerekiyor.
                 setHata(data.hata || (data.needsTotp ? '' : 'KIMLIK_HATALI'));
             }
+        } catch {
+            // Sunucu yeniden başlarken cevap gelmez ya da JSON değildir (vekil
+            // hata sayfası). Eskiden burada hiçbir şey yazmıyordu: düğme
+            // dönüp duruyor, kullanıcı şifresini yanlış sanıyordu.
+            setHata('SUNUCU_HATASI');
         } finally {
             setLoading(false);
         }

@@ -6364,7 +6364,8 @@ export const tr = {
       ALAN_EKSIK: 'E-posta ve şifre gerekli',
       TOTP_HATALI: 'Doğrulama kodu hatalı veya süresi geçti',
       KIMLIK_HATALI: 'E-posta veya şifre hatalı',
-      SUNUCU_HATASI: 'Sunucu hatası',
+      SUNUCU_HATASI: 'Sunucu şu an cevap vermiyor. Bir dakika sonra tekrar deneyin.',
+      COK_DENEME: 'Çok fazla deneme yapıldı. Bir dakika bekleyip tekrar deneyin.',
     },
     paket: {
       trial: 'Deneme',

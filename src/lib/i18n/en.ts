@@ -6146,7 +6146,8 @@ export const en: Sozluk = {
       ALAN_EKSIK: 'Email and password are required',
       TOTP_HATALI: 'The verification code is wrong or has expired',
       KIMLIK_HATALI: 'Wrong email or password',
-      SUNUCU_HATASI: 'Server error',
+      SUNUCU_HATASI: 'The server is not responding right now. Please try again in a minute.',
+      COK_DENEME: 'Too many attempts. Please wait a minute and try again.',
     },
     paket: {
       trial: 'Trial',

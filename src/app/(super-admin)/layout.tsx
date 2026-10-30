@@ -24,10 +24,12 @@ export const metadata: Metadata = {
  */
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
     // Menü rolüne göre süzülür (ekip yalnız kendi ekranlarını görür).
+    // Oturum yokken (giriş sayfası) menü HİÇ çizilmez: eskiden sahip menüsü
+    // çiziliyordu ve giriş ekranı "içerideyim" gibi görünüyordu.
     const oturum = await getSuperAdminSession();
     return (
         <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-gray-950 text-white">
-            <SuperAdminSidebar rol={oturum?.rol ?? 'SAHIP'} />
+            {oturum && <SuperAdminSidebar rol={oturum.rol ?? 'SAHIP'} />}
             <main className="flex-1 overflow-y-auto">
                 {children}
             </main>

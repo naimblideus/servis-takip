@@ -7,7 +7,9 @@ export async function POST(req: NextRequest) {
     try {
         // Brute-force koruması: IP başına dakikada 8 deneme
         const rl = rateLimit(`sa-login:${clientIp(req)}`, 8, 60_000);
-        if (!rl.ok) return NextResponse.json(tooMany(rl.retryAfter), { status: 429 });
+        // `hata` kodu şart: giriş ekranı yalnız onu okur. Eskiden yoktu ve
+        // ekran fazla denemede de "E-posta veya şifre hatalı" diyordu.
+        if (!rl.ok) return NextResponse.json({ ...tooMany(rl.retryAfter), hata: 'COK_DENEME' }, { status: 429 });
 
         const { email, password, totp } = await req.json();
         if (!email || !password) {
