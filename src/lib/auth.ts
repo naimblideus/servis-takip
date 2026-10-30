@@ -103,7 +103,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Büyük/küçük harf duyarsız: kayıt e-postayı küçültüyor (lib/kayit), giriş
         // birebir arıyordu; "Ali@Firma.com" yazan bayiye doğru şifreyle "hatalı"
         // deniyordu. ILIKE değil lower()=lower(): e-postadaki "_" ILIKE'ta joker.
-        // Ekip test hesabı kısa adla da girer ("test3" → test3@nextusservis.com; lib/ekip-test).
+        // Ekip test hesabı kısa adla da girer ("teknik3" → teknik3@nextusservis.com; lib/ekip-test).
         const eposta = girisAdiniCoz(String(credentials.email));
         if (girisKilitli(eposta)) return null;
 
