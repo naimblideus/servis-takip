@@ -49,11 +49,11 @@ export default function TakipFormu({
     }
   }
 
-  const alan = 'mt-1 block min-h-11 w-full rounded-xl border border-white/15 bg-gray-900 px-3 text-sm text-white';
+  const alan = 'mt-1 block min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900';
   return (
     <form onSubmit={kaydet} className="space-y-3">
       <label className="block text-sm">
-        <span className="text-gray-400">{m.sorumlu}</span>
+        <span className="text-gray-500">{m.sorumlu}</span>
         <select value={sorumlu} onChange={(e) => setSorumlu(e.target.value)} className={alan}>
           <option value="">{m.sorumluYok}</option>
           {ekip.map((k) => (
@@ -64,13 +64,13 @@ export default function TakipFormu({
         </select>
       </label>
       <label className="block text-sm">
-        <span className="text-gray-400">{m.sonrakiTemas}</span>
+        <span className="text-gray-500">{m.sonrakiTemas}</span>
         <input type="date" value={temas} onChange={(e) => setTemas(e.target.value)} className={alan} />
       </label>
-      <button type="submit" disabled={bekliyor} className="min-h-11 w-full rounded-xl bg-violet-600 px-4 text-sm font-semibold hover:bg-violet-500 disabled:opacity-60">
+      <button type="submit" disabled={bekliyor} className="min-h-11 w-full rounded-xl bg-blue-600 text-white px-4 text-sm font-semibold hover:bg-blue-500 disabled:opacity-60">
         {m.kaydet}
       </button>
-      {durum && <p className={`text-sm ${durum.ok ? 'text-emerald-300' : 'text-red-300'}`} role="status">{durum.metin}</p>}
+      {durum && <p className={`text-sm ${durum.ok ? 'text-emerald-700' : 'text-red-700'}`} role="status">{durum.metin}</p>}
     </form>
   );
 }

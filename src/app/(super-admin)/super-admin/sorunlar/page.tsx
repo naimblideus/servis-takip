@@ -51,7 +51,7 @@ export default async function SorunlarSayfasi({ searchParams }: { searchParams: 
   })();
 
   const cip = (aktif: boolean) =>
-    `inline-flex items-center min-h-[36px] px-3 py-1.5 rounded-xl text-sm border ${aktif ? 'bg-violet-600/30 border-violet-400/60 text-white' : 'bg-white/5 border-white/10 text-white/85 hover:bg-white/10'}`;
+    `inline-flex items-center min-h-[36px] px-3 py-1.5 rounded-xl text-sm border ${aktif ? 'bg-blue-100 border-blue-300 text-gray-900' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'}`;
 
   const zaman = (d: Date | null) =>
     d ? d.toLocaleString(dil === 'en' ? 'en-GB' : 'tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : null;
@@ -82,34 +82,34 @@ export default async function SorunlarSayfasi({ searchParams }: { searchParams: 
 
   return (
     <div className="min-h-full">
-      <div className="bg-gradient-to-r from-violet-900/40 to-purple-900/40 border-b border-white/10 px-6 py-5">
+      <div className="bg-white border-b border-gray-200 px-6 py-5">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold">{m.baslik}</h1>
-              <p className="text-gray-400 text-sm mt-1 max-w-3xl">{m.alt}</p>
+              <p className="text-gray-500 text-sm mt-1 max-w-3xl">{m.alt}</p>
             </div>
-            <a href={csvAdres} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500">
+            <a href={csvAdres} className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-500">
               {m.csvIndir}
             </a>
           </div>
 
           {/* Durum sayıları: aynı zamanda durum süzgeci. */}
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <Link href={adres({ durum: undefined })} className={`rounded-xl border px-3 py-2 ${!q.durum ? 'bg-violet-600/30 border-violet-400/60' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-              <div className="text-[11px] uppercase tracking-wide text-gray-400">{m.hepsi}</div>
+            <Link href={adres({ durum: undefined })} className={`rounded-xl border px-3 py-2 ${!q.durum ? 'bg-blue-100 border-blue-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.hepsi}</div>
               <div className="text-xl font-bold">{Object.values(sayilar).reduce((a, b) => a + b, 0)}</div>
             </Link>
             {SORUN_DURUMLARI.map((d) => (
-              <Link key={d} href={adres({ durum: d })} className={`rounded-xl border px-3 py-2 ${q.durum === d ? 'bg-violet-600/30 border-violet-400/60' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-                <div className="text-[11px] uppercase tracking-wide text-gray-400">{m.durum[d]}</div>
-                <div className={`text-xl font-bold ${d === 'YENI' && sayilar[d] > 0 ? 'text-amber-300' : ''}`}>{sayilar[d]}</div>
+              <Link key={d} href={adres({ durum: d })} className={`rounded-xl border px-3 py-2 ${q.durum === d ? 'bg-blue-100 border-blue-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.durum[d]}</div>
+                <div className={`text-xl font-bold ${d === 'YENI' && sayilar[d] > 0 ? 'text-amber-700' : ''}`}>{sayilar[d]}</div>
               </Link>
             ))}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-400 w-12">{m.kutuBaslik}</span>
+            <span className="text-xs text-gray-500 w-12">{m.kutuBaslik}</span>
             <Link href={adres({ kutu: undefined })} className={cip(!q.kutu)}>{m.hepsi}</Link>
             <Link href={adres({ kutu: 'YOK' })} className={cip(q.kutu === 'YOK')}>{m.kutuYok}</Link>
             {SORUN_KUTULARI.map((k) => (
@@ -117,7 +117,7 @@ export default async function SorunlarSayfasi({ searchParams }: { searchParams: 
             ))}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-400 w-12">{m.turBaslik}</span>
+            <span className="text-xs text-gray-500 w-12">{m.turBaslik}</span>
             <Link href={adres({ tur: undefined })} className={cip(!q.tur)}>{m.hepsi}</Link>
             {SORUN_TURLERI.map((t) => (
               <Link key={t} href={adres({ tur: t })} className={cip(q.tur === t)}>{m.tur[t]}</Link>
@@ -134,7 +134,7 @@ export default async function SorunlarSayfasi({ searchParams }: { searchParams: 
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         {kartlar.length === 0 ? (
-          <p className="text-gray-400">{m.bos}</p>
+          <p className="text-gray-500">{m.bos}</p>
         ) : (
           <ul className="space-y-3">
             {kartlar.map((k) => (

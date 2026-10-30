@@ -45,19 +45,19 @@ export default function AuditPage() {
   const tarih = (iso: string) => bic.tarihSaat(iso);
 
   return (
-    <div className="min-h-screen bg-[#0a0a12] text-white">
-      <div className="border-b border-white/10 bg-black/30">
+    <div className="min-h-screen bg-gray-100 text-gray-900">
+      <div className="border-b border-gray-200 bg-gray-50">
         <div className="max-w-6xl mx-auto px-6 py-5">
-          <Link href="/super-admin/dashboard" className="text-xs text-gray-400 hover:text-white">{z.panelDon}</Link>
+          <Link href="/super-admin/dashboard" className="text-xs text-gray-500 hover:text-gray-900">{z.panelDon}</Link>
           <h1 className="text-2xl font-bold mt-1">{z.baslik}</h1>
-          <p className="text-xs text-gray-400 mt-1">{z.alt}</p>
+          <p className="text-xs text-gray-500 mt-1">{z.alt}</p>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex items-center gap-3 flex-wrap mb-5">
           <select value={bayi} onChange={e => setBayi(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm">
+            className="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm">
             <option value="">{z.tumBayiler}</option>
             {bayiler.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
@@ -65,15 +65,15 @@ export default function AuditPage() {
           {/* Zincir doğrulama kiracı bazlı — zincir de öyle kuruluyor */}
           <button onClick={() => yukle(true)} disabled={!bayi}
             title={bayi ? '' : z.onceBayiSec}
-            className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm hover:bg-white/10 disabled:opacity-40">
+            className="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm hover:bg-gray-100 disabled:opacity-40">
             {z.zinciriDogrula}
           </button>
 
           {zincir && (
             <span className={`text-xs font-semibold rounded-full px-3 py-1.5 border ${
               zincir.saglam
-                ? 'text-emerald-300 bg-emerald-500/10 border-emerald-400/30'
-                : 'text-red-300 bg-red-500/10 border-red-400/30'}`}>
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                : 'text-red-700 bg-red-50 border-red-200'}`}>
               {zincir.saglam
                 ? doldur(z.zincirSaglam, { n: zincir.incelenen })
                 : doldur(z.zincirBozuk, { sebep: zincir.sebepKod ? z.sebep[zincir.sebepKod] : '' })}
@@ -81,26 +81,26 @@ export default function AuditPage() {
           )}
         </div>
 
-        {yukleniyor && <div className="text-gray-400 text-sm">{z.yukleniyor}</div>}
+        {yukleniyor && <div className="text-gray-500 text-sm">{z.yukleniyor}</div>}
 
         {!yukleniyor && items.length === 0 && (
-          <div className="bg-white/3 border border-white/10 rounded-2xl p-10 text-center">
+          <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
             <div className="font-semibold">{z.kayitYok}</div>
-            <p className="text-xs text-gray-400 mt-2">{z.kayitYokAlt}</p>
+            <p className="text-xs text-gray-500 mt-2">{z.kayitYokAlt}</p>
           </div>
         )}
 
         <div className="space-y-2">
           {items.map(k => (
-            <div key={k.id} className="bg-white/3 border border-white/10 rounded-xl p-3">
+            <div key={k.id} className="bg-white border border-gray-200 rounded-xl p-3">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <span className="font-semibold text-sm">{k.islem}</span>
-                  <span className="text-xs text-gray-400 ml-2">{k.varlik}</span>
+                  <span className="text-xs text-gray-500 ml-2">{k.varlik}</span>
                 </div>
-                <div className="text-xs text-gray-400">{tarih(k.tarih)}</div>
+                <div className="text-xs text-gray-500">{tarih(k.tarih)}</div>
               </div>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-gray-500 mt-1">
                 {k.bayi} · {k.kim}
                 <span className="ml-1 opacity-60">({k.kimTipi})</span>
                 {k.ip && <span className="ml-1 opacity-60">· {k.ip}</span>}
@@ -108,19 +108,19 @@ export default function AuditPage() {
 
               {(k.oncesi || k.sonrasi) && (
                 <button onClick={() => setAcik(acik === k.id ? null : k.id)}
-                  className="text-[11px] text-violet-300 hover:text-violet-200 mt-2">
+                  className="text-[11px] text-blue-700 hover:text-blue-800 mt-2">
                   {acik === k.id ? z.ayrintiGizle : z.ayrinti}
                 </button>
               )}
               {acik === k.id && (
                 <div className="mt-2 grid gap-2 md:grid-cols-2">
                   {k.oncesi && (
-                    <pre className="text-[11px] bg-black/30 border border-white/5 rounded-lg p-2 overflow-auto max-h-48 whitespace-pre-wrap">
+                    <pre className="text-[11px] bg-gray-50 border border-gray-100 rounded-lg p-2 overflow-auto max-h-48 whitespace-pre-wrap">
                       <span className="text-gray-500">{z.oncesi}</span>{'\n'}{k.oncesi}
                     </pre>
                   )}
                   {k.sonrasi && (
-                    <pre className="text-[11px] bg-black/30 border border-white/5 rounded-lg p-2 overflow-auto max-h-48 whitespace-pre-wrap">
+                    <pre className="text-[11px] bg-gray-50 border border-gray-100 rounded-lg p-2 overflow-auto max-h-48 whitespace-pre-wrap">
                       <span className="text-gray-500">{z.sonrasi}</span>{'\n'}{k.sonrasi}
                     </pre>
                   )}

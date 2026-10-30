@@ -25,29 +25,29 @@ export default async function DistributorSayfasi({ searchParams }: { searchParam
   const { marka: istenen } = await searchParams;
   const secim = markaSec({ rol: session.rol, marka: session.marka }, istenen ?? null);
   if (!secim.ok) {
-    return <div className="p-4 sm:p-8"><p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">{secim.hata === 'MARKA_YOK' ? m.markaYok : m.yetkiYok}</p></div>;
+    return <div className="p-4 sm:p-8"><p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{secim.hata === 'MARKA_YOK' ? m.markaYok : m.yetkiYok}</p></div>;
   }
   const marka = secim.marka;
   const [o, duyurular] = await Promise.all([distributorOzeti(marka), duyuruListesi(marka)]);
   const yerel = dil === 'en' ? 'en-GB' : 'tr-TR';
   const sayi = (n: number) => n.toLocaleString(yerel);
-  const goster = (n: Sayi) => (n === null ? <span className="text-sm font-normal text-gray-400">{m.yetersiz}</span> : sayi(n));
+  const goster = (n: Sayi) => (n === null ? <span className="text-sm font-normal text-gray-500">{m.yetersiz}</span> : sayi(n));
   const sahip = session.rol === 'SAHIP';
 
   return (
     <div className="min-h-full">
-      <div className="border-b border-white/10 bg-gradient-to-r from-sky-900/40 to-violet-900/40 px-4 py-5 sm:px-6">
+      <div className="border-b border-gray-200 bg-white px-4 py-5 sm:px-6">
         <div className="mx-auto max-w-6xl">
           <h1 className="text-2xl font-bold">{session.rol === 'DISTRIBUTOR' && session.kurumAd ? session.kurumAd : m.baslik}</h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-400">{doldur(m.alt, { marka, k: o.esik })}</p>
+          <p className="mt-1 max-w-3xl text-sm text-gray-500">{doldur(m.alt, { marka, k: o.esik })}</p>
           {sahip && (
             <form method="get" className="mt-3 flex flex-wrap items-end gap-2">
-              <label className="text-sm text-gray-300">
+              <label className="text-sm text-gray-700">
                 <span className="mb-1 block">{m.markaEtiket}</span>
                 <input name="marka" defaultValue={marka} maxLength={40}
-                  className="min-h-11 w-48 rounded-xl border border-white/10 bg-white/5 px-3 text-base text-white focus:border-violet-400 focus:outline-none" />
+                  className="min-h-11 w-48 rounded-xl border border-gray-200 bg-gray-50 px-3 text-base text-gray-900 focus:border-blue-500 focus:outline-none" />
               </label>
-              <button type="submit" className="min-h-11 rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500">{m.markaAc}</button>
+              <button type="submit" className="min-h-11 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-500">{m.markaAc}</button>
               <span className="basis-full text-xs text-gray-500">{m.sahipNot}</span>
             </form>
           )}
@@ -61,20 +61,20 @@ export default async function DistributorSayfasi({ searchParams }: { searchParam
             <Kutu ad={m.ag.bayi}>{goster(o.ag.bayi)}</Kutu>
             <Kutu ad={m.ag.adIzinli}>{goster(o.ag.adIzinli)}</Kutu>
           </div>
-          <h3 className="mt-4 mb-2 text-sm font-semibold text-gray-300">{m.ag.liste}</h3>
+          <h3 className="mt-4 mb-2 text-sm font-semibold text-gray-700">{m.ag.liste}</h3>
           {o.ag.adli.length === 0 ? (
-            <p className="text-sm text-gray-400">{m.ag.listeBos}</p>
+            <p className="text-sm text-gray-500">{m.ag.listeBos}</p>
           ) : (
-            <ul className="divide-y divide-white/5 rounded-xl border border-white/10">
+            <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200">
               {o.ag.adli.map((b, i) => (
                 <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2.5 text-sm">
-                  <b className="min-w-0 flex-1 basis-40 text-white">{b.ad}</b>
-                  <span className="text-gray-400">{b.il ?? m.park.ilYok}</span>
-                  {b.cihaz !== null && <span className="text-gray-300">{sayi(b.cihaz)} {m.sutunCihaz.toLocaleLowerCase(yerel)}</span>}
+                  <b className="min-w-0 flex-1 basis-40 text-gray-900">{b.ad}</b>
+                  <span className="text-gray-500">{b.il ?? m.park.ilYok}</span>
+                  {b.cihaz !== null && <span className="text-gray-700">{sayi(b.cihaz)} {m.sutunCihaz.toLocaleLowerCase(yerel)}</span>}
                   {(b.telefon || b.eposta) && (
                     <span className="flex basis-full flex-wrap gap-x-3 text-xs">
-                      {b.telefon && <a href={`tel:${b.telefon.replace(/[^0-9+]/g, '')}`} className="inline-flex min-h-11 items-center text-sky-300 hover:underline">{b.telefon}</a>}
-                      {b.eposta && <a href={`mailto:${b.eposta}`} className="inline-flex min-h-11 items-center break-all text-sky-300 hover:underline">{b.eposta}</a>}
+                      {b.telefon && <a href={`tel:${b.telefon.replace(/[^0-9+]/g, '')}`} className="inline-flex min-h-11 items-center text-sky-700 hover:underline">{b.telefon}</a>}
+                      {b.eposta && <a href={`mailto:${b.eposta}`} className="inline-flex min-h-11 items-center break-all text-sky-700 hover:underline">{b.eposta}</a>}
                     </span>
                   )}
                 </li>
@@ -101,12 +101,12 @@ export default async function DistributorSayfasi({ searchParams }: { searchParam
         {/* 3. ORİJİNAL TONER PAYI */}
         <Bolum baslik={m.toner.baslik}>
           {o.toner.pay === null ? (
-            <p className="text-sm text-gray-400">{m.yetersiz}</p>
+            <p className="text-sm text-gray-500">{m.yetersiz}</p>
           ) : (
             <>
-              <div className="flex h-3 overflow-hidden rounded-full bg-white/10" aria-hidden>
+              <div className="flex h-3 overflow-hidden rounded-full bg-gray-100" aria-hidden>
                 <span className="bg-emerald-500" style={{ width: `${o.toner.pay.orijinal}%` }} />
-                <span className="bg-amber-400" style={{ width: `${o.toner.pay.uyumlu}%` }} />
+                <span className="bg-amber-500" style={{ width: `${o.toner.pay.uyumlu}%` }} />
                 <span className="bg-gray-500" style={{ width: `${o.toner.pay.bilinmeyen}%` }} />
               </div>
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -114,7 +114,7 @@ export default async function DistributorSayfasi({ searchParams }: { searchParam
                 <Kutu ad={m.toner.uyumlu}>{yuzde(o.toner.pay.uyumlu, dil)}</Kutu>
                 <Kutu ad={m.toner.bilinmeyen}>{yuzde(o.toner.pay.bilinmeyen, dil)}</Kutu>
               </div>
-              <p className="mt-2 text-xs text-gray-400">{doldur(m.toner.toplam, { n: o.toner.pay.toplam })}</p>
+              <p className="mt-2 text-xs text-gray-500">{doldur(m.toner.toplam, { n: o.toner.pay.toplam })}</p>
             </>
           )}
           <p className="mt-2 text-xs text-gray-500">{doldur(m.toner.kaynak, { g: o.toner.gun })}</p>
@@ -161,7 +161,7 @@ export default async function DistributorSayfasi({ searchParams }: { searchParam
           <DuyuruFormu marka={sahip ? marka : null} duyurular={duyurular} />
         </Bolum>
 
-        <p className="text-xs text-gray-600">{doldur(m.hesaplandi, { t: new Date(o.uretildi).toLocaleString(yerel, { dateStyle: 'short', timeStyle: 'short' }) })}</p>
+        <p className="text-xs text-gray-400">{doldur(m.hesaplandi, { t: new Date(o.uretildi).toLocaleString(yerel, { dateStyle: 'short', timeStyle: 'short' }) })}</p>
       </div>
     </div>
   );
@@ -171,7 +171,7 @@ const yuzde = (n: number, dil: string) => (dil === 'en' ? `${n}%` : `%${n}`);
 
 function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+    <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
       <h2 className="mb-3 text-lg font-bold">{baslik}</h2>
       {children}
     </section>
@@ -180,9 +180,9 @@ function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode
 
 function Kutu({ ad, alt, children }: { ad: string; alt?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-      <div className="text-xs text-gray-400">{ad}</div>
-      <div className="mt-1 text-2xl font-bold text-white">{children}</div>
+    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+      <div className="text-xs text-gray-500">{ad}</div>
+      <div className="mt-1 text-2xl font-bold text-gray-900">{children}</div>
       {alt && <div className="mt-0.5 text-xs text-gray-500">{alt}</div>}
     </div>
   );
@@ -193,16 +193,16 @@ function Liste({ baslik, sutunlar, satirlar, bos, gizli = 0, gizliMetin }: {
 }) {
   return (
     <div>
-      {baslik && <h3 className="mb-2 text-sm font-semibold text-gray-300">{baslik}</h3>}
+      {baslik && <h3 className="mb-2 text-sm font-semibold text-gray-700">{baslik}</h3>}
       {satirlar.length === 0 ? (
-        <p className="text-sm text-gray-400">{bos}</p>
+        <p className="text-sm text-gray-500">{bos}</p>
       ) : (
-        <ul className="divide-y divide-white/5 rounded-xl border border-white/10">
+        <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200">
           {satirlar.map((s, i) => (
             <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-3 py-2.5 text-sm">
-              <b className="min-w-0 flex-1 basis-32 break-words text-white">{s[0]}</b>
+              <b className="min-w-0 flex-1 basis-32 break-words text-gray-900">{s[0]}</b>
               {s.slice(1).map((h, j) => (
-                <span key={j} className="text-gray-300">
+                <span key={j} className="text-gray-700">
                   <span className="mr-1 text-xs text-gray-500">{sutunlar[j + 1]}:</span>{h}
                 </span>
               ))}
