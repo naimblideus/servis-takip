@@ -58,7 +58,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // ─── Super Admin Routes ────────────────────────────────────────────────────
-    if (pathname.startsWith('/super-admin') && pathname !== '/super-admin/login') {
+    // Giriş ve şifre kurtarma oturumsuz açılır (kurtarma ucu SETUP_SECRET ister).
+    if (pathname.startsWith('/super-admin') && pathname !== '/super-admin/login' && pathname !== '/super-admin/sifre-kurtar') {
         const token = request.cookies.get('sa_session')?.value;
         if (!token || !SECRET) {
             return NextResponse.redirect(new URL('/super-admin/login', request.url));

@@ -21,6 +21,9 @@ export default function EkipSayfasi() {
   const [hata, setHata] = useState<string | null>(null);
   const [f, setF] = useState({ ad: '', eposta: '', sifre: '', rol: 'EKIP' as 'EKIP' | 'DISTRIBUTOR', marka: 'Pantum', kurumAd: m.varsayilanKurum });
   const [mesgul, setMesgul] = useState(false);
+  // Şifreyi unutan üye: ekip adreslerinin posta kutusu yok, sahip yeni şifreyi koyar.
+  const [sifirla, setSifirla] = useState<{ id: string; ad: string; sifre: string; ikiAdim: boolean } | null>(null);
+  const [bilgi, setBilgi] = useState<string | null>(null);
 
   const metin = useCallback((kod: unknown) => (m.hata as Record<string, string>)[String(kod)] ?? m.hata.GENEL, [m]);
   const yukle = useCallback(async () => {
@@ -48,6 +51,32 @@ export default function EkipSayfasi() {
       <h1 className="text-2xl font-bold">{m.ekipBaslik}</h1>
       <p className="text-sm text-gray-500 mt-1 mb-6 max-w-2xl">{m.ekipAlt}</p>
       {hata && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{hata}</div>}
+      {bilgi && <div role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{bilgi}</div>}
+      {sifirla && (
+        <form className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 grid gap-3 max-w-xl"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBilgi(null);
+            if (await istek('PATCH', '/api/super-admin/ekip', { id: sifirla.id, sifre: sifirla.sifre, ikiAdimSifirla: sifirla.ikiAdim })) {
+              setBilgi(m.sifirlandi.replace('{ad}', sifirla.ad));
+              setSifirla(null);
+            }
+          }}>
+          <h2 className="text-lg font-semibold">{m.sifirlaBaslik.replace('{ad}', sifirla.ad)}</h2>
+          <label className="grid gap-1 text-sm text-gray-700">{m.yeniSifre}
+            <input className={girdi} type="password" value={sifirla.sifre} autoComplete="new-password" autoFocus
+              onChange={(e) => setSifirla({ ...sifirla, sifre: e.target.value })} />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700 min-h-[40px]">
+            <input type="checkbox" checked={sifirla.ikiAdim} onChange={(e) => setSifirla({ ...sifirla, ikiAdim: e.target.checked })} className="h-4 w-4" />
+            {m.ikiAdimSifirla}
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" disabled={mesgul || sifirla.sifre.length < 10} className="min-h-[44px] px-4 rounded-xl bg-blue-600 text-white hover:bg-blue-500 font-semibold disabled:opacity-50">{m.sifirlaKaydet}</button>
+            <button type="button" onClick={() => setSifirla(null)} className="min-h-[44px] px-4 rounded-xl text-gray-700 hover:bg-gray-100">{m.vazgec}</button>
+          </div>
+        </form>
+      )}
 
       <div className="rounded-2xl border border-gray-200 bg-gray-50 overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
@@ -72,6 +101,8 @@ export default function EkipSayfasi() {
                         className="min-h-[40px] px-3 rounded-lg text-xs text-gray-700 hover:bg-gray-100">
                         {m.rolYap.replace('{r}', h.rol === 'SAHIP' ? m.rolEkip : m.rolSahip)}
                       </button>}
+                      <button type="button" disabled={mesgul} onClick={() => { setBilgi(null); setSifirla({ id: h.id, ad: h.name, sifre: '', ikiAdim: false }); }}
+                        className="min-h-[40px] px-3 rounded-lg text-xs text-blue-700 hover:bg-blue-100">{m.sifirla}</button>
                       <button type="button" disabled={mesgul} onClick={() => { if (window.confirm(m.silOnay)) istek('DELETE', `/api/super-admin/ekip?id=${encodeURIComponent(h.id)}`); }}
                         className="min-h-[40px] px-3 rounded-lg text-xs text-red-700 hover:bg-red-100">{m.sil}</button>
                     </>

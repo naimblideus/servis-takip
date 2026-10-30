@@ -6205,6 +6205,20 @@ export const tr = {
     bayiPaneli: 'Bayi Paneli',
     girisBaslik: 'Süper Admin Girişi',
     normalGiris: 'Normal Kullanıcı Girişi',
+    // Şifremi unuttum (super-admin/sifre-kurtar). Hesap silinmez, yalnız şifre yenilenir.
+    kurtar: {
+      bagla: 'Şifremi unuttum',
+      baslik: 'Süper admin şifresini yenile',
+      alt: 'Hesabınız silinmez: rolünüz, geçmişiniz ve bütün veriler olduğu gibi kalır, yalnız şifre değişir. Kurtarma anahtarı Coolify’da Servis uygulamasının SETUP_SECRET değeridir.',
+      anahtar: 'Kurtarma anahtarı (SETUP_SECRET)',
+      yeniSifre: 'Yeni şifre (en az 12 karakter)',
+      ikiAdim: 'İki adımlı doğrulamayı da kapat (telefonumu kaybettim)',
+      dugme: 'Şifreyi yenile',
+      yenilendi: 'Şifre yenilendi. Yeni şifrenizle giriş yapabilirsiniz.',
+      acildi: 'Bu e-postayla hesap yoktu; yeni süper admin hesabı açıldı.',
+      girise: 'Girişe dön',
+      hata: 'Yenilenemedi.',
+    },
     eposta: 'E-posta',
     menu: {
       panel: 'Panel',

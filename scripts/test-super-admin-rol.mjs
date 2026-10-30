@@ -55,6 +55,11 @@ const ekip = oku('src/app/api/super-admin/ekip/route.ts');
 t('ekip hesapları ucu kendi içinde de sahip istiyor', /sa\.rol !== 'SAHIP'/.test(ekip));
 t('kendini kaldıramaz, son sahip korunur', /hata: 'KENDINI'/.test(ekip) && /hata: 'SON_SAHIP'/.test(ekip));
 t('şifre bcrypt ile saklanır', /bcrypt\.hash\(sifre, 12\)/.test(ekip));
+t('★ sahip unutulan ekip şifresini sıfırlar (kendi şifresi değil, en az 10)', /bcrypt\.hash\(g\.sifre, 12\)/.test(ekip) && /g\.sifre\.length < 10/.test(ekip) && /typeof g\.sifre === 'string'[\s\S]{0,400}hata: 'KENDINI'/.test(ekip));
+const kurtar = oku('src/app/api/setup/create-superadmin/route.ts');
+t('★ şifre kurtarma hesabı SİLMEZ, yerinde günceller (rol ve geçmiş kalır)', !/superAdmin\.delete/.test(kurtar) && /superAdmin\.update\(/.test(kurtar));
+t('★ kurtarma ucu sınırlı ve sırsız kapalı', /rateLimit\(`sa-kurtar:/.test(kurtar) && /KURULUM_UCU_KAPALI_SETUP_SECRET/.test(kurtar));
+t('kurtarma sayfası oturumsuz açılıyor', /pathname !== '\/super-admin\/sifre-kurtar'/.test(oku('src/middleware.ts')));
 const auth = oku('src/lib/super-admin-auth.ts');
 t('oturum rolü taşıyor', /rol: saRol\(admin\.rol\)/.test(auth) && /rol: saRol\(payload\.rol\)/.test(auth));
 // Süper admin oturumunu okuyan, /api/super-admin dışındaki her uç rolü denetlemeli.

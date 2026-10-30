@@ -124,7 +124,10 @@ export default function SuperAdminLoginPage() {
                     </button>
                 </form>
 
-                <p className="text-center text-xs text-gray-400 mt-4">
+                <p className="text-center text-sm mt-4">
+                    <a href="/super-admin/sifre-kurtar" className="text-blue-700 hover:text-blue-900">{sz.superAdmin.kurtar.bagla}</a>
+                </p>
+                <p className="text-center text-xs text-gray-400 mt-3">
                     <a href="/login" className="hover:text-gray-700">← {sz.superAdmin.normalGiris}</a>
                 </p>
             </div>
