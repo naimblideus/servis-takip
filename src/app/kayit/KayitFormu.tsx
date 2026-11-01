@@ -11,6 +11,8 @@
  * Etkinlik sunucuda (page.tsx) çözülür ve `ilk` olarak gelir: salon
  * Wi-Fi'ında JS geç yüklense de ilk HTML "30 gün" der, "14 gün" görünüp
  * sonra değişmez.
+ * `tur` MATBAA ise (/kayit?tur=matbaa) baskı merkezi hesabı açılır: aynı
+ * form, baskı merkezinin vaadi; hesap açılınca panel /matbaa'ya yönlendirir.
  */
 import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
@@ -20,15 +22,17 @@ import DilSecici from '@/components/DilSecici';
 import Monogram from '@/components/Monogram';
 import { ILLER_ALFABETIK } from '@/lib/iller';
 import { doldur } from '@/lib/i18n/sozluk';
+import type { HesapTuru } from '@/lib/menu-aileleri';
 
 const BOS = { firma: '', ad: '', telefon: '', eposta: '', sifre: '', il: '', onay: false, web_sitesi: '' };
 const VARSAYILAN_WHATSAPP = '905526961703';
 
 type Durum = { acik: boolean; whatsapp: string; etkinlik?: string | null; denemeGun?: number; kullanici?: number };
 
-export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: string; denemeGun: number; kullanici: number } | null; ilkKod?: string }) {
+export default function KayitFormu({ ilk, ilkKod = '', tur = 'BAYI' }: { ilk?: { etkinlik: string; denemeGun: number; kullanici: number } | null; ilkKod?: string; tur?: HesapTuru }) {
   const t = useT();
   const k = t.kayit;
+  const matbaa = tur === 'MATBAA';
   const router = useRouter();
   const [f, setF] = useState(BOS);
   const [durum, setDurum] = useState<Durum | null>(ilk ? { acik: true, whatsapp: VARSAYILAN_WHATSAPP, ...ilk } : null);
@@ -55,7 +59,7 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
     // Salon Wi-Fi'ı koparsa: düğme "açılıyor…"da takılı kalmasın, formu yeniden doldurtmayalım.
     let r: Response;
     try {
-      r = await fetch('/api/kayit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...f, kod }) });
+      r = await fetch('/api/kayit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...f, kod, tur }) });
     } catch {
       setHata(t.giris.hataAg);
       setMesgul(false);
@@ -87,7 +91,7 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
     'placeholder:text-white/25 outline-none transition focus:border-teal-500/60 focus:bg-white/[0.06]';
   const etiket = 'mb-2 block text-[13px] font-medium text-white/60';
   // Etkinlikten gelen yazışmada etkinlik adı: satış ekibi kişiyi nereden tanıdığını bilsin.
-  const waMetin = `Merhaba, Nextus Servis için deneme hesabı açmak istiyorum${durum?.etkinlik ? ` (${durum.etkinlik})` : ''}`;
+  const waMetin = `Merhaba, Nextus Servis için ${matbaa ? 'baskı merkezi ' : ''}deneme hesabı açmak istiyorum${durum?.etkinlik ? ` (${durum.etkinlik})` : ''}`;
   const whatsapp = `https://wa.me/${durum?.whatsapp ?? VARSAYILAN_WHATSAPP}?text=${encodeURIComponent(waMetin)}`;
 
   return (
@@ -101,6 +105,11 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
             <span className="text-[19px] font-bold tracking-tight">Nextus Servis</span>
           </a>
 
+          {matbaa && !durum?.etkinlik && (
+            <div className="mb-4 inline-block rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1 text-[12px] font-semibold text-teal-200">
+              {k.matbaaRozet}
+            </div>
+          )}
           {durum?.etkinlik && (
             <div className="mb-4 inline-block rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1 text-[12px] font-semibold text-teal-200">
               {durum.etkinlik}
@@ -133,7 +142,7 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
             <form onSubmit={gonder} className="mt-8 space-y-4">
               <div>
                 <label htmlFor="firma" className={etiket}>{k.firma}</label>
-                <input id="firma" value={f.firma} onChange={degistir('firma')} className={alan} placeholder={k.firmaYer}
+                <input id="firma" value={f.firma} onChange={degistir('firma')} className={alan} placeholder={matbaa ? k.matbaaFirmaYer : k.firmaYer}
                   autoComplete="organization" minLength={2} maxLength={120} required />
               </div>
               <div>
@@ -205,9 +214,9 @@ export default function KayitFormu({ ilk, ilkKod = '' }: { ilk?: { etkinlik: str
             backgroundSize: '44px 44px',
           }} />
         <div className="relative max-w-[460px]">
-          <h2 className="text-[32px] font-bold leading-[1.2] tracking-tight">{k.panelBaslik}</h2>
+          <h2 className="text-[32px] font-bold leading-[1.2] tracking-tight">{matbaa ? k.matbaaPanelBaslik : k.panelBaslik}</h2>
           <ul className="mt-8 space-y-4">
-            {k.panelMaddeler.map((m) => (
+            {(matbaa ? k.matbaaPanelMaddeler : k.panelMaddeler).map((m) => (
               <li key={m} className="flex gap-3 text-[16px] leading-snug text-white/75">
                 <span aria-hidden="true" className="mt-[3px] text-teal-300">✓</span>{doldur(m, { gun: durum?.denemeGun ?? 14 })}
               </li>

@@ -7,7 +7,9 @@ import { ALL_MODULE_KEYS, effectiveModules } from '@/lib/modules';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 
-const BIZ_KEYS = ['general', 'electronic', 'computer', 'phone', 'appliance', 'hvac', 'medical'] as const;
+// Hesap türü menüyü ve ana sayfayı belirler (lib/menu-aileleri). Eski "sektör"
+// seçimi hiçbir yerde okunmuyordu; yerine bu geldi.
+const TURLER = ['BAYI', 'MATBAA'] as const;
 // Taban ücretler ₺ cinsinden sabit: abonelik fiyatı bayinin para biriminden
 // bağımsızdır, platformun kendi fiyatıdır.
 const PLAN_UCRET: Record<string, number | null> = {
@@ -24,7 +26,7 @@ export default function NewTenantPage() {
     const [form, setForm] = useState({
         name: '', slug: '', ownerName: '', phone: '', email: '',
         taxNumber: '', taxOffice: '', address: '', city: '', district: '',
-        businessType: 'general', plan: 'trial', trialDays: 14, maxUsers: 2, adminNotes: '',
+        hesapTuru: 'BAYI', plan: 'trial', trialDays: 14, maxUsers: 2, adminNotes: '',
     });
 
     // Slug otomatik oluştur
@@ -74,7 +76,7 @@ export default function NewTenantPage() {
                         <div><span className="text-gray-400">{y.girisUrl}</span> <span className="font-mono text-xs text-gray-300">{typeof window !== 'undefined' ? window.location.origin : ''}/login</span></div>
                     </div>
                     <div className="flex gap-3">
-                        <button onClick={() => { setCreated(null); setForm({ name: '', slug: '', ownerName: '', phone: '', email: '', taxNumber: '', taxOffice: '', address: '', city: '', district: '', businessType: 'general', plan: 'trial', trialDays: 14, maxUsers: 2, adminNotes: '' }); }}
+                        <button onClick={() => { setCreated(null); setForm({ name: '', slug: '', ownerName: '', phone: '', email: '', taxNumber: '', taxOffice: '', address: '', city: '', district: '', hesapTuru: 'BAYI', plan: 'trial', trialDays: 14, maxUsers: 2, adminNotes: '' }); }}
                             className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm">{y.yeniBir}</button>
                         <button onClick={() => router.push('/super-admin/tenants')}
                             className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm">{y.liste}</button>
@@ -118,10 +120,10 @@ export default function NewTenantPage() {
                                     className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-mono focus:outline-none focus:border-violet-500" />
                             </div>
                             <div>
-                                <label className="text-xs text-gray-400 mb-1 block">{y.sektor}</label>
-                                <select value={form.businessType} onChange={e => set('businessType', e.target.value)}
+                                <label className="text-xs text-gray-400 mb-1 block">{y.hesapTuru}</label>
+                                <select value={form.hesapTuru} onChange={e => set('hesapTuru', e.target.value)}
                                     className="w-full px-3 py-2.5 bg-gray-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500">
-                                    {BIZ_KEYS.map(k => <option key={k} value={k} className="bg-gray-900">{y.sektorler[k]}</option>)}
+                                    {TURLER.map(k => <option key={k} value={k} className="bg-gray-900">{y.turler[k]}</option>)}
                                 </select>
                             </div>
                         </div>

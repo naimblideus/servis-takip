@@ -27,7 +27,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
 const g = mkdtempSync(join(tmpdir(), 'st-kayit-'));
-const KAYNAKLAR = ['kayit', 'zamanlanmis-is', 'zamanlayici', 'tenant-manager', 'talep', 'sahip-bildirim', 'audit', 'iller', 'modules', 'demo-koruma', 'demo-yazma'];
+const KAYNAKLAR = ['kayit', 'menu-aileleri', 'zamanlanmis-is', 'zamanlayici', 'tenant-manager', 'talep', 'sahip-bildirim', 'audit', 'iller', 'modules', 'demo-koruma', 'demo-yazma'];
 try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),
@@ -46,6 +46,7 @@ for (const k of KAYNAKLAR) {
   let s = readFileSync(yol, 'utf8');
   s = s.replace(/'@\/lib\/prisma'/g, "'./prisma-shim.js'")
     .replace(/'@\/lib\/([\w-]+)'/g, "'./$1.js'")
+    .replace(/from '\.\/([\w-]+)'/g, "from './$1.js'")
     .replace(/'next\/server'/g, "'./next-server-shim.js'")
     .replace(/'bcryptjs'/g, `'${bcryptYolu}'`);
   writeFileSync(yol, s);
@@ -75,6 +76,22 @@ t('geçersiz e-posta', kod({ ...tam, eposta: 'ali@ornek' }) === 'KAYIT_EPOSTA_GE
 t('geçersiz telefon', kod({ ...tam, telefon: '0212 555 55 55' }) === 'KAYIT_TELEFON_GECERSIZ');
 t('kısa şifre ve bcrypt\'in göremeyeceği uzun şifre', kod({ ...tam, sifre: '1234567' }) === 'KAYIT_SIFRE_KISA' && kod({ ...tam, sifre: 'ğ'.repeat(40) }) === 'KAYIT_SIFRE_KISA');
 t('gizlilik onayı zorunlu ("true" metni de sayılmaz)', kod({ ...tam, onay: false }) === 'KAYIT_ONAY_YOK' && kod({ ...tam, onay: 'true' }) === 'KAYIT_ONAY_YOK');
+{
+  const { adrestenTur } = kayit;
+  t('★ form türü taşımazsa bayi kaydı', d1.veri.tur === 'BAYI');
+  t('★ matbaa kaydı türü taşıyor; bilinmeyen tür bayi', kayitDogrula({ ...tam, tur: 'MATBAA' }).veri?.tur === 'MATBAA'
+    && kayitDogrula({ ...tam, tur: 'ADMIN' }).veri?.tur === 'BAYI');
+  t('adres: ?tur=matbaa (büyük/küçük harf) matbaa, gerisi bayi', adrestenTur('matbaa') === 'MATBAA' && adrestenTur(' Matbaa ') === 'MATBAA'
+    && adrestenTur('bayi') === 'BAYI' && adrestenTur(undefined) === 'BAYI' && adrestenTur(['matbaa']) === 'BAYI');
+  const sayfa = oku('src/app/kayit/page.tsx');
+  t('★ /kayit sayfası adresteki türü forma geçiriyor', /adrestenTur\(/.test(sayfa) && /tur=\{tur\}/.test(sayfa));
+  const form = oku('src/app/kayit/KayitFormu.tsx');
+  t('form türü gövdeye yazıyor', /JSON\.stringify\(\{ \.\.\.f, kod, tur \}\)/.test(form));
+  const tmk = oku('src/lib/tenant-manager.ts');
+  t('★ createTenant türü normalleştirerek yazıyor (süper admin gövdesi olduğu gibi geliyor)', /hesapTuru: hesapTuru\(input\.hesapTuru\)/.test(tmk));
+  const sa = oku('src/app/(super-admin)/super-admin/tenants/new/page.tsx');
+  t('★ süper admin yeni işletme formunda hesap türü seçimi', /value=\{form\.hesapTuru\}/.test(sa) && /'MATBAA'/.test(sa));
+}
 t('slug: "İ" tire üretmiyor', tm.generateSlug('İstanbul Fotokopi Ltd.') === 'istanbul-fotokopi-ltd' && tm.generateSlug('IŞIK Büro') === 'isik-buro', [tm.generateSlug('İstanbul Fotokopi Ltd.'), tm.generateSlug('IŞIK Büro')]);
 {
   const { denemeIzni, hizSiniriniSifirla } = kayit;
@@ -334,6 +351,13 @@ if (!yerel) {
     const s2 = await kayitAc(veri(2), null);
     const b2 = await p.tenant.findUnique({ where: { id: s2.tenantId } });
     t('aynı firma adı: slug çakışmıyor', s2.durum === 'TAMAM' && b2.slug !== b1.slug && b2.slug.startsWith(b1.slug), { s1: b1.slug, s2: b2.slug });
+
+    t('★ sıradan kayıt bayi hesabı açıyor', b1.hesapTuru === 'BAYI', b1.hesapTuru);
+    const s13 = await kayitAc(veri(13, { tur: 'MATBAA' }), null);
+    const b13 = await p.tenant.findUnique({ where: { id: s13.tenantId } });
+    const l13 = await p.lead.findFirst({ where: { eposta: TEST_EPOSTA(13) } });
+    t('★ /kayit?tur=matbaa baskı merkezi hesabı açıyor; not ve talepte türü yazıyor', s13.durum === 'TAMAM' && b13.hesapTuru === 'MATBAA'
+      && b13.adminNotes.includes('Baskı merkezi') && /Baskı merkezi/.test(l13?.mesaj ?? ''), { tur: b13?.hesapTuru, not: b13?.adminNotes });
 
     const s5 = await kayitAc(veri(5, { firma: 'Demo' }), null);
     const b5 = await p.tenant.findUnique({ where: { id: s5.tenantId } });

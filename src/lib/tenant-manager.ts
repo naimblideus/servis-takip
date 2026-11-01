@@ -3,6 +3,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { hesapTuru } from '@/lib/menu-aileleri';
 
 const PLAN_LIMITS: Record<string, { maxUsers: number; maxTicketsPerMonth: number | null; storageLimitMB: number }> = {
     trial: { maxUsers: 2, maxTicketsPerMonth: 50, storageLimitMB: 200 },
@@ -23,6 +24,8 @@ interface CreateTenantInput {
     city?: string;
     district?: string;
     businessType?: string;
+    /** BAYI | MATBAA. Bilinmeyen değer BAYI (süper admin ucu gövdeyi olduğu gibi geçiriyor). */
+    hesapTuru?: string;
     plan?: string;
     trialDays?: number;
     maxUsers?: number;
@@ -70,6 +73,7 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
                 city: input.city,
                 district: input.district,
                 businessType: input.businessType || 'general',
+                hesapTuru: hesapTuru(input.hesapTuru),
                 // sayacEpostaKodu BURADA üretilmez: veritabanı trigger üretir
                 // (migration 20260815140000). Bayi 6 ayrı yerde oluşturuluyor,
                 // yalnız biri buradan geçiyor — garanti tek yerde, veritabanında.

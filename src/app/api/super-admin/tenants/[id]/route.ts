@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { hesapTuru } from '@/lib/menu-aileleri';
 import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { writeAudit, istekIp } from '@/lib/audit';
@@ -48,11 +49,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (body.eFaturaEtiket !== undefined) {
             body.eFaturaEtiket = String(body.eFaturaEtiket ?? '').trim() || null;
         }
+        // Hesap türü yalnız BAYI | MATBAA: bilinmeyen değer menüyü boşaltmasın.
+        if (body.hesapTuru !== undefined) body.hesapTuru = hesapTuru(body.hesapTuru);
 
         // Değişiklik ÖNCESİ hâli — denetimde "neyi neye çevirdi" için
         const oncesi = await prisma.tenant.findUnique({
             where: { id },
-            select: { plan: true, isActive: true, maxUsers: true, modules: true, oemDataSharing: true, whatsappPhoneId: true },
+            select: { plan: true, isActive: true, maxUsers: true, modules: true, oemDataSharing: true, whatsappPhoneId: true, hesapTuru: true },
         });
 
         const tenant = await prisma.tenant.update({
@@ -74,6 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                 plan: tenant.plan, isActive: tenant.isActive, maxUsers: tenant.maxUsers,
                 modules: tenant.modules, oemDataSharing: (tenant as any).oemDataSharing,
                 whatsappPhoneId: (tenant as any).whatsappPhoneId,
+                hesapTuru: tenant.hesapTuru,
             },
             ipAddress: istekIp(req),
             actorType: 'SUPER_ADMIN',

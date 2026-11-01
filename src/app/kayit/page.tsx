@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
-import { etkinlikBul, etkinlikKodu, ETKINLIK_CEREZI } from '@/lib/kayit';
+import { adrestenTur, etkinlikBul, etkinlikKodu, ETKINLIK_CEREZI } from '@/lib/kayit';
 import { sunucuDili } from '@/lib/i18n/sunucu';
 import { sozluk, doldur } from '@/lib/i18n/sozluk';
 import KayitFormu from './KayitFormu';
 
 /**
  * /kayit — form istemcide (KayitFormu); burada yalnız basılı QR'ın ?k=kod'u
- * sunucuda çözülür. Böylece ilk HTML ve sekme başlığı etkinliğin kendi
+ * ve baskı merkezi bağlantısının ?tur=matbaa'sı sunucuda çözülür. Böylece ilk HTML ve sekme başlığı etkinliğin kendi
  * süresini söyler, WhatsApp'ta paylaşılan bağlantının önizlemesi de.
  */
 type Arama = Promise<Record<string, string | string[] | undefined>>;
@@ -25,7 +25,9 @@ export async function generateMetadata({ searchParams }: { searchParams: Arama }
 }
 
 export default async function KayitSayfasi({ searchParams }: { searchParams: Arama }) {
-  const kod = await kodu(await searchParams);
+  const arama = await searchParams;
+  const kod = await kodu(arama);
   const etk = etkinlikBul(kod);
-  return <KayitFormu ilkKod={etk ? kod : ''} ilk={etk ? { etkinlik: etk.ad, denemeGun: etk.denemeGun, kullanici: etk.kullanici } : null} />;
+  const tur = adrestenTur(arama.tur);
+  return <KayitFormu ilkKod={etk ? kod : ''} tur={tur} ilk={etk ? { etkinlik: etk.ad, denemeGun: etk.denemeGun, kullanici: etk.kullanici } : null} />;
 }

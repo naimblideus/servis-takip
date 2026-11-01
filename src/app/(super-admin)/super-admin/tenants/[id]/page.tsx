@@ -217,6 +217,16 @@ export default function TenantDetailPage() {
                                     readOnly={!editMode} className={inpCls} />
                             </div>
                         ))}
+                        {/* Hesap türü: BAYI | MATBAA (lib/menu-aileleri). Pilot matbaa mevcut kayıttan da çevrilebilsin. */}
+                        <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
+                            <div className="text-xs text-gray-500 mb-1">{d.alanHesapTuru}</div>
+                            <select value={form.hesapTuru === 'MATBAA' ? 'MATBAA' : 'BAYI'} disabled={!editMode}
+                                onChange={e => setForm((p: Record<string, unknown>) => ({ ...p, hesapTuru: e.target.value }))}
+                                className={inpCls + ' bg-gray-900'}>
+                                {(['BAYI', 'MATBAA'] as const).map(k => <option key={k} value={k} className="bg-gray-900">{sz.superAdmin.yeni.turler[k]}</option>)}
+                            </select>
+                            <p className="text-xs text-gray-400 mt-2 leading-relaxed">{d.turAciklama}</p>
+                        </div>
                         {/* WhatsApp bağlantısı — gelen mesajın HANGİ bayiye ait olduğu yalnızca buradan bulunur */}
                         <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
                             <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">

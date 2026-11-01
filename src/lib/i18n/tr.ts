@@ -250,6 +250,16 @@ export const tr = {
       'Ağdaki yazıcıları tarayıcıyla bulun, tek tıkla ekleyin',
     ],
     panelNot: 'Hesabınız açılınca ekibimiz kurulum için sizi arar.',
+    // Baskı merkezi kaydı (/kayit?tur=matbaa): aynı form, kendi vaadi.
+    matbaaRozet: 'Baskı merkezi',
+    matbaaFirmaYer: 'Örnek Baskı Merkezi',
+    matbaaPanelBaslik: 'Fiyat, iş takibi ve teslim tek yerde.',
+    matbaaPanelMaddeler: [
+      '{gun} gün boyunca bütün özellikler açık',
+      'Kredi kartı istenmez, taahhüt yok',
+      'Fiyat listesi hazır şablonlarla gelir',
+      'Hazır olan işi tek dokunuşla WhatsApp’tan haber verin',
+    ],
     // Aynı ağdan çok kayıt (ör. etkinlik salonu): hesap yerine talep alındı.
     talepBaslik: 'Bilgileriniz bize ulaştı',
     talepMetin: 'Bu ağdan bugün çok sayıda hesap açıldı, o yüzden hesabınızı otomatik açamadık. Hesabınızı bugün biz açıp giriş bilgisini WhatsApp’tan göndereceğiz.',
@@ -6439,7 +6449,7 @@ export const tr = {
       notBaslik: 'Süper Admin Notu',
       ad: 'İşletme Adı *',
       slug: 'Slug / URL',
-      sektor: 'Sektör',
+      hesapTuru: 'Hesap türü',
       adSoyad: 'Ad Soyad *',
       telefon: 'Telefon *',
       epostaGiris: 'E-posta (giriş bilgisi) *',
@@ -6464,14 +6474,10 @@ export const tr = {
       liste: 'İşletme Listesi',
       hata: 'Hata oluştu',
       paketAylik: '{ad} — {tutar}/ay',
-      sektorler: {
-        general: 'Genel',
-        electronic: 'Elektronik',
-        computer: 'Bilgisayar',
-        phone: 'Telefon',
-        appliance: 'Ev Aletleri',
-        hvac: 'İklimlendirme',
-        medical: 'Medikal',
+      // Ölü "sektör" seçiminin yerine: menüyü ve ana sayfayı belirleyen tek seçim.
+      turler: {
+        BAYI: 'Fotokopi servisi (bayi)',
+        MATBAA: 'Baskı merkezi (matbaa)',
       },
     },
     detay: {
@@ -6501,6 +6507,8 @@ export const tr = {
       alanIlce: 'İlçe',
       alanEFaturaOnEk: 'e-Fatura Ön Eki (3 harf)',
       alanEFaturaEtiket: 'e-Fatura Gönderici Etiketi',
+      alanHesapTuru: 'Hesap türü',
+      turAciklama: 'Menüyü ve ana sayfayı belirler. Değişiklik bir sonraki sayfa açılışında geçerli olur, yeniden giriş gerekmez.',
       waBaslik: 'WhatsApp Numara Kimliği (Meta phone_number_id)',
       waBagli: 'bağlı',
       waBagliDegil: 'bağlı değil',

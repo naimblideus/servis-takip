@@ -34,6 +34,7 @@ import { createTenant, generateSlug } from '@/lib/tenant-manager';
 import { talepKaydet } from '@/lib/talep';
 import { writeAudit } from '@/lib/audit';
 import { ILLER } from '@/lib/iller';
+import { hesapTuru, type HesapTuru } from '@/lib/menu-aileleri';
 
 export type KayitHataKodu =
   | 'KAYIT_ALAN_EKSIK' | 'KAYIT_EPOSTA_GECERSIZ' | 'KAYIT_TELEFON_GECERSIZ'
@@ -46,6 +47,8 @@ export interface KayitVerisi {
   eposta: string;
   sifre: string;
   il: string | null;
+  /** BAYI (varsayılan) | MATBAA — /kayit?tur=matbaa. */
+  tur: HesapTuru;
 }
 
 /** Türkiye cep telefonu → 05XXXXXXXXX. Sabit hat ya da yabancı numara null. */
@@ -75,8 +78,19 @@ export function kayitDogrula(ham: unknown): { ok: true; veri: KayitVerisi } | { 
   if (g.onay !== true) return { ok: false, kod: 'KAYIT_ONAY_YOK' };
   const ilHam = metin(g.il, 40);
   const il = (ILLER as readonly string[]).includes(ilHam) ? ilHam : null;
-  return { ok: true, veri: { firma, ad, telefon, eposta, sifre, il } };
+  return { ok: true, veri: { firma, ad, telefon, eposta, sifre, il, tur: hesapTuru(g.tur) } };
 }
+
+/**
+ * Adresteki tür: /kayit?tur=matbaa. Baskı merkezine giden bağlantı (pilot,
+ * ziyaret, reklam) bunu taşır; bilinmeyen değer bayi kaydıdır.
+ */
+export function adrestenTur(x: unknown): HesapTuru {
+  return typeof x === 'string' && x.trim().toLowerCase() === 'matbaa' ? 'MATBAA' : 'BAYI';
+}
+
+/** Süper admin notu ve talep metninde türün adı; bayi kaydında boş. */
+const turEki = (tur: HesapTuru) => (tur === 'MATBAA' ? ' · Baskı merkezi' : '');
 
 // ── ETKİNLİK ───────────────────────────────────────────────────────────
 export interface Etkinlik {
@@ -245,7 +259,8 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
       trialDays: etk?.denemeGun ?? ayar?.defaultTrialDays ?? 14,
       ...(etk ? { maxUsers: etk.kullanici } : {}),
       password: veri.sifre,
-      adminNotes: `${KAYIT_NOTU}${veri.il ? ` · ${veri.il}` : ''}${etk ? ` · ${etk.ad}` : ''}`,
+      hesapTuru: veri.tur,
+      adminNotes: `${KAYIT_NOTU}${veri.il ? ` · ${veri.il}` : ''}${turEki(veri.tur)}${etk ? ` · ${etk.ad}` : ''}`,
     });
     let acilan: Awaited<ReturnType<typeof createTenant>> | null = null;
     for (let deneme = 0; !acilan; deneme++) {
@@ -263,7 +278,7 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
     await writeAudit({
       tenantId: tenant.id, userId: user.id,
       action: 'KENDI_KAYDI', entityType: 'Tenant', entityId: tenant.id,
-      newValue: { firma: veri.firma, il: veri.il, ...(etk ? { etkinlik: etk.kod } : {}) },
+      newValue: { firma: veri.firma, il: veri.il, tur: veri.tur, ...(etk ? { etkinlik: etk.kod } : {}) },
       ipAddress: ip,
     });
     // Satış ekibi arasın: Talepler ekranı + sahibine anında e-posta + CRM.
@@ -273,7 +288,7 @@ export async function kayitAc(veri: KayitVerisi, ip: string | null, etk: Etkinli
     // Talepler ekranında ve sabah özetinde.
     await talepKaydet({
       firma: veri.firma, ad: veri.ad, telefon: veri.telefon, eposta: veri.eposta, il: veri.il,
-      mesaj: `Siteden ${etk?.denemeGun ?? ayar?.defaultTrialDays ?? 14} günlük deneme hesabı açtı${veri.il ? ` (${veri.il})` : ''}${etk ? ` — ${etk.ad}` : ''}. Kurulum için arayın.`,
+      mesaj: `Siteden ${etk?.denemeGun ?? ayar?.defaultTrialDays ?? 14} günlük deneme hesabı açtı${turEki(veri.tur)}${veri.il ? ` (${veri.il})` : ''}${etk ? ` — ${etk.ad}` : ''}. Kurulum için arayın.`,
       ...(etk ? { utm_source: etk.kod, utm_campaign: etk.ad } : {}),
     }, 'kayit', { sessiz: Boolean(etk) }).catch((e) => console.error('[kayit] talep yazılamadı:', (e as Error).message));
     return { durum: 'TAMAM', tenantId: tenant.id };
@@ -304,8 +319,8 @@ export async function etkinlikHesapSayisi(etk: Etkinlik, simdi = Date.now()): Pr
 export async function sinirdaTalep(veri: KayitVerisi, etk: Etkinlik | null = null): Promise<void> {
   await talepKaydet({
     firma: veri.firma, ad: veri.ad, telefon: veri.telefon, eposta: veri.eposta, il: veri.il,
-    mesaj: `Deneme hesabı açmak istedi; aynı ağdan çok kayıt olduğu için hesap otomatik açılmadı${etk ? ` (${etk.ad})` : ''}. `
-      + "Süper admin → Bayiler → Yeni bayi ile hesabı açın, giriş bilgisini WhatsApp'tan gönderin.",
+    mesaj: `Deneme hesabı açmak istedi${turEki(veri.tur)}; aynı ağdan çok kayıt olduğu için hesap otomatik açılmadı${etk ? ` (${etk.ad})` : ''}. `
+      + `Süper admin → Bayiler → Yeni bayi ile hesabı açın${veri.tur === 'MATBAA' ? ' (hesap türü: Baskı merkezi)' : ''}, giriş bilgisini WhatsApp'tan gönderin.`,
     ...(etk ? { utm_source: etk.kod, utm_campaign: etk.ad } : {}),
   }, 'kayit-sinir');
 }
