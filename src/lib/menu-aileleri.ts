@@ -34,6 +34,8 @@ export interface Aile {
 }
 
 export const AILELER: readonly Aile[] = [
+  // Baskı merkezinin günü: tek sayı satırı + bekleyen işler. Yalnız MATBAA.
+  { anahtar: 'matbaa',     bolum: 'GUNLUK',  uyeler: ['/matbaa'] },
   // Canlı pano panelin ikinci yüzü: sekme /dashboard'da görünür, /pano yan
   // menüsüz TAM EKRAN açılır (operasyon odasındaki televizyon).
   { anahtar: 'panel',      bolum: 'GUNLUK',  uyeler: ['/dashboard', '/pano'] },
@@ -107,6 +109,8 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/bizimhesap',
   // Alış fiyatı ve tedarikçi mali veridir.
   '/siparis',
+  // Matbaanın fiyat listesi: fiyatı sahip belirler, tezgah yalnız uygular.
+  '/matbaa/fiyatlar',
 ];
 
 /**
@@ -132,6 +136,50 @@ export const TEKNISYEN_MENUSU: readonly string[] = [
   '/yardim',
 ];
 
+// ── HESAP TÜRÜ ───────────────────────────────────────────────────────────
+// Aynı yazılım iki işletmeye hizmet ediyor: fotokopi servisi (BAYI) ve baskı
+// merkezi (MATBAA). Matbaanın cihazı, sayacı, sözleşmesi yok; bayinin baskı
+// işi yok. Tür Tenant.hesapTuru'nda; oturum jetonunda DEĞİL.
+
+export type HesapTuru = 'BAYI' | 'MATBAA';
+
+/** Bilinmeyen ya da boş değer BAYI'dir: tür eklenmeden önce yalnız bayi vardı. */
+export function hesapTuru(x: unknown): HesapTuru {
+  return x === 'MATBAA' ? 'MATBAA' : 'BAYI';
+}
+
+/** Yalnız baskı merkezinde. Bayi bu ekranları görmez. */
+export const YALNIZ_MATBAA: readonly string[] = ['/matbaa'];
+
+/**
+ * MATBAA MENÜSÜ — izin listesi.
+ *
+ * Kural TEKNİSYEN_MENUSU ile aynı: sayılmayan ekran görünmez. Bayiye yeni
+ * bir ekran eklendiğinde matbaa onu kendiliğinden GÖRMEZ; açmak için buraya
+ * bilerek yazmak gerekir. Ters yön (bayide matbaa ekranı) YALNIZ_MATBAA ile.
+ *
+ * Henüz sayfası olmayan adresler de burada: aileye yazılmadıkça menüde
+ * çıkmazlar, sayfası gelince ayrıca izin vermek gerekmez.
+ */
+export const MATBAA_MENUSU: readonly string[] = [
+  '/matbaa', '/matbaa/isler', '/matbaa/fiyatlar', '/matbaa/kasa',
+  '/customers',
+  '/settings', '/users', '/abonelik',
+  '/yardim',
+];
+
+/** Matbaada operatör (TECHNICIAN): yalnız işler panosu. Tutar görmez. */
+export const MATBAA_OPERATOR_MENUSU: readonly string[] = ['/matbaa/isler', '/yardim'];
+
+/**
+ * Bu yol bu hesap türünde açılır mı? Menüden bağımsız, doğrudan adres için
+ * (ModuleGuard). `/customers/123` gibi alt sayfalar ekranına göre karar alır.
+ */
+export function turdaAcik(yol: string, tur: HesapTuru): boolean {
+  if (tur === 'MATBAA') return MATBAA_MENUSU.some((h) => yolEslesir(yol, h));
+  return !YALNIZ_MATBAA.some((h) => yolEslesir(yol, h));
+}
+
 export interface Erisim {
   rol: string;
   ulke: string;
@@ -139,6 +187,8 @@ export interface Erisim {
   whatsappKurulu: boolean;
   /** Verilmezse kurulmamış sayılır: sekme yalnız bağlantı varken görünür. */
   bizimHesapKurulu?: boolean;
+  /** Verilmezse BAYI. */
+  tur?: HesapTuru;
 }
 
 export function yonetici(rol: string): boolean {
@@ -150,7 +200,13 @@ export function hrefErisilir(href: string, e: Erisim): boolean {
   if (YALNIZ_SUPER.includes(href) && e.rol !== 'SUPER_ADMIN') return false;
   if (YALNIZ_TR.includes(href) && e.ulke !== 'TR') return false;
   if (YALNIZ_YONETICI.includes(href) && !yonetici(e.rol)) return false;
-  if (e.rol === 'TECHNICIAN' && !TEKNISYEN_MENUSU.includes(href)) return false;
+  if (hesapTuru(e.tur) === 'MATBAA') {
+    if (!MATBAA_MENUSU.includes(href)) return false;
+    if (e.rol === 'TECHNICIAN' && !MATBAA_OPERATOR_MENUSU.includes(href)) return false;
+  } else {
+    if (YALNIZ_MATBAA.includes(href)) return false;
+    if (e.rol === 'TECHNICIAN' && !TEKNISYEN_MENUSU.includes(href)) return false;
+  }
   // Paket kapısı: eklenti modüle ait ekran bayide kapalıysa görünmez.
   const mod = moduleForHref(href);
   if (mod && !e.moduller.includes(mod)) return false;

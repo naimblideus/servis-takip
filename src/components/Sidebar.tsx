@@ -5,13 +5,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import GlobalSearch from '@/components/GlobalSearch';
-import { menuKur, aileBul, aileRozeti, type MenuAilesi } from '@/lib/menu-aileleri';
+import { menuKur, aileBul, aileRozeti, type MenuAilesi, type HesapTuru } from '@/lib/menu-aileleri';
 import { useRozetler } from '@/lib/use-rozetler';
 import { useT, useDil } from '@/lib/i18n/client';
 import DilSecici from '@/components/DilSecici';
 import { sorunBildirAc } from '@/components/SorunBildir';
 
 const menuItems = [
+  {
+    href: '/matbaa',
+    label: 'Bugün',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a2 2 0 012-2h14a2 2 0 012 2v6a1 1 0 01-1 1h-2M6 14h12v7H6z" />
+      </svg>
+    ),
+  },
   {
     href: '/dashboard',
     label: 'Dashboard',
@@ -424,6 +433,7 @@ const KOD_ETIKETI: Record<string, string> = Object.fromEntries(menuItems.map((m)
 export interface MenuDurum {
   whatsappKurulu: boolean;
   bizimHesapKurulu?: boolean;
+  tur?: HesapTuru;
 }
 
 const ROZET_STILI = { marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: '0.65rem', fontWeight: 700, borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' } as const;
@@ -444,11 +454,13 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
   // Bekleyen iş rozetleri. Paylaşılan hook: kaç bileşen kullanırsa kullansın TEK yoklama.
   const rozet = useRozetler();
 
-  const bolumler = menuKur({ rol: role, ulke, moduller: modules, whatsappKurulu: durum?.whatsappKurulu ?? true, bizimHesapKurulu: durum?.bizimHesapKurulu ?? false });
+  const bolumler = menuKur({ rol: role, ulke, moduller: modules, whatsappKurulu: durum?.whatsappKurulu ?? true, bizimHesapKurulu: durum?.bizimHesapKurulu ?? false, tur: durum?.tur });
   const aktifAile = aileBul(pathname);
   // Teknisyenin menüsü kısa (işlerim, rota, sayaç, cihaz, stok); beş başlık
   // yedi öğeyi bölmek kalabalık ekler. Başlıksız düz liste.
   const teknisyen = role === 'TECHNICIAN';
+  // Baskı merkezinin menüsü de kısa: başlıksız düz liste.
+  const basliksiz = teknisyen || durum?.tur === 'MATBAA';
 
   const ekranAdi = (href: string) => (t.menu as Record<string, string>)[href] ?? KOD_ETIKETI[href] ?? href;
   // Çok üyeli ailenin kendi adı var (Sayaçlar, Faturalama...); tek üyelide
@@ -542,8 +554,8 @@ export default function Sidebar({ modules = [], durum }: { modules?: string[]; d
         {/* Menu */}
         <nav className="flex-1 p-4 overflow-y-auto">
           {bolumler.map((b, i) => (
-            <div key={b.bolum} style={{ marginTop: i === 0 || teknisyen ? 0 : '1rem' }}>
-              {!teknisyen && (
+            <div key={b.bolum} style={{ marginTop: i === 0 || basliksiz ? 0 : '1rem' }}>
+              {!basliksiz && (
                 <p style={{ color: '#6b7280', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', padding: '0 0.75rem', margin: '0 0 0.35rem' }}>
                   {t.menuBolum[b.bolum]}
                 </p>

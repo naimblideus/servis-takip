@@ -74,7 +74,9 @@ console.log('\nMenü aileleri\n');
 
   // Tam ekran ekranlar (canlı pano) panel düzeninin dışında: src/app/<ad>/page.tsx.
   const tamEkranSayfasi = (h) => (mod.TAM_EKRAN ?? []).includes(h) && existsSync(join(KOK, 'src/app', h.slice(1), 'page.tsx'));
-  const olmayan = hepsi.filter((h) => !sayfalar.includes(h) && !tamEkranSayfasi(h));
+  // Alt düzeydeki ekran (/matbaa/isler) da sayfa: baskı merkezinin ekranları tek klasörde.
+  const altSayfa = (h) => existsSync(join(KOK, 'src/app/(dashboard)', h.slice(1), 'page.tsx'));
+  const olmayan = hepsi.filter((h) => !sayfalar.includes(h) && !altSayfa(h) && !tamEkranSayfasi(h));
   t('ailelerdeki her adres gerçekten bir sayfa', olmayan.length === 0, olmayan);
   t('★ canlı pano panel ailesinde, yan menüsüz (panel düzeninin dışında)',
     AILELER.find((a) => a.anahtar === 'panel')?.uyeler.join() === '/dashboard,/pano'

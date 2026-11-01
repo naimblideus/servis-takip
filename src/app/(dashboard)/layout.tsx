@@ -20,6 +20,7 @@ import { sunucuDili } from '@/lib/i18n/sunucu';
 import { LocaleProvider } from '@/lib/i18n/client';
 import { dilMi, sozluk } from '@/lib/i18n/sozluk';
 import { paraBirimiMi, VARSAYILAN_BIRIM } from '@/lib/bicim';
+import { hesapTuru } from '@/lib/menu-aileleri';
 
 export default async function DashboardLayout({
   children,
@@ -37,7 +38,7 @@ export default async function DashboardLayout({
     tenantId
       ? prisma.tenant.findUnique({
           where: { id: tenantId },
-          select: { name: true, plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true, bizimHesapFirmId: true, locale: true, currency: true, country: true },
+          select: { name: true, plan: true, modules: true, marketEnabled: true, isActive: true, isSuspended: true, suspendReason: true, trialEndsAt: true, planEndDate: true, whatsappPhoneId: true, bizimHesapFirmId: true, locale: true, currency: true, country: true, hesapTuru: true },
         })
       : Promise.resolve(null),
     prisma.platformSettings.findFirst({ select: { maintenanceMode: true, contactEmail: true, odemeIban: true, odemeHesapAdi: true, satisWhatsapp: true } }).catch(() => null),
@@ -105,6 +106,9 @@ export default async function DashboardLayout({
   const ulke = tenant?.country ?? 'TR';
 
   const modules = tenant ? Array.from(effectiveModules(tenant)) : [];
+  // Hesap türü oturumda değil, burada her istekte okunur (lib/menu-aileleri).
+  // Menü, alt çubuk, sekmeler ve sayfa kapısı aynı değeri alır.
+  const tur = hesapTuru(tenant?.hesapTuru);
 
   // ── MENÜDE NE GÖRÜNSÜN ───────────────────────────────────────────────
   // Kural: KURULMAMIŞ KANAL HİÇ GÖSTERİLMEZ. WhatsApp numarası bağlı değilse
@@ -126,6 +130,7 @@ export default async function DashboardLayout({
     whatsappKurulu: Boolean(tenant?.whatsappPhoneId) || paylasimliWhatsappAcik(),
     // Bizim Hesap sekmesi yalnız bağlantı kurulunca. Kurulum yolu Ayarlar'da.
     bizimHesapKurulu: Boolean(tenant?.bizimHesapFirmId),
+    tur,
   };
 
   return (
@@ -141,11 +146,12 @@ export default async function DashboardLayout({
         {ekipTest && <OrnekVeriSeridi />}
         {denemeGun !== null && <DenemeSeridi kalanGun={denemeGun} />}
         <UygulamaKur />
-        <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} bizimHesapKurulu={menuDurum.bizimHesapKurulu} />
-        <ModuleGuard modules={modules}>{children}</ModuleGuard>
+        <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} bizimHesapKurulu={menuDurum.bizimHesapKurulu} tur={tur} />
+        <ModuleGuard modules={modules} tur={tur}>{children}</ModuleGuard>
       </main>
-      <BottomNav modules={modules} />
-      <Onboarding />
+      <BottomNav modules={modules} tur={tur} />
+      {/* Kurulum sihirbazı bayinin zinciri (müşteri → cihaz → sayaç); matbaanın kendi listesi Faz B'de. */}
+      {tur === 'BAYI' && <Onboarding />}
       {/* "Sorun bildir" penceresi: tek kopya; menü, alt menü ve Yardım olay atarak açar. */}
       <SorunBildir />
       {/* Ortak demoda WhatsApp/arama bağlantıları gerçek biçimli numaralara gitmesin; metni göster.

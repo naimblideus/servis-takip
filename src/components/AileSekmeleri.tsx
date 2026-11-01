@@ -20,9 +20,9 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useT, useDil } from '@/lib/i18n/client';
 import { useRozetler } from '@/lib/use-rozetler';
-import { sekmeGosterilir, hrefRozeti } from '@/lib/menu-aileleri';
+import { sekmeGosterilir, hrefRozeti, type HesapTuru } from '@/lib/menu-aileleri';
 
-export default function AileSekmeleri({ modules = [], whatsappKurulu = true, bizimHesapKurulu = false }: { modules?: string[]; whatsappKurulu?: boolean; bizimHesapKurulu?: boolean }) {
+export default function AileSekmeleri({ modules = [], whatsappKurulu = true, bizimHesapKurulu = false, tur = 'BAYI' }: { modules?: string[]; whatsappKurulu?: boolean; bizimHesapKurulu?: boolean; tur?: HesapTuru }) {
   const yol = usePathname();
   const { data: session } = useSession();
   const rol = (session?.user as { role?: string } | undefined)?.role || '';
@@ -33,7 +33,7 @@ export default function AileSekmeleri({ modules = [], whatsappKurulu = true, biz
 
   // Oturum yüklenmeden rol bilinmez. Yanlış sekmeyi bir an gösterip geri
   // almaktansa çubuğu hiç çizmemek daha doğru.
-  const s = rol ? sekmeGosterilir(yol, { rol, ulke, moduller: modules, whatsappKurulu, bizimHesapKurulu }) : null;
+  const s = rol ? sekmeGosterilir(yol, { rol, ulke, moduller: modules, whatsappKurulu, bizimHesapKurulu, tur }) : null;
   const aktifHref = s?.aktif ?? null;
 
   // AKTİF SEKME GÖRÜNÜR OLSUN. Telefonda çubuk yana kayıyor; Toner Verimi,

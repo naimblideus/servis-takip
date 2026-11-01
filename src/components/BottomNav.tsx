@@ -5,8 +5,9 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useRozetler } from '@/lib/use-rozetler';
 import { useEffect, useState } from 'react';
-import { useT } from '@/lib/i18n/client';
+import { useT, useDil } from '@/lib/i18n/client';
 import { sorunBildirAc } from '@/components/SorunBildir';
+import { hrefErisilir, type HesapTuru } from '@/lib/menu-aileleri';
 
 // Mobil alt sekme çubuğu (yalnız telefon; md+ gizli). Günlük hızlı erişim.
 // Ortadaki "+" = Hızlı İşlem sheet'i (tek aksiyona mahkum etmez; bayi en sık işini seçer).
@@ -39,12 +40,19 @@ const ACTIONS = [
   { href: '/inventory/scan', label: 'stokGirisCikis', icon: 'box', bg: '#FEF3E7', fg: '#8A5A08' },
 ];
 
-export default function BottomNav({ modules = [] }: { modules?: string[] }) {
+// Baskı merkezinin hızlı işi tek: tezgahta yeni iş. Erişim ekranına göre
+// (`kapi`) yan menüyle aynı kuraldan geçer.
+const MATBAA_ACTIONS = [
+  { href: '/matbaa/isler/yeni', kapi: '/matbaa/isler', label: 'yeniIs', icon: 'file', bg: '#EAF7F0', fg: '#0B6B4A' },
+];
+
+export default function BottomNav({ modules = [], tur = 'BAYI' }: { modules?: string[]; tur?: HesapTuru }) {
   const pathname = usePathname();
   const [sheet, setSheet] = useState(false);
   const hasMarket = modules.includes('MARKETPLACE');
   const { data: session } = useSession();
   const t = useT();
+  const { ulke } = useDil();
   const rol = (session?.user as any)?.role || '';
 
   // Kenar menüyle AYNI paylaşılan hook — ikisi de mount olduğu için ayrı ayrı
@@ -57,19 +65,29 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
 
   const active = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
-  const left = [
+  let left = [
     { href: '/dashboard', label: t.mobil.ana, icon: 'home' },
     { href: '/tickets', label: t.mobil.fisler, icon: 'file' },
   ];
   // ROL FİLTRESİ: /accounting kenar menüde ADMIN'e kilitli ama mobilde
   // herkese açıktı — kilit anlamsız kalıyordu. Teknisyene Cihazlar gösteriliyor.
   const yonetici = rol === 'ADMIN' || rol === 'SUPER_ADMIN';
-  const right = [
+  let right = [
     hasMarket ? { href: '/market', label: t.mobil.pazar, icon: 'store', badge: true } : { href: '/customers', label: t.mobil.musteri, icon: 'users', badge: false },
     yonetici
       ? { href: '/accounting', label: t.mobil.muhasebe, icon: 'calc', badge: false }
       : { href: '/devices', label: t.mobil.cihazlar, icon: 'box', badge: false },
   ];
+  let actions: { href: string; label: string; icon: string; bg: string; fg: string }[] = ACTIONS;
+
+  // BASKI MERKEZİ: cihaz, sayaç, pazar yok. Bugün → İşler → (+ Yeni iş) →
+  // Müşteri → Kasa. Her öğe menü kuralından geçer: operatör yalnız İşler'i görür.
+  if (tur === 'MATBAA') {
+    const acik = (href: string) => hrefErisilir(href, { rol, ulke, moduller: modules, whatsappKurulu: true, tur });
+    left = [{ href: '/matbaa', label: t.mobil.bugun, icon: 'home' }, { href: '/matbaa/isler', label: t.mobil.isler, icon: 'file' }].filter((it) => acik(it.href));
+    right = [{ href: '/customers', label: t.mobil.musteri, icon: 'users', badge: false }, { href: '/matbaa/kasa', label: t.mobil.kasa, icon: 'calc', badge: false }].filter((it) => acik(it.href));
+    actions = MATBAA_ACTIONS.filter((a) => acik(a.kapi));
+  }
 
   const Item = ({ it }: { it: { href: string; label: string; icon: string; badge?: boolean } }) => (
     <Link href={it.href}
@@ -94,7 +112,7 @@ export default function BottomNav({ modules = [] }: { modules?: string[] }) {
         <div style={{ width: 40, height: 5, borderRadius: 999, background: 'rgba(15,34,83,.15)', margin: '2px auto 12px' }} />
         <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: '#98A1B5', margin: '0 4px 10px' }}>{t.mobil.hizliIslem}</div>
         <div style={{ display: 'grid', gap: 8 }}>
-          {ACTIONS.map((a) => (
+          {actions.map((a) => (
             <Link key={a.href} href={a.href} onClick={() => setSheet(false)}
               style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 14, background: '#F5F7FB', textDecoration: 'none', color: '#0B1533' }}>
               <span style={{ width: 40, height: 40, borderRadius: 12, background: a.bg, color: a.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ic name={a.icon} size={22} /></span>

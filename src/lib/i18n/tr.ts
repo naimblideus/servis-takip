@@ -123,6 +123,7 @@ export const tr = {
     '/kacan-gelir': 'Kaçan Gelir',
     '/gelecek-gelir': 'Gelecek Gelir',
     '/pano': 'Canlı Pano',
+    '/matbaa': 'Bugün',
     '/admin': 'Süper Admin',
     cikis: 'Çıkış Yap',
     menuAc: 'Menü',
@@ -408,6 +409,10 @@ export const tr = {
     yeniFis: 'Yeni Servis Fişi',
     barkodSatis: 'Barkodla Satış',
     stokGirisCikis: 'Stok Giriş / Çıkış',
+    bugun: 'Bugün',
+    isler: 'İşler',
+    kasa: 'Kasa',
+    yeniIs: 'Yeni İş',
   },
 
   // Telefona kur şeridi (components/UygulamaKur): mağaza yok, tek dokunuş.
@@ -4082,6 +4087,8 @@ export const tr = {
     modulYok: '{ad} — paketinizde yok',
     modulYokAlt: 'Bu özellik mevcut paketinize dahil değil. Açtırmak için bizimle iletişime geçin.',
     paneleDon: '← Panele dön',
+    matbaadaYok: 'Bu ekran baskı merkezi hesabında yok.',
+    bayideYok: 'Bu ekran yalnız baskı merkezi hesabında.',
     kamerayla: '📷 Kamerayla Tara',
     kameraBaslik: '📷 Barkod / QR Tara',
     kameraDesteksizOn: 'Bu cihaz/tarayıcı kamerayla okumayı desteklemiyor.',
@@ -6794,6 +6801,12 @@ export const tr = {
       iptalBtn: 'İptal',
       kaydet: '✓ Kaydet',
     },
+  },
+
+  // BASKI MERKEZİ (hesap türü MATBAA). Ekranlar Faz A'da doluyor.
+  matbaa: {
+    bugunBaslik: 'Bugün',
+    bugunBos: 'Bugün için bekleyen iş yok.',
   },
 };
 

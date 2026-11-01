@@ -118,6 +118,7 @@ export const en: Sozluk = {
     '/kacan-gelir': 'Missed Revenue',
     '/gelecek-gelir': 'Future Revenue',
     '/pano': 'Live Board',
+    '/matbaa': 'Today',
     '/admin': 'Super Admin',
     cikis: 'Sign out',
     menuAc: 'Menu',
@@ -383,6 +384,10 @@ export const en: Sozluk = {
     yeniFis: 'New Service Ticket',
     barkodSatis: 'Barcode Sale',
     stokGirisCikis: 'Stock In / Out',
+    bugun: 'Today',
+    isler: 'Jobs',
+    kasa: 'Till',
+    yeniIs: 'New Job',
   },
 
   uygulamaKur: {
@@ -3955,6 +3960,8 @@ export const en: Sozluk = {
     modulYok: '{ad} — not in your plan',
     modulYokAlt: 'This feature is not part of your current plan. Get in touch with us to have it switched on.',
     paneleDon: '← Back to the dashboard',
+    matbaadaYok: 'This screen is not part of a print shop account.',
+    bayideYok: 'This screen is only for print shop accounts.',
     kamerayla: '📷 Scan with the camera',
     kameraBaslik: '📷 Scan a barcode / QR',
     kameraDesteksizOn: 'This device or browser cannot scan with the camera.',
@@ -6572,5 +6579,10 @@ export const en: Sozluk = {
       iptalBtn: 'Cancel',
       kaydet: '✓ Save',
     },
+  },
+
+  matbaa: {
+    bugunBaslik: 'Today',
+    bugunBos: 'No jobs waiting for today.',
   },
 };

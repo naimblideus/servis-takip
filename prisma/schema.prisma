@@ -100,7 +100,11 @@ model Tenant {
   sayacHatirlatma  Boolean  @default(false) // ay başında sayaç isteği (kiralık, okunmamış)
 
   // Sektör
-  businessType String @default("general")
+  businessType String @default("general") // ÖLÜ — hiçbir yer okumuyor; hesap türü aşağıda
+  // HESAP TÜRÜ: BAYI (fotokopi servisi, varsayılan) | MATBAA (baskı merkezi).
+  // Menü ve ana sayfa buna göre dallanır (lib/menu-aileleri). Oturum jetonuna
+  // KONMAZ: panel düzeni her istekte okur, tür değişince yeniden giriş gerekmez.
+  hesapTuru    String @default("BAYI")
 
   // Bayi Pazarı (B2B) — bayiler arası parça/makine ticareti (opt-in)
   marketEnabled      Boolean @default(false)
