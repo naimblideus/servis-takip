@@ -226,6 +226,7 @@ model Tenant {
   faturaTurlari       FaturaTuru[]
   faturaTaslaklari    FaturaTaslagi[]
   baskiUrunleri       BaskiUrunu[]
+  baskiIsleri         BaskiIsi[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -583,6 +584,7 @@ model Customer {
   accountEntries    AccountEntry[]
   customerInvoices  CustomerInvoice[]
   faturaTaslaklari  FaturaTaslagi[]
+  baskiIsleri       BaskiIsi[]
   payments          Payment[]
   whatsappMessages  WhatsAppMessage[]
   portalRequests    PortalRequest[]
@@ -1850,6 +1852,7 @@ model AccountEntry {
   createdByUserId String? // Kaydı/satışı yapan kullanıcı (teknisyen) id
   createdByName   String? // İsim (denormalize — geçmiş kayıt için anlık kar)
   ticketId        String? // Servis fişinden otomatik cari kaydı ise bağlı fiş (idempotency)
+  baskiIsiId      String? // Baskı işinden otomatik cari kaydı ise bağlı iş (lib/baski-cari)
   // GÖÇTEN GELEN KAYIT İŞARETİ. Bayi aynı dosyayı iki kez yüklerse borç
   // ikiye katlanmamalı; veritabanı bunu tutuyor, koda güvenmiyoruz.
   // Örn. "acilis:<customerId>" — müşteri başına TEK açılış bakiyesi.
@@ -1866,6 +1869,7 @@ model AccountEntry {
   @@index([tenantId, customerId, date(sort: Desc)])
   @@index([tenantId, type])
   @@index([tenantId, ticketId])
+  @@index([tenantId, baskiIsiId])
   @@index([tenantId, date(sort: Desc)])
 }
 
@@ -2288,4 +2292,116 @@ model BaskiUrunu {
 
   @@unique([tenantId, sablonKodu])
   @@index([tenantId, aktif, sira])
+}
+
+// BASKI İŞİ — tezgahtan, telefondan, WhatsApp'tan ya da sipariş sayfasından
+// gelen her iş TEK kuyrukta. Servis fişi (ServiceTicket) cihaz ister; baskı
+// işinin cihazı yok, o yüzden ayrı model. Kurallar lib/baski-is (saf).
+// Tutarlar KURUŞ ve iş açılınca DONDURULUR: fiyat listesi sonradan değişse
+// de işin tutarı değişmez.
+model BaskiIsi {
+  id             String    @id @default(cuid())
+  tenantId       String
+  no             Int // kiracı başına sıra; gösterim B-1042 (lib/baski-is isNo)
+  kanal          String    @default("TEZGAH") // ONLINE | TEZGAH | WHATSAPP | TELEFON
+  durum          String    @default("SIRADA") // GELEN | SIRADA | BASKIDA | BITIS | HAZIR | TESLIM | IPTAL
+  acil           Boolean   @default(false)
+  bitisGerekli   Boolean   @default(false) // cilt, laminasyon, kuşgözü: Baskıda'dan sonra Bitiş'e gider
+  // Müşteri: kayıtlıysa bağlanır; iletişim yine iş üstünde (kayıtsız müşteri de iş verir)
+  customerId     String?
+  musteriAd      String?
+  telefon        String?
+  firma          String?
+  vergiNo        String?
+  not            String?
+  sozVerilenAt   DateTime? // müşteriye söylenen hazır olma saati
+  teslimat       String    @default("GEL_AL") // GEL_AL | KARGO | KURYE
+  teslimAdres    String?
+  // Dondurulmuş tutarlar (kuruş)
+  kdvHaric       Int       @default(0)
+  kdv            Int       @default(0)
+  toplam         Int       @default(0)
+  tahmini        Boolean   @default(false) // sayfa sayısı dosyadan gelmedi; Kabul'de onaylanır
+  odemeYolu      String? // NAKIT | KART | HAVALE | CARI (planlanan)
+  odenen         Int       @default(0) // BaskiOdeme toplamı (kuruş), sorgu için tutulur
+  haberVerildiAt DateTime? // "hazır" mesajı gönderildi
+  teslimAt       DateTime?
+  iptalAt        DateTime?
+  iptalNedeni    String?
+  jeton          String    @unique // müşteri takip bağlantısı (rastgele, tahmin edilemez)
+  atananId       String?
+  olusturanId    String?
+  olusturanAd    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  kalemler BaskiKalemi[]
+  olaylar  BaskiOlayi[]
+  odemeler BaskiOdeme[]
+
+  @@unique([tenantId, no])
+  @@index([tenantId, durum])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, customerId])
+}
+
+model BaskiKalemi {
+  id         String   @id @default(cuid())
+  isId       String
+  urunId     String? // fiyat listesindeki ürün (silinse de kalem kalır)
+  urunAd     String
+  secimler   Json     @default("{}") // grup kodu → değer kodu
+  adet       Int
+  sayfa      Int?
+  enCm       Float?
+  boyCm      Float?
+  birimFiyat Int // kuruş
+  tutar      Int // kuruş, KDV dahil gösterim
+  ozet       String // "A4 Renkli · 2 nüsha · 120 sf · Spiral"
+  dokum      Json? // baski-fiyat dökümü
+  sira       Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  is BaskiIsi @relation(fields: [isId], references: [id], onDelete: Cascade)
+
+  @@index([isId])
+}
+
+// İşin geçmişi: durum, not, ödeme, bildirim (TicketStatusHistory kalıbı).
+model BaskiOlayi {
+  id          String   @id @default(cuid())
+  isId        String
+  tenantId    String
+  tur         String // DURUM | NOT | ODEME | BILDIRIM | FIYAT | DOSYA | PROVA
+  durumOnce   String?
+  durumSonra  String?
+  metin       String?
+  kullaniciId String?
+  kullaniciAd String?
+  createdAt   DateTime @default(now())
+
+  is BaskiIsi @relation(fields: [isId], references: [id], onDelete: Cascade)
+
+  @@index([isId, createdAt])
+}
+
+// Alınan para. Kasa raporu buradan; cari tahsilatı da (lib/baski-cari).
+model BaskiOdeme {
+  id        String   @id @default(cuid())
+  tenantId  String
+  isId      String
+  tutar     Int // kuruş
+  yol       String // NAKIT | KART | HAVALE
+  not       String?
+  aliciId   String?
+  aliciAd   String?
+  tarih     DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  is BaskiIsi @relation(fields: [isId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, tarih])
+  @@index([isId])
 }
