@@ -27,7 +27,7 @@ const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 
 // ── DERLEME ──────────────────────────────────────────────────────────────
 const g = mkdtempSync(join(tmpdir(), 'st-kayit-'));
-const KAYNAKLAR = ['kayit', 'menu-aileleri', 'zamanlanmis-is', 'zamanlayici', 'tenant-manager', 'talep', 'sahip-bildirim', 'audit', 'iller', 'modules', 'demo-koruma', 'demo-yazma'];
+const KAYNAKLAR = ['kayit', 'menu-aileleri', 'baski-sablon', 'zamanlanmis-is', 'zamanlayici', 'tenant-manager', 'talep', 'sahip-bildirim', 'audit', 'iller', 'modules', 'demo-koruma', 'demo-yazma'];
 try {
   execFileSync(process.execPath, [
     join(KOK, 'node_modules/typescript/bin/tsc'),
@@ -88,7 +88,7 @@ t('gizlilik onayı zorunlu ("true" metni de sayılmaz)', kod({ ...tam, onay: fal
   const form = oku('src/app/kayit/KayitFormu.tsx');
   t('form türü gövdeye yazıyor', /JSON\.stringify\(\{ \.\.\.f, kod, tur \}\)/.test(form));
   const tmk = oku('src/lib/tenant-manager.ts');
-  t('★ createTenant türü normalleştirerek yazıyor (süper admin gövdesi olduğu gibi geliyor)', /hesapTuru: hesapTuru\(input\.hesapTuru\)/.test(tmk));
+  t('★ createTenant türü normalleştirerek yazıyor (süper admin gövdesi olduğu gibi geliyor)', /const tur = hesapTuru\(input\.hesapTuru\)/.test(tmk) && /hesapTuru: tur,/.test(tmk));
   const sa = oku('src/app/(super-admin)/super-admin/tenants/new/page.tsx');
   t('★ süper admin yeni işletme formunda hesap türü seçimi', /value=\{form\.hesapTuru\}/.test(sa) && /'MATBAA'/.test(sa));
 }
@@ -358,6 +358,9 @@ if (!yerel) {
     const l13 = await p.lead.findFirst({ where: { eposta: TEST_EPOSTA(13) } });
     t('★ /kayit?tur=matbaa baskı merkezi hesabı açıyor; not ve talepte türü yazıyor', s13.durum === 'TAMAM' && b13.hesapTuru === 'MATBAA'
       && b13.adminNotes.includes('Baskı merkezi') && /Baskı merkezi/.test(l13?.mesaj ?? ''), { tur: b13?.hesapTuru, not: b13?.adminNotes });
+    const urun13 = await p.baskiUrunu.findMany({ where: { tenantId: s13.tenantId } });
+    t('★ matbaa hazır ürünlerle, FİYATSIZ açılıyor; bayiye ürün yazılmıyor', urun13.length >= 10
+      && urun13.every((u) => u.kademeler.every((k) => k.fiyat === 0)) && (await p.baskiUrunu.count({ where: { tenantId: s1.tenantId } })) === 0, urun13.length);
 
     const s5 = await kayitAc(veri(5, { firma: 'Demo' }), null);
     const b5 = await p.tenant.findUnique({ where: { id: s5.tenantId } });

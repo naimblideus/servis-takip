@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hesapTuru } from '@/lib/menu-aileleri';
+import { sablonlariKur } from '@/lib/baski-urun';
 import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { writeAudit, istekIp } from '@/lib/audit';
@@ -62,6 +63,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             where: { id },
             data: body as any,
         });
+
+        // Bayiden baskı merkezine çevrilen işletmenin fiyat listesi boş kalmasın.
+        if (tenant.hesapTuru === 'MATBAA' && oncesi?.hesapTuru !== 'MATBAA') await sablonlariKur(id);
 
         // DENETİM: süper-admin bir bayinin planını, modüllerini ya da veri
         // paylaşım rızasını değiştirdiğinde iz kalmalı. Özellikle oemDataSharing:

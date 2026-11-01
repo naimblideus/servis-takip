@@ -4,6 +4,7 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { hesapTuru } from '@/lib/menu-aileleri';
+import { sablonSatirlari } from '@/lib/baski-sablon';
 
 const PLAN_LIMITS: Record<string, { maxUsers: number; maxTicketsPerMonth: number | null; storageLimitMB: number }> = {
     trial: { maxUsers: 2, maxTicketsPerMonth: 50, storageLimitMB: 200 },
@@ -55,6 +56,7 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
     // sahneden duyurudan sonra gelen 30 kayıtlık dalgada herkes ~10 sn bekledi,
     // kayıtların %7-10'u 500 aldı. 10'da ~70 ms.
     const tempPassword = input.password ? '' : generateTempPassword();
+    const tur = hesapTuru(input.hesapTuru);
     const passwordHash = await bcrypt.hash(input.password || tempPassword, 10);
 
     // Tenant + admin + abonelik geçmişi TEK yazma ifadesinde (iç içe create;
@@ -73,7 +75,7 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
                 city: input.city,
                 district: input.district,
                 businessType: input.businessType || 'general',
-                hesapTuru: hesapTuru(input.hesapTuru),
+                hesapTuru: tur,
                 // sayacEpostaKodu BURADA üretilmez: veritabanı trigger üretir
                 // (migration 20260815140000). Bayi 6 ayrı yerde oluşturuluyor,
                 // yalnız biri buradan geçiyor — garanti tek yerde, veritabanında.
@@ -97,6 +99,9 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
                         isActive: true,
                     },
                 },
+                // Baskı merkezi fiyat listesi boş açılmasın: hazır ürünler, FİYATSIZ
+                // (lib/baski-sablon). Fiyatsız ürün sipariş sayfasında görünmez.
+                ...(tur === 'MATBAA' ? { baskiUrunleri: { create: sablonSatirlari('tr') } } : {}),
                 subscriptionHistory: {
                     create: {
                         plan,

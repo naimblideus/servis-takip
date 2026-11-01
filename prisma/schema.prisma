@@ -225,6 +225,7 @@ model Tenant {
   sorunBildirimleri   SorunBildirimi[]
   faturaTurlari       FaturaTuru[]
   faturaTaslaklari    FaturaTaslagi[]
+  baskiUrunleri       BaskiUrunu[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -2252,4 +2253,39 @@ model MarkaDuyurusu {
   createdAt DateTime  @default(now())
 
   @@index([marka, createdAt])
+}
+
+// ============================================
+// BASKI MERKEZİ (hesap türü MATBAA)
+// ============================================
+
+// BASKI ÜRÜNÜ — matbaanın fiyat listesindeki bir kalem (fotokopi A4 renkli,
+// poster, roll-up...). Fiyatı lib/baski-fiyat hesaplar; tutarlar KURUŞ tam
+// sayı. Hazır şablondan gelen ürün fiyatsız açılır; fiyatı girilmeyen ürün
+// sipariş sayfasında görünmez (baski-fiyat fiyatliMi).
+model BaskiUrunu {
+  id           String   @id @default(cuid())
+  tenantId     String
+  ad           String
+  kategori     String   @default("DIGER") // FOTOKOPI | PLAN | BUYUK_BASKI | CILT | DIGER
+  fiyatModeli  String   @default("ADET") // SAYFA | ADET | ALAN | SABIT
+  kademeler    Json     @default("[]") // [{ min, fiyat }] — miktar >= min ise birim fiyat (kuruş)
+  secenekler   Json     @default("[]") // [{ kod, ad, zorunlu, degerler: [{ kod, ad, tur, deger, ... }] }]
+  minTutar     Int      @default(0) // asgari iş tutarı (kuruş)
+  kdvOrani     Int      @default(20) // %
+  kdvDahil     Boolean  @default(true) // girilen fiyatlar KDV dahil mi
+  yuvarlama    Int      @default(0) // toplam bu kuruşun katına yukarı yuvarlanır (0 = yok)
+  teslimSaat   Int? // tahmini hazırlama süresi (saat)
+  dosyaGerekli Boolean  @default(true)
+  online       Boolean  @default(true) // sipariş sayfasında görünsün mü (fiyatlıysa)
+  sira         Int      @default(0)
+  aktif        Boolean  @default(true)
+  sablonKodu   String? // hazır şablondan geldiyse (lib/baski-sablon); ikinci kurulumu engeller
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sablonKodu])
+  @@index([tenantId, aktif, sira])
 }
