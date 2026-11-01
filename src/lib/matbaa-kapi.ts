@@ -22,7 +22,8 @@ type Rol = 'ADMIN' | 'FRONT_DESK' | 'TECHNICIAN';
 
 /**
  * Oturumdaki kullanıcı bir MATBAA kiracısında mı ve rolü yetiyor mu?
- * Değilse AuthError (403); rota catch'inde authErrorResponse ile döner.
+ * Değilse AuthError (403, mesajı uç hata kodu); rota catch'inde matbaaYaniti ile
+ * okuyanın dilinde döner (lib/matbaa-uc).
  *
  * `roller` verilmezse matbaanın her personeli geçer. SUPER_ADMIN (destek için
  * giren) her zaman yönetici sayılır.
@@ -30,11 +31,11 @@ type Rol = 'ADMIN' | 'FRONT_DESK' | 'TECHNICIAN';
 export async function requireMatbaaUser(roller?: readonly Rol[]) {
   const r = await requireTenantUser();
   if ((await kiraciTuru(r.tenantId)) !== 'MATBAA') {
-    throw new AuthError(403, 'Bu uç yalnız baskı merkezi hesabında çalışır.');
+    throw new AuthError(403, 'BASKI_MATBAA_DEGIL');
   }
   const rol = r.user.role === 'SUPER_ADMIN' ? 'ADMIN' : r.user.role;
   if (roller && !roller.includes(rol as Rol)) {
-    throw new AuthError(403, 'Bu işlem için yetkiniz yok.');
+    throw new AuthError(403, 'BASKI_YETKI_YOK');
   }
   return r;
 }

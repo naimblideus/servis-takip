@@ -124,6 +124,10 @@ export const tr = {
     '/gelecek-gelir': 'Gelecek Gelir',
     '/pano': 'Canlı Pano',
     '/matbaa': 'Bugün',
+    '/matbaa-tv': 'TV Panosu',
+    '/matbaa/isler': 'İşler',
+    '/matbaa/fiyatlar': 'Fiyat Listesi',
+    '/matbaa/kasa': 'Kasa',
     '/admin': 'Süper Admin',
     cikis: 'Çıkış Yap',
     menuAc: 'Menü',
@@ -144,6 +148,7 @@ export const tr = {
     kurumsal: 'Kurumsal',
     ayarlar: 'Ayarlar',
     islerim: 'İşlerim',
+    matbaa: 'Bugün',
     fisler: 'Servis Fişleri',
   },
 
@@ -5261,6 +5266,29 @@ export const tr = {
   // Kaynak: src/lib/uc-hata.ts. Uçlar cümleyi kendi kurmaz; bu anahtarı
   // verir ve cümle İSTEĞİN dilinde burada kurulur.
   ucHata: {
+    BASKI_MATBAA_DEGIL: 'Bu işlem yalnız baskı merkezi hesabında çalışır.',
+    BASKI_YETKI_YOK: 'Bu işlem için yetkiniz yok.',
+    BASKI_GECIS_YOK: 'İş bu adıma geçemez.',
+    BASKI_ODEME_EKSIK: 'Ödemesi tamamlanmamış iş teslim edilemez. Önce ödemeyi alın ya da işi cariye yazın.',
+    BASKI_ODENMIS_IPTAL: 'Ödemesi alınmış iş iptal edilemez. Önce ödemeyi iade edin.',
+    BASKI_FIYAT_TAHMINI: 'Sayfa sayısı onaylanmadan iş kabul edilemez.',
+    BASKI_IS_YOK: 'İş bulunamadı.',
+    BASKI_DURUM_GECERSIZ: 'Geçersiz durum.',
+    BASKI_DEGISTI: 'İş bu arada başka biri tarafından değiştirildi. Sayfayı yenileyin.',
+    BASKI_TUTAR_GECERSIZ: 'Geçersiz tutar.',
+    BASKI_FAZLA_ODEME: 'Tutar kalan borçtan fazla.',
+    BASKI_YOL_GECERSIZ: 'Geçersiz ödeme yolu.',
+    BASKI_IS_KAPALI: 'İptal edilmiş işe ödeme girilemez.',
+    BASKI_KALEM_YOK: 'İşe en az bir kalem ekleyin.',
+    BASKI_URUN_YOK: 'Ürün bulunamadı.',
+    BASKI_FIYAT_YOK: 'Bu ürünün fiyatı girilmemiş. Önce fiyat listesinden fiyatı girin.',
+    BASKI_ADET_GECERSIZ: 'Adet geçersiz.',
+    BASKI_SAYFA_GEREKLI: 'Sayfa sayısını girin.',
+    BASKI_OLCU_GEREKLI: 'En ve boy ölçüsünü girin.',
+    BASKI_SECENEK_EKSIK: 'Zorunlu bir seçenek seçilmedi.',
+    BASKI_SECENEK_GECERSIZ: 'Geçersiz seçenek.',
+    BASKI_MUSTERI_YOK: 'Müşteri bulunamadı.',
+    BASKI_AD_GEREKLI: 'Ürün adı zorunlu.',
     SILINEMEZ_BAGLI: '"{p1}" silinemez: {p2} bağlı. Silmek bu kayıtların hepsini de siler ve geri alınamaz. Müşteri artık çalışmıyorsa cihazlarını başka müşteriye taşıyın ya da adına "(pasif)" ekleyip listede bırakın.',
     ACCOUNTENTRY_TABLOSU_HENUZ_OLUSTURULMAMIS: 'AccountEntry tablosu henüz oluşturulmamış.',
     AD_E_POSTA_VE_SIFRE: 'Ad, e-posta ve şifre zorunlu',
@@ -6809,12 +6837,6 @@ export const tr = {
       iptalBtn: 'İptal',
       kaydet: '✓ Kaydet',
     },
-  },
-
-  // BASKI MERKEZİ (hesap türü MATBAA). Ekranlar Faz A'da doluyor.
-  matbaa: {
-    bugunBaslik: 'Bugün',
-    bugunBos: 'Bugün için bekleyen iş yok.',
   },
 };
 

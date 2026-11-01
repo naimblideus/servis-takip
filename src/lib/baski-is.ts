@@ -261,3 +261,65 @@ export function isHesapla(urunler: readonly UrunSatiri[], girdiler: readonly Kal
   }
   return { ok: true, kalemler, kdvHaric, kdv, toplam, tahmini, bitisGerekli: bitisGerekliMi(bitisIcin) };
 }
+
+// ── BUGÜN LİSTESİ ────────────────────────────────────────────────────────
+
+export type BugunTuru = 'gelen' | 'haber' | 'gec' | 'bugun' | 'odeme';
+export const BUGUN_SIRASI: readonly BugunTuru[] = ['gelen', 'haber', 'gec', 'bugun', 'odeme'];
+
+export interface BugunIsi {
+  id: string;
+  durum: string;
+  sozVerilenAt: Date | null;
+  haberVerildiAt: Date | null;
+  toplam: number;
+  odenen: number;
+  customerId: string | null;
+  odemeYolu: string | null;
+}
+
+/**
+ * İşin Bugün listesindeki satırı; null = bugün yapılacak bir şey yok.
+ * Her iş TEK satırda, en acil sebebiyle: online gelen kabul bekler; hazır
+ * olup haber verilmemiş iş müşteriyi "hazır mı?" diye yazdırır; geciken
+ * ve bugün söz verilen iş makineye; haber verilmiş ama parası alınmamış iş
+ * kasaya.
+ */
+export function bugunTuru(is: BugunIsi, simdi: Date, gunSonu: Date): BugunTuru | null {
+  const durum = isDurumu(is.durum);
+  if (!durum || KAPALI.includes(durum)) return null;
+  if (durum === 'GELEN') return 'gelen';
+  if (haberBekliyorMu({ durum, haberVerildiAt: is.haberVerildiAt })) return 'haber';
+  if (gecikiyorMu({ durum, sozVerilenAt: is.sozVerilenAt }, simdi)) return 'gec';
+  if (durum !== 'HAZIR' && is.sozVerilenAt && +new Date(is.sozVerilenAt) <= +gunSonu) return 'bugun';
+  const cari = !!is.customerId && is.odemeYolu === 'CARI';
+  if (durum === 'HAZIR' && !cari && kalan(is.toplam, is.odenen) > 0) return 'odeme';
+  return null;
+}
+
+/** Bugün satırları sıralı: önce sebep (BUGUN_SIRASI), sonra söz verilen saat. */
+export function bugunSatirlari<T extends BugunIsi>(isler: readonly T[], simdi: Date, gunSonu: Date): { tur: BugunTuru; is: T }[] {
+  const saat = (d: Date | null) => (d ? +new Date(d) : Number.MAX_SAFE_INTEGER);
+  return isler
+    .map((is) => ({ tur: bugunTuru(is, simdi, gunSonu), is }))
+    .filter((x): x is { tur: BugunTuru; is: T } => x.tur !== null)
+    .sort((a, b) => BUGUN_SIRASI.indexOf(a.tur) - BUGUN_SIRASI.indexOf(b.tur) || saat(a.is.sozVerilenAt) - saat(b.is.sozVerilenAt));
+}
+
+/**
+ * Bayinin saat diliminde "bugün"ün başı ve sonu (UTC Date). Sunucu UTC'de
+ * çalışıyor; İstanbul'da gece 01:00'de açılan iş UTC'de dünkü güne düşerdi.
+ * `gun` verilirse ("2026-11-02") o gün.
+ */
+export function gunAraligi(tz: string, simdi: Date, gun?: string | null): { bas: Date; bit: Date; gun: string } {
+  const tarihi = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  const g = gun && /^\d{4}-\d{2}-\d{2}$/.test(gun) ? gun : tarihi(simdi);
+  // Dilimin o günkü farkı: yerel gece yarısını UTC'de bul (yaz saati dahil).
+  const tahmin = new Date(`${g}T00:00:00Z`);
+  const parca = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(tahmin);
+  const p = (t: string) => Number(parca.find((x) => x.type === t)?.value);
+  const yerel = Date.UTC(p('year'), p('month') - 1, p('day'), p('hour'), p('minute'));
+  const fark = yerel - +tahmin;
+  const bas = new Date(+tahmin - fark);
+  return { bas, bit: new Date(+bas + 86_400_000 - 1), gun: g };
+}

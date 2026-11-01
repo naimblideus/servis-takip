@@ -71,7 +71,7 @@ console.log('\nMatbaa menüsü\n');
 {
   for (const rol of ['ADMIN', 'FRONT_DESK', 'TECHNICIAN', 'SUPER_ADMIN']) {
     const g2 = gorunen(erisim({ rol }));
-    t(`★ bayi ${rol} menüsünde matbaa ekranı yok`, g2.every((h) => !YALNIZ_MATBAA.includes(h)), g2.filter((h) => YALNIZ_MATBAA.includes(h)));
+    t(`★ bayi ${rol} menüsünde matbaa ekranı yok (alt ekranlar dahil)`, g2.every((h) => !h.startsWith('/matbaa')), g2.filter((h) => h.startsWith('/matbaa')));
   }
   t('tür verilmeyen erişim bayi sayılıyor (eski çağıranlar)', !gorunen({ rol: 'ADMIN', ulke: 'TR', moduller: HEPSI, whatsappKurulu: true }).includes('/matbaa'));
   t('★ bayide /matbaa adresi kapalı (ModuleGuard)', !turdaAcik('/matbaa', 'BAYI') && !turdaAcik('/matbaa/isler/abc', 'BAYI'));
@@ -92,7 +92,8 @@ console.log('\nMatbaa menüsü\n');
   const sahte = '/yeni-bayi-ekrani';
   t('★ izin listesinde olmayan ekran matbaada kapalı (yeni bayi ekranı sızmaz)', !hrefErisilir(sahte, e) && hrefErisilir(sahte, erisim()));
   t('★ matbaada bayi adresi doğrudan da kapalı (ModuleGuard)',
-    ['/dashboard', '/tickets/new', '/devices/abc', '/sayac-turu', '/invoices/123'].every((y) => !turdaAcik(y, 'MATBAA')));
+    ['/tickets/new', '/devices/abc', '/sayac-turu', '/invoices/123', '/dashboard/x'].every((y) => !turdaAcik(y, 'MATBAA')));
+  t('★ /dashboard kapıdan geçer ki sunucu yönlendirmesi (Bugün) tetiklensin; menüde yine yok', turdaAcik('/dashboard', 'MATBAA') && !g2.includes('/dashboard'));
   t('matbaada alt sayfa ekranına göre açık', ['/matbaa', '/customers/abc', '/settings', '/matbaa/isler/yeni'].every((y) => turdaAcik(y, 'MATBAA')));
   t('önek karışmıyor (/matbaa-x matbaa ekranı değil)', !turdaAcik('/matbaax', 'MATBAA') && turdaAcik('/matbaax', 'BAYI'));
 }
@@ -109,7 +110,11 @@ console.log('\nMatbaa menüsü\n');
   t('★ tezgah fiyat listesini, ayarı, kullanıcıları görmüyor', !hrefErisilir('/matbaa/fiyatlar', erisim({ tur: 'MATBAA', rol: 'FRONT_DESK' })) && !on.includes('/settings') && !on.includes('/users'));
   t('sahip fiyat listesine erişir', hrefErisilir('/matbaa/fiyatlar', erisim({ tur: 'MATBAA' })));
   t('matbaa menüsü kısa', menuKur(erisim({ tur: 'MATBAA' })).flatMap((b) => b.aileler).length <= 8);
-  t('tek ekranlı matbaa ailesinde sekme çizilmez', sekmeGosterilir('/matbaa', erisim({ tur: 'MATBAA' })) === null);
+  const bs = sekmeGosterilir('/matbaa', erisim({ tur: 'MATBAA' }));
+  t('★ Bugün ekranında "TV Panosu" sekmesi (canlı pano gibi)', bs && bs.sekmeler.join() === '/matbaa,/matbaa-tv', bs);
+  t('★ operatör TV panosunu görüyor, Bugün sekmesini görmüyor', op.includes('/matbaa-tv') && sekmeGosterilir('/matbaa-tv', erisim({ tur: 'MATBAA', rol: 'TECHNICIAN' })) === null);
+  t('TV panosu bayide yok', !hrefErisilir('/matbaa-tv', erisim()) && !turdaAcik('/matbaa-tv', 'BAYI'));
+  t('tek ekranlı işler ailesinde sekme çizilmez', sekmeGosterilir('/matbaa/isler', erisim({ tur: 'MATBAA' })) === null);
 }
 
 // ── HER MATBAA EKRANI KAYITLI ───────────────────────────────────────────
@@ -129,6 +134,26 @@ console.log('\nMatbaa menüsü\n');
 for (const [dil, sz] of [['tr', tr], ['en', en]]) {
   t(`[${dil}] matbaa alt çubuğu adları`, ['bugun', 'isler', 'kasa', 'yeniIs'].every((k) => Boolean(sz.mobil?.[k])));
   t(`[${dil}] tür kapısı metinleri`, Boolean(sz.ortak?.matbaadaYok) && Boolean(sz.ortak?.bayideYok));
+}
+
+// ── EKRAN METİNLERİ (lib/matbaa-metin) ──────────────────────────────────
+{
+  const g2 = mkdtempSync(join(tmpdir(), 'st-matbaa-metin-'));
+  try {
+    try {
+      execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'), join(KOK, 'src/lib/matbaa-metin.ts'),
+        '--outDir', g2, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck'], { stdio: 'pipe' });
+    } catch { /* tip hataları önemsiz */ }
+    const { matbaaMetni } = await import(pathToFileURL(join(g2, 'matbaa-metin.js')).href);
+    const yaprak = (o, y = '') => Object.entries(o).flatMap(([k, v]) => (typeof v === 'object' ? yaprak(v, `${y}${k}.`) : [[`${y}${k}`, v]]));
+    const tr2 = yaprak(matbaaMetni('tr')), en2 = yaprak(matbaaMetni('en'));
+    t('[matbaa-metin] iki dilde aynı anahtarlar', JSON.stringify(tr2.map((x) => x[0])) === JSON.stringify(en2.map((x) => x[0])));
+    const turkce = en2.filter(([, v]) => /[ğĞıİşŞçÇöÖüÜ]/.test(String(v))).map(([k]) => k);
+    t('★ [matbaa-metin] İngilizce metinde Türkçe kalmadı', turkce.length === 0, turkce);
+    t('[matbaa-metin] boş metin yok', [...tr2, ...en2].every(([, v]) => String(v).trim() !== ''));
+  } finally {
+    rmSync(g2, { recursive: true, force: true });
+  }
 }
 
 // ── KAYNAK DENETİMİ ─────────────────────────────────────────────────────

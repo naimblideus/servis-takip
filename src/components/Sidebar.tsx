@@ -13,6 +13,42 @@ import { sorunBildirAc } from '@/components/SorunBildir';
 
 const menuItems = [
   {
+    href: '/matbaa/isler',
+    label: 'Jobs',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/matbaa/kasa',
+    label: 'Till',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18v10H3zM7 12h.01M17 12h.01M12 14a2 2 0 100-4 2 2 0 000 4z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/matbaa/fiyatlar',
+    label: 'Price List',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M3 12l9-9h7a2 2 0 012 2v7l-9 9-9-9z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/matbaa-tv',
+    label: 'TV',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v11H4zM8 20h8M12 16v4" />
+      </svg>
+    ),
+  },
+  {
     href: '/matbaa',
     label: 'Bugün',
     icon: (

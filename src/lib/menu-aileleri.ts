@@ -34,8 +34,10 @@ export interface Aile {
 }
 
 export const AILELER: readonly Aile[] = [
-  // Baskı merkezinin günü: tek sayı satırı + bekleyen işler. Yalnız MATBAA.
-  { anahtar: 'matbaa',     bolum: 'GUNLUK',  uyeler: ['/matbaa'] },
+  // Baskı merkezinin günü: tek sayı satırı + bekleyen işler. TV panosu
+  // onun ikinci yüzü (canlı pano gibi), tutarsız, tam ekran. Yalnız MATBAA.
+  { anahtar: 'matbaa',     bolum: 'GUNLUK',  uyeler: ['/matbaa', '/matbaa-tv'] },
+  { anahtar: 'matbaaIsler', bolum: 'GUNLUK', uyeler: ['/matbaa/isler'] },
   // Canlı pano panelin ikinci yüzü: sekme /dashboard'da görünür, /pano yan
   // menüsüz TAM EKRAN açılır (operasyon odasındaki televizyon).
   { anahtar: 'panel',      bolum: 'GUNLUK',  uyeler: ['/dashboard', '/pano'] },
@@ -75,13 +77,16 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'ayarlar',    bolum: 'SISTEM',  uyeler: ['/settings', '/users', '/import', '/abonelik'] },
   { anahtar: 'yardim',     bolum: 'SISTEM',  uyeler: ['/yardim'] },
   { anahtar: 'admin',      bolum: 'SISTEM',  uyeler: ['/admin'] },
+
+  { anahtar: 'matbaaKasa', bolum: 'PARA',    uyeler: ['/matbaa/kasa'] },
+  { anahtar: 'matbaaFiyat', bolum: 'PARA',   uyeler: ['/matbaa/fiyatlar'] },
 ];
 
 /**
  * Panel düzeninin DIŞINDA, yan menüsüz tam ekran açılan ekranlar. Sayfası
  * src/app/(dashboard)/ altında değil src/app/<ad>/ altındadır.
  */
-export const TAM_EKRAN: readonly string[] = ['/pano'];
+export const TAM_EKRAN: readonly string[] = ['/pano', '/matbaa-tv'];
 
 /** Yalnız süper yönetici. */
 export const YALNIZ_SUPER: readonly string[] = ['/admin'];
@@ -149,7 +154,7 @@ export function hesapTuru(x: unknown): HesapTuru {
 }
 
 /** Yalnız baskı merkezinde. Bayi bu ekranları görmez. */
-export const YALNIZ_MATBAA: readonly string[] = ['/matbaa'];
+export const YALNIZ_MATBAA: readonly string[] = ['/matbaa', '/matbaa-tv'];
 
 /**
  * MATBAA MENÜSÜ — izin listesi.
@@ -162,21 +167,24 @@ export const YALNIZ_MATBAA: readonly string[] = ['/matbaa'];
  * çıkmazlar, sayfası gelince ayrıca izin vermek gerekmez.
  */
 export const MATBAA_MENUSU: readonly string[] = [
-  '/matbaa', '/matbaa/isler', '/matbaa/fiyatlar', '/matbaa/kasa',
+  '/matbaa', '/matbaa-tv', '/matbaa/isler', '/matbaa/fiyatlar', '/matbaa/kasa',
   '/customers',
   '/settings', '/users', '/abonelik',
   '/yardim',
 ];
 
-/** Matbaada operatör (TECHNICIAN): yalnız işler panosu. Tutar görmez. */
-export const MATBAA_OPERATOR_MENUSU: readonly string[] = ['/matbaa/isler', '/yardim'];
+/** Matbaada operatör (TECHNICIAN): işler panosu ve TV. Tutar görmez. */
+export const MATBAA_OPERATOR_MENUSU: readonly string[] = ['/matbaa/isler', '/matbaa-tv', '/yardim'];
 
 /**
  * Bu yol bu hesap türünde açılır mı? Menüden bağımsız, doğrudan adres için
  * (ModuleGuard). `/customers/123` gibi alt sayfalar ekranına göre karar alır.
  */
 export function turdaAcik(yol: string, tur: HesapTuru): boolean {
-  if (tur === 'MATBAA') return MATBAA_MENUSU.some((h) => yolEslesir(yol, h));
+  // /dashboard matbaada açık kalır: sunucu düzeni oradan Bugün'e yönlendirir
+  // (dashboard/layout). Kapı içeriği çizmeseydi yönlendirme istemci
+  // gezinmesinde hiç tetiklenmez, girişten sonra "bu ekran yok" görünürdü.
+  if (tur === 'MATBAA') return yol === '/dashboard' || MATBAA_MENUSU.some((h) => yolEslesir(yol, h));
   return !YALNIZ_MATBAA.some((h) => yolEslesir(yol, h));
 }
 
@@ -204,7 +212,8 @@ export function hrefErisilir(href: string, e: Erisim): boolean {
     if (!MATBAA_MENUSU.includes(href)) return false;
     if (e.rol === 'TECHNICIAN' && !MATBAA_OPERATOR_MENUSU.includes(href)) return false;
   } else {
-    if (YALNIZ_MATBAA.includes(href)) return false;
+    // Alt ekranlar da (/matbaa/isler): tam eşleşme bayiye sızdırıyordu.
+    if (!turdaAcik(href, 'BAYI')) return false;
     if (e.rol === 'TECHNICIAN' && !TEKNISYEN_MENUSU.includes(href)) return false;
   }
   // Paket kapısı: eklenti modüle ait ekran bayide kapalıysa görünmez.
