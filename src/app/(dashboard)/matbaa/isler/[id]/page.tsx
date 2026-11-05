@@ -10,6 +10,11 @@ import { saatYaz, tl } from '@/lib/matbaa-bicim';
 import { AKIS, gecisIzinli, isDurumu, isNo, kalan, odemeDurumu, sonrakiDurum, type IsDurumu } from '@/lib/baski-is';
 import IsAdimi from '@/components/matbaa/IsAdimi';
 import IsEylemleri from '@/components/matbaa/IsEylemleri';
+import MesajDugmesi from '@/components/matbaa/MesajDugmesi';
+import KabulFormu from '@/components/matbaa/KabulFormu';
+import { mesajYaz, onerilenMesajlar, type MesajTuru } from '@/lib/baski-mesaj';
+import { bicimYap } from '@/lib/bicim';
+import { waGecerliMi, waUrl } from '@/lib/share';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +29,7 @@ export default async function IsAyrintisi({ params }: { params: Promise<{ id: st
   const user = await oturumKullanicisi(session);
   if (!user) return null;
   const { id } = await params;
-  const { dil, b } = await sunucuBicimi(user);
+  const { dil, b, bayiDili } = await sunucuBicimi(user);
   const m = matbaaMetni(dil);
   const is = await prisma.baskiIsi.findFirst({
     where: { id, tenantId: user.tenantId },
@@ -33,7 +38,7 @@ export default async function IsAyrintisi({ params }: { params: Promise<{ id: st
       olaylar: { orderBy: { createdAt: 'desc' }, take: 50 },
       odemeler: { orderBy: { tarih: 'asc' } },
       customer: { select: { id: true, name: true } },
-      tenant: { select: { workTimezone: true } },
+      tenant: { select: { name: true, address: true, currency: true, workTimezone: true, odemeIban: true, odemeHesapAdi: true } },
     },
   });
   if (!is) notFound();
@@ -55,6 +60,17 @@ export default async function IsAyrintisi({ params }: { params: Promise<{ id: st
   const odemeAlinir = !operator && durum !== 'IPTAL' && kalanTutar > 0;
   const od = odemeDurumu(is.toplam, is.odenen, cari);
   const durumAdi = (d: string | null) => (d ? (m.durum as Record<string, string>)[d] ?? d : '');
+  // Müşteriye giden metin BAYİNİN dilinde ve bayinin para biriminde.
+  const mb = bicimYap(bayiDili, is.tenant.currency);
+  // Tutar kesinleşmeden "iş alındı, tutar şu" denmez: müşteri o tutarı bekler.
+  const tahminiKabul = !operator && durum === 'GELEN' && is.tahmini;
+  const mesajlar = operator || tahminiKabul ? [] : onerilenMesajlar(durum, { kalan: kalanTutar, ibanVar: !!is.tenant.odemeIban, cari });
+  const mesajUrl = (tur: MesajTuru) => waUrl(is.telefon, mesajYaz(tur, {
+    isNo: isNo(is.no), musteriAd: is.musteriAd, ozet: is.kalemler.map((k) => k.ozet).join('\n'),
+    toplam: mb.para(tl(is.toplam)), kalan: kalanTutar > 0 ? mb.para(tl(kalanTutar)) : null,
+    saat: saatYaz(is.sozVerilenAt, bayiDili, tz) || null,
+    firma: is.tenant.name, adres: is.tenant.address, iban: is.tenant.odemeIban, hesapAdi: is.tenant.odemeHesapAdi,
+  }, bayiDili));
   // Ödeme olayının metni "YOL KURUŞ" (lib/baski-is-kayit odemeEkle).
   const odemeOlayi = (metin: string | null) => {
     const [yol, tutar] = (metin ?? '').split(' ');
@@ -77,8 +93,10 @@ export default async function IsAyrintisi({ params }: { params: Promise<{ id: st
         </p>
         {is.sozVerilenAt && <p className="text-sm text-gray-600">{doldur(m.saat, { saat: saatYaz(is.sozVerilenAt, dil, tz) })}</p>}
         {is.not && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{is.not}</p>}
-        {is.tahmini && durum === 'GELEN' && <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{m.tahminiUyari}</p>}
       </div>
+
+      {/* Tahmini fiyatlı online iş: "Kabul et" sayfa sayısıyla birlikte. Operatör kabul etmez. */}
+      {tahminiKabul && <KabulFormu id={is.id} kalemler={is.kalemler.filter((k) => k.sayfa !== null).map((k) => ({ id: k.id, ozet: k.ozet, sayfa: k.sayfa as number }))} />}
 
       {/* Tek ana eylem */}
       {(ileri || geri) && (
@@ -86,6 +104,17 @@ export default async function IsAyrintisi({ params }: { params: Promise<{ id: st
           {ileri && <IsAdimi id={is.id} sonra={ileri} etiket={m.adim[ileri as keyof typeof m.adim]} />}
           {geri && <IsAdimi id={is.id} sonra={geri} etiket={`${m.geriAl} (${m.durum[geri]})`} ikincil />}
         </div>
+      )}
+
+      {mesajlar.length > 0 && (
+        <section className="rounded-2xl border border-gray-200 bg-white p-4">
+          <h2 className="text-sm font-bold text-gray-700">{m.mesajBaslik}</h2>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {mesajlar.map((tur, sira) => <MesajDugmesi key={tur} isId={is.id} tur={tur} url={mesajUrl(tur)} etiket={m.mesaj[tur]} ikincil={sira > 0} />)}
+          </div>
+          {!waGecerliMi(is.telefon) && <p className="mt-2 text-xs text-gray-500">{m.mesajTelefonYok}</p>}
+          {is.haberVerildiAt && <p className="mt-2 text-xs text-emerald-800">{doldur(m.haberVerildi, { saat: saatYaz(is.haberVerildiAt, dil, tz) })}</p>}
+        </section>
       )}
 
       <section className="rounded-2xl border border-gray-200 bg-white">
@@ -128,8 +157,9 @@ export default async function IsAyrintisi({ params }: { params: Promise<{ id: st
           <div key={o.id} className="flex justify-between gap-3 px-4 py-2 text-sm">
             <span className="text-gray-800">
               {o.tur === 'DURUM' ? (o.durumOnce ? doldur(m.olayDurum, { once: durumAdi(o.durumOnce), sonra: durumAdi(o.durumSonra) }) : m.olayIlk)
-                : o.tur === 'ODEME' ? odemeOlayi(o.metin) : o.tur}
-              {o.metin && o.tur !== 'ODEME' ? ` — ${o.metin}` : ''}
+                : o.tur === 'ODEME' ? odemeOlayi(o.metin)
+                  : o.tur === 'BILDIRIM' ? doldur(m.olayMesaj, { ad: m.mesaj[o.metin as MesajTuru] ?? o.metin ?? '' }) : o.tur}
+              {o.metin && o.tur === 'DURUM' ? ` — ${o.metin}` : ''}
             </span>
             <span className="shrink-0 text-gray-500">{saatYaz(o.createdAt, dil, tz)}{o.kullaniciAd ? ` · ${o.kullaniciAd}` : ''}</span>
           </div>

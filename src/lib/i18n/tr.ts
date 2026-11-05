@@ -5289,6 +5289,7 @@ export const tr = {
     BASKI_SECENEK_GECERSIZ: 'Geçersiz seçenek.',
     BASKI_MUSTERI_YOK: 'Müşteri bulunamadı.',
     BASKI_AD_GEREKLI: 'Ürün adı zorunlu.',
+    BASKI_MESAJ_GECERSIZ: 'Geçersiz mesaj türü.',
     SILINEMEZ_BAGLI: '"{p1}" silinemez: {p2} bağlı. Silmek bu kayıtların hepsini de siler ve geri alınamaz. Müşteri artık çalışmıyorsa cihazlarını başka müşteriye taşıyın ya da adına "(pasif)" ekleyip listede bırakın.',
     ACCOUNTENTRY_TABLOSU_HENUZ_OLUSTURULMAMIS: 'AccountEntry tablosu henüz oluşturulmamış.',
     AD_E_POSTA_VE_SIFRE: 'Ad, e-posta ve şifre zorunlu',

@@ -5090,6 +5090,7 @@ export const en: Sozluk = {
     BASKI_SECENEK_GECERSIZ: 'Invalid option.',
     BASKI_MUSTERI_YOK: 'Customer not found.',
     BASKI_AD_GEREKLI: 'Product name is required.',
+    BASKI_MESAJ_GECERSIZ: 'Invalid message type.',
     SILINEMEZ_BAGLI: '"{p1}" cannot be deleted: {p2} attached. Deleting it would delete all of those records too, and that cannot be undone. If the customer has stopped trading, move their devices to another customer, or add "(inactive)" to the name and leave them in the list.',
     ACCOUNTENTRY_TABLOSU_HENUZ_OLUSTURULMAMIS: 'The AccountEntry table has not been created yet.',
     AD_GEREKLI: 'A name is required',

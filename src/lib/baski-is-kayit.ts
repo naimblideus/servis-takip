@@ -9,6 +9,7 @@ import {
   type GecisHatasi, type IsDurumu, type IsHesapHatasi, type KalemGirdisi, type OdemeHatasi,
 } from '@/lib/baski-is';
 import { cariPlani, planBosMu } from '@/lib/baski-cari';
+import { mesajTuru } from '@/lib/baski-mesaj';
 
 export interface Kullanici { id: string; name?: string | null; role: string }
 
@@ -185,6 +186,48 @@ export async function durumDegistir(tenantId: string, isId: string, sonraHam: un
   return { ok: true, durum: sonra };
 }
 
+// ── KABUL ────────────────────────────────────────────────────────────────
+
+/**
+ * Online işi personel kabul eder: müşterinin bildirdiği sayfa sayısı onaylanır
+ * ya da düzeltilir, tutar fiyat listesinden yeniden hesaplanıp dondurulur, iş
+ * Sırada'ya geçer. Tek yazmada: yarım kabul (tutar yeni, durum eski) olmaz.
+ */
+export async function isKabulEt(tenantId: string, isId: string, sayfalar: Record<string, unknown>, kim: Kullanici):
+  Promise<{ ok: true; toplam: number } | { ok: false; kod: IsHesapHatasi['kod'] | 'IS_YOK' | 'GECIS_YOK' | 'YETKI_YOK' | 'DEGISTI' }> {
+  if (kim.role === 'TECHNICIAN') return { ok: false, kod: 'YETKI_YOK' };
+  const is = await prisma.baskiIsi.findFirst({ where: { id: isId, tenantId }, include: { kalemler: { orderBy: { sira: 'asc' } } } });
+  if (!is) return { ok: false, kod: 'IS_YOK' };
+  if (is.durum !== 'GELEN') return { ok: false, kod: 'GECIS_YOK' };
+  const urunler = await prisma.baskiUrunu.findMany({ where: { tenantId, id: { in: is.kalemler.map((k) => k.urunId ?? '') }, aktif: true } });
+  const h = isHesapla(urunler, is.kalemler.map((k) => ({
+    urunId: k.urunId ?? '', adet: k.adet, enCm: k.enCm ?? undefined, boyCm: k.boyCm ?? undefined,
+    sayfa: k.sayfa === null ? undefined : Number(sayfalar[k.id] ?? k.sayfa),
+    secimler: k.secimler as Record<string, string>,
+  })), { personel: true });
+  if (!h.ok) return { ok: false, kod: h.kod };
+
+  const yazildi = await prisma.$transaction(async (tx) => {
+    const r = await tx.baskiIsi.updateMany({
+      where: { id: is.id, tenantId, durum: 'GELEN' },
+      data: { durum: 'SIRADA', tahmini: false, kdvHaric: h.kdvHaric, kdv: h.kdv, toplam: h.toplam, bitisGerekli: h.bitisGerekli },
+    });
+    if (r.count !== 1) return false;
+    for (let i = 0; i < is.kalemler.length; i++) {
+      const y = h.kalemler[i];
+      await tx.baskiKalemi.update({
+        where: { id: is.kalemler[i].id },
+        data: { sayfa: y.sayfa, birimFiyat: y.birimFiyat, tutar: y.tutar, ozet: y.ozet, dokum: y.dokum as unknown as Prisma.InputJsonValue },
+      });
+    }
+    await tx.baskiOlayi.create({ data: { isId: is.id, tenantId, tur: 'DURUM', durumOnce: 'GELEN', durumSonra: 'SIRADA', kullaniciId: kim.id, kullaniciAd: kim.name ?? null } });
+    return true;
+  });
+  if (!yazildi) return { ok: false, kod: 'DEGISTI' };
+  await baskiIsiCariEsitle(is.id, tenantId);
+  return { ok: true, toplam: h.toplam };
+}
+
 // ── ÖDEME ────────────────────────────────────────────────────────────────
 
 export async function odemeEkle(tenantId: string, isId: string, girdi: { tutar: unknown; yol: unknown; not?: string }, kim: Kullanici):
@@ -205,6 +248,27 @@ export async function odemeEkle(tenantId: string, isId: string, girdi: { tutar: 
   if (!yazildi) return { ok: false, kod: 'DEGISTI' };
   await baskiIsiCariEsitle(is.id, tenantId);
   return { ok: true, odenen };
+}
+
+// ── MESAJ ────────────────────────────────────────────────────────────────
+
+/**
+ * WhatsApp düğmesine dokunuldu: geçmişe yazılır. Hazır işte "hazır" mesajı
+ * haberVerildiAt'i de yazar; Bugün'deki "haber verilmedi" satırı buradan kapanır.
+ * Mesajın gerçekten gönderildiğini bilemeyiz: gönderen matbaanın WhatsApp'ı.
+ */
+export async function mesajKaydet(tenantId: string, isId: string, turHam: unknown, kim: Kullanici): Promise<{ ok: true } | { ok: false; kod: 'MESAJ_GECERSIZ' | 'IS_YOK' }> {
+  const tur = mesajTuru(turHam);
+  if (!tur) return { ok: false, kod: 'MESAJ_GECERSIZ' };
+  const is = await prisma.baskiIsi.findFirst({ where: { id: isId, tenantId }, select: { id: true, durum: true } });
+  if (!is) return { ok: false, kod: 'IS_YOK' };
+  await prisma.$transaction(async (tx) => {
+    if (tur === 'HAZIR' && is.durum === 'HAZIR') {
+      await tx.baskiIsi.updateMany({ where: { id: is.id, tenantId, haberVerildiAt: null }, data: { haberVerildiAt: new Date() } });
+    }
+    await tx.baskiOlayi.create({ data: { isId: is.id, tenantId, tur: 'BILDIRIM', metin: tur, kullaniciId: kim.id, kullaniciAd: kim.name ?? null } });
+  });
+  return { ok: true };
 }
 
 // ── CARİ ─────────────────────────────────────────────────────────────────

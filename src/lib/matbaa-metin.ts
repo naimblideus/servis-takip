@@ -18,6 +18,13 @@ const tr = {
   yol: { NAKIT: 'Nakit', KART: 'Kart', HAVALE: 'Havale', CARI: 'Cari' },
   odemeDurumu: { BEKLIYOR: 'Ödenmedi', KISMI: 'Kısmen ödendi', ODENDI: 'Ödendi', CARI: 'Cariye' },
 
+  // WhatsApp düğmeleri (matbaanın kendi numarası, lib/baski-mesaj)
+  mesaj: { ALINDI: 'İş alındı mesajı', HAZIR: 'Hazır mesajı', ODEME: 'IBAN gönder', TESEKKUR: 'Teşekkür mesajı' },
+  mesajBaslik: 'WhatsApp',
+  mesajTelefonYok: 'Cep numarası yok: WhatsApp kişi seçtirir.',
+  haberVerildi: 'Haber verildi: {saat}',
+  olayMesaj: 'WhatsApp: {ad}',
+
   // Bugün
   bugunBaslik: 'Bugün',
   sayiSatiri: 'Bugün {n} iş · {tutar} · {gec} geç kalıyor',
@@ -85,6 +92,7 @@ const tr = {
   odenen: 'Ödenen',
   kdvDahil: 'KDV dahil',
   tahminiUyari: 'Sayfa sayısı müşteriden geldi; kabul etmeden önce dosyadan kontrol edin.',
+  kabulBaslik: 'Sayfa sayısını onaylayın',
   odemeAl: 'Ödeme al',
   tutar: 'Tutar',
   iptalEt: 'İşi iptal et',
@@ -156,6 +164,12 @@ const en: MatbaaMetni = {
   yol: { NAKIT: 'Cash', KART: 'Card', HAVALE: 'Bank transfer', CARI: 'On account' },
   odemeDurumu: { BEKLIYOR: 'Unpaid', KISMI: 'Partly paid', ODENDI: 'Paid', CARI: 'On account' },
 
+  mesaj: { ALINDI: 'Job received message', HAZIR: 'Ready message', ODEME: 'Send IBAN', TESEKKUR: 'Thank-you message' },
+  mesajBaslik: 'WhatsApp',
+  mesajTelefonYok: 'No mobile number: WhatsApp will ask for a contact.',
+  haberVerildi: 'Customer told: {saat}',
+  olayMesaj: 'WhatsApp: {ad}',
+
   bugunBaslik: 'Today',
   sayiSatiri: 'Today {n} jobs · {tutar} · {gec} running late',
   bugunBos: 'Nothing waiting.',
@@ -219,6 +233,7 @@ const en: MatbaaMetni = {
   odenen: 'Paid',
   kdvDahil: 'incl. VAT',
   tahminiUyari: 'The page count came from the customer; check it against the file before accepting.',
+  kabulBaslik: 'Confirm the page count',
   odemeAl: 'Take payment',
   tutar: 'Amount',
   iptalEt: 'Cancel the job',

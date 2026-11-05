@@ -1674,6 +1674,12 @@ async function main() {
   await komsulariKur();
   await import('./seed-demo-memnuniyet.mjs').then((m) => m.memnuniyetDemosu(p, sonuclar.map((s) => s.tenantId))).catch((e) => console.error(`  ⚠ memnuniyet demosu kurulamadı: ${e?.message ?? e}`));
 
+  // Baskı merkezi demosu: ayrı hesap türü, bayi tohumunu paylaşmıyor. Kurulamazsa
+  // bayi demoları yine ayakta kalır (gece tazelemesi durmasın).
+  const matbaa = await import('./seed-demo-matbaa.mjs')
+    .then(async (m) => m.matbaaDemosu(p, { sifreOzeti: await bcrypt.hash(SIFRE, DEMO_SIFRE_MALIYETI) }))
+    .catch((e) => { console.error(`  ⚠ matbaa demosu kurulamadı: ${e?.message ?? e}`); return null; });
+
   // Her hesap için iddiayı ÖLÇ. Eksik varsa özet onu söylesin.
   console.log('\n\n═══ DOĞRULAMA ═══\n');
   let eksikToplam = 0;
@@ -1698,6 +1704,7 @@ async function main() {
   if (EKIP_TESTLERI.length) console.log(`  EKİP TEST (${EKIP_TESTLERI[0].n}–${EKIP_TESTLERI.at(-1).n}): şifre sunucudaki EKIP_TEST_SIFRE`);
   else console.log('  EKİP TEST: kapalı (EKIP_TEST_SIFRE tanımlı değil ya da 10 karakterden kısa)');
   console.log('  1 numaralı hesaba demo@demo.com / tekniker@demo.com da girer.');
+  if (matbaa) console.log(`  BASKI MERKEZİ: ${matbaa.eposta} (tezgah: ${matbaa.tezgah}, operatör: ${matbaa.operator}) · şifre 1–5 ile aynı · ${matbaa.is} iş`);
   console.log('');
   if (eksikToplam === 0) {
     console.log(`  ${sonuclar.length} hesabın HEPSİNDE ölçülerek doğrulandı: susan sayaç, ölçülmüş toner`);

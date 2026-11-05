@@ -43,6 +43,8 @@ export default function DemoBaglantiKoruma() {
       e.preventDefault();
       e.stopPropagation();
       setOnizleme(o);
+      // Tıklama düğmeye ulaşmıyor; kaydı olan düğme (matbaa/MesajDugmesi) yine duysun.
+      a.dispatchEvent(new Event('demo-baglanti'));
     };
     document.addEventListener('click', tikla, true);
     // Bazı ekranlar (muhasebe hatırlatma) bağlantı yerine window.open kullanıyor.

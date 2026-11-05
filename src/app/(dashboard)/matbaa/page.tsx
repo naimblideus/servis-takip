@@ -9,6 +9,10 @@ import { matbaaMetni } from '@/lib/matbaa-metin';
 import { saatYaz, tl } from '@/lib/matbaa-bicim';
 import { bugunSatirlari, gecikiyorMu, gunAraligi, isDurumu, isNo, KAPALI, type BugunTuru } from '@/lib/baski-is';
 import OtomatikYenile from '@/components/matbaa/OtomatikYenile';
+import MesajDugmesi from '@/components/matbaa/MesajDugmesi';
+import { mesajYaz } from '@/lib/baski-mesaj';
+import { bicimYap } from '@/lib/bicim';
+import { waUrl } from '@/lib/share';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +38,10 @@ export default async function MatbaaBugun() {
   const user = await oturumKullanicisi(session);
   if (!user) return null;
   if (user.role === 'TECHNICIAN') redirect('/matbaa/isler');
-  const { dil, b } = await sunucuBicimi(user);
+  const { dil, b, bayiDili } = await sunucuBicimi(user);
   const m = matbaaMetni(dil);
   const tenantId = user.tenantId;
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { workTimezone: true } });
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, address: true, currency: true, workTimezone: true } });
   const tz = tenant?.workTimezone || 'Europe/Istanbul';
   const simdi = new Date();
   const { bas, bit } = gunAraligi(tz, simdi);
@@ -45,7 +49,7 @@ export default async function MatbaaBugun() {
   const [acik, bugunAcilan, kasa] = await Promise.all([
     prisma.baskiIsi.findMany({
       where: { tenantId, durum: { notIn: [...KAPALI] } },
-      select: { id: true, no: true, durum: true, sozVerilenAt: true, haberVerildiAt: true, toplam: true, odenen: true, customerId: true, odemeYolu: true, musteriAd: true, firma: true, kalemler: { select: { ozet: true }, orderBy: { sira: 'asc' }, take: 1 } },
+      select: { id: true, no: true, durum: true, sozVerilenAt: true, haberVerildiAt: true, toplam: true, odenen: true, customerId: true, odemeYolu: true, musteriAd: true, telefon: true, firma: true, kalemler: { select: { ozet: true }, orderBy: { sira: 'asc' }, take: 1 } },
       orderBy: { createdAt: 'asc' },
       take: 500,
     }),
@@ -57,6 +61,13 @@ export default async function MatbaaBugun() {
 
   const etiket: Record<BugunTuru, string> = { gelen: m.satirGelen, haber: m.satirHaber, gec: m.satirGec, bugun: m.satirBugun, odeme: m.satirOdeme };
   const dugme: Record<BugunTuru, string> = { gelen: m.dugmeKabul, haber: m.dugmeHaber, gec: m.dugmeAc, bugun: m.dugmeAc, odeme: m.dugmeOdeme };
+  // "Haber ver" tek dokunuş: ayrıntıya gitmeden WhatsApp açılır, satır kapanır.
+  const mb = bicimYap(bayiDili, tenant?.currency);
+  const hazirUrl = (is: (typeof acik)[number]) => waUrl(is.telefon, mesajYaz('HAZIR', {
+    isNo: isNo(is.no), musteriAd: is.musteriAd, toplam: mb.para(tl(is.toplam)),
+    kalan: is.toplam > is.odenen ? mb.para(tl(is.toplam - is.odenen)) : null,
+    firma: tenant?.name ?? '', adres: tenant?.address,
+  }, bayiDili));
 
   return (
     <div className="mx-auto max-w-3xl p-4 md:p-8">
@@ -87,9 +98,11 @@ export default async function MatbaaBugun() {
                 {[is.musteriAd || is.firma, is.kalemler[0]?.ozet].filter(Boolean).join(' · ')}
               </p>
             </div>
-            <Link href={`/matbaa/isler/${is.id}`} className="shrink-0 rounded-lg bg-[#0f2253] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#1a3170]">
-              {dugme[tur]}
-            </Link>
+            {tur === 'haber' ? <MesajDugmesi isId={is.id} tur="HAZIR" url={hazirUrl(is)} etiket={dugme[tur]} /> : (
+              <Link href={`/matbaa/isler/${is.id}`} className="shrink-0 rounded-lg bg-[#0f2253] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#1a3170]">
+                {dugme[tur]}
+              </Link>
+            )}
           </div>
         ))}
       </div>

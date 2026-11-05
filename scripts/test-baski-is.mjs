@@ -152,8 +152,13 @@ console.log('\nBaskı işi\n');
   t('★ müşteri başka kiracınınsa iş açılmıyor', /customer\.findFirst\(\{ where: \{ id: girdi\.customerId, tenantId \}/.test(k));
   t('★ durum ve ödeme koşullu yazılıyor (aynı anda iki dokunuş iki adım atmaz)', /updateMany\(\{\s*where: \{ id: is\.id, tenantId, durum: once \}/.test(k) && /updateMany\(\{ where: \{ id: is\.id, tenantId, odenen: is\.odenen \}/.test(k));
   t('numara çakışmasında yeni numarayla tekrar', /isNoCakismasi\(e\)/.test(k) && /deneme >= DENEME/.test(k));
+  t('★ tahmini iş çıkmazda kalmıyor: kabul sayfa sayısını onaylar, tutarı sunucuda yeniden hesaplar, tahmini kaldırır',
+    /isHesapla\(urunler, is\.kalemler\.map/.test(k) && /durum: 'SIRADA', tahmini: false, kdvHaric: h\.kdvHaric/.test(k) && /where: \{ id: is\.id, tenantId, durum: 'GELEN' \}/.test(k));
+  t('★ operatör kabul edemiyor', /kim\.role === 'TECHNICIAN'\) return \{ ok: false, kod: 'YETKI_YOK' \}/.test(k));
+  const ayr = readFileSync(join(KOK, 'src/app/(dashboard)/matbaa/isler/[id]/page.tsx'), 'utf8');
+  t('★ ayrıntıda kabul formu var; tutar kesinleşmeden müşteri mesajı önerilmiyor', /tahminiKabul && <KabulFormu/.test(ayr) && /operator \|\| tahminiKabul \? \[\] : onerilenMesajlar/.test(ayr));
   t('takip jetonu kriptografik rastgele', /randomBytes\(18\)\.toString\('base64url'\)/.test(k));
-  t('her yazmadan sonra cari uzlaştırılıyor', (k.match(/await baskiIsiCariEsitle\(/g) ?? []).length === 3);
+  t('her yazmadan sonra cari uzlaştırılıyor', (k.match(/await baskiIsiCariEsitle\(/g) ?? []).length === 4);
 }
 
 console.log(`\n${gecti} geçti, ${kaldi} kaldı\n`);
