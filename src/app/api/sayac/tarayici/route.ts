@@ -4,7 +4,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { dilMi } from '@/lib/i18n/sozluk';
 import { requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { taramaGovdesiAyikla, TARAYICI_SURUMU } from '@/lib/sayac-tarama';
-import { anahtarlaBayi, taramaKaydet, sonTaramalar, cihazDurumlari, tarayanBilgisayarlar } from '@/lib/sayac-tarama-veri';
+import { anahtarlaBayi, taramaKaydet, sonTaramalar, cihazDurumlari, tarayanBilgisayarlar, kurulumListesi } from '@/lib/sayac-tarama-veri';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   const govde = taramaGovdesiAyikla(ham);
   if (!govde) return ucHatasi('TARAMA_GOVDESI_GECERSIZ', 400, secenek);
 
-  const { id, ozet, sonuclar } = await taramaKaydet(bayi.id, govde, bayi.tarayiciOtomatikYaz);
+  const { id, ozet, sonuclar } = await taramaKaydet(bayi.id, govde, bayi.tarayiciOtomatikYaz, bayi.kurulumId);
   return NextResponse.json({
     ok: true,
     tarama: id,
@@ -67,10 +67,10 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     const { tenantId } = await requireAdminUser();
-    const [liste, durum, bilgisayarlar] = await Promise.all([
-      sonTaramalar(tenantId), cihazDurumlari(tenantId), tarayanBilgisayarlar(tenantId),
+    const [liste, durum, bilgisayarlar, kurulumlar] = await Promise.all([
+      sonTaramalar(tenantId), cihazDurumlari(tenantId), tarayanBilgisayarlar(tenantId), kurulumListesi(tenantId),
     ]);
-    return NextResponse.json({ ...liste, durum, bilgisayarlar });
+    return NextResponse.json({ ...liste, durum, bilgisayarlar, kurulumlar });
   } catch (e) {
     return authErrorResponse(e);
   }

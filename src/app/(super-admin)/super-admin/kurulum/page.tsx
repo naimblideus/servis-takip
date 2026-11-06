@@ -56,15 +56,15 @@ export default async function KurulumSayfasi({
   const adres = (yeni: Sekme, b: boolean) =>
     `/super-admin/kurulum?${new URLSearchParams({ s: yeni, ...(b ? { benim: '1' } : {}) })}`;
   const cip = (aktif: boolean) =>
-    `inline-flex min-h-11 items-center rounded-xl border px-3 text-sm ${aktif ? 'border-violet-400/60 bg-violet-600/30 text-white' : 'border-white/10 bg-white/5 text-white/85 hover:bg-white/10'}`;
+    `inline-flex min-h-11 items-center rounded-xl border px-3 text-sm ${aktif ? 'border-blue-300 bg-blue-100 text-gray-900' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'}`;
   const yerel = dil === 'en' ? 'en-GB' : 'tr-TR';
 
   return (
     <div className="min-h-full">
-      <div className="border-b border-white/10 bg-gradient-to-r from-violet-900/40 to-purple-900/40 px-4 py-5 sm:px-6">
+      <div className="border-b border-gray-200 bg-white px-4 py-5 sm:px-6">
         <div className="mx-auto max-w-7xl">
           <h1 className="text-2xl font-bold">{m.baslik}</h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-400">{m.alt}</p>
+          <p className="mt-1 max-w-3xl text-sm text-gray-500">{m.alt}</p>
         </div>
       </div>
 
@@ -92,7 +92,7 @@ export default async function KurulumSayfasi({
         </div>
 
         {liste.length === 0 ? (
-          <p className="text-gray-400">{m.bos}</p>
+          <p className="text-gray-500">{m.bos}</p>
         ) : (
           <ul className="space-y-2">
             {liste.map((x) => (
@@ -107,18 +107,18 @@ export default async function KurulumSayfasi({
 
 function Sayi({ ad, deger, alt, vurgu }: { ad: string; deger: number; alt?: string; vurgu?: boolean }) {
   return (
-    <div className={`rounded-xl border px-4 py-3 ${vurgu ? 'border-amber-400/40 bg-amber-500/10' : 'border-white/10 bg-white/5'}`}>
-      <div className="text-xs uppercase tracking-wide text-gray-400">{ad}</div>
+    <div className={`rounded-xl border px-4 py-3 ${vurgu ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
+      <div className="text-xs uppercase tracking-wide text-gray-500">{ad}</div>
       <div className="text-2xl font-bold">{deger}</div>
-      {alt && <div className="text-xs text-gray-400">{alt}</div>}
+      {alt && <div className="text-xs text-gray-500">{alt}</div>}
     </div>
   );
 }
 
 const ROZET: Record<string, string> = {
-  KIRMIZI: 'bg-red-500/20 text-red-200 border-red-400/40',
-  SARI: 'bg-amber-500/20 text-amber-100 border-amber-400/40',
-  YESIL: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30',
+  KIRMIZI: 'bg-red-50 text-red-700 border-red-200',
+  SARI: 'bg-amber-50 text-amber-700 border-amber-200',
+  YESIL: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
 function Satir({ x, m, simdi, yerel }: { x: KurulumSatiri; m: KurulumMetni; simdi: Date; yerel: string }) {
@@ -136,18 +136,18 @@ function Satir({ x, m, simdi, yerel }: { x: KurulumSatiri; m: KurulumMetni; simd
         : tarih(temas);
 
   return (
-    <li className={`rounded-2xl border px-4 py-3 ${x.saglik.renk === 'KIRMIZI' ? 'border-red-400/40 bg-red-500/5' : 'border-white/10 bg-white/5'}`}>
+    <li className={`rounded-2xl border px-4 py-3 ${x.saglik.renk === 'KIRMIZI' ? 'border-red-200 bg-white shadow-[inset_3px_0_0_var(--color-red-500)]' : 'border-gray-200 bg-white'}`}>
       <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
         <div className="min-w-0 flex-1 basis-56">
           <div className="break-words font-semibold">{x.firma}</div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-gray-500">
             {[x.il, doldur(m.cihazSayisi, { n: x.cihaz })].filter(Boolean).join(' · ')}
           </div>
         </div>
 
         {/* Zorunlu adım çubuğu: 5 parça, biten (ya da gerekmeyen) dolu. */}
         <div className="basis-28">
-          <div className="text-[11px] uppercase tracking-wide text-gray-400">{m.sutun.kurulum}</div>
+          <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.sutun.kurulum}</div>
           <div className="mt-1 flex items-center gap-1" aria-label={doldur(m.zorunluSayi, { n: k.zorunluTamam, t: k.zorunluToplam })}>
             {k.adimlar
               .filter((a) => a.zorunlu)
@@ -155,15 +155,15 @@ function Satir({ x, m, simdi, yerel }: { x: KurulumSatiri; m: KurulumMetni; simd
                 <span
                   key={a.kod}
                   title={`${m.ad[a.kod]}: ${m.durum[a.durum]}`}
-                  className={`h-2.5 w-5 rounded-full ${a.durum === 'TAMAM' || a.durum === 'UYGULANMAZ' ? 'bg-emerald-400' : a.durum === 'KISMEN' ? 'bg-amber-400' : 'bg-white/15'}`}
+                  className={`h-2.5 w-5 rounded-full ${a.durum === 'TAMAM' || a.durum === 'UYGULANMAZ' ? 'bg-emerald-500' : a.durum === 'KISMEN' ? 'bg-amber-500' : 'bg-gray-200'}`}
                 />
               ))}
-            <span className="ml-1 text-xs text-gray-300">{doldur(m.zorunluSayi, { n: k.zorunluTamam, t: k.zorunluToplam })}</span>
+            <span className="ml-1 text-xs text-gray-700">{doldur(m.zorunluSayi, { n: k.zorunluTamam, t: k.zorunluToplam })}</span>
           </div>
         </div>
 
         <div className="min-w-0 flex-1 basis-60 text-sm">
-          <div className="text-[11px] uppercase tracking-wide text-gray-400">{m.sutun.sirada}</div>
+          <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.sutun.sirada}</div>
           <div>{k.sonrakiAdim ? m.sirada[k.sonrakiAdim.kod] : m.hepsiTamam}</div>
         </div>
 
@@ -171,10 +171,10 @@ function Satir({ x, m, simdi, yerel }: { x: KurulumSatiri; m: KurulumMetni; simd
           <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${ROZET[x.saglik.renk]}`}>
             {m.renk[x.saglik.renk]}
           </span>
-          {ilkNeden && <div className="mt-1 text-xs text-gray-300">{saglikCumlesi(m, ilkNeden)}</div>}
+          {ilkNeden && <div className="mt-1 text-xs text-gray-700">{saglikCumlesi(m, ilkNeden)}</div>}
         </div>
 
-        <div className="grid basis-52 grid-cols-3 gap-2 text-xs text-gray-300">
+        <div className="grid basis-52 grid-cols-3 gap-2 text-xs text-gray-700">
           <div>
             <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.sutun.sorumlu}</div>
             <div className="break-words">{x.sorumluAd ?? m.sorumluYok}</div>
@@ -185,13 +185,13 @@ function Satir({ x, m, simdi, yerel }: { x: KurulumSatiri; m: KurulumMetni; simd
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.sutun.sonrakiTemas}</div>
-            <div className={temas && temas.getTime() < bugunBasi ? 'text-red-300' : ''}>{temasMetni}</div>
+            <div className={temas && temas.getTime() < bugunBasi ? 'text-red-700' : ''}>{temasMetni}</div>
           </div>
         </div>
 
         <Link
           href={`/super-admin/kurulum/${x.tenantId}`}
-          className="inline-flex min-h-11 items-center rounded-xl border border-white/15 px-4 text-sm font-semibold hover:bg-white/10"
+          className="inline-flex min-h-11 items-center rounded-xl border border-gray-300 px-4 text-sm font-semibold hover:bg-gray-100"
         >
           {m.ayrinti}
         </Link>

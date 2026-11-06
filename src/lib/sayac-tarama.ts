@@ -67,10 +67,31 @@ export interface TaramaGovdesi {
   cihazlar: TaranmisCihaz[];
   /** Tarayıcı betiğinin sürümü ($SURUM). Eski betik arıza durumunu okumaz. */
   surum: number | null;
+  /** Kurulum teşhisi (sürüm 4+). Eski betik göndermez. */
+  tani: TaramaTanisi | null;
+}
+
+/**
+ * Tarayıcının kendi teşhisi — kurulum ekranındaki "şu yazıcı görünmüyor"
+ * cümlesinin kaynağı. Hepsi tarayıcının ÖLÇTÜĞÜ şey; sunucu tahmin eklemez.
+ */
+export interface TaramaTanisi {
+  /** Taranan aralıklar ("192.168.1.0/24") ve tek adresler. */
+  araliklar: string[];
+  /** Bilgisayarın ağ kartları: adres ve önek (10.0.5.7/16 → büyük ağ). */
+  arayuzler: { ip: string; onek: number }[];
+  /** SNMP'ye cevap veren her cihaz (yazıcı olmayanlar dahil). */
+  snmpCevap: number;
+  /** Yazdırma kapısı (9100/631) açık ama SNMP'de yazıcı olarak görünmeyen adresler. */
+  adaylar: string[];
+  /** Günlük görev bu bilgisayarda kurulu mu (bilinmiyorsa null). */
+  gunluk: boolean | null;
+  /** Varsayılan dışında bir SNMP topluluk adı kullanıldı mı. */
+  ozelTopluluk: boolean;
 }
 
 /** Panelden indirilen güncel tarayıcının sürümü (public/tarayici/*.ps1 $SURUM). */
-export const TARAYICI_SURUMU = 3;
+export const TARAYICI_SURUMU = 4;
 
 const metin = (v: unknown, azami: number): string | null => {
   if (typeof v !== 'string') return null;
@@ -140,7 +161,111 @@ export function taramaGovdesiAyikla(ham: unknown): TaramaGovdesi | null {
     taranan: taranan !== null && taranan >= 0 ? Math.min(taranan, 1_000_000) : 0,
     cihazlar,
     surum: surum !== null && surum >= 1 && surum <= 1000 ? surum : null,
+    tani: taniAyikla(h.tani),
   };
+}
+
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+
+/** Tarayıcının teşhisini süzer; yoksa ya da biçimsizse null. */
+export function taniAyikla(ham: unknown): TaramaTanisi | null {
+  if (!ham || typeof ham !== 'object') return null;
+  const h = ham as Record<string, unknown>;
+  const liste = (v: unknown, azami: number, desen: RegExp) =>
+    (Array.isArray(v) ? v : []).map((x) => metin(x, 40)).filter((x): x is string => x !== null && desen.test(x)).slice(0, azami);
+  const arayuzler = (Array.isArray(h.arayuzler) ? h.arayuzler : []).flatMap((a): { ip: string; onek: number }[] => {
+    if (!a || typeof a !== 'object') return [];
+    const o = a as Record<string, unknown>;
+    const ip = metin(o.ip, 40);
+    const onek = tamsayi(o.onek);
+    return ip && IPV4.test(ip) && onek !== null && onek >= 0 && onek <= 32 ? [{ ip, onek }] : [];
+  }).slice(0, 8);
+  const snmp = tamsayi(h.snmpCevap);
+  return {
+    araliklar: liste(h.araliklar, 16, /^[\d.]+(\/\d{1,2})?$/),
+    arayuzler,
+    snmpCevap: snmp !== null && snmp >= 0 ? Math.min(snmp, 100_000) : 0,
+    adaylar: liste(h.adaylar, 64, IPV4),
+    gunluk: typeof h.gunluk === 'boolean' ? h.gunluk : null,
+    ozelTopluluk: h.ozelTopluluk === true,
+  };
+}
+
+// ── KURULUM ──────────────────────────────────────────────────────────────
+// Teknisyen kodu müşterinin bilgisayarına ELLE yazabilir: 0/O, 1/I/L yok.
+export const KURULUM_ALFABESI = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const KURULUM_KODU_UZUNLUK = 8;
+const KURULUM_KODU_DESENI = new RegExp(`^[${KURULUM_ALFABESI}]{${KURULUM_KODU_UZUNLUK}}$`);
+/** Kod üretildikten sonra ne kadar geçerli: ofise yol + kurulum için bol. */
+export const KURULUM_KODU_SURE_MS = 6 * 3_600_000;
+
+/** Yazılan kodu büyük harfe çevirir, boşluk ve tireyi atar; biçimsizse null. */
+export function kurulumKoduNormal(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const k = v.toUpperCase().replace(/[\s-]/g, '');
+  return KURULUM_KODU_DESENI.test(k) ? k : null;
+}
+
+/**
+ * Teknisyenin yazdığı ek tarama hedefleri: IP ya da /22–/30 aralık,
+ * virgül ya da boşlukla ayrılmış, en fazla 8 tane. Bir parça geçersizse
+ * HİÇBİRİ kabul edilmez: yarım liste "yazıcı yok" sanılmasın.
+ */
+export function hedefAyikla(v: unknown): { hedef: string | null } | { hata: 'HEDEF_GECERSIZ' | 'HEDEF_COK' } {
+  if (v == null || (typeof v === 'string' && !v.trim())) return { hedef: null };
+  if (typeof v !== 'string') return { hata: 'HEDEF_GECERSIZ' };
+  const parcalar = v.split(/[\s,;]+/).filter(Boolean);
+  if (parcalar.length > 8) return { hata: 'HEDEF_COK' };
+  for (const p of parcalar) {
+    const [ip, onek, fazla] = p.split('/');
+    if (fazla !== undefined || !IPV4.test(ip)) return { hata: 'HEDEF_GECERSIZ' };
+    if (onek !== undefined && !(/^\d{1,2}$/.test(onek) && +onek >= 22 && +onek <= 30)) return { hata: 'HEDEF_GECERSIZ' };
+  }
+  return { hedef: [...new Set(parcalar)].join(',') };
+}
+
+/** SNMP topluluk adı: komuta tırnak içinde girer, yalnız güvenli karakterler. 'public' = varsayılan. */
+export function toplulukAyikla(v: unknown): { topluluk: string | null } | { hata: 'TOPLULUK_GECERSIZ' } {
+  if (v == null) return { topluluk: null };
+  const s = typeof v === 'string' ? v.trim() : null;
+  if (s === '' || s === 'public') return { topluluk: null };
+  if (s === null || !/^[A-Za-z0-9_.@#-]{1,32}$/.test(s)) return { hata: 'TOPLULUK_GECERSIZ' };
+  return { topluluk: s };
+}
+
+export type KurulumIpucu =
+  | 'SNMP_KAPALI' | 'BUYUK_AG' | 'YAZICI_YOK' | 'ESLESMEYEN' | 'AYRIM_YOK' | 'GUNLUK_YOK' | 'ESKI_SURUM';
+
+export interface KurulumIpucuSatiri { kod: KurulumIpucu; ipler?: string[]; n?: number; aralik?: string }
+
+/**
+ * Kurulum ekranının "şimdi ne yapmalı" listesi. Yalnız taramada ÖLÇÜLEN
+ * şeyden çıkar; sıra = teknisyenin önce yapacağı iş.
+ */
+export function kurulumIpuclari(
+  t: { bulunan: number; tani: TaramaTanisi | null; sonuc: readonly { durum: string; ip: string }[] },
+): KurulumIpucuSatiri[] {
+  const tani = t.tani;
+  if (!tani) return t.bulunan === 0 ? [{ kod: 'ESKI_SURUM' }] : [];
+  const l: KurulumIpucuSatiri[] = [];
+  const gorunen = new Set(t.sonuc.map((s) => s.ip));
+  const adaylar = tani.adaylar.filter((ip) => !gorunen.has(ip));
+  if (adaylar.length) l.push({ kod: 'SNMP_KAPALI', ipler: adaylar });
+  // /22'den geniş ağda tarayıcı yalnız kendi /24'ünü tarar: yazıcı başka
+  // bir /24'te (öbür kat, ayrı yazıcı ağı) olabilir. Yazıcı bulunduysa
+  // söylenmez: teknisyen doğru yere bakıyor, uyarı gürültü olurdu.
+  const buyuk = tani.arayuzler.find((a) => a.onek < 22);
+  if (buyuk && t.bulunan === 0) {
+    const p = buyuk.ip.split('.');
+    l.push({ kod: 'BUYUK_AG', aralik: `${p[0]}.${p[1]}.${p[2]}.0/24` });
+  }
+  if (t.bulunan === 0 && adaylar.length === 0) l.push({ kod: 'YAZICI_YOK' });
+  const eslesmeyen = t.sonuc.filter((s) => s.durum === 'ESLESMEDI').length;
+  if (eslesmeyen) l.push({ kod: 'ESLESMEYEN', n: eslesmeyen });
+  const ayrimYok = t.sonuc.filter((s) => s.durum === 'AYRIM_YOK').length;
+  if (ayrimYok) l.push({ kod: 'AYRIM_YOK', n: ayrimYok });
+  if (tani.gunluk === false) l.push({ kod: 'GUNLUK_YOK' });
+  return l;
 }
 
 // ── MARKA ────────────────────────────────────────────────────────────────

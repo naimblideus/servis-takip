@@ -26,6 +26,12 @@
 
   SEÇENEKLER
     -Hedef 192.168.1.0/24   yalnız bu ağı tara (virgülle birden çok)
+    -Ek 10.0.5.20           kendi ağına EK olarak bu adresleri de tara
+                            (yazıcı başka bir alt ağdaysa; günlük görev hatırlar)
+    -Kurulum                panelden gelen tek komutun kipi: tara, günlük
+                            görevi sormadan kur, sonucu panele yaz
+    -Deneme                 tara ve gönder ama bu bilgisayara günlük görev
+                            KURMA (teknisyenin kendi dizüstüyle deneme)
     -Topluluk public        SNMP topluluk adı (cihazda değiştirildiyse)
     -Kuru                   hiçbir şey göndermeden sonucu ekrana yaz
     -GunlukKur              her gün 09:00'da kendiliğinden çalışsın
@@ -37,20 +43,23 @@ param(
   [string]$Anahtar = '__ANAHTAR__',
   [string]$Dil = '__DIL__',
   [string[]]$Hedef = @(),
+  [string[]]$Ek = @(),
   [int]$Port = 161,
   [string]$Topluluk = 'public',
   [int]$ZamanAsimi = 1500,
   [string]$RaporKlasoru = '',
   [switch]$Kuru,
   [switch]$Sessiz,
-  [switch]$GunlukKur
+  [switch]$GunlukKur,
+  [switch]$Kurulum,
+  [switch]$Deneme
 )
 
 $ErrorActionPreference = 'Stop'
 # Çıktı UTF-8: yönlendirilen ya da eski kod sayfalı konsolda Türkçe harfler
 # bozuluyordu. Konsol izin vermezse (bazı uzak oturumlar) sessizce geçilir.
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
-$SURUM = 3
+$SURUM = 4
 
 # ÜCRETSİZ KİP: dosya panelden değil sitedeki genel bağlantıdan indirildi
 # (anahtar yok). Tarama aynıdır; sonuç hiçbir yere gönderilmez, bu
@@ -282,23 +291,88 @@ function Aralik([string]$ip, [int]$onek) {
   return $liste
 }
 
+# Kurulum teşhisi için: hangi aralıklar tarandı, bilgisayarın ağ kartları.
+$ARALIKLAR = New-Object System.Collections.ArrayList
+$ARAYUZLER = New-Object System.Collections.ArrayList
+
+function Liste-Ekle($liste, [string[]]$girdi) {
+  foreach ($h in ($girdi -join ',').Split(',')) {
+    $h = $h.Trim()
+    if (-not $h) { continue }
+    [void]$ARALIKLAR.Add($h)
+    if ($h -match '^(\d{1,3}(\.\d{1,3}){3})/(\d{1,2})$') { foreach ($ip in (Aralik $Matches[1] ([int]$Matches[3]))) { if (-not $liste.Contains($ip)) { [void]$liste.Add($ip) } } }
+    elseif (-not $liste.Contains($h)) { [void]$liste.Add($h) }
+  }
+}
+
 function Hedefler {
   $liste = New-Object System.Collections.ArrayList
   if ($Hedef.Count) {
-    foreach ($h in ($Hedef -join ',').Split(',')) {
-      $h = $h.Trim()
-      if (-not $h) { continue }
-      if ($h -match '^(\d{1,3}(\.\d{1,3}){3})/(\d{1,2})$') { [void]$liste.AddRange(@(Aralik $Matches[1] ([int]$Matches[3]))) }
-      else { [void]$liste.Add($h) }
-    }
+    Liste-Ekle $liste $Hedef
+    if ($Ek.Count) { Liste-Ekle $liste $Ek }
     return $liste
   }
   $adresler = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
     Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.PrefixLength -ge 8 })
   foreach ($a in $adresler) {
+    [void]$ARAYUZLER.Add([ordered]@{ ip = [string]$a.IPAddress; onek = [int]$a.PrefixLength })
+    # Aralik ile aynı kural: /22'den geniş ağda yalnız bu bilgisayarın /24'ü.
+    $onek = [int]$a.PrefixLength
+    if ($onek -lt 22) { $onek = 24 }
+    if ($onek -le 30) {
+      $adet = [uint64][math]::Pow(2, 32 - $onek)
+      $n = Ip-Sayi $a.IPAddress
+      [void]$ARALIKLAR.Add("$(Sayi-Ip ($n - ($n % $adet)))/$onek")
+    }
     foreach ($ip in (Aralik $a.IPAddress $a.PrefixLength)) { if ($ip -ne $a.IPAddress -and -not $liste.Contains($ip)) { [void]$liste.Add($ip) } }
   }
+  if ($Ek.Count) { Liste-Ekle $liste $Ek }
   return $liste
+}
+
+# SNMP'siz yazıcı adayları: SNMP'de yazıcı olarak görünmeyen ama yazdırma
+# kapısı (9100 ham baskı, 631 IPP) açık adresler. Kurulum ekranı bunlar
+# için "SNMP kapalı olabilir" der; tahmin değil, açık kapı ölçümü.
+function Yazici-Adaylari($ipler) {
+  $sonuc = New-Object System.Collections.ArrayList
+  $hepsi = @($ipler)
+  for ($i = 0; $i -lt $hepsi.Count; $i += 128) {
+    $son = [math]::Min($i + 127, $hepsi.Count - 1)
+    $isler = New-Object System.Collections.ArrayList
+    foreach ($ip in $hepsi[$i..$son]) {
+      foreach ($kapi in @(9100, 631)) {
+        try { $c = New-Object Net.Sockets.TcpClient; [void]$isler.Add(@{ ip = $ip; c = $c; t = $c.ConnectAsync($ip, $kapi) }) } catch { }
+      }
+    }
+    $bitis = (Get-Date).AddMilliseconds(900)
+    while ((Get-Date) -lt $bitis -and @($isler | Where-Object { -not $_.t.IsCompleted }).Count) { Start-Sleep -Milliseconds 50 }
+    foreach ($x in $isler) {
+      if ($x.t.Status -eq 'RanToCompletion' -and $x.c.Connected -and -not $sonuc.Contains($x.ip)) { [void]$sonuc.Add($x.ip) }
+      try { $x.c.Close() } catch { }
+    }
+  }
+  return $sonuc
+}
+
+# Canlı sinyal: kurulum ekranı ilk saniyede "bağlandı" desin; anahtar ya da
+# internet sorunu bir dakikalık taramanın sonunda değil BAŞINDA anlaşılsın.
+# Dönüş: 'TAMAM' | 'ANAHTAR' (reddedildi) | 'AG' (sunucuya ulaşılamadı).
+function Nabiz([string]$asama, [int]$hedefSayisi) {
+  try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    $g = ConvertTo-Json -Compress -InputObject ([ordered]@{ asama = $asama; hedefSayisi = $hedefSayisi; bilgisayar = $env:COMPUTERNAME })
+    [void](Invoke-RestMethod -Uri ($Sunucu.TrimEnd('/') + '/api/sayac/tarayici/nabiz') -Method Post -TimeoutSec 15 `
+      -Body ([Text.Encoding]::UTF8.GetBytes($g)) -ContentType 'application/json; charset=utf-8' `
+      -Headers @{ Authorization = "Bearer $Anahtar" } -UseBasicParsing)
+    return 'TAMAM'
+  } catch {
+    $kod = $null
+    try { $kod = [int]$_.Exception.Response.StatusCode } catch { }
+    if ($kod -eq 401 -or $kod -eq 403) { return 'ANAHTAR' }
+    # Bu ucu bilmeyen eski sunucu (404) ya da geçici hata: taramaya devam.
+    if ($kod) { return 'TAMAM' }
+    return 'AG'
+  }
 }
 
 # ── OID'LER ───────────────────────────────────────────────────────────────
@@ -335,12 +409,40 @@ function Gunluk-Kur {
   $hedefKlasor = Join-Path $env:LOCALAPPDATA 'NextusSayacTarayici'
   New-Item -ItemType Directory -Force -Path $hedefKlasor | Out-Null
   $kopya = Join-Path $hedefKlasor 'nextus-sayac-tarayici.ps1'
-  Copy-Item -LiteralPath $PSCommandPath -Destination $kopya -Force
-  $komut = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$kopya`" -Sessiz"
-  try { schtasks.exe /Create /SC DAILY /ST 09:00 /TN $GOREV /TR $komut /F 2>$null | Out-Null } catch { }
-  if ($LASTEXITCODE -eq 0) {
-    Yaz "Her gün 09:00'da çalışacak şekilde kuruldu. Kaldırmak için: schtasks /Delete /TN `"$GOREV`" /F" `
-        "Scheduled to run every day at 09:00. To remove it: schtasks /Delete /TN `"$GOREV`" /F"
+  # Kurulum komutu dosyayı zaten buraya yazdı: kendi üstüne kopyalanmasın.
+  if ($PSCommandPath -and ([IO.Path]::GetFullPath($PSCommandPath) -ne [IO.Path]::GetFullPath($kopya))) { Copy-Item -LiteralPath $PSCommandPath -Destination $kopya -Force }
+  # Elle verilen hedefler ve topluluk adı görevde de geçerli olsun: yoksa
+  # kurulumda bulunan yazıcı ertesi sabah taranmazdı.
+  $ekArg = ''
+  if ($Hedef.Count) { $ekArg += " -Hedef `"$($Hedef -join ',')`"" }
+  if ($Ek.Count) { $ekArg += " -Ek `"$($Ek -join ',')`"" }
+  if ($Topluluk -ne 'public') { $ekArg += " -Topluluk `"$Topluluk`"" }
+  $argMetni = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$kopya`" -Sessiz$ekArg"
+  $tamam = $false
+  # Önce Görev Zamanlayıcı'nın kendi komutu: bilgisayar 09:00'da kapalıysa
+  # açılınca kaçırılan çalışmayı yapar (StartWhenAvailable) ve oturum açılınca
+  # da bir kez çalışır. schtasks.exe bu ayarı veremiyor; yalnız yedek.
+  # Oturum açılınca tetiği bazı bilgisayarlarda yönetici izni ister; o
+  # zaman yalnız günlük tetikle (kaçırılanı açılınca yapar) denenir.
+  try {
+    $eylem = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argMetni
+    $ayar = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+    $gunluk = New-ScheduledTaskTrigger -Daily -At '09:00'
+    foreach ($tetik in @(@($gunluk, (New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME")), @($gunluk))) {
+      try {
+        Register-ScheduledTask -TaskName $GOREV -Action $eylem -Trigger $tetik -Settings $ayar -Force -ErrorAction Stop | Out-Null
+        $tamam = $true
+        break
+      } catch { }
+    }
+  } catch { }
+  if (-not $tamam) {
+    try { schtasks.exe /Create /SC DAILY /ST 09:00 /TN $GOREV /TR "powershell.exe $argMetni" /F 2>$null | Out-Null } catch { }
+    $tamam = ($LASTEXITCODE -eq 0)
+  }
+  if ($tamam) {
+    Yaz "Her gün 09:00'da (o saatte bilgisayar kapalıysa açılınca) çalışacak şekilde kuruldu. Kaldırmak için: schtasks /Delete /TN `"$GOREV`" /F" `
+        "Scheduled to run every day at 09:00 (or when the computer is next on). To remove it: schtasks /Delete /TN `"$GOREV`" /F"
   } else {
     Yaz 'Günlük çalışma kurulamadı (Görev Zamanlayıcı izin vermedi).' 'Could not schedule the daily run (Task Scheduler refused).'
   }
@@ -630,7 +732,9 @@ function Rapor-Yaz($liste, [int]$taranan) {
   return @{ html = $htmlYol; csv = $csvYol; bulunan = $n; tonerAz = $tonerAz; servis = $servis }
 }
 
-if ($GunlukKur -and -not $Ucretsiz) { Gunluk-Kur }
+# Kurulum kipi: teknisyen müşteri ofisinde, günlük görev sorulmadan kurulur.
+if ($Kurulum -and -not $Deneme) { $GunlukKur = [switch]$true }
+if ($GunlukKur -and -not $Ucretsiz -and -not $Kuru) { Gunluk-Kur }
 
 if ($Ucretsiz -and -not $Kuru) {
   Yaz 'Ücretsiz tarama: sonuç hiçbir yere gönderilmez, bu bilgisayarda rapor olarak açılır.' `
@@ -644,6 +748,21 @@ if (-not $Ucretsiz -and -not $Kuru -and $Sunucu -like '__*') {
 }
 
 $hedefler = @(Hedefler)
+if (-not $Ucretsiz -and -not $Kuru) {
+  $nb = Nabiz 'BASLADI' $hedefler.Count
+  if ($nb -eq 'ANAHTAR') {
+    Yaz 'Bu tarayıcının anahtarı geçersiz ya da kurulum panelden kapatılmış. Panelden (Sayaçlar > Ağ Tarayıcı) yeni kurulum kodu üretin.' `
+        'This scanner''s key is not valid or the setup was closed in the panel. Create a new setup code in the panel (Meters > Network scanner).'
+    if (-not $Sessiz) { [void](Read-Host) }
+    exit 1
+  }
+  if ($nb -eq 'AG') {
+    Yaz "Nextus Servis'e ulaşılamadı ($Sunucu). İnternet bağlantısını ya da güvenlik yazılımını kontrol edin; tarama yine yapılacak." `
+        "Could not reach Nextus Servis ($Sunucu). Check the internet connection or security software; the scan will still run."
+  } elseif ($Kurulum) {
+    Yaz 'Panele bağlandı: kurulum ekranında canlı görünüyor.' 'Connected to the panel: the setup screen shows it live.'
+  }
+}
 Yaz "Taranıyor: $($hedefler.Count) adres..." "Scanning $($hedefler.Count) addresses..."
 
 # 1) Keşif: her adrese tek soru, cevapları topluca bekle.
@@ -655,12 +774,14 @@ foreach ($ip in $hedefler) {
   $sayac++
   if ($sayac % 64 -eq 0) { Start-Sleep -Milliseconds 20 }
 }
+$snmpCevap = @{}
 while ($true) {
   $y = Al
   if (-not $y) { break }
   if ($kesif.ContainsKey($y.Ip)) { continue }
   $c = Snmp-Coz $y.Paket
   if (-not $c) { continue }
+  $snmpCevap[$y.Ip] = $true
   $t = $c.Degerler[$PRT_TOPLAM]
   # Yazıcı = standart yazıcı sayacını veren cihaz. Anahtar, kamera gibi
   # SNMP konuşan başka cihazlar bu sayacı vermez ve listeye girmez.
@@ -668,6 +789,16 @@ while ($true) {
 }
 
 Yaz "Bulunan yazıcı: $($kesif.Count)" "Printers found: $($kesif.Count)"
+
+# Yazdırma kapısı açık ama SNMP'de görünmeyenler. Teşhis kurulum ekranı
+# içindir: ücretsiz kipte ve zamanlanmış sessiz çalışmada atlanır.
+$adaylar = @()
+if (-not $Ucretsiz -and (-not $Sessiz -or $Kurulum)) {
+  $adaylar = @(Yazici-Adaylari @($hedefler | Where-Object { -not $kesif.ContainsKey($_) }))
+  if ($adaylar.Count) {
+    Yaz "Yazıcı gibi görünen ama SNMP'ye cevap vermeyen: $($adaylar -join ', ')" "Looks like a printer but does not answer SNMP: $($adaylar -join ', ')"
+  }
+}
 
 # 2) Ayrıntı: her yazıcıdan seri, model, sayaç, renkler, sarf.
 $cihazlar = New-Object System.Collections.ArrayList
@@ -715,7 +846,14 @@ foreach ($ip in $kesif.Keys) {
 }
 $udp.Close()
 
-$govde = [ordered]@{ surum = $SURUM; bilgisayar = $env:COMPUTERNAME; taranan = $hedefler.Count; cihazlar = [object[]]$cihazlar.ToArray() }
+$gunlukVar = $null
+# Deneme taramasında görev bilerek kurulmadı: "kurulamadı" denmesin.
+if (-not $Ucretsiz -and -not $Kuru -and -not $Deneme) { $gunlukVar = [bool](Gunluk-Kurulu) }
+$tani = [ordered]@{
+  araliklar = [object[]]$ARALIKLAR.ToArray(); arayuzler = [object[]]$ARAYUZLER.ToArray()
+  snmpCevap = $snmpCevap.Count; adaylar = [object[]]@($adaylar); gunluk = $gunlukVar; ozelTopluluk = ($Topluluk -ne 'public')
+}
+$govde = [ordered]@{ surum = $SURUM; bilgisayar = $env:COMPUTERNAME; taranan = $hedefler.Count; cihazlar = [object[]]$cihazlar.ToArray(); tani = $tani }
 $json = ConvertTo-Json -InputObject $govde -Depth 6 -Compress
 
 if ($Kuru) { Write-Output $json; exit 0 }
@@ -768,7 +906,12 @@ foreach ($c in @($cevap.cihazlar | Where-Object { $_.durum -eq 'ESLESMEDI' })) {
 }
 # İlk elle çalıştırmada günlük çalışmayı teklif et: sayaç, toner ve arıza
 # durumu ancak tarayıcı her gün çalışırsa güncel kalır. Komut yazdırmıyoruz.
-if (-not $Sessiz -and -not $GunlukKur -and -not (Gunluk-Kurulu)) {
+if ($Kurulum -and -not $Deneme) {
+  Yaz '' ''
+  Yaz 'KURULUM TAMAM. Sonucu paneldeki kurulum ekranında görün; bu pencereyi kapatabilirsiniz.' `
+      'SETUP COMPLETE. See the result on the setup screen in the panel; you can close this window.'
+}
+if (-not $Sessiz -and -not $GunlukKur -and -not $Deneme -and -not (Gunluk-Kurulu)) {
   Yaz '' ''
   Yaz 'Bu bilgisayarda her gün 09:00''da kendiliğinden çalışsın mı? Toner ve arıza durumu her gün güncellenir. (E/H)' `
       'Run automatically on this computer every day at 09:00? Toner and fault status stay up to date. (Y/N)'

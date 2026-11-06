@@ -33,18 +33,18 @@ export default function PlatformSettingsPage() {
 
     const set = (k: string, v: any) => setSettings((p: any) => ({ ...p, [k]: v }));
 
-    if (!settings) return <div className="flex items-center justify-center h-screen"><RefreshCw className="w-7 h-7 animate-spin text-violet-400" /></div>;
+    if (!settings) return <div className="flex items-center justify-center h-screen"><RefreshCw className="w-7 h-7 animate-spin text-blue-700" /></div>;
 
     return (
-        <div className="min-h-screen bg-gray-950 text-white">
-            <div className="bg-gradient-to-r from-violet-900/40 to-purple-900/40 border-b border-white/10 px-6 py-5">
+        <div className="min-h-screen bg-gray-100 text-gray-900">
+            <div className="bg-white border-b border-gray-200 px-6 py-5">
                 <div className="max-w-2xl mx-auto flex items-center justify-between">
                     <h1 className="text-xl font-bold flex items-center gap-3">
-                        <Settings className="w-5 h-5 text-violet-400" />
+                        <Settings className="w-5 h-5 text-blue-700" />
                         {z.baslik}
                     </h1>
                     <button onClick={handleSave} disabled={saving}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm disabled:opacity-50">
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500 text-sm disabled:opacity-50">
                         {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         {saved ? z.kaydedildi : z.kaydet}
                     </button>
@@ -52,96 +52,96 @@ export default function PlatformSettingsPage() {
             </div>
 
             <div className="max-w-2xl mx-auto px-6 py-6 space-y-5">
-                {hata && <div role="alert" className="bg-red-500/10 border border-red-500/40 text-red-300 rounded-xl px-4 py-3 text-sm">{hata}</div>}
+                {hata && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{hata}</div>}
                 {/* Bayilerin bize ödemesi — abonelik ekranında ve kilit ekranında görünür */}
-                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
-                    <h3 className="text-sm font-semibold text-violet-300 mb-1">{z.odemeBaslik}</h3>
-                    <p className="text-xs text-gray-400 mb-4">{z.odemeAlt}</p>
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-blue-700 mb-1">{z.odemeBaslik}</h3>
+                    <p className="text-xs text-gray-500 mb-4">{z.odemeAlt}</p>
                     <div className="space-y-4">
                         {([['odemeIban', z.odemeIban, 'TR00 0000 0000 0000 0000 0000 00'], ['odemeHesapAdi', z.odemeHesapAdi, ''], ['satisWhatsapp', z.satisWhatsapp, '90 5xx xxx xx xx']] as const).map(([k, etiket, yer]) => (
                             <div key={k}>
-                                <label className="text-xs text-gray-400 mb-1 block">{etiket}</label>
+                                <label className="text-xs text-gray-500 mb-1 block">{etiket}</label>
                                 <input value={settings[k] || ''} placeholder={yer} onChange={e => set(k, e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500" />
+                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500" />
                             </div>
                         ))}
                     </div>
                 </div>
 
                 {/* Genel */}
-                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
-                    <h3 className="text-sm font-semibold text-violet-300 mb-4">{z.genel}</h3>
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-blue-700 mb-4">{z.genel}</h3>
                     <div className="space-y-4">
                         <div>
-                            <label className="text-xs text-gray-400 mb-1 block">{z.platformAdi}</label>
+                            <label className="text-xs text-gray-500 mb-1 block">{z.platformAdi}</label>
                             <input value={settings.platformName || ''} onChange={e => set('platformName', e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500" />
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500" />
                         </div>
                         <div>
-                            <label className="text-xs text-gray-400 mb-1 block">{z.iletisimEpostasi}</label>
+                            <label className="text-xs text-gray-500 mb-1 block">{z.iletisimEpostasi}</label>
                             <input value={settings.contactEmail || ''} onChange={e => set('contactEmail', e.target.value)} type="email"
-                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500" />
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500" />
                         </div>
                         <div>
-                            <label className="text-xs text-gray-400 mb-1 block">{z.varsayilanDeneme}</label>
+                            <label className="text-xs text-gray-500 mb-1 block">{z.varsayilanDeneme}</label>
                             <input value={settings.defaultTrialDays || 14} onChange={e => set('defaultTrialDays', parseInt(e.target.value))} type="number" min={1} max={90}
-                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500" />
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500" />
                         </div>
                     </div>
                 </div>
 
                 {/* Bakım Modu */}
-                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
-                    <h3 className="text-sm font-semibold text-violet-300 mb-4">{z.bakimBaslik}</h3>
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-blue-700 mb-4">{z.bakimBaslik}</h3>
                     <div className="flex items-center justify-between">
                         <div>
                             <div className="text-sm">{z.bakimModu}</div>
-                            <div className="text-xs text-gray-400">{z.bakimAlt}</div>
+                            <div className="text-xs text-gray-500">{z.bakimAlt}</div>
                         </div>
                         <button onClick={() => set('maintenanceMode', !settings.maintenanceMode)}
-                            className={`relative w-12 h-6 rounded-full transition-all ${settings.maintenanceMode ? 'bg-red-500' : 'bg-gray-600'}`}>
+                            className={`relative w-12 h-6 rounded-full transition-all ${settings.maintenanceMode ? 'bg-red-500' : 'bg-gray-300'}`}>
                             <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${settings.maintenanceMode ? 'left-6' : 'left-0.5'}`} />
                         </button>
                     </div>
                 </div>
 
                 {/* Siteden kayıt */}
-                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
-                    <h3 className="text-sm font-semibold text-violet-300 mb-4">{z.kayitBaslik}</h3>
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-blue-700 mb-4">{z.kayitBaslik}</h3>
                     <div className="flex items-center justify-between gap-4">
                         <div>
                             <div className="text-sm">{z.kayitAcik}</div>
-                            <div className="text-xs text-gray-400">{z.kayitAlt}</div>
+                            <div className="text-xs text-gray-500">{z.kayitAlt}</div>
                         </div>
                         <button onClick={() => set('kayitAcik', settings.kayitAcik === false)} aria-pressed={settings.kayitAcik !== false} aria-label={z.kayitAcik}
-                            className={`relative w-12 h-6 shrink-0 rounded-full transition-all ${settings.kayitAcik !== false ? 'bg-emerald-500' : 'bg-gray-600'}`}>
+                            className={`relative w-12 h-6 shrink-0 rounded-full transition-all ${settings.kayitAcik !== false ? 'bg-emerald-500' : 'bg-gray-300'}`}>
                             <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${settings.kayitAcik !== false ? 'left-6' : 'left-0.5'}`} />
                         </button>
                     </div>
                 </div>
 
                 {/* Duyuru */}
-                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
-                    <h3 className="text-sm font-semibold text-violet-300 mb-4">{z.duyuruBaslik}</h3>
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-blue-700 mb-4">{z.duyuruBaslik}</h3>
                     <div className="flex items-center justify-between mb-3">
                         <label className="text-sm">{z.duyuruAktif}</label>
                         <button onClick={() => set('announcementActive', !settings.announcementActive)}
-                            className={`relative w-12 h-6 rounded-full transition-all ${settings.announcementActive ? 'bg-violet-500' : 'bg-gray-600'}`}>
+                            className={`relative w-12 h-6 rounded-full transition-all ${settings.announcementActive ? 'bg-blue-500' : 'bg-gray-300'}`}>
                             <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${settings.announcementActive ? 'left-6' : 'left-0.5'}`} />
                         </button>
                     </div>
                     <textarea value={settings.announcementText || ''} onChange={e => set('announcementText', e.target.value)}
                         rows={3} placeholder={z.duyuruYer}
-                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500 resize-none" />
+                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 resize-none" />
                 </div>
 
                 {/* Bayi Pazarı */}
-                <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
-                    <h3 className="text-sm font-semibold text-violet-300 mb-4">{z.pazarBaslik}</h3>
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                    <h3 className="text-sm font-semibold text-blue-700 mb-4">{z.pazarBaslik}</h3>
                     <div>
-                        <label className="text-xs text-gray-400 mb-1 block">{z.komisyonOrani}</label>
+                        <label className="text-xs text-gray-500 mb-1 block">{z.komisyonOrani}</label>
                         <input value={settings.marketCommissionPct ?? 0} onChange={e => set('marketCommissionPct', e.target.value)} type="number" min={0} max={100} step="0.5"
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500" />
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500" />
                         <p className="text-xs text-gray-500 mt-1">{z.komisyonAlt}</p>
                     </div>
                 </div>

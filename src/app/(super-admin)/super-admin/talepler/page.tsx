@@ -39,6 +39,12 @@ export default function TaleplerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hepsi, kaynak]);
 
+  // Başka ekrandan süzülü gelinebilir (ör. işletme özeti → ?kaynak=magaza).
+  useEffect(() => {
+    const k = new URLSearchParams(window.location.search).get('kaynak');
+    if (k) setKaynak(k);
+  }, []);
+
   useEffect(() => { yukle(); }, [yukle]);
 
   const isaretle = async (id: string, okundu: boolean) => {
@@ -61,29 +67,29 @@ export default function TaleplerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a12] text-white">
-      <div className="border-b border-white/10 bg-black/30">
+    <div className="min-h-screen bg-gray-100 text-gray-900">
+      <div className="border-b border-gray-200 bg-gray-50">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <Link href="/super-admin/dashboard" className="text-xs text-gray-400 hover:text-white">{sz.superAdmin.denetim.panelDon}</Link>
+            <Link href="/super-admin/dashboard" className="text-xs text-gray-500 hover:text-gray-900">{sz.superAdmin.denetim.panelDon}</Link>
             <h1 className="text-2xl font-bold mt-1">{z.baslik}</h1>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               {z.alt}
-              {bekleyen > 0 && <span className="text-amber-300 font-semibold"> {doldur(z.bekliyorEk, { n: bekleyen })}</span>}
+              {bekleyen > 0 && <span className="text-amber-700 font-semibold"> {doldur(z.bekliyorEk, { n: bekleyen })}</span>}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <select value={kaynak} onChange={(e) => setKaynak(e.target.value)}
-              className="px-3 py-1.5 rounded-xl text-xs bg-white/5 border border-white/10 text-white">
-              <option value="" className="bg-[#0a0a12]">{z.kaynakHepsi}</option>
-              {kaynaklar.map((k) => <option key={k.kaynak} value={k.kaynak} className="bg-[#0a0a12]">{k.kaynak} ({k.adet})</option>)}
+              className="px-3 py-1.5 rounded-xl text-xs bg-gray-50 border border-gray-200 text-gray-900">
+              <option value="" className="bg-gray-100">{z.kaynakHepsi}</option>
+              {kaynaklar.map((k) => <option key={k.kaynak} value={k.kaynak} className="bg-gray-100">{k.kaynak} ({k.adet})</option>)}
             </select>
             <button onClick={() => setHepsi(!hepsi)}
-              className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10">
+              className="px-3 py-1.5 rounded-xl text-xs font-medium bg-gray-50 border border-gray-200 hover:bg-gray-100">
               {hepsi ? z.sadeceBekleyen : z.tumunuGoster}
             </button>
             <a href={sorgu({ bicim: 'csv' })}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500">
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-500">
               {z.csvIndir}
             </a>
           </div>
@@ -91,39 +97,39 @@ export default function TaleplerPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6">
-        {yukleniyor && <div className="text-gray-400 text-sm">{sz.superAdmin.denetim.yukleniyor}</div>}
+        {yukleniyor && <div className="text-gray-500 text-sm">{sz.superAdmin.denetim.yukleniyor}</div>}
 
         {!yukleniyor && leads.length === 0 && (
-          <div className="bg-white/3 border border-white/10 rounded-2xl p-10 text-center">
+          <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
             <div className="text-3xl mb-2">📭</div>
             <div className="font-semibold">{hepsi ? z.hicTalep : z.bekleyenYok}</div>
-            <p className="text-xs text-gray-400 mt-2 max-w-md mx-auto">{z.bosAlt}</p>
+            <p className="text-xs text-gray-500 mt-2 max-w-md mx-auto">{z.bosAlt}</p>
           </div>
         )}
 
         <div className="space-y-3">
           {leads.map(l => (
             <div key={l.id}
-              className={`bg-white/3 border rounded-2xl p-4 ${l.okundu ? 'border-white/10 opacity-60' : 'border-amber-500/30'}`}>
+              className={`bg-white border rounded-2xl p-4 ${l.okundu ? 'border-gray-200 opacity-60' : 'border-amber-200'}`}>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <div className="font-bold">{l.firma || l.yetkili || z.isimsiz}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">
+                  <div className="text-xs text-gray-500 mt-0.5">
                     {l.yetkili && l.firma ? `${l.yetkili} · ` : ''}
                     {l.cihazSayisi ? `${doldur(z.cihazEk, { n: l.cihazSayisi })} · ` : ''}
                     {tarih(l.createdAt)}
                     {l.kaynak ? ` · ${l.kaynak}` : ''}
-                    {l.crmDurum === 'hata' && <span className="text-red-300"> · {z.crmHata}</span>}
+                    {l.crmDurum === 'hata' && <span className="text-red-700"> · {z.crmHata}</span>}
                   </div>
                 </div>
                 <button onClick={() => isaretle(l.id, !l.okundu)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10 shrink-0">
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-gray-50 border border-gray-200 hover:bg-gray-100 shrink-0">
                   {l.okundu ? z.geriAl : z.ilgilenildi}
                 </button>
               </div>
 
               {l.mesaj && (
-                <p className="text-sm text-gray-200 mt-3 bg-black/20 border border-white/5 rounded-xl p-3 whitespace-pre-wrap">
+                <p className="text-sm text-gray-800 mt-3 bg-gray-50 border border-gray-100 rounded-xl p-3 whitespace-pre-wrap">
                   {l.mesaj}
                 </p>
               )}
@@ -132,18 +138,18 @@ export default function TaleplerPage() {
                 {l.telefon && (
                   <>
                     <a href={waLink(l.telefon)} target="_blank" rel="noreferrer"
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500">
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-500">
                       WhatsApp
                     </a>
                     <a href={telLink(l.telefon)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10">
+                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-gray-50 border border-gray-200 hover:bg-gray-100">
                       {l.telefon}
                     </a>
                   </>
                 )}
                 {l.eposta && (
                   <a href={`mailto:${l.eposta}`}
-                    className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10">
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium bg-gray-50 border border-gray-200 hover:bg-gray-100">
                     {l.eposta}
                   </a>
                 )}

@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { ALL_MODULE_KEYS, effectiveModules } from '@/lib/modules';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import OzetSekmesi from './OzetSekmesi';
 
 export default function TenantDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -14,7 +15,7 @@ export default function TenantDetailPage() {
     const d = sz.superAdmin.detay;
     const f = sz.superAdmin.fatura;
     const paketAdi = (k: string) => sz.superAdmin.paket[k as keyof typeof sz.superAdmin.paket] || k;
-    const TABS = [d.sekmeGenel, d.sekmeIstatistik, d.sekmeAbonelik, d.sekmeFaturalar, d.sekmeKullanicilar, d.sekmeNotlar];
+    const TABS = [d.sekmeOzet, d.sekmeGenel, d.sekmeIstatistik, d.sekmeAbonelik, d.sekmeFaturalar, d.sekmeKullanicilar, d.sekmeNotlar];
     const [tenant, setTenant] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
     const [tab, setTab] = useState(0);
@@ -47,7 +48,7 @@ export default function TenantDetailPage() {
         });
         if (!res.ok) {
             const cevap = await res.json().catch(() => ({}));
-            alert('❌ ' + (cevap.error || d.kaydedilemedi));
+            alert(cevap.error || d.kaydedilemedi);
             setSaving(false);
             return;
         }
@@ -128,55 +129,55 @@ export default function TenantDetailPage() {
         await fetchTenant();
     };
 
-    if (loading) return <div className="flex items-center justify-center h-screen"><RefreshCw className="w-8 h-8 animate-spin text-violet-400" /></div>;
-    if (!tenant) return <div className="text-center py-24 text-gray-400">{d.bulunamadi}</div>;
+    if (loading) return <div className="flex items-center justify-center h-screen"><RefreshCw className="w-8 h-8 animate-spin text-blue-700" /></div>;
+    if (!tenant) return <div className="text-center py-24 text-gray-500">{d.bulunamadi}</div>;
 
     const inpCls = editMode
-        ? 'w-full px-3 py-2 bg-white/5 border border-violet-500/50 rounded-xl text-sm focus:outline-none'
-        : 'w-full px-3 py-2 bg-transparent border border-transparent rounded-xl text-sm text-gray-200';
+        ? 'w-full px-3 py-2 bg-gray-50 border border-blue-300 rounded-xl text-sm focus:outline-none'
+        : 'w-full px-3 py-2 bg-transparent border border-transparent rounded-xl text-sm text-gray-800';
 
     return (
-        <div className="min-h-screen bg-gray-950 text-white">
-            <div className="bg-gradient-to-r from-violet-900/40 to-purple-900/40 border-b border-white/10 px-6 py-5">
+        <div className="min-h-screen bg-gray-100 text-gray-900">
+            <div className="bg-white border-b border-gray-200 px-4 sm:px-6 pt-5">
                 <div className="max-w-5xl mx-auto">
-                    <div className="flex items-center gap-3 mb-3">
-                        <a href="/super-admin/tenants" className="p-2 hover:bg-white/10 rounded-xl"><ArrowLeft className="w-4 h-4" /></a>
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                        <a href="/super-admin/tenants" className="p-2 hover:bg-gray-100 rounded-xl"><ArrowLeft className="w-4 h-4" /></a>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <h1 className="text-xl font-bold">{tenant.name}</h1>
-                                <span className={`text-xs px-2 py-0.5 rounded-lg border ${tenant.isSuspended ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                                        : tenant.isActive ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                            : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                                <span className={`text-xs px-2 py-0.5 rounded-lg border ${tenant.isSuspended ? 'bg-red-50 text-red-700 border-red-200'
+                                        : tenant.isActive ? 'bg-green-50 text-green-700 border-green-200'
+                                            : 'bg-gray-100 text-gray-500 border-gray-200'
                                     }`}>
                                     {tenant.isSuspended ? sz.superAdmin.isletmeler.askida
                                         : tenant.isActive ? sz.superAdmin.isletmeler.aktif : sz.superAdmin.isletmeler.pasif}
                                 </span>
-                                <span className="text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2 py-0.5 rounded-lg">
+                                <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg">
                                     {paketAdi(tenant.plan)}
                                 </span>
                             </div>
-                            <p className="text-gray-400 text-xs mt-0.5">{tenant.ownerName} · {tenant.phone} · {tenant.email}</p>
+                            <p className="text-gray-500 text-xs mt-0.5">{[tenant.ownerName, tenant.phone, tenant.email].filter(Boolean).join(' · ')}</p>
                         </div>
                         <div className="flex gap-2">
                             {!editMode ? (
-                                <button onClick={() => setEditMode(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs hover:bg-white/10">
+                                <button onClick={() => setEditMode(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs hover:bg-gray-100">
                                     <Edit3 className="w-3.5 h-3.5" />{d.duzenle}
                                 </button>
                             ) : (
                                 <>
-                                    <button onClick={() => setEditMode(false)} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">{d.iptal}</button>
-                                    <button onClick={handleSave} disabled={saving} className="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-xs">
+                                    <button onClick={() => setEditMode(false)} className="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs">{d.iptal}</button>
+                                    <button onClick={handleSave} disabled={saving} className="px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500 text-xs">
                                         {saving ? '...' : d.kaydet}
                                     </button>
                                 </>
                             )}
                             {tenant.isSuspended ? (
-                                <button onClick={() => handleSuspend('activate')} className="px-3 py-2 rounded-xl bg-green-600/20 border border-green-500/30 text-xs text-green-400 hover:bg-green-600/30">
+                                <button onClick={() => handleSuspend('activate')} className="px-3 py-2 rounded-xl bg-green-50 border border-green-200 text-xs text-green-700 hover:bg-green-100">
                                     {d.aktifEt}
                                 </button>
                             ) : (
                                 <button onClick={() => { const r = prompt(d.askiSebebi); handleSuspend('suspend', r || ''); }}
-                                    className="px-3 py-2 rounded-xl bg-red-600/20 border border-red-500/30 text-xs text-red-400 hover:bg-red-600/30">
+                                    className="px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 hover:bg-red-100">
                                     {d.askiyaAl}
                                 </button>
                             )}
@@ -184,10 +185,10 @@ export default function TenantDetailPage() {
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 overflow-x-auto -mb-px">
                         {TABS.map((t, i) => (
-                            <button key={i} onClick={() => setTab(i)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${tab === i ? 'bg-violet-600/30 text-violet-300 border border-violet-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            <button key={i} onClick={() => setTab(i)} aria-pressed={tab === i}
+                                className={`shrink-0 px-3 py-2.5 border-b-2 text-sm font-medium transition-colors ${tab === i ? 'border-blue-600 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'
                                     }`}>
                                 {t}
                             </button>
@@ -196,9 +197,14 @@ export default function TenantDetailPage() {
                 </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-6 py-6">
-                {/* Tab: Genel */}
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+                {/* Tab: Özet — bayi panelindeki yeni özelliklerin bu bayideki durumu */}
                 {tab === 0 && (
+                    <OzetSekmesi id={id} tenant={tenant} paketAdi={paketAdi(tenant.plan)} abonelikSekmesi={() => setTab(3)} />
+                )}
+
+                {/* Tab: Genel */}
+                {tab === 1 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {[
                             [d.alanAd, 'name'], [d.alanSlug, 'slug'], [d.alanEposta, 'email'], [d.alanTelefon, 'phone'],
@@ -211,48 +217,48 @@ export default function TenantDetailPage() {
                             [d.alanEFaturaOnEk, 'eFaturaOnEk'],
                             [d.alanEFaturaEtiket, 'eFaturaEtiket'],
                         ].map(([label, key]) => (
-                            <div key={key} className="bg-white/3 border border-white/10 rounded-xl p-3">
+                            <div key={key} className="bg-white border border-gray-200 rounded-xl p-3">
                                 <div className="text-xs text-gray-500 mb-1">{label}</div>
                                 <input value={form[key] || ''} onChange={e => setForm((p: any) => ({ ...p, [key]: e.target.value }))}
                                     readOnly={!editMode} className={inpCls} />
                             </div>
                         ))}
                         {/* Hesap türü: BAYI | MATBAA (lib/menu-aileleri). Pilot matbaa mevcut kayıttan da çevrilebilsin. */}
-                        <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
+                        <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl p-3">
                             <div className="text-xs text-gray-500 mb-1">{d.alanHesapTuru}</div>
                             <select value={form.hesapTuru === 'MATBAA' ? 'MATBAA' : 'BAYI'} disabled={!editMode}
                                 onChange={e => setForm((p: Record<string, unknown>) => ({ ...p, hesapTuru: e.target.value }))}
-                                className={inpCls + ' bg-gray-900'}>
-                                {(['BAYI', 'MATBAA'] as const).map(k => <option key={k} value={k} className="bg-gray-900">{sz.superAdmin.yeni.turler[k]}</option>)}
+                                className={inpCls + ' bg-white'}>
+                                {(['BAYI', 'MATBAA'] as const).map(k => <option key={k} value={k} className="bg-white">{sz.superAdmin.yeni.turler[k]}</option>)}
                             </select>
                             <p className="text-xs text-gray-400 mt-2 leading-relaxed">{d.turAciklama}</p>
                         </div>
                         {/* WhatsApp bağlantısı — gelen mesajın HANGİ bayiye ait olduğu yalnızca buradan bulunur */}
-                        <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
+                        <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl p-3">
                             <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
-                                <div className="text-xs text-gray-400">{d.waBaslik}</div>
+                                <div className="text-xs text-gray-500">{d.waBaslik}</div>
                                 {form.whatsappPhoneId
-                                    ? <span className="text-[11px] font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded-full px-2 py-0.5">{d.waBagli}</span>
-                                    : <span className="text-[11px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">{d.waBagliDegil}</span>}
+                                    ? <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">{d.waBagli}</span>
+                                    : <span className="text-[11px] font-semibold text-gray-500 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">{d.waBagliDegil}</span>}
                             </div>
                             <input value={form.whatsappPhoneId || ''}
                                 onChange={e => setForm((p: any) => ({ ...p, whatsappPhoneId: e.target.value }))}
                                 readOnly={!editMode} placeholder={d.waYer} className={inpCls} />
-                            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
                                 {d.waAciklama}
                             </p>
                         </div>
-                        {/* Üretici veri paylaşımı — sözleşme imzalanınca AÇILIR.
-                            Varsayılan kapalı: deneme hesapları ve ayrılan bayiler
-                            kazara kapsama girmesin. */}
-                        <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
+                        {/* Üretici ile anonim paylaşım — yeni bayide varsayılan
+                            AÇIK (71353d0) ve bayi kendi Ayarlar ekranından
+                            kapatabilir. Adıyla görünme ayrı izin; onu yalnız bayi açar. */}
+                        <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl p-3">
                             <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                                <div className="text-xs text-gray-400">{d.oemBaslik}</div>
+                                <div className="text-xs text-gray-500">{d.oemBaslik}</div>
                                 {form.oemDataSharing
-                                    ? <span className="text-[11px] font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded-full px-2 py-0.5">
+                                    ? <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
                                         {d.oemRizaVar}{form.oemDataSharingAt ? ` · ${b.tarih(form.oemDataSharingAt)}` : ''}
                                       </span>
-                                    : <span className="text-[11px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">{d.oemRizaYok}</span>}
+                                    : <span className="text-[11px] font-semibold text-gray-500 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">{d.oemRizaYok}</span>}
                             </div>
                             <label className={`flex items-center gap-2 ${editMode ? 'cursor-pointer' : 'opacity-70'}`}>
                                 <input type="checkbox" disabled={!editMode}
@@ -265,11 +271,11 @@ export default function TenantDetailPage() {
                                     }))} />
                                 <span className="text-sm">{d.oemOnay}</span>
                             </label>
-                            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
                                 {d.oemAciklama1} <b>{d.oemAciklamaVurgu}</b> {d.oemAciklama2} <b>{d.oemAcma}</b>.
                             </p>
                         </div>
-                        <div className="md:col-span-2 bg-white/3 border border-white/10 rounded-xl p-3">
+                        <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl p-3">
                             <div className="text-xs text-gray-500 mb-1">{d.adminNotu}</div>
                             <textarea value={form.adminNotes || ''} onChange={e => setForm((p: any) => ({ ...p, adminNotes: e.target.value }))}
                                 readOnly={!editMode} rows={2}
@@ -279,7 +285,7 @@ export default function TenantDetailPage() {
                 )}
 
                 {/* Tab: İstatistikler */}
-                {tab === 1 && stats && (
+                {tab === 2 && stats && (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {[
                             { label: d.istKullanicilar, value: `${stats.userCount} / ${stats.maxUsers}`, pct: (stats.userCount / stats.maxUsers) * 100 },
@@ -289,12 +295,12 @@ export default function TenantDetailPage() {
                             { label: d.istCihaz, value: stats.deviceCount },
                             { label: d.istDepolama, value: `${b.sayi(stats.storageUsedMB, 1)} / ${b.sayi(stats.storageLimitMB)} MB`, pct: (stats.storageUsedMB / stats.storageLimitMB) * 100 },
                         ].map(s => (
-                            <div key={s.label} className="bg-white/3 border border-white/10 rounded-xl p-4">
-                                <div className="text-xs text-gray-400 mb-1">{s.label}</div>
+                            <div key={s.label} className="bg-white border border-gray-200 rounded-xl p-4">
+                                <div className="text-xs text-gray-500 mb-1">{s.label}</div>
                                 <div className="text-xl font-bold">{String(s.value)}</div>
                                 {s.pct !== undefined && (
-                                    <div className="mt-2 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full ${s.pct > 80 ? 'bg-red-500' : 'bg-violet-500'}`} style={{ width: `${Math.min(100, s.pct)}%` }} />
+                                    <div className="mt-2 h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                                        <div className={`h-full rounded-full ${s.pct > 80 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, s.pct)}%` }} />
                                     </div>
                                 )}
                             </div>
@@ -302,13 +308,13 @@ export default function TenantDetailPage() {
                         {/* İlk ay garantisi: bayinin iade hakkı veriden. İade elle yapılır. */}
                         {stats.garanti && stats.garanti.durum !== 'KAPSAM_DISI' && (() => {
                             const g = stats.garanti;
-                            const renk = g.durum === 'HAK_VAR' ? 'border-amber-500/40 bg-amber-500/10' : g.durum === 'HAK_YOK' ? 'border-white/10 bg-white/3' : 'border-violet-500/30 bg-violet-500/5';
+                            const renk = g.durum === 'HAK_VAR' ? 'border-amber-200 bg-amber-50' : g.durum === 'HAK_YOK' ? 'border-gray-200 bg-white' : 'border-blue-200 bg-blue-50';
                             return (
                                 <div className={`md:col-span-3 border rounded-xl p-4 ${renk}`}>
-                                    <div className="text-xs text-gray-400 mb-1">{d.garantiBaslik}</div>
+                                    <div className="text-xs text-gray-500 mb-1">{d.garantiBaslik}</div>
                                     <div className="text-base font-bold">{(d.garantiDurum as Record<string, string>)[g.durum] ?? g.durum}</div>
                                     {g.donem && (
-                                        <div className="text-xs text-gray-400 mt-1">
+                                        <div className="text-xs text-gray-500 mt-1">
                                             {doldur(d.garantiAyrinti, { donem: g.donem, okunan: g.okunanCihaz, kiralik: g.kiralikCihaz, n: g.okumaSayisi })}
                                         </div>
                                     )}
@@ -325,39 +331,39 @@ export default function TenantDetailPage() {
                 )}
 
                 {/* Tab: Abonelik */}
-                {tab === 2 && (
+                {tab === 3 && (
                     <div className="space-y-4">
-                        <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
+                        <div className="bg-white border border-gray-200 rounded-2xl p-5">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <div className="text-sm text-gray-400">{d.mevcutPaket}</div>
-                                    <div className="text-2xl font-bold text-violet-300">{paketAdi(tenant.plan)}</div>
-                                    {tenant.trialEndsAt && <div className="text-xs text-orange-400 mt-1">{d.denemeBitis} {b.tarih(tenant.trialEndsAt)}</div>}
-                                    {tenant.planEndDate && <div className="text-xs text-gray-400 mt-1">{d.bitis} {b.tarih(tenant.planEndDate)}</div>}
+                                    <div className="text-sm text-gray-500">{d.mevcutPaket}</div>
+                                    <div className="text-2xl font-bold text-blue-700">{paketAdi(tenant.plan)}</div>
+                                    {tenant.trialEndsAt && <div className="text-xs text-orange-700 mt-1">{d.denemeBitis} {b.tarih(tenant.trialEndsAt)}</div>}
+                                    {tenant.planEndDate && <div className="text-xs text-gray-500 mt-1">{d.bitis} {b.tarih(tenant.planEndDate)}</div>}
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={handleChangePlan} className="px-3 py-2 rounded-xl bg-violet-600/20 border border-violet-500/30 text-xs text-violet-400 hover:bg-violet-600/30">{d.paketDegistir}</button>
-                                    <button onClick={handleExtend} className="px-3 py-2 rounded-xl bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30">{d.sureUzat}</button>
+                                    <button onClick={handleChangePlan} className="px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-700 hover:bg-blue-100">{d.paketDegistir}</button>
+                                    <button onClick={handleExtend} className="px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-700 hover:bg-blue-100">{d.sureUzat}</button>
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
+                        <div className="bg-white border border-gray-200 rounded-2xl p-5">
                             <div className="flex justify-between items-center mb-4">
                                 <div className="text-sm font-semibold">{d.modullerBaslik}</div>
-                                <button onClick={handleResetModules} className="text-xs text-gray-400 hover:text-white">{d.planVarsayilanina}</button>
+                                <button onClick={handleResetModules} className="text-xs text-gray-500 hover:text-gray-900">{d.planVarsayilanina}</button>
                             </div>
                             <div className="space-y-1">
                                 {ALL_MODULE_KEYS.map((k) => {
                                     const on = effectiveModules(tenant).has(k);
                                     return (
-                                        <div key={k} className="flex items-start justify-between gap-3 py-2 border-b border-white/5 last:border-0">
+                                        <div key={k} className="flex items-start justify-between gap-3 py-2 border-b border-gray-100 last:border-0">
                                             <div className="min-w-0">
-                                                <div className="text-sm text-gray-200">{sz.modul.ad[k]}</div>
+                                                <div className="text-sm text-gray-800">{sz.modul.ad[k]}</div>
                                                 {/* Toggle'a basan kişi neyi kapattığını bilmeden basmasın */}
                                                 <div className="text-[11px] text-gray-500 leading-snug mt-0.5">{sz.modul.aciklama[k]}</div>
                                             </div>
                                             <button onClick={() => handleToggleModule(k)} title={on ? d.modulKapat : d.modulAc}
-                                                className={`relative w-11 h-6 shrink-0 mt-0.5 rounded-full transition-all ${on ? 'bg-violet-500' : 'bg-gray-600'}`}>
+                                                className={`relative w-11 h-6 shrink-0 mt-0.5 rounded-full transition-all ${on ? 'bg-blue-500' : 'bg-gray-300'}`}>
                                                 <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${on ? 'left-5' : 'left-0.5'}`} />
                                             </button>
                                         </div>
@@ -368,18 +374,18 @@ export default function TenantDetailPage() {
                                 plan varsayılanı mı, yoksa bu bayiye özel liste mi. */}
                             <div className="text-[11px] mt-3">
                                 {Array.isArray(tenant.modules) && tenant.modules.length > 0
-                                    ? <span className="text-amber-400">{d.ozelListe}</span>
-                                    : <span className="text-gray-400">{doldur(d.planVarsayilani, { paket: paketAdi(tenant.plan) })}</span>}
+                                    ? <span className="text-amber-700">{d.ozelListe}</span>
+                                    : <span className="text-gray-500">{doldur(d.planVarsayilani, { paket: paketAdi(tenant.plan) })}</span>}
                             </div>
                             <p className="text-xs text-gray-500 mt-2">{d.cekirdekNot}</p>
                         </div>
 
-                        <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
+                        <div className="bg-white border border-gray-200 rounded-2xl p-5">
                             <div className="text-sm font-semibold mb-4">{d.abonelikGecmisi}</div>
                             <div className="space-y-2">
                                 {(tenant.subscriptionHistory || []).map((h: any) => (
-                                    <div key={h.id} className="flex items-center justify-between text-sm py-2 border-b border-white/5">
-                                        <div className="text-gray-300">{h.action}</div>
+                                    <div key={h.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-100">
+                                        <div className="text-gray-700">{h.action}</div>
                                         <div className="text-xs text-gray-500">{b.tarih(h.createdAt)}</div>
                                     </div>
                                 ))}
@@ -389,17 +395,17 @@ export default function TenantDetailPage() {
                 )}
 
                 {/* Tab: Faturalar */}
-                {tab === 3 && (
+                {tab === 4 && (
                     <div>
                         <div className="flex justify-end mb-4">
-                            <button onClick={handleCreateInvoice} className="px-4 py-2 rounded-xl bg-violet-600/20 border border-violet-500/30 text-xs text-violet-400 hover:bg-violet-600/30">
+                            <button onClick={handleCreateInvoice} className="px-4 py-2 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-700 hover:bg-blue-100">
                                 {d.faturaOlustur}
                             </button>
                         </div>
-                        <div className="bg-white/3 border border-white/10 rounded-2xl overflow-x-auto">
+                        <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto">
                             <table className="w-full text-sm min-w-[40rem]">
                                 <thead>
-                                    <tr className="border-b border-white/10 text-xs text-gray-400">
+                                    <tr className="border-b border-gray-200 text-xs text-gray-500">
                                         <th className="text-left px-4 py-3">{f.sutunKisaNo}</th>
                                         <th className="text-left px-4 py-3">{f.sutunDonem}</th>
                                         <th className="text-right px-4 py-3">{f.sutunTutar}</th>
@@ -410,19 +416,19 @@ export default function TenantDetailPage() {
                                 </thead>
                                 <tbody>
                                     {(tenant.invoices || []).map((inv: any) => (
-                                        <tr key={inv.id} className="border-b border-white/5">
+                                        <tr key={inv.id} className="border-b border-gray-100">
                                             <td className="px-4 py-3 font-mono text-xs">{inv.invoiceNumber}</td>
-                                            <td className="px-4 py-3 text-gray-400">{inv.period}</td>
+                                            <td className="px-4 py-3 text-gray-500">{inv.period}</td>
                                             <td className="px-4 py-3 text-right">{b.para(inv.totalAmount)}</td>
                                             <td className="px-4 py-3">
-                                                <span className={`text-xs px-2 py-1 rounded-lg ${inv.status === 'paid' ? 'bg-green-500/20 text-green-400' :
-                                                        inv.status === 'overdue' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
+                                                <span className={`text-xs px-2 py-1 rounded-lg ${inv.status === 'paid' ? 'bg-green-50 text-green-700' :
+                                                        inv.status === 'overdue' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
                                                     }`}>{inv.status === 'paid' ? f.odendi : inv.status === 'overdue' ? f.gecikmisDurum : f.bekliyor}</span>
                                             </td>
-                                            <td className="px-4 py-3 text-xs text-gray-400">{b.tarih(inv.dueDate)}</td>
+                                            <td className="px-4 py-3 text-xs text-gray-500">{b.tarih(inv.dueDate)}</td>
                                             <td className="px-4 py-3">
                                                 {inv.status !== 'paid' && (
-                                                    <button onClick={() => handlePayInvoice(inv.id)} className="text-xs text-green-400 hover:text-green-300">
+                                                    <button onClick={() => handlePayInvoice(inv.id)} className="text-xs text-green-700 hover:text-green-800">
                                                         {f.ode}
                                                     </button>
                                                 )}
@@ -436,11 +442,11 @@ export default function TenantDetailPage() {
                 )}
 
                 {/* Tab: Kullanıcılar */}
-                {tab === 4 && (
-                    <div className="bg-white/3 border border-white/10 rounded-2xl overflow-x-auto">
+                {tab === 5 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto">
                         <table className="w-full text-sm min-w-[40rem]">
                             <thead>
-                                <tr className="border-b border-white/10 text-xs text-gray-400">
+                                <tr className="border-b border-gray-200 text-xs text-gray-500">
                                     <th className="text-left px-4 py-3">{d.kullaniciAdSoyad}</th>
                                     <th className="text-left px-4 py-3">{d.alanEposta}</th>
                                     <th className="text-left px-4 py-3">{d.kullaniciRol}</th>
@@ -449,12 +455,12 @@ export default function TenantDetailPage() {
                             </thead>
                             <tbody>
                                 {(tenant.users || []).map((u: any) => (
-                                    <tr key={u.id} className="border-b border-white/5">
+                                    <tr key={u.id} className="border-b border-gray-100">
                                         <td className="px-4 py-3 font-medium">{u.name}</td>
-                                        <td className="px-4 py-3 text-gray-400 font-mono text-xs">{u.email}</td>
+                                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">{u.email}</td>
                                         <td className="px-4 py-3 text-xs">{u.role}</td>
                                         <td className="px-4 py-3">
-                                            <span className={`text-xs px-2 py-1 rounded-lg ${u.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                                            <span className={`text-xs px-2 py-1 rounded-lg ${u.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                                                 {u.isActive ? sz.superAdmin.isletmeler.aktif : sz.superAdmin.isletmeler.pasif}
                                             </span>
                                         </td>
@@ -466,17 +472,17 @@ export default function TenantDetailPage() {
                 )}
 
                 {/* Tab: Notlar */}
-                {tab === 5 && (
-                    <div className="bg-white/3 border border-white/10 rounded-2xl p-5">
+                {tab === 6 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-5">
                         <div className="text-sm font-semibold mb-3">{d.notBaslik}</div>
                         <textarea
                             value={form.adminNotes || ''}
                             onChange={e => setForm((p: any) => ({ ...p, adminNotes: e.target.value }))}
                             rows={6}
                             placeholder={d.notYer}
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500 resize-none"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 resize-none"
                         />
-                        <button onClick={handleSave} disabled={saving} className="mt-3 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm disabled:opacity-50">
+                        <button onClick={handleSave} disabled={saving} className="mt-3 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500 text-sm disabled:opacity-50">
                             {saving ? d.notKaydediliyor : d.notKaydet}
                         </button>
                     </div>

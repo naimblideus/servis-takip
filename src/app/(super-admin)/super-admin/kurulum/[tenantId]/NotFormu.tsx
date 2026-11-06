@@ -60,7 +60,7 @@ export default function NotFormu({
 
   return (
     <form onSubmit={kaydet} className="space-y-2">
-      <div className="text-sm text-gray-400">{m.yeniNot}</div>
+      <div className="text-sm text-gray-500">{m.yeniNot}</div>
       <div className="flex flex-wrap gap-2" role="radiogroup">
         {TURLER.map((t) => (
           <button
@@ -69,28 +69,28 @@ export default function NotFormu({
             role="radio"
             aria-checked={tur === t}
             onClick={() => setTur(t)}
-            className={`min-h-11 rounded-xl border px-4 text-sm ${tur === t ? 'border-violet-400/60 bg-violet-600/30' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+            className={`min-h-11 rounded-xl border px-4 text-sm ${tur === t ? 'border-blue-300 bg-blue-100' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}
           >
             {m.notTuru[t]}
           </button>
         ))}
       </div>
-      <p className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">{m.notUyari}</p>
+      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">{m.notUyari}</p>
       <textarea
         value={metin}
         onChange={(e) => setMetin(e.target.value.slice(0, enUzun))}
         maxLength={enUzun}
         rows={3}
         placeholder={m.notYer}
-        className="block w-full rounded-xl border border-white/15 bg-gray-900 px-3 py-2 text-sm text-white"
+        className="block w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-gray-500">{doldur(m.karakter, { n: metin.length, t: enUzun })}</span>
-        <button type="submit" disabled={bekliyor || !metin.trim()} className="min-h-11 rounded-xl bg-violet-600 px-4 text-sm font-semibold hover:bg-violet-500 disabled:opacity-60">
+        <button type="submit" disabled={bekliyor || !metin.trim()} className="min-h-11 rounded-xl bg-blue-600 text-white px-4 text-sm font-semibold hover:bg-blue-500 disabled:opacity-60">
           {m.notKaydet}
         </button>
       </div>
-      {hata && <p className="text-sm text-red-300" role="alert">{hata}</p>}
+      {hata && <p className="text-sm text-red-700" role="alert">{hata}</p>}
     </form>
   );
 }

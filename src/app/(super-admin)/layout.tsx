@@ -15,7 +15,11 @@ export const metadata: Metadata = {
  * Tarayıcı ikinci etiketi atar ve yalnız yeni öznitelikleri devralır: dış
  * html'de lang zaten dolu olduğu için buradaki lang="tr" SESSİZCE yok
  * sayılıyordu. Yani dil seçimi bu ekranlarda hiç işlemiyordu ve görünür bir
- * hata da vermiyordu. Koyu zemin artık gövdeye değil bu sarmalayıcıya veriliyor.
+ * hata da vermiyordu. Zemin gövdeye değil bu sarmalayıcıya veriliyor.
+ *
+ * Görünüm bayi paneliyle aynı: açık sayfa, mürekkep kenar çubuğu, lacivert
+ * vurgu. Eskiden konsol baştan sona koyu-mor bir temadaydı ve bayi
+ * panelinden gelen biri başka bir ürüne geçmiş gibi oluyordu.
  *
  * globals.css de buradan çekilmiyor: kök yerleşim zaten içeri alıyor.
  *
@@ -28,8 +32,8 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     // çiziliyordu ve giriş ekranı "içerideyim" gibi görünüyordu.
     const oturum = await getSuperAdminSession();
     return (
-        <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-gray-950 text-white">
-            {oturum && <SuperAdminSidebar rol={oturum.rol ?? 'SAHIP'} />}
+        <div className="flex flex-col md:flex-row h-dvh overflow-hidden bg-gray-100 text-gray-900">
+            {oturum && <SuperAdminSidebar rol={oturum.rol ?? 'SAHIP'} eposta={oturum.email} />}
             <main className="flex-1 overflow-y-auto">
                 {children}
             </main>

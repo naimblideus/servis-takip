@@ -54,12 +54,33 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, id: h.id });
 }
 
-/** PATCH { id, rol } — rol değiştir. Kendi rolünü düşüremez; son sahip korunur. */
+/**
+ * PATCH { id, rol } — rol değiştir. Kendi rolünü düşüremez; son sahip korunur.
+ * PATCH { id, sifre, ikiAdimSifirla? } — şifreyi unutan ekip üyesine yeni şifre.
+ * Ekip adreslerinin (teknik1@nextusservis.com) gerçek posta kutusu yok, e-postayla
+ * yenileme işlemez; bu yüzden sahip yeni şifreyi kendisi koyar ve kişiye iletir.
+ * Kendi şifresi buradan değişmez (Hesabım, mevcut şifreyle).
+ */
 export async function PATCH(req: NextRequest) {
   const k = await sahip();
   if ('yanit' in k) return k.yanit;
   const g = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const id = typeof g.id === 'string' ? g.id : '';
+  if (typeof g.sifre === 'string') {
+    if (g.sifre.length < 10 || g.sifre.length > 200) return NextResponse.json({ hata: 'GECERSIZ' }, { status: 400 });
+    const h = id ? await prisma.superAdmin.findUnique({ where: { id }, select: { id: true } }) : null;
+    if (!h) return NextResponse.json({ hata: 'YOK' }, { status: 404 });
+    if (h.id === k.sa.id) return NextResponse.json({ hata: 'KENDINI' }, { status: 400 });
+    await prisma.superAdmin.update({
+      where: { id },
+      data: {
+        password: await bcrypt.hash(g.sifre, 12),
+        // Telefonunu kaybeden üye için: kod istenmez, kendisi Hesabım'dan yeniden açar.
+        ...(g.ikiAdimSifirla === true ? { totpEnabled: false, totpSecret: null, totpLastCounter: null, recoveryCodes: [] } : {}),
+      },
+    });
+    return NextResponse.json({ ok: true });
+  }
   const rol = saRol(g.rol);
   // Rol değişimi sahip ile ekip arasında; distribütör hesabı marka bilgisiyle ayrıca açılır.
   if (rol === 'DISTRIBUTOR') return NextResponse.json({ hata: 'GECERSIZ' }, { status: 400 });

@@ -8,10 +8,10 @@ import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 
 const PLAN_KEYS = ['trial', 'starter', 'professional', 'enterprise'] as const;
 const PLAN_COLORS: Record<string, string> = {
-    trial: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-    starter: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    professional: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
-    enterprise: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    trial: 'bg-gray-100 text-gray-500 border-gray-200',
+    starter: 'bg-blue-50 text-blue-700 border-blue-200',
+    professional: 'bg-blue-50 text-blue-700 border-blue-200',
+    enterprise: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
 // Göreli zaman ve sağlık rozeti sözlüğü PARAMETRE alır: metni burada kurmak
@@ -30,16 +30,16 @@ function relTime(sz: Sozluk, iso: string | null): string {
 // Churn/sağlık rozeti — bayi gerçekten kullanıyor mu?
 function health(sz: Sozluk, t: any): { label: string; cls: string } {
     const z = sz.superAdmin.isletmeler;
-    if (t.isSuspended) return { label: z.askida, cls: 'text-red-400 bg-red-500/10' };
-    if (!t.isActive) return { label: z.pasif, cls: 'text-gray-400 bg-gray-500/10' };
+    if (t.isSuspended) return { label: z.askida, cls: 'text-red-700 bg-red-50' };
+    if (!t.isActive) return { label: z.pasif, cls: 'text-gray-500 bg-gray-100' };
     if (t.plan === 'trial' && t.trialEndsAt) {
         const d = Math.floor((new Date(t.trialEndsAt).getTime() - Date.now()) / 86400000);
-        if (d < 0) return { label: z.saglikDenemeBitti, cls: 'text-red-400 bg-red-500/10' };
-        if (d <= 7) return { label: doldur(z.saglikDenemeGun, { n: d }), cls: 'text-amber-400 bg-amber-500/10' };
+        if (d < 0) return { label: z.saglikDenemeBitti, cls: 'text-red-700 bg-red-50' };
+        if (d <= 7) return { label: doldur(z.saglikDenemeGun, { n: d }), cls: 'text-amber-700 bg-amber-50' };
     }
     const last = t.lastActivityAt ? Math.floor((Date.now() - new Date(t.lastActivityAt).getTime()) / 86400000) : 9999;
-    if (last >= 14) return { label: z.saglikSessiz, cls: 'text-red-400 bg-red-500/10' };
-    return { label: z.aktif, cls: 'text-green-400 bg-green-500/10' };
+    if (last >= 14) return { label: z.saglikSessiz, cls: 'text-red-700 bg-red-50' };
+    return { label: z.aktif, cls: 'text-green-700 bg-green-50' };
 }
 
 export default function TenantsPage() {
@@ -69,18 +69,18 @@ export default function TenantsPage() {
     useEffect(() => { fetchTenants(); }, [fetchTenants]);
 
     return (
-        <div className="min-h-screen bg-gray-950 text-white">
-            <div className="bg-gradient-to-r from-violet-900/40 to-purple-900/40 border-b border-white/10 px-6 py-5">
+        <div className="min-h-screen bg-gray-100 text-gray-900">
+            <div className="bg-white border-b border-gray-200 px-6 py-5">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold flex items-center gap-3">
-                            <Building2 className="w-6 h-6 text-violet-400" />
+                            <Building2 className="w-6 h-6 text-blue-700" />
                             {z.baslik}
                         </h1>
-                        <p className="text-gray-400 text-sm mt-1">{doldur(z.kayit, { n: total })}</p>
+                        <p className="text-gray-500 text-sm mt-1">{doldur(z.kayit, { n: total })}</p>
                     </div>
                     <Link href="/super-admin/tenants/new"
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium">
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500 text-sm font-medium">
                         <Plus className="w-4 h-4" />
                         {sz.superAdmin.panel.yeniIsletme}
                     </Link>
@@ -91,40 +91,40 @@ export default function TenantsPage() {
                 {/* Filtreler */}
                 <div className="flex flex-wrap gap-3 mb-5">
                     <div className="relative flex-1 min-w-52">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                         <input
                             type="text"
                             placeholder={z.ara}
                             value={q}
                             onChange={e => { setQ(e.target.value); setPage(1); }}
-                            className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500"
+                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500"
                         />
                     </div>
                     <select value={plan} onChange={e => { setPlan(e.target.value); setPage(1); }}
-                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none bg-gray-900">
-                        <option value="" className="bg-gray-900">{z.tumPaketler}</option>
-                        {PLAN_KEYS.map(k => <option key={k} value={k} className="bg-gray-900">{sz.superAdmin.paket[k]}</option>)}
+                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none bg-white">
+                        <option value="" className="bg-white">{z.tumPaketler}</option>
+                        {PLAN_KEYS.map(k => <option key={k} value={k} className="bg-white">{sz.superAdmin.paket[k]}</option>)}
                     </select>
                     <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}
-                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none bg-gray-900">
-                        <option value="" className="bg-gray-900">{z.tumDurumlar}</option>
-                        <option value="active" className="bg-gray-900">{z.aktif}</option>
-                        <option value="trial" className="bg-gray-900">{sz.superAdmin.paket.trial}</option>
-                        <option value="suspended" className="bg-gray-900">{z.askida}</option>
-                        <option value="inactive" className="bg-gray-900">{z.pasif}</option>
+                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none bg-white">
+                        <option value="" className="bg-white">{z.tumDurumlar}</option>
+                        <option value="active" className="bg-white">{z.aktif}</option>
+                        <option value="trial" className="bg-white">{sz.superAdmin.paket.trial}</option>
+                        <option value="suspended" className="bg-white">{z.askida}</option>
+                        <option value="inactive" className="bg-white">{z.pasif}</option>
                     </select>
                 </div>
 
                 {/* Tablo */}
                 {loading ? (
                     <div className="flex items-center justify-center h-48">
-                        <RefreshCw className="w-7 h-7 animate-spin text-violet-400" />
+                        <RefreshCw className="w-7 h-7 animate-spin text-blue-700" />
                     </div>
                 ) : (
-                    <div className="bg-white/3 border border-white/10 rounded-2xl overflow-x-auto">
+                    <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto">
                         <table className="w-full text-sm min-w-[44rem]">
                             <thead>
-                                <tr className="border-b border-white/10 text-gray-400 text-xs">
+                                <tr className="border-b border-gray-200 text-gray-500 text-xs">
                                     <th className="text-left px-4 py-3">{z.sutunIsletme}</th>
                                     <th className="text-left px-4 py-3">{z.sutunYetkili}</th>
                                     <th className="text-left px-4 py-3">{z.sutunTelefon}</th>
@@ -140,15 +140,15 @@ export default function TenantsPage() {
                                 {tenants.length === 0 ? (
                                     <tr><td colSpan={9} className="text-center py-12 text-gray-500">{z.kayitYok}</td></tr>
                                 ) : tenants.map(t => (
-                                    <tr key={t.id} className="border-b border-white/5 hover:bg-white/3 transition-all">
+                                    <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50 transition-all">
                                         <td className="px-4 py-3">
-                                            <Link href={`/super-admin/tenants/${t.id}`} className="font-medium hover:text-violet-300 transition-all">
+                                            <Link href={`/super-admin/tenants/${t.id}`} className="font-medium hover:text-blue-800 transition-all">
                                                 {t.name}
                                             </Link>
                                         </td>
-                                        <td className="px-4 py-3 text-gray-300">{t.ownerName || '—'}</td>
-                                        <td className="px-4 py-3 text-gray-400 font-mono text-xs">{t.phone || '—'}</td>
-                                        <td className="px-4 py-3 text-gray-400 hidden md:table-cell">{t.city || '—'}</td>
+                                        <td className="px-4 py-3 text-gray-700">{t.ownerName || '—'}</td>
+                                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">{t.phone || '—'}</td>
+                                        <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{t.city || '—'}</td>
                                         <td className="px-4 py-3">
                                             <span className={`text-xs px-2 py-1 rounded-lg border ${PLAN_COLORS[t.plan] || PLAN_COLORS.trial}`}>
                                                 {sz.superAdmin.paket[t.plan as keyof typeof sz.superAdmin.paket] || t.plan}
@@ -156,11 +156,11 @@ export default function TenantsPage() {
                                         </td>
                                         <td className="px-4 py-3">
                                             {t.isSuspended ? (
-                                                <span className="text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-lg">{z.askida}</span>
+                                                <span className="text-xs text-red-700 bg-red-50 px-2 py-1 rounded-lg">{z.askida}</span>
                                             ) : t.isActive ? (
-                                                <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-lg">{z.aktif}</span>
+                                                <span className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded-lg">{z.aktif}</span>
                                             ) : (
-                                                <span className="text-xs text-gray-400 bg-gray-500/10 px-2 py-1 rounded-lg">{z.pasif}</span>
+                                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">{z.pasif}</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-3 hidden lg:table-cell">
@@ -173,13 +173,13 @@ export default function TenantsPage() {
                                                 </div>
                                             ); })()}
                                         </td>
-                                        <td className="px-4 py-3 text-right text-gray-400 text-xs">
+                                        <td className="px-4 py-3 text-right text-gray-500 text-xs">
                                             {t._count?.serviceTickets || 0} / {t._count?.users || 0}
                                         </td>
                                         <td className="px-4 py-3">
                                             <Link href={`/super-admin/tenants/${t.id}`}
-                                                className="p-1.5 rounded-lg hover:bg-white/10 block">
-                                                <MoreVertical className="w-4 h-4 text-gray-400" />
+                                                className="p-1.5 rounded-lg hover:bg-gray-100 block">
+                                                <MoreVertical className="w-4 h-4 text-gray-500" />
                                             </Link>
                                         </td>
                                     </tr>
@@ -189,7 +189,7 @@ export default function TenantsPage() {
 
                         {/* Sayfalama */}
                         {total > 20 && (
-                            <div className="flex items-center justify-between px-4 py-3 border-t border-white/10">
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
                                 <span className="text-xs text-gray-500">
                                     {doldur(z.sayfaBilgi, {
                                         toplam: total,
@@ -199,11 +199,11 @@ export default function TenantsPage() {
                                 </span>
                                 <div className="flex gap-2">
                                     <button onClick={() => setPage(p => p - 1)} disabled={page <= 1}
-                                        className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs disabled:opacity-40">
+                                        className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-200 text-xs disabled:opacity-40">
                                         {z.onceki}
                                     </button>
                                     <button onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}
-                                        className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs disabled:opacity-40">
+                                        className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-200 text-xs disabled:opacity-40">
                                         {z.sonraki}
                                     </button>
                                 </div>

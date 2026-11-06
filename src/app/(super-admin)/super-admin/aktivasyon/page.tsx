@@ -32,16 +32,16 @@ export default async function AktivasyonSayfasi({
   const liste = await aktivasyonListesi({ sadeceToplanti, odeyenlerDahil, simdi });
 
   const cip = (aktif: boolean) =>
-    `px-3 py-1.5 rounded-xl text-sm border ${aktif ? 'bg-violet-600/30 border-violet-400/60 text-white' : 'bg-white/5 border-white/10 text-white/85 hover:bg-white/10'}`;
+    `px-3 py-1.5 rounded-xl text-sm border ${aktif ? 'bg-blue-100 border-blue-300 text-gray-900' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'}`;
   const adres = (yeniT: string | null, yeniO: boolean) =>
     `/super-admin/aktivasyon?${new URLSearchParams({ ...(yeniT ? { t: yeniT } : {}), ...(yeniO ? { o: '1' } : {}) })}`;
 
   return (
     <div className="min-h-full">
-      <div className="bg-gradient-to-r from-violet-900/40 to-purple-900/40 border-b border-white/10 px-6 py-5">
+      <div className="bg-white border-b border-gray-200 px-6 py-5">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl font-bold">{m.baslik}</h1>
-          <p className="text-gray-400 text-sm mt-1 max-w-3xl">{m.alt}</p>
+          <p className="text-gray-500 text-sm mt-1 max-w-3xl">{m.alt}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link href={adres(null, odeyenlerDahil)} className={cip(!sadeceToplanti)}>{m.hepsi}</Link>
             <Link href={adres('toplanti', odeyenlerDahil)} className={cip(sadeceToplanti)}>{m.sadeceToplanti}</Link>
@@ -54,15 +54,15 @@ export default async function AktivasyonSayfasi({
         {/* Huni özeti: kaç hesap hangi adımda. */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
           {m.adimlar.map((ad, i) => (
-            <div key={ad} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2">
-              <div className="text-[11px] uppercase tracking-wide text-gray-400">{ad}</div>
+            <div key={ad} className="rounded-xl bg-gray-50 border border-gray-200 px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">{ad}</div>
               <div className="text-xl font-bold">{liste.filter((s) => s.adim >= i).length}</div>
             </div>
           ))}
         </div>
 
         {liste.length === 0 ? (
-          <p className="text-gray-400">{m.bos}</p>
+          <p className="text-gray-500">{m.bos}</p>
         ) : (
           <ul className="space-y-2">
             {liste.map((s) => (
@@ -82,16 +82,16 @@ function Satir({ s, m, simdi }: { s: AktivasyonSatiri; m: AktivasyonMetni; simdi
   const acil = s.oncelik <= 2;
 
   return (
-    <li className={`rounded-2xl border px-4 py-3 ${acil ? 'border-amber-400/50 bg-amber-500/10' : 'border-white/10 bg-white/5'}`}>
+    <li className={`rounded-2xl border px-4 py-3 ${acil ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
       <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
         <div className="min-w-[220px] flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Link href={`/super-admin/tenants/${s.tenantId}`} className="font-semibold hover:underline">
               {s.firma}
             </Link>
-            {s.etkinlik && <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] text-violet-200">{m.toplanti}</span>}
+            {s.etkinlik && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">{m.toplanti}</span>}
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">
+          <div className="text-xs text-gray-500 mt-0.5">
             {[s.yetkili, s.il].filter(Boolean).join(' · ')}
             {s.yetkili || s.il ? ' · ' : ''}
             {doldur(m.sayilar, { m: s.sayilar.musteri, c: s.sayilar.cihaz, s: s.sayilar.okuma, k: s.sayilar.kullanici })}
@@ -109,7 +109,7 @@ function Satir({ s, m, simdi }: { s: AktivasyonSatiri; m: AktivasyonMetni; simdi
             <span
               key={ad}
               title={ad}
-              className={`h-2.5 w-6 rounded-full ${i <= s.adim ? (s.adim >= 3 ? 'bg-emerald-400' : 'bg-sky-400') : 'bg-white/10'}`}
+              className={`h-2.5 w-6 rounded-full ${i <= s.adim ? (s.adim >= 3 ? 'bg-emerald-500' : 'bg-sky-500') : 'bg-gray-100'}`}
             />
           ))}
         </div>
@@ -118,12 +118,12 @@ function Satir({ s, m, simdi }: { s: AktivasyonSatiri; m: AktivasyonMetni; simdi
 
         <div className="flex gap-2">
           {wa && (
-            <a href={wa} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-emerald-600 px-3 py-1.5 text-sm font-semibold hover:bg-emerald-500">
+            <a href={wa} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-emerald-600 text-white px-3 py-1.5 text-sm font-semibold hover:bg-emerald-500">
               WhatsApp
             </a>
           )}
           {tel && (
-            <a href={tel} className="rounded-xl border border-white/15 px-3 py-1.5 text-sm hover:bg-white/10">
+            <a href={tel} className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100">
               {m.sutunAra}
             </a>
           )}

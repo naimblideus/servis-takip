@@ -50,65 +50,66 @@ export default function SuperAdminLoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
             <div className="w-full max-w-sm">
                 <div className="flex flex-col items-center mb-8">
-                    <div className="w-16 h-16 bg-violet-600 rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-violet-900/50">
-                        <Shield className="w-8 h-8 text-white" />
+                    <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center mb-4">
+                        <Shield className="w-8 h-8 text-gray-900" />
                     </div>
-                    <h1 className="text-2xl font-bold text-white">{sz.superAdmin.girisBaslik}</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">{sz.superAdmin.girisBaslik}</h1>
                     <p className="text-gray-500 text-sm mt-1">{sz.superAdmin.altBaslik}</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="bg-gray-900 border border-white/10 rounded-2xl p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
                     {hata && (
-                        <div className="bg-red-900/30 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
+                        <div className="bg-red-100 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
                             {sz.superAdmin.girisHata[hata]}
                         </div>
                     )}
 
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1.5">{sz.superAdmin.eposta}</label>
+                        <label className="block text-xs text-gray-500 mb-1.5">{sz.superAdmin.eposta}</label>
                         <input
-                            type="email"
+                            type="text"
+                            autoComplete="username"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500 transition-all"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
                             placeholder="admin@example.com"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1.5">{sz.giris.sifre}</label>
+                        <label className="block text-xs text-gray-500 mb-1.5">{sz.giris.sifre}</label>
                         <div className="relative">
                             <input
                                 type={showPass ? 'text' : 'password'}
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 pr-12 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-violet-500 transition-all"
+                                className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
                                 placeholder="••••••••"
                                 required
                             />
                             <button type="button" onClick={() => setShowPass(!showPass)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
                                 {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                         </div>
                     </div>
 
                     {needsTotp && (
-                        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                            <label className="block text-xs text-gray-300 mb-1.5">{sz.giris.dogrulamaKodu}</label>
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <label className="block text-xs text-gray-700 mb-1.5">{sz.giris.dogrulamaKodu}</label>
                             <input
                                 type="text" inputMode="numeric" autoComplete="one-time-code" autoFocus
                                 value={totp} onChange={e => setTotp(e.target.value)} maxLength={13}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-center font-mono text-lg tracking-[0.4em] focus:outline-none focus:border-violet-500"
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-center font-mono text-lg tracking-[0.4em] focus:outline-none focus:border-blue-500"
                                 placeholder="000000"
                             />
                             <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
                                 {sz.giris.dogrulamaAciklamaOn}{' '}
-                                <b className="text-gray-400">{sz.giris.dogrulamaAciklamaVurgu}</b>{' '}
+                                <b className="text-gray-500">{sz.giris.dogrulamaAciklamaVurgu}</b>{' '}
                                 {sz.giris.dogrulamaAciklamaSon}
                             </p>
                         </div>
@@ -117,14 +118,17 @@ export default function SuperAdminLoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold transition-all disabled:opacity-50"
+                        className="w-full py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-500 text-sm font-semibold transition-all disabled:opacity-50"
                     >
                         {loading ? sz.giris.giriliyor : needsTotp ? sz.giris.dogrulaVeGir : sz.giris.gir}
                     </button>
                 </form>
 
-                <p className="text-center text-xs text-gray-600 mt-4">
-                    <a href="/login" className="hover:text-gray-400">← {sz.superAdmin.normalGiris}</a>
+                <p className="text-center text-sm mt-4">
+                    <a href="/super-admin/sifre-kurtar" className="text-blue-700 hover:text-blue-900">{sz.superAdmin.kurtar.bagla}</a>
+                </p>
+                <p className="text-center text-xs text-gray-400 mt-3">
+                    <a href="/login" className="hover:text-gray-700">← {sz.superAdmin.normalGiris}</a>
                 </p>
             </div>
         </div>

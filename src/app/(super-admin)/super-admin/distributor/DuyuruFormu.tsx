@@ -13,7 +13,7 @@ import type { DuyuruSatiri } from '@/lib/distributor-veri';
  * (sahip başka markayı seçtiyse) adrese eklenir — distribütörde sunucu onu
  * zaten yok sayar. Hatalar kod olarak gelir, cümle burada kurulur.
  */
-const girdi = 'w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-white placeholder-gray-500 focus:border-violet-400 focus:outline-none';
+const girdi = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none';
 
 export default function DuyuruFormu({ marka, duyurular }: { marka: string | null; duyurular: DuyuruSatiri[] }) {
   const { dil } = useDil();
@@ -56,47 +56,47 @@ export default function DuyuruFormu({ marka, duyurular }: { marka: string | null
   return (
     <div className="space-y-4">
       <form onSubmit={gonder} className="space-y-3">
-        <label className="block text-sm text-gray-300">
+        <label className="block text-sm text-gray-700">
           <span className="mb-1 flex justify-between"><span>{m.baslikEtiket}</span><span className="text-xs text-gray-500">{doldur(m.karakter, { n: f.baslik.length, m: BASLIK_EN_UZUN })}</span></span>
           <input value={f.baslik} maxLength={BASLIK_EN_UZUN} required onChange={(e) => setF({ ...f, baslik: e.target.value })} className={girdi} />
         </label>
-        <label className="block text-sm text-gray-300">
+        <label className="block text-sm text-gray-700">
           <span className="mb-1 flex justify-between"><span>{m.metinEtiket}</span><span className="text-xs text-gray-500">{doldur(m.karakter, { n: f.metin.length, m: METIN_EN_UZUN })}</span></span>
           <textarea value={f.metin} maxLength={METIN_EN_UZUN} required rows={4} onChange={(e) => setF({ ...f, metin: e.target.value })} className={girdi} />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block text-sm text-gray-300">
+          <label className="block text-sm text-gray-700">
             <span className="mb-1 block">{m.baglantiEtiket}</span>
             <input type="url" inputMode="url" value={f.baglanti} maxLength={500} placeholder="https://" onChange={(e) => setF({ ...f, baglanti: e.target.value })} className={girdi} />
           </label>
-          <label className="block text-sm text-gray-300">
+          <label className="block text-sm text-gray-700">
             <span className="mb-1 block">{m.bitisEtiket}</span>
             <input type="date" value={f.bitis} onChange={(e) => setF({ ...f, bitis: e.target.value })} className={`${girdi} min-h-11`} />
           </label>
         </div>
-        <button type="submit" disabled={mesgul} className="min-h-11 rounded-xl bg-violet-600 px-5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-60">
+        <button type="submit" disabled={mesgul} className="min-h-11 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-60">
           {mesgul ? m.gonderiliyor : m.gonder}
         </button>
-        {mesaj && <p role={mesaj.ok ? 'status' : 'alert'} className={`text-sm ${mesaj.ok ? 'text-emerald-300' : 'text-red-300'}`}>{mesaj.metin}</p>}
+        {mesaj && <p role={mesaj.ok ? 'status' : 'alert'} className={`text-sm ${mesaj.ok ? 'text-emerald-700' : 'text-red-700'}`}>{mesaj.metin}</p>}
       </form>
 
       {duyurular.length === 0 ? (
-        <p className="text-sm text-gray-400">{m.bos}</p>
+        <p className="text-sm text-gray-500">{m.bos}</p>
       ) : (
-        <ul className="divide-y divide-white/5 rounded-xl border border-white/10">
+        <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200">
           {duyurular.map((d) => (
             <li key={d.id} className="flex flex-wrap items-start gap-3 px-3 py-3">
               <div className="min-w-0 flex-1 basis-56">
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <b className="break-words text-white">{d.baslik}</b>
-                  <span className={`text-xs ${d.aktif ? 'text-emerald-300' : 'text-gray-500'}`}>{d.aktif ? m.yayinda : m.suresiDoldu}</span>
+                  <b className="break-words text-gray-900">{d.baslik}</b>
+                  <span className={`text-xs ${d.aktif ? 'text-emerald-700' : 'text-gray-500'}`}>{d.aktif ? m.yayinda : m.suresiDoldu}</span>
                   {d.bitis && <span className="text-xs text-gray-500">{doldur(m.bitis, { t: new Date(d.bitis).toLocaleDateString(yerel) })}</span>}
                 </div>
-                <p className="mt-1 whitespace-pre-line break-words text-sm text-gray-300">{d.metin}</p>
-                {d.baglanti && <p className="mt-1 break-all text-xs text-sky-300">{d.baglanti}</p>}
+                <p className="mt-1 whitespace-pre-line break-words text-sm text-gray-700">{d.metin}</p>
+                {d.baglanti && <p className="mt-1 break-all text-xs text-sky-700">{d.baglanti}</p>}
                 <p className="mt-1 text-xs text-gray-500">{d.kurumAd} · {new Date(d.createdAt).toLocaleString(yerel, { dateStyle: 'short', timeStyle: 'short' })}</p>
               </div>
-              <button type="button" disabled={mesgul} onClick={() => sil(d.id)} className="min-h-11 rounded-lg px-3 text-sm text-red-300 hover:bg-red-500/10">{m.sil}</button>
+              <button type="button" disabled={mesgul} onClick={() => sil(d.id)} className="min-h-11 rounded-lg px-3 text-sm text-red-700 hover:bg-red-100">{m.sil}</button>
             </li>
           ))}
         </ul>

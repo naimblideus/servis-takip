@@ -213,6 +213,7 @@ model Tenant {
   statusHistory       TicketStatusHistory[]
   customerGroups      CustomerGroup[]
   sayacTaramalari     SayacTaramasi[]
+  tarayiciKurulumlari TarayiciKurulumu[]
   cihazOlaylari       CihazOlayi[]
   tonerSevkleri       TonerSevki[]
   bankaHareketleri    BankaHareketi[]
@@ -620,6 +621,41 @@ model SayacTaramasi {
   yazilan     Int       @default(0)
   sonuc       Json
   onaylandiAt DateTime?
+  // Tarayıcının kendi teşhisi: hangi aralıklar tarandı, SNMP'siz yazıcı
+  // adayları, günlük görev kuruldu mu (lib/sayac-tarama taniAyikla).
+  tani        Json?
+  kurulumId   String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+// TARAYICI KURULUMU — teknisyenin müşteri ofisinde yaptığı TEK kurulum.
+// Panel kısa bir kurulum kodu üretir; müşterinin bilgisayarında tek komut
+// (irm …/k/KOD | iex) tarayıcıyı indirir ve kurar. Kod ilk kullanımda bu
+// kuruluma özel bir anahtara dönüşür (yalnız özeti saklanır) ve bir daha
+// kullanılamaz. Böylece her ofisin kendi anahtarı olur: yeni bir ofise
+// kurmak eski ofislerin tarayıcısını DURDURMAZ (bayi anahtarını yenilemek
+// durduruyordu) ve tek bir kurulum tek başına kapatılabilir.
+model TarayiciKurulumu {
+  id           String    @id @default(cuid())
+  tenantId     String
+  kod          String    @unique
+  kodBitis     DateTime
+  // Teknisyenin panelde yazdığı yazıcı IP'leri / aralıkları ve topluluk adı;
+  // komut bunlarla kurulur, günlük görev de bunları hatırlar.
+  hedef        String?
+  topluluk     String?
+  anahtarOzet  String?   @unique
+  kullanildiAt DateTime?
+  bilgisayar   String?
+  // Son canlı sinyal: { asama: BASLADI|BITTI|HATA, hedefSayisi, at }
+  nabiz        Json?
+  sonGorulme   DateTime?
+  iptalAt      DateTime?
+  createdById  String?
+  createdAt    DateTime  @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

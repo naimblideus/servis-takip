@@ -191,7 +191,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div>
               <label htmlFor="eposta" className="mb-2 block text-[13px] font-medium text-white/60">{t.giris.eposta}</label>
-              {/* type="text": ekip test hesabı kısa adla ("test3") girer; type="email" onu tarayıcıda reddederdi. */}
+              {/* type="text": ekip test hesabı kısa adla ("teknik3") girer; type="email" onu tarayıcıda reddederdi. */}
               <input id="eposta" type="text" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
                 value={email} onChange={(e) => setEmail(e.target.value)}
                 className={alan} placeholder={t.giris.epostaYer} autoComplete="username" required />
