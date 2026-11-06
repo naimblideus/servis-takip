@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { acikDonem, donemAraligi, donemOkumaKosulu, kesimGunu, oncekiDonem, okumaninDonemi } from '@/lib/fatura-donemi';
+import { acikDonem, donemAraligi, donemOkumaKosulu, donemOncesiKosulu, kesimGunu, oncekiDonem, okumaninDonemi } from '@/lib/fatura-donemi';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -84,7 +84,7 @@ export async function GET() {
   const ucDonemOnce = oncekiDonem(oncekiDonem(oncekiDonem(period)));
   const sokGecmisi = ids.length
     ? await prisma.counterReading.findMany({
-        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: true, readingDate: { gte: donemAraligi(ucDonemOnce).start }, NOT: donemdeki },
+        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: true, readingDate: { gte: donemAraligi(ucDonemOnce).start }, ...donemOncesiKosulu(period) },
         select: { deviceId: true, readingDate: true, faturaDonemi: true, deltaBlack: true, deltaColor: true },
       })
     : [];
@@ -167,13 +167,12 @@ export async function GET() {
   // (dönem damgası varsa damga, yoksa tarihinin İstanbul ayı).
   const gecmisAdaylar = ids.length
     ? await prisma.counterReading.findMany({
-        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: false, NOT: donemdeki },
+        where: { tenantId: user.tenantId, deviceId: { in: ids }, billed: false, ...donemOncesiKosulu(period) },
         select: { readingDate: true, faturaDonemi: true, calculatedCost: true, deviceId: true },
       })
     : [];
-  const gecmisOkumalar = gecmisAdaylar.filter((r) => okumaninDonemi(r) < period);
   const gecmisHarita = new Map<string, { okuma: number; tutar: number; cihazlar: Set<string> }>();
-  for (const r of gecmisOkumalar) {
+  for (const r of gecmisAdaylar) {
     const dnm = okumaninDonemi(r);
     const g = gecmisHarita.get(dnm) ?? { okuma: 0, tutar: 0, cihazlar: new Set<string>() };
     g.okuma++;

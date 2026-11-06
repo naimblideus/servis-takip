@@ -66,12 +66,20 @@ try {
       counterBlack: 10000, counterColor: 0, ...ek,
     },
   });
-  // Zincirin başı: fark buradan hesaplanıyor.
-  const baslangic = (deviceId) => p.counterReading.create({
+  // Zincirin başı: fark buradan hesaplanıyor. Tarih GEÇEN AYIN ortası, "40 gün
+  // önce" değil: son faturalanmış dönem iki ay geride kalırsa okunmayan ay
+  // kuralı (lib/invoicing sayacAyCarpanlari) dahil paketi ikiyle çarpar. 40 gün
+  // ayın ilk günlerinde iki ay öteye düştüğü için bu test takvime göre
+  // kırmızıya dönüyordu.
+  const ayOrtasi = (ayOnce) => {
+    const t = new Date();
+    return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - ayOnce, 15, 9));
+  };
+  const baslangic = (deviceId, ayOnce = 1) => p.counterReading.create({
     data: {
       tenantId: tenant.id, deviceId, counterBlack: 10000, counterColor: 0,
       deltaBlack: 0, deltaColor: 0, calculatedCost: 0, billed: true,
-      source: 'TOPLU', readingDate: new Date(Date.now() - 40 * 86400000),
+      source: 'TOPLU', readingDate: ayOrtasi(ayOnce),
     },
   });
   const oku = async (deviceId, siyah, renkli = 0) => {
@@ -142,6 +150,18 @@ try {
     await baslangic(d.id);
     const r = await oku(d.id, 11500);
     t('★ aşım ₺0 yazılmışsa ücretsiz (sayfa fiyatına DÜŞMÜYOR)', Number(r.calculatedCost) === 0, Number(r.calculatedCost));
+  }
+
+  console.log('\n★ OKUNMAYAN AY — DAHİL PAKET İKİ AYLIK\n');
+  {
+    // Geçen ay okuma yok: bu okuma iki ayın sayfasını taşıyor, paket 2 × 1.000.
+    // 2.500 sayfanın 500'ü aşım × ₺0,60 = ₺300 (paket tek ay olsa ₺900 olurdu).
+    const d = await cihazKur({ includedBlack: 1000, pricePerBlack: 0.30, overagePriceBlack: 0.60 });
+    await baslangic(d.id, 2);
+    const r = await oku(d.id, 12500);
+    t('★ bir ay atlanınca iki ayın paketi düşülüyor (₺300)', Number(r.calculatedCost) === 300, {
+      beklenen: 300, gelen: Number(r.calculatedCost), tekAyPaket: 900,
+    });
   }
 
   console.log('\nAYNI DÖNEMDE İKİNCİ OKUMA — DAHİL PAKET TEK KEZ\n');

@@ -313,10 +313,25 @@ try {
       },
     });
 
+    // Aynı dönemde damgalı bir okuma daha. Yukarıdaki damgasız: göç eski
+    // okumaları damgasız bıraktı ve "NOT: dönem koşulu" bunları SQL'de NULL'a
+    // çıkarıp eliyordu. İkisi de sayılmalı.
+    const damgaliCihaz = await cihazKur(tenant, musteri, 'KORUMA-ESKI-DAMGALI',
+      [{ gun: 150, siyah: 1000 }, { gun: 120, siyah: 4000 }], 1000);
+    await p.counterReading.create({
+      data: {
+        tenantId: tenant.id, deviceId: damgaliCihaz.id,
+        counterBlack: 6000, counterColor: 0, deltaBlack: 2000, deltaColor: 0,
+        calculatedCost: 100, billed: false, source: 'CIHAZ_EPOSTA',
+        readingDate: eskiTarih, faturaDonemi: eskiDonem,
+      },
+    });
+
     const y = await fetch(`${KOK}/api/revenue-risk`, { headers: { cookie: cerez } });
     const d = await y.json();
     t('uç cevap veriyor', y.ok, d);
     const satir = (d.gecmisDonemler || []).find((g) => g.donem === eskiDonem);
+    t('★ damgasız ve damgalı okuma aynı dönemde toplanıyor', satir?.okuma === 2 && satir?.cihaz === 2 && satir?.tutar === 1334.5, satir);
     t('kapanmış aydaki faturalanmamış okuma görünüyor', !!satir, d.gecmisDonemler);
     t('o dönemin tutarı bildiriliyor', satir?.tutar >= 1234.5, satir);
     t('kaç okuma ve kaç cihaz olduğu yazıyor', satir?.okuma >= 1 && satir?.cihaz >= 1, satir);

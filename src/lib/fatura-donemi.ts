@@ -168,6 +168,24 @@ export function donemOkumaKosulu(period: string) {
   };
 }
 
+/**
+ * Dönemi verilen dönemden ÖNCE olan okumalar. Damgalı okuma damgasıyla,
+ * damgasız okuma tarihiyle seçilir.
+ *
+ * `NOT: donemOkumaKosulu(p)` YAZILMAZ: damgası NULL olan satırda koşul SQL'de
+ * NULL'a çıkar, NOT NULL da NULL kalır ve satır sessizce elenir. Göç eski
+ * okumaları damgasız bıraktığı için bu, geçmişin neredeyse tamamı demektir.
+ */
+export function donemOncesiKosulu(period: string) {
+  const { start } = donemAraligi(period);
+  return {
+    OR: [
+      { faturaDonemi: { lt: period } },
+      { faturaDonemi: null, readingDate: { lt: start } },
+    ],
+  };
+}
+
 /** Okumanın hangi döneme ait olduğu (damga yoksa tarihinin İstanbul ayı). */
 export function okumaninDonemi(r: { faturaDonemi?: string | null; readingDate: Date }): string {
   return r.faturaDonemi ?? donemOf(r.readingDate);
