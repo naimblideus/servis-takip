@@ -123,7 +123,9 @@ export async function sifreYenile(jeton: unknown, sifre: unknown, ip: string | n
   if (!kullanicilar.length) return { durum: 'GECERSIZ' };
 
   const passwordHash = await bcrypt.hash(sifre, 12);
-  await prisma.user.updateMany({ where: { id: { in: kullanicilar.map((u) => u.id) } }, data: { passwordHash } });
+  // Davetli kişi bağlantıyı açmadan "şifremi unuttum"la şifre koyduysa artık
+  // davet beklemiyor (lib/kullanici-davet): rozet ve ekip sayısı düzelsin.
+  await prisma.user.updateMany({ where: { id: { in: kullanicilar.map((u) => u.id) } }, data: { passwordHash, davetBekliyor: false } });
   // Aynı adrese giden öteki bağlantılar da ölür.
   await prisma.sifreSifirlama.updateMany({ where: { eposta: k.eposta, kullanildi: null }, data: { kullanildi: new Date(simdi) } });
   for (const u of kullanicilar) {

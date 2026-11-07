@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createTenant } from '@/lib/tenant-manager';
+import { getSuperAdminSession } from '@/lib/super-admin-auth';
+import { davetOlustur, kullanilamazSifre } from '@/lib/kullanici-davet';
 
 // GET — işletme listesi
 export async function GET(req: NextRequest) {
@@ -65,6 +67,23 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const result = await createTenant(body);
+
+        // SAHİBE DAVET (varsayılan): geçici şifreyi telefonda söylemek yerine
+        // sahibe WhatsApp'tan tek kullanımlık bağlantı gider, şifresini kendisi
+        // koyar (lib/kullanici-davet.ts). Geçici şifre o anda geçersiz kalır.
+        // `davet: false` eski yol: geçici şifre ekranda.
+        if (body?.davet !== false) {
+            await prisma.user.update({ where: { id: result.user.id }, data: { passwordHash: await kullanilamazSifre(), davetBekliyor: true } });
+            const sa = await getSuperAdminSession();
+            const d = await davetOlustur({ tenantId: result.tenant.id, userId: result.user.id, olusturanAd: sa ? `Nextus: ${sa.name || sa.email}` : 'Nextus' });
+            return NextResponse.json({
+                tenant: result.tenant,
+                adminEmail: result.user.email,
+                tempPassword: '',
+                davet: { baglanti: d.baglanti, bitis: d.bitis.toISOString() },
+            }, { status: 201 });
+        }
+
         return NextResponse.json({
             tenant: result.tenant,
             adminEmail: result.user.email,

@@ -21,9 +21,13 @@ export default async function UsersPage() {
     if (!me || me.role !== 'ADMIN') redirect('/dashboard');
     const { sz } = await sunucuBicimi(me);
 
+    // Yalnız ekranın kullandığı alanlar. Eskiden kaydın tamamı istemci bileşenine
+    // gidiyordu: şifre özeti, iki adımlı doğrulama anahtarı ve kurtarma kodları
+    // her kullanıcı için yöneticinin tarayıcısına iniyordu.
     const users = await prisma.user.findMany({
         where: { tenantId: me.tenantId },
         orderBy: [{ role: 'asc' }, { name: 'asc' }],
+        select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true, davetBekliyor: true },
     });
 
     const ticketCounts = await prisma.serviceTicket.groupBy({

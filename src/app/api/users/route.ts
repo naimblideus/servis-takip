@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { UserRole } from '@prisma/client';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { davetOlustur, kullanilamazSifre } from '@/lib/kullanici-davet';
+import { writeAudit } from '@/lib/audit';
 
 export async function GET() {
     const session = await auth();
@@ -34,6 +36,9 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { name, password, role = 'TECHNICIAN' } = body;
+        // DAVET: yönetici şifre yazmaz; kişiye WhatsApp'tan tek kullanımlık
+        // bağlantı gider, şifresini kendisi koyar (lib/kullanici-davet.ts).
+        const davet = body.davet === true;
         // E-POSTA KÜÇÜK HARFLE saklanır. Giriş artık lower(email) ile arıyor;
         // "Ali@Firma.com" ile "ali@firma.com" aynı kişi. Olduğu gibi saklanınca
         // aynı bayide iki ayrı kullanıcı açılabiliyordu (benzersizlik birebir
@@ -41,10 +46,10 @@ export async function POST(req: Request) {
         // bilemiyordu.
         const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
 
-        if (!name || !email || !password) {
+        if (!name || !email || (!davet && !password)) {
             return ucHatasi('AD_E_POSTA_VE_SIFRE', 400);
         }
-        if (password.length < 6) {
+        if (!davet && password.length < 6) {
             return ucHatasi('SIFRE_EN_AZ_6_KARAKTER_2', 400);
         }
 
@@ -54,9 +59,11 @@ export async function POST(req: Request) {
 
         // Plan limiti (maxUsers) — katmanlı fiyatlandırma için zorunlu
         const [tenant, activeCount] = await Promise.all([
-            prisma.tenant.findUnique({ where: { id: me.tenantId }, select: { maxUsers: true } }),
+            prisma.tenant.findUnique({ where: { id: me.tenantId }, select: { maxUsers: true, name: true, demo: true } }),
             prisma.user.count({ where: { tenantId: me.tenantId, isActive: true } }),
         ]);
+        // Demo bayisini herkes aynı anda geziyor: oradan kimseye davet gitmez.
+        if (davet && tenant?.demo) return ucHatasi('DEMO_HESABINDA_KAPALI', 403);
         if (tenant && activeCount >= tenant.maxUsers) {
             return ucHatasi('PLAN_LIMITINIZ_KULLANICI_DOLDU_DAHA', 403, { deger: { p1: tenant.maxUsers } });
         }
@@ -68,7 +75,9 @@ export async function POST(req: Request) {
         const existing = await prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "tenantId" = ${me.tenantId} AND lower("email") = ${email} LIMIT 1`;
         if (existing.length) return ucHatasi('BU_E_POSTA_BU_ISLETMEDE', 400);
 
-        const hashedPassword = await bcrypt.hash(password, 12);
+        // Davetli kişinin şifresi kimsenin bilmediği rastgele bir özet: bağlantıyı
+        // açıp kendi şifresini koymadan bu hesaba kimse giremez.
+        const hashedPassword = davet ? await kullanilamazSifre() : await bcrypt.hash(password, 12);
 
         const newUser = await prisma.user.create({
             data: {
@@ -78,10 +87,25 @@ export async function POST(req: Request) {
                 passwordHash: hashedPassword,
                 role: safeRole,
                 isActive: true,
+                davetBekliyor: davet,
             },
         });
 
-        return NextResponse.json({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
+        if (!davet) return NextResponse.json({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
+
+        const d = await davetOlustur({ tenantId: me.tenantId, userId: newUser.id, olusturanAd: me.name });
+        await writeAudit({
+            tenantId: me.tenantId,
+            userId: me.id,
+            action: 'DAVET_GONDERILDI',
+            entityType: 'User',
+            entityId: newUser.id,
+            newValue: { ad: newUser.name, giris: newUser.email, rol: newUser.role, bitis: d.bitis.toISOString() },
+        });
+        return NextResponse.json({
+            id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role,
+            davet: { baglanti: d.baglanti, bitis: d.bitis.toISOString(), firma: tenant?.name ?? '' },
+        });
     } catch (e: any) {
         console.error('USER CREATE ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });

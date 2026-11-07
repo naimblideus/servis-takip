@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ALL_MODULE_KEYS, effectiveModules } from '@/lib/modules';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import DavetPaylas from '@/components/DavetPaylas';
 
 // Hesap türü menüyü ve ana sayfayı belirler (lib/menu-aileleri). Eski "sektör"
 // seçimi hiçbir yerde okunmuyordu; yerine bu geldi.
@@ -22,11 +23,15 @@ export default function NewTenantPage() {
     const b = useBicim();
     const y = sz.superAdmin.yeni;
     const [saving, setSaving] = useState(false);
-    const [created, setCreated] = useState<{ tempPassword: string; adminEmail: string } | null>(null);
+    // davet: sahibe şifre yerine WhatsApp'tan tek kullanımlık bağlantı (varsayılan).
+    const [created, setCreated] = useState<{
+        tempPassword: string; adminEmail: string;
+        davet: { baglanti: string } | null; ad: string; firma: string; telefon: string;
+    } | null>(null);
     const [form, setForm] = useState({
         name: '', slug: '', ownerName: '', phone: '', email: '',
         taxNumber: '', taxOffice: '', address: '', city: '', district: '',
-        hesapTuru: 'BAYI', plan: 'trial', trialDays: 14, maxUsers: 2, adminNotes: '',
+        hesapTuru: 'BAYI', plan: 'trial', trialDays: 14, maxUsers: 2, adminNotes: '', davet: true,
     });
 
     // Slug otomatik oluştur
@@ -54,7 +59,10 @@ export default function NewTenantPage() {
             });
             const data = await res.json();
             if (res.ok) {
-                setCreated({ tempPassword: data.tempPassword, adminEmail: data.adminEmail });
+                setCreated({
+                    tempPassword: data.tempPassword, adminEmail: data.adminEmail,
+                    davet: data.davet ?? null, ad: form.ownerName, firma: form.name, telefon: form.phone,
+                });
             } else {
                 alert(data.error || y.hata);
             }
@@ -70,13 +78,28 @@ export default function NewTenantPage() {
                     <div className="text-4xl mb-4">✅</div>
                     <h2 className="text-xl font-bold text-green-700 mb-2">{y.olusturuldu}</h2>
                     <p className="text-gray-500 text-sm mb-6">{y.olusturulduAlt}</p>
-                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left space-y-2 text-sm mb-6">
-                        <div><span className="text-gray-500">{sz.superAdmin.eposta}:</span> <span className="font-mono text-blue-700">{created.adminEmail}</span></div>
-                        <div><span className="text-gray-500">{y.gecici}</span> <span className="font-mono text-amber-700 text-lg font-bold">{created.tempPassword}</span></div>
-                        <div><span className="text-gray-500">{y.girisUrl}</span> <span className="font-mono text-xs text-gray-700">{typeof window !== 'undefined' ? window.location.origin : ''}/login</span></div>
-                    </div>
+                    {created.davet ? (
+                        <div className="mb-6">
+                            <DavetPaylas
+                                baglanti={created.davet.baglanti}
+                                telefon={created.telefon}
+                                mesaj={doldur(sz.kullanici.davetMesaji, {
+                                    ad: created.ad.trim().split(/\s+/)[0] ?? created.ad, firma: created.firma,
+                                    baglanti: created.davet.baglanti, giris: created.adminEmail,
+                                })}
+                                baslik={created.ad}
+                                aciklama={doldur(y.davetAlt, { ad: created.ad.trim().split(/\s+/)[0] ?? created.ad })}
+                            />
+                        </div>
+                    ) : (
+                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left space-y-2 text-sm mb-6">
+                            <div><span className="text-gray-500">{sz.superAdmin.eposta}:</span> <span className="font-mono text-blue-700">{created.adminEmail}</span></div>
+                            <div><span className="text-gray-500">{y.gecici}</span> <span className="font-mono text-amber-700 text-lg font-bold">{created.tempPassword}</span></div>
+                            <div><span className="text-gray-500">{y.girisUrl}</span> <span className="font-mono text-xs text-gray-700">{typeof window !== 'undefined' ? window.location.origin : ''}/login</span></div>
+                        </div>
+                    )}
                     <div className="flex gap-3">
-                        <button onClick={() => { setCreated(null); setForm({ name: '', slug: '', ownerName: '', phone: '', email: '', taxNumber: '', taxOffice: '', address: '', city: '', district: '', hesapTuru: 'BAYI', plan: 'trial', trialDays: 14, maxUsers: 2, adminNotes: '' }); }}
+                        <button onClick={() => { setCreated(null); setForm({ name: '', slug: '', ownerName: '', phone: '', email: '', taxNumber: '', taxOffice: '', address: '', city: '', district: '', hesapTuru: 'BAYI', plan: 'trial', trialDays: 14, maxUsers: 2, adminNotes: '', davet: true }); }}
                             className="flex-1 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm">{y.yeniBir}</button>
                         <button onClick={() => router.push('/super-admin/tenants')}
                             className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-500 text-sm">{y.liste}</button>
@@ -148,6 +171,13 @@ export default function NewTenantPage() {
                                 <input value={form.email} onChange={e => set('email', e.target.value)} required type="email"
                                     className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500" />
                             </div>
+                            <label className="md:col-span-2 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 cursor-pointer">
+                                <input type="checkbox" checked={form.davet} onChange={e => set('davet', e.target.checked)} className="mt-1 h-4 w-4" />
+                                <span className="text-sm">
+                                    <span className="font-semibold text-emerald-900">{y.davetSecenek}</span>
+                                    <span className="block text-xs text-emerald-800">{y.davetSecenekAlt}</span>
+                                </span>
+                            </label>
                             <div>
                                 <label className="text-xs text-gray-500 mb-1 block">{y.vergiNo}</label>
                                 <input value={form.taxNumber} onChange={e => set('taxNumber', e.target.value)}

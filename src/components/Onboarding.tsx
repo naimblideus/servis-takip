@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import { ROL_ADIMLARI, ekipRolu, ekipAdimAnahtari, yolunAdimi, adimTamam } from '@/lib/rehber-rol';
 
 /**
  * İLK-GİRİŞ EĞİTİM SİSTEMİ
@@ -30,6 +31,9 @@ interface Steps {
 interface Status {
   onboarded: boolean;
   userName: string;
+  /** Teknisyen ve ön büro kendi üç işini görür (lib/rehber-rol); yönetici bugünkü listeyi. */
+  rol?: string;
+  userId?: string;
   steps: Steps;
 }
 
@@ -91,14 +95,84 @@ export default function Onboarding() {
     if (authStatus === 'authenticated' && !isPrintPage) fetchStatus();
   }, [pathname, authStatus, fetchStatus, isPrintPage]);
 
+  // ── EKİP ROLÜ (teknisyen, ön büro): kişisel adımlar ─────────────────────
+  // Ekran bir kez açılınca adım tamam; kayıt tarayıcıda, kişiye özel anahtarla.
+  const ekip = ekipRolu(data?.rol);
+  const userId = data?.userId;
+  const [acilanlar, setAcilanlar] = useState<Set<string>>(() => new Set());
+  const [kurulu, setKurulu] = useState(false);
+  const [dokunmatik, setDokunmatik] = useState(false);
+  useEffect(() => {
+    if (!ekip || !userId) return;
+    try {
+      const kayit = JSON.parse(localStorage.getItem(ekipAdimAnahtari(userId)) || '[]');
+      if (Array.isArray(kayit)) setAcilanlar(new Set(kayit.filter((x): x is string => typeof x === 'string')));
+    } catch { /* özel sekme: yalnız bu oturumda */ }
+    try {
+      setKurulu(window.matchMedia('(display-mode: standalone)').matches
+        || (navigator as Navigator & { standalone?: boolean }).standalone === true);
+      setDokunmatik(window.matchMedia('(pointer: coarse)').matches);
+    } catch { /* eski tarayıcı */ }
+  }, [ekip, userId]);
+  useEffect(() => {
+    if (!ekip || !userId || !pathname) return;
+    const k = yolunAdimi(ekip, pathname);
+    if (!k) return;
+    setAcilanlar((once) => {
+      if (once.has(k)) return once;
+      const sonra = new Set(once).add(k);
+      try { localStorage.setItem(ekipAdimAnahtari(userId), JSON.stringify([...sonra])); } catch { /* yoksay */ }
+      return sonra;
+    });
+  }, [ekip, userId, pathname]);
+
   if (authStatus !== 'authenticated' || !data || isPrintPage) return null;
 
   const r = t.rehber;
-  const CHECKLIST = ADIMLAR.map((a) => ({ ...a, ...r.adimlar[a.key] }));
+  type Satir = { key: string; icon: string; href: string | null; title: string; desc: string; cta: string; how: readonly string[] };
+  type AdimMetni = { title: string; desc: string; cta: string; how: readonly string[] };
+  const ekipMetin = ekip ? r.ekip[ekip] : null;
+  // Yönetici: bayinin kurulumu VERİDEN (ilk müşteri, ilk fatura...). Teknisyen ve
+  // ön büro: kendi üç işi, KİŞİSEL (ekranı bir kez açınca tamam). Telefon adımı
+  // yalnız dokunmatik cihazda: masaüstünde "telefona kur" anlamsız.
+  const CHECKLIST: Satir[] = ekip && ekipMetin
+    ? ROL_ADIMLARI[ekip]
+        .filter((a) => a.href !== null || dokunmatik)
+        .map((a) => ({ ...a, ...(ekipMetin.adimlar as Record<string, AdimMetni>)[a.key] }))
+    : ADIMLAR.map((a) => ({ ...a, ...r.adimlar[a.key] }));
+  const yapildi = (key: string): boolean => {
+    if (!ekip) return Boolean(data.steps[key as keyof Steps]);
+    const adim = ROL_ADIMLARI[ekip].find((a) => a.key === key);
+    return adim ? adimTamam(adim, acilanlar, kurulu) : false;
+  };
+  const ilkAd = (data.userName || '').trim().split(/\s+/)[0] ?? '';
+
+  // EKİP: tek ekran — üç iş ve ne işe yaradıkları. Uzun anlatım yok.
+  const EKIP_SIHIRBAZI: { title: string; body: React.ReactNode }[] = ekipMetin ? [
+    {
+      title: ilkAd ? `${r.ekip.baslik}, ${ilkAd}` : r.ekip.baslik,
+      body: (
+        <>
+          <p style={{ margin: '0 0 0.8rem', color: '#475569', fontSize: '0.92rem' }}>{ekipMetin.giris}</p>
+          <div style={{ display: 'grid', gap: '0.6rem' }}>
+            {CHECKLIST.map((c) => (
+              <div key={c.key} style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', background: '#f8fafc', borderRadius: 10, padding: '0.7rem 0.8rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>{c.icon}</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>{c.title}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: 2, lineHeight: 1.5 }}>{c.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ),
+    },
+  ] : [];
 
   // 3 EKRAN — hedef: sistemi 2 DAKİKADAN kısa sürede kavratmak.
   // Ayrıntı burada DEĞİL: "Nasıl Kullanılır?" sayfasında. Burada yalnız çalışma mantığı var.
-  const WIZARD: { title: string; body: React.ReactNode }[] = [
+  const SAHIP_SIHIRBAZI: { title: string; body: React.ReactNode }[] = [
     {
       title: r.sihirbaz.zincir.title,
       body: (
@@ -158,9 +232,9 @@ export default function Onboarding() {
       ),
     },
   ];
+  const WIZARD = ekip && EKIP_SIHIRBAZI.length ? EKIP_SIHIRBAZI : SAHIP_SIHIRBAZI;
 
-  const steps = data.steps;
-  const doneCount = CHECKLIST.filter((c) => steps[c.key]).length;
+  const doneCount = CHECKLIST.filter((c) => yapildi(c.key)).length;
   const total = CHECKLIST.length;
   const allDone = doneCount === total;
 
@@ -239,6 +313,12 @@ export default function Onboarding() {
                 )}
                 {step < WIZARD.length - 1 ? (
                   <button onClick={() => setStep((s) => s + 1)} style={{ padding: '0.55rem 1.2rem', background: '#2563eb', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>{r.ileri}</button>
+                ) : ekipMetin ? (
+                  // Ekip: tek düğme, kendi ilk işine (teknisyen İşlerim, ön büro Müşteriler).
+                  <button onClick={async () => { await finishWizard(); const ilk = CHECKLIST.find((c) => c.href); if (ilk?.href) router.push(ilk.href); }}
+                    style={{ padding: '0.55rem 1.2rem', background: 'linear-gradient(135deg,#059669,#10b981)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>
+                    {ekipMetin.baslat}
+                  </button>
                 ) : (
                   <>
                     <button onClick={async () => { await finishWizard(); router.push('/import'); }} style={{ padding: '0.55rem 0.9rem', background: 'white', border: '1px solid #cbd5e1', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: '#334155' }}>{r.excelAktar}</button>
@@ -274,7 +354,7 @@ export default function Onboarding() {
               </div>
               <div className="gs-panel" style={{ maxHeight: '52vh', overflowY: 'auto', padding: '0.5rem' }}>
                 {CHECKLIST.map((c) => {
-                  const done = steps[c.key];
+                  const done = yapildi(c.key);
                   const howOpen = openHow === c.key;
                   return (
                     <div key={c.key} style={{ display: 'flex', gap: '0.6rem', padding: '0.65rem 0.6rem', borderRadius: 10, alignItems: 'flex-start', background: done ? '#f0fdf4' : 'transparent' }}>
@@ -286,7 +366,8 @@ export default function Onboarding() {
                         {!done && <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>{c.desc}</div>}
                         {!done && (
                           <div style={{ marginTop: 6, display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <button onClick={() => go(c.href)} style={{ padding: '0.3rem 0.7rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 7, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 }}>{c.cta} →</button>
+                            {/* href yoksa adım bir eylem (telefona kur): düğme nasıl yapılır'ı açar. */}
+                            <button onClick={() => (c.href ? go(c.href) : setOpenHow(howOpen ? null : c.key))} style={{ padding: '0.3rem 0.7rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 7, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 }}>{c.cta} →</button>
                             <button onClick={() => setOpenHow(howOpen ? null : c.key)} style={{ padding: '0.3rem 0.6rem', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 }}>
                               {howOpen ? r.gizle : r.nasilYapilir}
                             </button>

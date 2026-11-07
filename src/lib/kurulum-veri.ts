@@ -153,9 +153,11 @@ async function hesapla(tenants: TenantSecimi[], simdi: Date): Promise<KurulumSat
       _min: { invoiceDate: true },
       _max: { invoiceDate: true },
     }),
+    // Davet bekleyen (şifresini henüz koymamış) kişi ekip değildir: sayılsaydı
+    // davet gönderildiği an EKİP adımı, kimse girmeden yeşil yanardı.
     prisma.user.groupBy({
       by: ['tenantId'],
-      where: { ...w, isActive: true, role: { in: ['TECHNICIAN', 'FRONT_DESK'] } },
+      where: { ...w, isActive: true, davetBekliyor: false, role: { in: ['TECHNICIAN', 'FRONT_DESK'] } },
       _count: { _all: true },
     }),
     prisma.serviceTicket.groupBy({ by: ['tenantId'], where: { ...w, deletedAt: null, createdAt: { gte: kullanimBasi } }, _count: { _all: true } }),

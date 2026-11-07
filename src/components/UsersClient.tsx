@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import DavetPaylas from '@/components/DavetPaylas';
 
 // Rol adları sözlükte (kullanici.roller); burada yalnız renk.
 const ROLE_COLORS: Record<string, string> = {
@@ -12,7 +13,10 @@ const ROLE_COLORS: Record<string, string> = {
 
 interface User {
     id: string; name: string; email: string; role: string; isActive: boolean; createdAt: string;
+    /** Davetle açıldı, şifresini henüz belirlemedi. */
+    davetBekliyor?: boolean;
 }
+type YeniDavet = { ad: string; giris: string; baglanti: string; firma: string };
 interface Props {
     users: User[];
     meId: string;
@@ -27,6 +31,17 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
     const [editId, setEditId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState({ name: '', email: '', role: '', password: '', isActive: true });
     const [saving, setSaving] = useState(false);
+    const [davet, setDavet] = useState<YeniDavet | null>(null);
+
+    /** Daveti yeniden gönder: yeni bağlantı, eskisi ölür (api/users/[id]/davet). */
+    const davetiYenile = async (id: string) => {
+        setSaving(true);
+        const res = await fetch(`/api/users/${id}/davet`, { method: 'POST' });
+        const d = await res.json().catch(() => ({}));
+        setSaving(false);
+        if (!res.ok) { alert(doldur(t.fisler.hata, { n: d.error ?? res.status })); return; }
+        setDavet({ ad: d.ad, giris: d.giris, baglanti: d.baglanti, firma: d.firma });
+    };
 
     const startEdit = (u: User) => {
         setEditId(u.id);
@@ -56,7 +71,20 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
 
     const inp = { padding: '0.35rem 0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.8rem', width: '100%', boxSizing: 'border-box' as const };
 
+    const ilkAd = (ad: string) => ad.trim().split(/\s+/)[0] ?? ad;
+
     return (
+        <>
+        {davet && (
+            <div style={{ marginBottom: '1rem' }}>
+                <DavetPaylas
+                    baglanti={davet.baglanti}
+                    mesaj={doldur(t.kullanici.davetMesaji, { ad: ilkAd(davet.ad), firma: davet.firma, baglanti: davet.baglanti, giris: davet.giris })}
+                    baslik={davet.ad}
+                    aciklama={doldur(t.kullanici.davetYenidenHazir, { ad: ilkAd(davet.ad) })}
+                />
+            </div>
+        )}
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
             <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
                 <thead>
@@ -134,11 +162,24 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
                                     </span>
                                 </td>
                                 <td style={{ padding: '0.875rem 1rem' }}>
-                                    <span style={{ backgroundColor: u.isActive ? '#d1fae5' : '#fee2e2', color: u.isActive ? '#065f46' : '#b91c1c', padding: '0.2rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>
-                                        {u.isActive ? t.kullanici.aktifNokta : t.kullanici.pasifNokta}
-                                    </span>
+                                    {u.isActive && u.davetBekliyor ? (
+                                        <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.2rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>
+                                            {t.kullanici.davetBekliyor}
+                                        </span>
+                                    ) : (
+                                        <span style={{ backgroundColor: u.isActive ? '#d1fae5' : '#fee2e2', color: u.isActive ? '#065f46' : '#b91c1c', padding: '0.2rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>
+                                            {u.isActive ? t.kullanici.aktifNokta : t.kullanici.pasifNokta}
+                                        </span>
+                                    )}
                                 </td>
-                                <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#9ca3af' }}>••••••</td>
+                                <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#9ca3af' }}>
+                                    {u.isActive && u.davetBekliyor ? (
+                                        <button type="button" onClick={() => davetiYenile(u.id)} disabled={saving}
+                                            style={{ padding: '0.3rem 0.625rem', backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                                            {t.kullanici.davetYeniden}
+                                        </button>
+                                    ) : '••••••'}
+                                </td>
                                 <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', fontWeight: '600' }}>{ticketCounts[u.id] || 0}</td>
                                 <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#6b7280' }}>{b.tarih(u.createdAt)}</td>
                                 <td style={{ padding: '0.875rem 1rem' }}>
@@ -155,5 +196,6 @@ export default function UsersClient({ users, meId, ticketCounts }: Props) {
                 </tbody>
             </table>
         </div>
+        </>
     );
 }

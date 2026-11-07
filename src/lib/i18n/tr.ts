@@ -382,6 +382,21 @@ export const tr = {
     kayitGun: 'Kendi makinelerinizle {gun} gün ücretsiz',
   },
 
+  // Davet bağlantısı (/davet/<jeton>): yöneticinin eklediği kişi şifresini kendisi belirler.
+  davet: {
+    baslik: 'Hoş geldiniz',
+    alt: '{firma} sizi Nextus Servis’e ekledi. Şifrenizi belirleyin; sonra doğrudan girersiniz.',
+    girisAdi: 'Giriş adınız',
+    sifre: 'Şifre (en az 8 karakter)',
+    tekrar: 'Şifre tekrar',
+    kaydet: 'Şifremi belirle ve gir',
+    kaydediliyor: 'Kaydediliyor…',
+    uyusmuyor: 'İki şifre aynı değil.',
+    gecersiz: 'Bu davet bağlantısı geçersiz ya da süresi dolmuş. Yöneticinizden yeni bir davet isteyin.',
+    tamamGirisYok: 'Şifreniz kaydedildi. Giriş sayfasından giriş adınız ve yeni şifrenizle girin.',
+    girise: 'Giriş sayfasına git',
+  },
+
   // Şifremi unuttum (/sifremi-unuttum) ve yeni şifre (/sifre-yenile)
   sifreSifirla: {
     baslik: 'Şifrenizi yenileyin',
@@ -648,6 +663,58 @@ export const tr = {
         kutuOrta: 'var — her ekranın ne işe yaradığı orada yazılı. Sağ alttaki',
         kutuVurgu2: 'rehber',
         kutuSon: 'de ilk kurulumda sana adım adım eşlik eder.',
+      },
+    },
+    // Teknisyen ve ön büro: kendi üç işi (lib/rehber-rol). Sahip yukarıdaki listede kalır.
+    ekip: {
+      baslik: 'Hoş geldiniz',
+      TECHNICIAN: {
+        giris: 'Sahadaki işleriniz bunlar; menüde de yalnız bunlar duruyor:',
+        baslat: 'İşlerime bak →',
+        adimlar: {
+          telefon: {
+            title: 'Telefonuna kur',
+            desc: 'Panel uygulama gibi açılsın; her gün adres yazmayın.',
+            cta: 'Nasıl?',
+            how: ['Android: ekranın altında çıkan “Nextus’u telefona kurun” kartında “Kur”a dokunun.', 'iPhone: Safari’de Paylaş düğmesi → Ana Ekrana Ekle.'],
+          },
+          islerim: {
+            title: 'İşlerine bak',
+            desc: 'Size atanan fişler “İşlerim”de. Gidince durumunu buradan değiştirin.',
+            cta: 'İşlerim',
+            how: ['Fişe dokunun: müşteri, cihaz ve arıza açılır.', 'Gittiğinizde “Serviste”, bitince “Hazır” ya da “Teslim” seçin.', 'Kullandığınız parçayı fişe ekleyin; stoktan kendiliğinden düşer.'],
+          },
+          sayac: {
+            title: 'Sayacı gir',
+            desc: 'Kiralık cihazın sayacını “Sayaçlar”a yazın; fatura bundan çıkar.',
+            cta: 'Sayaçlar',
+            how: ['Müşteriyi seçin, cihazın S/B ve renkli sayacını yazın.', 'Rakam yanlışsa sistem uyarır; kaydetmeden önce bakın.'],
+          },
+        },
+      },
+      FRONT_DESK: {
+        giris: 'Tezgahta üç işiniz var:',
+        baslat: 'Müşterilere bak →',
+        adimlar: {
+          musteri: {
+            title: 'Müşteriyi bul',
+            desc: 'Adla ya da telefonla arayın; kayıt yoksa ekleyin.',
+            cta: 'Müşteriler',
+            how: ['Arama kutusuna adın ya da telefonun bir kısmını yazın.', 'Bulamazsanız “Yeni müşteri” ile ekleyin.'],
+          },
+          fis: {
+            title: 'Fiş aç',
+            desc: 'Arıza geldiğinde fişi açın, teknisyene atayın.',
+            cta: 'Yeni fiş',
+            how: ['Müşteriyi ve cihazı seçin, arızayı kısaca yazın.', 'Teknisyeni seçin; fiş onun “İşlerim” listesine düşer.'],
+          },
+          takip: {
+            title: 'Fişleri takip et',
+            desc: 'Hazır olan işi müşteriye haber verin, teslim edin.',
+            cta: 'Fişler',
+            how: ['Duruma göre süzün: Yeni, Serviste, Hazır.', 'Teslimde fişi “Teslim” yapın; tahsilatı fişten alın.'],
+          },
+        },
       },
     },
   },
@@ -2417,6 +2484,22 @@ export const tr = {
     kaydet: '✓ Kaydet',
     pasifeAlSor: '“{n}” pasife alınsın mı? Kullanıcı giriş yapamaz ancak fişleri korunur.',
     roller: { ADMIN: 'Yönetici', TECHNICIAN: 'Teknisyen', FRONT_DESK: 'Resepsiyon' },
+    girisAdi: 'Giriş adı (e-posta) *',
+    davetSecenek: 'WhatsApp’tan davet gönder',
+    davetSecenekAlt: 'Kişi şifresini kendisi belirler. Bağlantı 7 gün geçerli, bir kez kullanılır.',
+    sifreSecenek: 'Şifreyi ben belirleyeyim',
+    davetOlustur: 'Davet bağlantısı oluştur',
+    davetHazir: 'Davet hazır',
+    davetHazirAlt: 'Bağlantıyı {ad} kişisine WhatsApp’tan gönderin. 7 gün geçerli, bir kez kullanılır.',
+    davetWhatsapp: 'WhatsApp’ta aç',
+    davetKopyala: 'Bağlantıyı kopyala',
+    davetKopyalandi: 'Kopyalandı',
+    davetMesaji: 'Merhaba {ad}, {firma} sizi Nextus Servis’e ekledi. Bu bağlantıdan şifrenizi belirleyip girin (7 gün geçerli):\n{baglanti}\nGiriş adınız: {giris}',
+    davetBekliyor: 'Davet bekliyor',
+    davetYeniden: 'Daveti yeniden gönder',
+    davetYenidenHazir: '{ad} için yeni davet bağlantısı hazır; eski bağlantı artık çalışmaz.',
+    kullanicilaraDon: 'Kullanıcılara dön',
+    baskaKisi: 'Bir kişi daha ekle',
   },
 
   // İki adımlı doğrulama kartı.
@@ -5550,6 +5633,8 @@ export const tr = {
     KAYIT_EPOSTA_VAR: 'Bu e-postayla açılmış bir hesap var. Giriş yapın; şifrenizi unuttuysanız giriş sayfasındaki “Şifremi unuttum” ile yenileyin.',
     KAYIT_SINIR: 'Çok fazla deneme oldu. Biraz sonra tekrar deneyin ya da WhatsApp’tan yazın.',
     SIFRE_BAGLANTI_GECERSIZ: 'Bu bağlantının süresi dolmuş ya da daha önce kullanılmış. Yeni bağlantı isteyin.',
+    DAVET_GECERSIZ: 'Bu davet bağlantısı geçersiz ya da süresi dolmuş. Yöneticinizden yeni bir davet isteyin.',
+    DAVET_BEKLEYEN_YOK: 'Bu kişi şifresini zaten belirlemiş; yeni davet gerekmiyor.',
     KAYIT_KAPALI: 'Şu an siteden hesap açılamıyor. WhatsApp’tan yazın, hesabınızı hemen açalım.',
     KAYIT_ACILAMADI: 'Hesap açılamadı. Bir daha deneyin ya da WhatsApp’tan yazın.',
     SEVK_LISTESI_GECERSIZ: 'Sevk listesi boş ya da çok uzun (en fazla 200 satır).',
@@ -6621,6 +6706,9 @@ export const tr = {
       olusturulduAlt: 'Aşağıdaki bilgileri işletme yetkilisiyle paylaşın.',
       gecici: 'Geçici Şifre:',
       girisUrl: 'Giriş URL:',
+      davetSecenek: 'Sahibe şifre yerine WhatsApp’tan davet bağlantısı gönder',
+      davetSecenekAlt: 'Sahip şifresini kendisi belirler; geçici şifre söylemek gerekmez. Bağlantı 7 gün geçerli.',
+      davetAlt: 'Bağlantıyı {ad} kişisine WhatsApp’tan gönderin. Şifresini kendisi belirleyip girer; 7 gün geçerli, bir kez kullanılır.',
       yeniBir: 'Yeni İşletme',
       liste: 'İşletme Listesi',
       hata: 'Hata oluştu',

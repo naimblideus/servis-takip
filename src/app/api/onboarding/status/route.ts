@@ -10,7 +10,7 @@ export async function GET() {
 
   const user = await prisma.user.findFirst({
     where: { email: session.user?.email!, ...bayiSuzgeci(session) },
-    select: { id: true, tenantId: true, onboardedAt: true, name: true },
+    select: { id: true, tenantId: true, onboardedAt: true, name: true, role: true },
   });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
@@ -38,6 +38,10 @@ export async function GET() {
   return NextResponse.json({
     onboarded: user.onboardedAt !== null || Boolean(tenant?.demo),
     userName: user.name,
+    // Rehber role göre: teknisyen ve ön büro kendi üç işini görür (lib/rehber-rol).
+    // Kimlik, tarayıcıda kişiye özel adım kaydının anahtarı için.
+    rol: user.role,
+    userId: user.id,
     steps: {
       hasCustomers: customers > 0,
       hasDevices: devices > 0,

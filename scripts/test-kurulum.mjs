@@ -281,6 +281,8 @@ try {
   // Excel aktarımının başlangıç sayacı (GOC) bugün yazıldı ama okuma DEĞİL:
   // sayılsaydı aktarımdan hemen sonra SAYAÇ adımı yeşil yanardı.
   await p.counterReading.create({ data: { tenantId: tid, deviceId: d2.id, counterBlack: 60, counterColor: 0, source: k.GOC_KAYNAGI, billed: true, readingDate: new Date() } });
+  // Davet gönderilmiş ama şifresini koymamış teknisyen ekip DEĞİL.
+  await p.user.create({ data: { tenantId: tid, email: 'davetli@kurulum.test', passwordHash: 'x', name: 'Davetli', role: 'TECHNICIAN', davetBekliyor: true } });
 
   let s = await veri.kurulumSatiri(tid);
   const ad = (kod) => s.kurulum.adimlar.find((a) => a.kod === kod);
@@ -289,7 +291,7 @@ try {
   t('★ fiyat 1/2 kiralıkta → KISMEN (varsayılan sayfa fiyatı sayılmaz)', ad('FIYAT').durum === 'KISMEN' && ad('FIYAT').kanit.n === 1, ad('FIYAT'));
   t('★ sayaç 1/2 (40 günlük okuma ve aktarım başlangıcı sayılmaz), kendiliğinden %100', ad('SAYAC').durum === 'KISMEN' && ad('SAYAC').kanit.n === 1 && ad('SAYAC').kanit.pay === 100, ad('SAYAC').kanit);
   t('fatura yok → EKSIK; sıradaki FIYAT', ad('FATURA').durum === 'EKSIK' && s.kurulum.sonrakiAdim?.kod === 'FIYAT');
-  t('teknisyen var → EKIP TAMAM', ad('EKIP').durum === 'TAMAM' && ad('EKIP').kanit.n === 1);
+  t('★ teknisyen var → EKIP TAMAM; davet bekleyen sayılmaz (1 kişi)', ad('EKIP').durum === 'TAMAM' && ad('EKIP').kanit.n === 1, ad('EKIP').kanit);
   t('kurulum 2/5, Hazır değil', s.kurulum.zorunluTamam === 2 && !s.kurulum.hazir, s.kurulum.zorunluTamam);
 
   await p.device.update({ where: { id: d2.id }, data: { pricePerBlack: 0.35 } });

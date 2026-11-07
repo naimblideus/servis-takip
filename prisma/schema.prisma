@@ -495,14 +495,18 @@ model User {
   totpEnabled     Boolean   @default(false)
   totpLastCounter Int? // Son kullanılan zaman adımı — aynı kodun tekrar kullanılmasını engeller
   recoveryCodes   String[]  @default([]) // Kurtarma kodlarının sha256 özetleri (tek kullanımlık)
+  // Davetle açıldı, şifresini henüz belirlemedi (lib/kullanici-davet). Kurulum
+  // ekranındaki ekip sayısı bunu saymaz: girmemiş kişi ekip değildir.
+  davetBekliyor   Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   // Relations
-  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  assignedTickets ServiceTicket[] @relation("AssignedTechnician")
-  createdTickets  ServiceTicket[] @relation("CreatedBy")
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedTickets ServiceTicket[]  @relation("AssignedTechnician")
+  createdTickets  ServiceTicket[]  @relation("CreatedBy")
   auditLogs       AuditLog[]
+  davetler        KullaniciDavet[]
 
   @@unique([tenantId, email])
   @@index([tenantId, email])
@@ -1805,6 +1809,26 @@ model SifreSifirlama {
   createdAt  DateTime  @default(now())
 
   @@index([eposta, createdAt])
+}
+
+// KULLANICI DAVETİ — yönetici şifre yazıp söylemez; kişiye WhatsApp'tan tek
+// kullanımlık bağlantı gider, şifresini kendisi koyar (lib/kullanici-davet.ts).
+// Jeton saklanmaz, yalnız SHA-256 özeti. 7 gün geçerli; yeniden gönderilince
+// eskiler, kullanılınca kişinin bütün açık davetleri ölür.
+model KullaniciDavet {
+  id          String    @id @default(cuid())
+  tenantId    String
+  userId      String
+  tokenOzeti  String    @unique
+  bitis       DateTime
+  kullanildi  DateTime?
+  olusturanAd String?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId, createdAt])
 }
 
 model ZamanlanmisIs {

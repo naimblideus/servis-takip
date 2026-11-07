@@ -55,6 +55,10 @@ export async function PATCH(
         if (body.password) {
             if (body.password.length < 6) return ucHatasi('SIFRE_EN_AZ_6_KARAKTER', 400);
             updateData.passwordHash = await bcrypt.hash(body.password, 12);
+            // Yönetici şifreyi kendisi koyduysa davet bitti: açık bağlantı artık
+            // şifre değiştiremesin (lib/kullanici-davet).
+            updateData.davetBekliyor = false;
+            await prisma.kullaniciDavet.updateMany({ where: { userId: id, kullanildi: null }, data: { bitis: new Date() } });
         }
 
         const user = await prisma.user.update({ where: { id }, data: updateData });
