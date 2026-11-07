@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import EgitimVideosu from '@/components/EgitimVideosu';
 
 interface Cust { id: string; name: string; phone?: string }
 interface Row {
@@ -33,6 +35,9 @@ export default function SayacTuruPage() {
   const t = useT();
   const b = useBicim();
   const nf = (n: number | null | undefined) => (n == null ? '—' : b.sayi(n));
+  // Eğitim klibi role göre: teknisyen telefondaki turu, yönetici dört sayaç yolunu görür.
+  const { data: oturum } = useSession();
+  const teknisyenMi = (oturum?.user as { role?: string } | undefined)?.role === 'TECHNICIAN';
 
   useEffect(() => {
     fetch('/api/customers').then((r) => r.json()).then((d: any) => {
@@ -180,6 +185,8 @@ export default function SayacTuruPage() {
         <p style={{ color: '#5B6479', fontSize: '.9rem', margin: '0 0 1.25rem', lineHeight: 1.55 }}>
           {t.sayacTuru.alt}
         </p>
+        {/* Oturum gelmeden çizilmez: teknisyen bir an yöneticinin klibini görmesin. */}
+        <EgitimVideosu kod={!oturum ? null : teknisyenMi ? 'teknisyen-sayac' : 'kiralik-sayac'} className="mb-4" />
 
         {/* KANAL DURDU: cihaz listesinin ÜSTÜNDE durur, çünkü onu AÇIKLAR.
             Kanal kesildiyse aşağıdaki "sayacı gelmeyen" listesi şişer ve bayi

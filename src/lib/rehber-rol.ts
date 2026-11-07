@@ -15,22 +15,33 @@
  * Her adresin o role açık olduğunu scripts/test-onboarding-rol.mjs denetler.
  */
 
+import type { EgitimKodu } from './egitim-videolari';
+
 export type EkipRolu = 'TECHNICIAN' | 'FRONT_DESK';
 
-/** href null: ekran değil, eylem (telefona kurmak). */
-export type RolAdimi = { key: string; icon: string; href: string | null };
+/**
+ * href null: ekran değil, eylem (telefona kurmak).
+ * video: adımın "▶ 1 dk" klibi (lib/egitim-videolari); izlenince adım da tamam sayılır.
+ */
+export type RolAdimi = { key: string; icon: string; href: string | null; video?: EgitimKodu };
 
 export const ROL_ADIMLARI: Readonly<Record<EkipRolu, readonly RolAdimi[]>> = {
   TECHNICIAN: [
     { key: 'telefon', icon: '📱', href: null },
-    { key: 'islerim', icon: '🧾', href: '/tickets' },
-    { key: 'sayac', icon: '🔢', href: '/sayac-turu' },
+    { key: 'islerim', icon: '🧾', href: '/tickets', video: 'teknisyen-is' },
+    { key: 'sayac', icon: '🔢', href: '/sayac-turu', video: 'teknisyen-sayac' },
   ],
   FRONT_DESK: [
     { key: 'musteri', icon: '👤', href: '/customers' },
-    { key: 'fis', icon: '🧾', href: '/tickets/new' },
+    { key: 'fis', icon: '🧾', href: '/tickets/new', video: 'servis-fis' },
     { key: 'takip', icon: '📋', href: '/tickets' },
   ],
+};
+
+/** Karşılama ekranındaki tanıtım klibi: teknisyen bütün akışı bir kez görsün (~1,5 dk). */
+export const ROL_TANITIM_VIDEOSU: Readonly<Record<EkipRolu, EgitimKodu | null>> = {
+  TECHNICIAN: 'teknisyen',
+  FRONT_DESK: null,
 };
 
 /** Rehberi kişiye göre olan rol; yönetici ve bilinmeyen rol null (bugünkü liste). */

@@ -6,6 +6,7 @@ import { openWhatsApp, invoiceMessage } from '@/lib/share';
 import { openPrintable } from '@/lib/print';
 import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import EgitimVideosu from '@/components/EgitimVideosu';
 
 interface Line { kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number; }
 interface Invoice {
@@ -155,6 +156,8 @@ export default function InvoicesPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t.faturalar.baslik}</h1>
           <p className="text-sm text-gray-500 mt-1">{t.faturalar.alt}</p>
+          {/* Dönem faturası klibi: kira + aşım hesabı, eksik sayaç uyarısı ve kesmeden önce taslakta bekletme. */}
+          <EgitimVideosu kod="kiralik-fatura" className="mt-2" />
         </div>
         <button onClick={() => openPreflight()} disabled={running}
           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">

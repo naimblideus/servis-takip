@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import ExcelImport from '@/components/ExcelImport';
 import SayacGecmisiImport from '@/components/SayacGecmisiImport';
 import CariDevirImport from '@/components/CariDevirImport';
+import EgitimVideosu from '@/components/EgitimVideosu';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
 
@@ -273,6 +274,7 @@ export default function ImportPage() {
                     {t.iceAktar.baslik}
                 </h1>
                 <p className="text-gray-500 mt-1">{t.iceAktar.alt}</p>
+                <EgitimVideosu kod="servis-musteri" className="mt-3" />
             </div>
 
             {/* Kaynak seçimi */}

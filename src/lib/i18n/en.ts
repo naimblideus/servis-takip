@@ -685,6 +685,37 @@ export const en: Sozluk = {
     },
   },
 
+  // In-app training videos. The videos are Turkish; the button only shows in a Turkish interface.
+  egitim: {
+    dugme: '▶ {n} min',
+    dugmeEtiket: 'Training video: {baslik} ({n} min)',
+    ust: 'Training video',
+    kapat: 'Close',
+    acilmadi: 'The video did not open. Check your internet connection and try again.',
+    video: {
+      servisMusteri: 'Bring in your customers',
+      servisCihaz: 'Add your devices',
+      servisStokEkip: 'Stock and team',
+      servisFis: 'Service ticket',
+      servisSayacFatura: 'Meter round and invoice',
+      servisTahsilat: 'Collections',
+      servisHerGun: 'Every day: dashboard and Missed Revenue',
+      kiralikCihaz: 'Set up a rental device',
+      kiralikSozlesme: 'Rental contract',
+      kiralikSayac: 'Collect meter readings',
+      kiralikFatura: 'Period invoice',
+      kiralikKar: 'Check your profit',
+      magazaKur: 'Set up your store',
+      magazaAyarlar: 'Site settings: payment, shipping, legal details',
+      magazaGorunum: 'Logo, home page and campaigns',
+      magazaYayin: 'Prices and going live',
+      magazaSiparis: 'Fulfil an order',
+      teknisyen: 'Technician on the phone',
+      teknisyenIs: 'My jobs, ticket, status and parts',
+      teknisyenSayac: 'Meter round',
+    },
+  },
+
   musteriler: {
     baslik: 'Customers',
     sayim: '{n} / {toplam} {toplam|customer|customers}',

@@ -5,7 +5,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
-import { ROL_ADIMLARI, ekipRolu, ekipAdimAnahtari, yolunAdimi, adimTamam } from '@/lib/rehber-rol';
+import { ROL_ADIMLARI, ROL_TANITIM_VIDEOSU, ekipRolu, ekipAdimAnahtari, yolunAdimi, adimTamam } from '@/lib/rehber-rol';
+import type { EgitimKodu } from '@/lib/egitim-videolari';
+import EgitimVideosu from '@/components/EgitimVideosu';
 
 /**
  * İLK-GİRİŞ EĞİTİM SİSTEMİ
@@ -40,14 +42,17 @@ interface Status {
 const HIDE_KEY = 'gs_checklist_hidden_v1';
 const HINT_KEY = 'gs_guide_hint_seen_v1'; // rehber işareti bir kez gösterilir
 
-/** Dille değişmeyen kısım: sıra, anahtar, ikon, hedef sayfa. Metin t.rehber.adimlar'da. */
-const ADIMLAR: { key: keyof Steps; icon: string; href: string }[] = [
-  { key: 'hasCustomers', icon: '👤', href: '/import' },
-  { key: 'hasDevices', icon: '🖨️', href: '/devices' },
-  { key: 'hasInventory', icon: '📦', href: '/inventory' },
-  { key: 'hasTickets', icon: '🧾', href: '/tickets/new' },
-  { key: 'hasInvoices', icon: '📄', href: '/sayac-turu' },
-  { key: 'hasCollections', icon: '💰', href: '/accounting' },
+/**
+ * Dille değişmeyen kısım: sıra, anahtar, ikon, hedef sayfa, "▶ 1 dk" klibi
+ * (lib/egitim-videolari). Metin t.rehber.adimlar'da.
+ */
+const ADIMLAR: { key: keyof Steps; icon: string; href: string; video: EgitimKodu }[] = [
+  { key: 'hasCustomers', icon: '👤', href: '/import', video: 'servis-musteri' },
+  { key: 'hasDevices', icon: '🖨️', href: '/devices', video: 'servis-cihaz' },
+  { key: 'hasInventory', icon: '📦', href: '/inventory', video: 'servis-stok-ekip' },
+  { key: 'hasTickets', icon: '🧾', href: '/tickets/new', video: 'servis-fis' },
+  { key: 'hasInvoices', icon: '📄', href: '/sayac-turu', video: 'servis-sayac-fatura' },
+  { key: 'hasCollections', icon: '💰', href: '/accounting', video: 'servis-tahsilat' },
 ];
 
 const ZINCIR_IKON = ['👤', '🖨️', '🧾', '💰'];
@@ -102,6 +107,16 @@ export default function Onboarding() {
   const [acilanlar, setAcilanlar] = useState<Set<string>>(() => new Set());
   const [kurulu, setKurulu] = useState(false);
   const [dokunmatik, setDokunmatik] = useState(false);
+  // Adım tamam: ekranı açınca ya da klibini sonuna kadar izleyince (tarayıcıda, kişiye özel).
+  const adimiIsaretle = useCallback((k: string) => {
+    if (!userId) return;
+    setAcilanlar((once) => {
+      if (once.has(k)) return once;
+      const sonra = new Set(once).add(k);
+      try { localStorage.setItem(ekipAdimAnahtari(userId), JSON.stringify([...sonra])); } catch { /* yoksay */ }
+      return sonra;
+    });
+  }, [userId]);
   useEffect(() => {
     if (!ekip || !userId) return;
     try {
@@ -117,19 +132,13 @@ export default function Onboarding() {
   useEffect(() => {
     if (!ekip || !userId || !pathname) return;
     const k = yolunAdimi(ekip, pathname);
-    if (!k) return;
-    setAcilanlar((once) => {
-      if (once.has(k)) return once;
-      const sonra = new Set(once).add(k);
-      try { localStorage.setItem(ekipAdimAnahtari(userId), JSON.stringify([...sonra])); } catch { /* yoksay */ }
-      return sonra;
-    });
-  }, [ekip, userId, pathname]);
+    if (k) adimiIsaretle(k);
+  }, [ekip, userId, pathname, adimiIsaretle]);
 
   if (authStatus !== 'authenticated' || !data || isPrintPage) return null;
 
   const r = t.rehber;
-  type Satir = { key: string; icon: string; href: string | null; title: string; desc: string; cta: string; how: readonly string[] };
+  type Satir = { key: string; icon: string; href: string | null; video?: EgitimKodu; title: string; desc: string; cta: string; how: readonly string[] };
   type AdimMetni = { title: string; desc: string; cta: string; how: readonly string[] };
   const ekipMetin = ekip ? r.ekip[ekip] : null;
   // Yönetici: bayinin kurulumu VERİDEN (ilk müşteri, ilk fatura...). Teknisyen ve
@@ -165,6 +174,10 @@ export default function Onboarding() {
               </div>
             ))}
           </div>
+          {/* Bütün akış tek klipte (teknisyen); dosya yoksa düğme çıkmaz. */}
+          {ekip && ROL_TANITIM_VIDEOSU[ekip] && (
+            <div style={{ marginTop: '0.8rem' }}><EgitimVideosu kod={ROL_TANITIM_VIDEOSU[ekip]} /></div>
+          )}
         </>
       ),
     },
@@ -371,6 +384,8 @@ export default function Onboarding() {
                             <button onClick={() => setOpenHow(howOpen ? null : c.key)} style={{ padding: '0.3rem 0.6rem', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 }}>
                               {howOpen ? r.gizle : r.nasilYapilir}
                             </button>
+                            {/* Ekip adımı klibi sonuna kadar izlenince tamam sayılır; yöneticininki veriden sayılır. */}
+                            <EgitimVideosu kod={c.video} onIzlendi={ekip ? () => adimiIsaretle(c.key) : undefined} />
                           </div>
                         )}
                         {!done && howOpen && (

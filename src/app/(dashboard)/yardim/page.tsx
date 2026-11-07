@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useT } from '@/lib/i18n/client';
 import type { Sozluk } from '@/lib/i18n/sozluk';
 import { sorunBildirAc } from '@/components/SorunBildir';
+import EgitimVideosu from '@/components/EgitimVideosu';
+import type { EgitimKodu } from '@/lib/egitim-videolari';
 
 type BolumAnahtari = keyof Sozluk['yardim']['bolum'];
 
@@ -13,6 +15,8 @@ interface Bolum {
   /** Sözlükteki karşılığı — metin oradan, ikon ve renk burada. */
   anahtar: BolumAnahtari;
   icon: string;
+  /** Bölümün "▶ 1 dk" klibi (lib/egitim-videolari); dosya yoksa düğme çıkmaz. */
+  video?: EgitimKodu;
 }
 
 /**
@@ -23,28 +27,28 @@ interface Bolum {
  * sessizce eskirdi.
  */
 const BOLUMLER: Bolum[] = [
-  { id: 'musteri', anahtar: 'musteri', icon: '👤' },
+  { id: 'musteri', anahtar: 'musteri', icon: '👤', video: 'servis-musteri' },
   { id: 'goc', anahtar: 'goc', icon: '📦' },
   { id: 'disa-aktar', anahtar: 'disaAktar', icon: '⬇️' },
-  { id: 'cihaz', anahtar: 'cihaz', icon: '🖨️' },
-  { id: 'fis', anahtar: 'fis', icon: '🧾' },
-  { id: 'sayac', anahtar: 'sayac', icon: '🔢' },
+  { id: 'cihaz', anahtar: 'cihaz', icon: '🖨️', video: 'kiralik-cihaz' },
+  { id: 'fis', anahtar: 'fis', icon: '🧾', video: 'servis-fis' },
+  { id: 'sayac', anahtar: 'sayac', icon: '🔢', video: 'kiralik-sayac' },
   { id: 'cihazdan-sayac', anahtar: 'cihazdanSayac', icon: '📡' },
   { id: 'ag-tarayici', anahtar: 'agTarayici', icon: '🛰️' },
   { id: 'sayac-uyarilari', anahtar: 'sayacUyarilari', icon: '🚨' },
   { id: 'portal', anahtar: 'portal', icon: '🔗' },
   { id: 'toner', anahtar: 'toner', icon: '🧴' },
-  { id: 'sozlesme', anahtar: 'sozlesme', icon: '📜' },
-  { id: 'karlilik', anahtar: 'karlilik', icon: '📈' },
+  { id: 'sozlesme', anahtar: 'sozlesme', icon: '📜', video: 'kiralik-sozlesme' },
+  { id: 'karlilik', anahtar: 'karlilik', icon: '📈', video: 'kiralik-kar' },
   { id: 'alis', anahtar: 'alis', icon: '🧾' },
   { id: 'teklif', anahtar: 'teklif', icon: '📝' },
-  { id: 'fatura', anahtar: 'fatura', icon: '📄' },
+  { id: 'fatura', anahtar: 'fatura', icon: '📄', video: 'kiralik-fatura' },
   { id: 'e-fatura', anahtar: 'eFatura', icon: '🧾' },
   { id: 'kdv', anahtar: 'kdv', icon: '🧮' },
-  { id: 'tahsilat', anahtar: 'tahsilat', icon: '💰' },
+  { id: 'tahsilat', anahtar: 'tahsilat', icon: '💰', video: 'servis-tahsilat' },
   { id: 'ciktilar', anahtar: 'ciktilar', icon: '🖨️' },
-  { id: 'patron', anahtar: 'patron', icon: '📊' },
-  { id: 'saha', anahtar: 'saha', icon: '🗺️' },
+  { id: 'patron', anahtar: 'patron', icon: '📊', video: 'servis-her-gun' },
+  { id: 'saha', anahtar: 'saha', icon: '🗺️', video: 'teknisyen' },
   { id: 'pazar', anahtar: 'pazar', icon: '🤝' },
   { id: 'buyuk-park', anahtar: 'buyukPark', icon: '🏢' },
   { id: 'abonelik', anahtar: 'abonelik', icon: '💳' },
@@ -219,12 +223,16 @@ export default function YardimPage() {
                   return (
                     <div key={b.id} id={`k-${b.id}`}
                       className={`scroll-mt-6 overflow-hidden rounded-xl border border-l-4 bg-white ${g.cizgi}`}>
-                      <button type="button" onClick={() => setOpen(isOpen ? '' : b.id)}
-                        className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${isOpen ? 'bg-slate-50' : 'hover:bg-slate-50'}`}>
-                        <span className="text-lg">{b.icon}</span>
-                        <span className="flex-1 text-[0.95rem] font-bold text-gray-900">{metin.baslik}</span>
-                        <span className="text-lg text-gray-400">{isOpen ? '−' : '+'}</span>
-                      </button>
+                      {/* Video düğmesi aç-kapa düğmesinin YANINDA: düğme içinde düğme olmaz. */}
+                      <div className={`flex items-center ${isOpen ? 'bg-slate-50' : ''}`}>
+                        <button type="button" onClick={() => setOpen(isOpen ? '' : b.id)}
+                          className={`flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 text-left ${isOpen ? '' : 'hover:bg-slate-50'}`}>
+                          <span className="text-lg">{b.icon}</span>
+                          <span className="flex-1 text-[0.95rem] font-bold text-gray-900">{metin.baslik}</span>
+                          <span className="text-lg text-gray-400">{isOpen ? '−' : '+'}</span>
+                        </button>
+                        {b.video && <EgitimVideosu kod={b.video} className="mr-3 shrink-0" />}
+                      </div>
                       {isOpen && (
                         <div className="border-t px-4 pb-4">
                           {metin.intro && (

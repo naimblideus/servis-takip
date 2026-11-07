@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDil } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { magazaKurulumMetni, type MagazaKurulumMetni } from '@/lib/magaza-kurulum-metin';
+import EgitimVideosu from '@/components/EgitimVideosu';
 
 /**
  * MAĞAZA AYARLARI EKRANI — mağaza panelindeki ayar formunun Servis içindeki
@@ -288,6 +289,7 @@ export function MagazaAyarlari({ sekmeler }: { sekmeler?: React.ReactNode }) {
       {/* Mağaza sekmeleri (Bugün · Siparişler · Ürünler · Site): sayfa verirse başlığın altında. */}
       {sekmeler}
       <p style={{ color: '#6b7280', margin: sekmeler ? '0.9rem 0 1rem' : '0.25rem 0 1rem', fontSize: '0.9rem' }}>{km.ayAlt}</p>
+      <EgitimVideosu kod="magaza-ayarlar" className="mb-4" />
 
       {!durum && !yukHata && <p style={{ color: '#6b7280' }}>{km.ayYukleniyor}</p>}
       {yukHata && (
@@ -385,7 +387,11 @@ export function MagazaAyarlari({ sekmeler }: { sekmeler?: React.ReactNode }) {
 
           {/* Logo: anında yüklenir/kalkar. */}
           <div style={kart}>
-            <div style={{ fontWeight: 700, fontSize: '0.98rem' }}>{km.ayLogo}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.98rem' }}>{km.ayLogo}</div>
+              {/* Logo, hizmetler, ana sayfa bölümleri ve kampanya tek klipte. */}
+              <EgitimVideosu kod="magaza-gorunum" />
+            </div>
             <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0.2rem 0 0.8rem' }}>{km.ayLogoAlt}</p>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ width: 120, height: 60, border: '1px dashed #d1d5db', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', overflow: 'hidden' }}>

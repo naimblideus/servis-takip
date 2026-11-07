@@ -13,6 +13,7 @@ import { siparisVerisi } from '@/lib/tedarik-siparisi-veri';
 import { tonerDurumu } from '@/lib/toner-veri';
 import { BugunListesi } from './BugunListesi';
 import { MagazaSekmeleri } from './MagazaSekmeleri';
+import EgitimVideosu from '@/components/EgitimVideosu';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,7 @@ export default async function MagazaSayfasi() {
         <p style={{ color: '#6b7280', margin: '0.5rem 0 1.5rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
           {sz.magaza.tanitimAlt}
         </p>
+        <EgitimVideosu kod="magaza-kur" className="mb-4" />
 
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.25rem' }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>{sz.magaza.farklarBaslik}</div>
@@ -139,6 +141,8 @@ export default async function MagazaSayfasi() {
             {magaza.aktif ? sz.magaza.yayinda : sz.magaza.yayindaDegil} ·{' '}
             {magaza.adresli ? (magaza.domain ?? magaza.url.replace(/^https?:\/\//, '')) : km.adresBaglaniyor}
           </p>
+          {/* Bugün listesinin asıl işi sipariş: onay, stok, kargo. */}
+          {yonetici && <EgitimVideosu kod="magaza-siparis" className="mt-2" />}
         </div>
         {magaza.adresli && (
         <a
@@ -171,6 +175,7 @@ export default async function MagazaSayfasi() {
           <p style={{ color: '#92400e', fontSize: '0.83rem', margin: '0.3rem 0 0' }}>
             {sz.magaza.yayindaDegilAlt}
           </p>
+          {yonetici && <EgitimVideosu kod="magaza-yayin" className="mt-2" />}
         </div>
       )}
 

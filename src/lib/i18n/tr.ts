@@ -719,6 +719,37 @@ export const tr = {
     },
   },
 
+  // Ekran içi eğitim videoları (components/EgitimVideosu, lib/egitim-videolari).
+  egitim: {
+    dugme: '▶ {n} dk',
+    dugmeEtiket: 'Eğitim videosu: {baslik} ({n} dk)',
+    ust: 'Eğitim videosu',
+    kapat: 'Kapat',
+    acilmadi: 'Video açılmadı. İnternet bağlantınızı kontrol edip yeniden deneyin.',
+    video: {
+      servisMusteri: 'Müşterileri sisteme alın',
+      servisCihaz: 'Cihazları tanımlayın',
+      servisStokEkip: 'Stok ve ekip',
+      servisFis: 'Servis fişi',
+      servisSayacFatura: 'Sayaç turu ve fatura',
+      servisTahsilat: 'Tahsilat',
+      servisHerGun: 'Her gün: panel ve Kaçan Gelir',
+      kiralikCihaz: 'Kiralık cihazı tanımlayın',
+      kiralikSozlesme: 'Kiralama sözleşmesi',
+      kiralikSayac: 'Sayaçları toplayın',
+      kiralikFatura: 'Dönem faturası',
+      kiralikKar: 'Kârı kontrol edin',
+      magazaKur: 'Mağazayı kurun',
+      magazaAyarlar: 'Site ayarları: ödeme, kargo, yasal bilgi',
+      magazaGorunum: 'Logo, ana sayfa ve kampanya',
+      magazaYayin: 'Fiyatlar ve yayına alma',
+      magazaSiparis: 'Siparişi karşılayın',
+      teknisyen: 'Teknisyen telefonda',
+      teknisyenIs: 'İşlerim, fiş, durum ve parça',
+      teknisyenSayac: 'Sayaç Turu',
+    },
+  },
+
   // Müşteri listesi.
   musteriler: {
     baslik: 'Müşteriler',
