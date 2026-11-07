@@ -108,7 +108,7 @@ try {
     // Önce oturumun gerçekten bu kullanıcıya ait olduğu kanıtlanıyor.
     const ses = await fetch(`${KOK}/api/auth/session`, { headers: { cookie: cerez } }).then((r) => r.json()).catch(() => null);
     t(`[${g.rol}] giriş gerçekten yapıldı`, ses?.user?.email === g.eposta, ses);
-    const sayfaHatasi = [], ucHatasi = [], jsonDegil = [];
+    const sayfaHatasi = [], ucHatasi = [], jsonDegil = [], magazaBaglantisiz = [];
     let ucSayisi = 0, acilan = 0, cevapli = 0, kilitli = 0;
     const giriseYonlenen = [], digerDurum = [];
     for (const s of sayfalar) {
@@ -129,7 +129,20 @@ try {
         ucSayisi++;
         const r = await fetch(`${KOK}${u}`, { headers: { cookie: cerez }, redirect: 'manual', signal: AbortSignal.timeout(60000) });
         if (r.status === 200) cevapli++;
-        if (r.status >= 500) { ucHatasi.push(`${u} (${s}) → ${r.status}: ${(await r.text()).slice(0, 160)}`); continue; }
+        if (r.status >= 500) {
+          const metin = await r.text();
+          // Mağaza köprüsü (lib/magaza-ayar → magazaYanitiCevir) bağlantı kurulmamışsa ya
+          // da mağazaya ulaşılamıyorsa BİLEREK 503 + açık kod döner; ekran koda göre
+          // "bağlantı kurulmamış" yazar. Bu çökme değil, ortamın durumu: ayrı sayılır.
+          let kod = null;
+          try { kod = JSON.parse(metin)?.kod ?? null; } catch { /* JSON değil: çökme */ }
+          if (r.status === 503 && u.startsWith('/api/magaza/') && ['AYAR_YOK', 'GUNCELLENIYOR', 'ULASILAMADI'].includes(kod)) {
+            magazaBaglantisiz.push(`${u} → ${kod}`);
+            continue;
+          }
+          ucHatasi.push(`${u} (${s}) → ${r.status}: ${metin.slice(0, 160)}`);
+          continue;
+        }
         if (r.status === 200 && (r.headers.get('content-type') ?? '').includes('json')) {
           try { await r.json(); } catch { jsonDegil.push(`${u} (${s})`); }
         }
@@ -141,6 +154,7 @@ try {
     t(`[${g.rol}] okuma çağrılarının çoğu veri döndü: ${cevapli}/${ucSayisi}`, cevapli >= ucSayisi * (g.rol === 'ADMIN' ? 0.9 : 0.5), cevapli);
     t(`[${g.rol}] ★ ${sayfalar.length} sayfanın hiçbiri boş hesapta çökmüyor`, sayfaHatasi.length === 0, sayfaHatasi);
     t(`[${g.rol}] ★ sayfaların ${ucSayisi} okuma çağrısının hiçbiri 500 vermiyor`, ucHatasi.length === 0, ucHatasi);
+    if (magazaBaglantisiz.length) console.log(`  · [${g.rol}] mağaza bağlantısı bu ortamda yok (bilinçli 503, çökme değil): ${[...new Set(magazaBaglantisiz)].join(', ')}`);
     t(`[${g.rol}] JSON diyen uçlar gerçekten JSON dönüyor`, jsonDegil.length === 0, jsonDegil);
   }
 } catch (e) {
