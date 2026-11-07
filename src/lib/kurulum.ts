@@ -117,6 +117,14 @@ export const DENEME_ACIL_GUN = 2;
 /** Kendiliğinden gelen okuma: bayi elle yazmadı (cihazın e-postası, ağ tarayıcı, müşteri portalı, WhatsApp fotoğrafı, yazıcı ajanı). */
 export const KENDILIGINDEN_KAYNAKLAR = ['CIHAZ_EPOSTA', 'TARAYICI', 'PORTAL', 'WHATSAPP_FOTO', 'PRINTER'] as const;
 
+/**
+ * Excel aktarımının yazdığı başlangıç sayacının kaynağı. Okuma DEĞİL, dosyadaki
+ * eski sayaç: sayaç adımında ve okuma sayısında sayılmaz. Eskiden aktarım
+ * Sayaç Turu ile aynı kaynağı ('TOPLU') yazıyordu; aktarımdan hemen sonra SAYAÇ
+ * adımı hiçbir sayaç toplanmadan yeşil yanıyordu (lib/sayfa-ice-aktar.ts).
+ */
+export const GOC_KAYNAGI = 'GOC';
+
 export const ZORUNLU_ADIMLAR: readonly AdimKodu[] = ['FIRMA', 'CIHAZ', 'FIYAT', 'SAYAC', 'FATURA'];
 
 /** Bayinin işi yaptığı sayfa. Tek yer: hem süper admin ekranı hem bayi kartı buradan alır. */

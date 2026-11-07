@@ -16,6 +16,7 @@ import {
   bugunAranacak,
   ayBasi,
   KENDILIGINDEN_KAYNAKLAR,
+  GOC_KAYNAGI,
   SAYAC_PENCERESI_GUN,
   KULLANIM_PENCERESI_GUN,
   type KurulumSonucu,
@@ -133,14 +134,16 @@ async function hesapla(tenants: TenantSecimi[], simdi: Date): Promise<KurulumSat
     }),
     // Son 35 günde okunan kiralık + son okuma anı (bu ay okundu mu buradan:
     // ay başı en çok 31 gün geride, 35 günlük pencerenin içinde).
+    // Aktarımın başlangıç sayacı (GOC) okuma DEĞİL: dosyadaki eski sayaç. Sayılsaydı
+    // aktarımdan hemen sonra SAYAÇ adımı hiçbir sayaç toplanmadan yeşil yanardı.
     prisma.counterReading.groupBy({
       by: ['tenantId', 'deviceId'],
-      where: { ...w, readingDate: { gte: sayacBasi }, device: { isRental: true } },
+      where: { ...w, readingDate: { gte: sayacBasi }, device: { isRental: true }, source: { not: GOC_KAYNAGI } },
       _max: { readingDate: true },
     }),
     prisma.counterReading.groupBy({
       by: ['tenantId', 'source'],
-      where: { ...w, readingDate: { gte: sayacBasi }, device: { isRental: true } },
+      where: { ...w, readingDate: { gte: sayacBasi }, device: { isRental: true }, source: { not: GOC_KAYNAGI } },
       _count: { _all: true },
     }),
     prisma.customerInvoice.groupBy({

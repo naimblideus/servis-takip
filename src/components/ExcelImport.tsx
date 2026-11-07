@@ -27,6 +27,12 @@ const alanEtiketleri = (t: Sozluk): Record<string, string> => ({
   monthlyRent: t.excelAktar.alanKira,
   pricePerBlack: t.excelAktar.alanFiyatSb,
   pricePerColor: t.excelAktar.alanFiyatRenkli,
+  includedBlack: t.excelAktar.alanDahilSb,
+  includedColor: t.excelAktar.alanDahilRenkli,
+  overagePriceBlack: t.excelAktar.alanAsimSb,
+  overagePriceColor: t.excelAktar.alanAsimRenkli,
+  installedAt: t.excelAktar.alanKurulumTarihi,
+  lastInvoicedPeriod: t.excelAktar.alanSonFatura,
 });
 
 /** Sunucunun döndürdüğü kodları kullanıcının dilinde cümleye çevirir. */
@@ -50,10 +56,56 @@ const uyariMetni = (t: Sozluk, u: { kod: string; n: number; ornek?: string; isim
   if (u.kod === 'TELEFON_CAKISMASI') return doldur(t.excelAktar.uyariTelefonCakismasi, d);
   if (u.kod === 'SERI_CAKISMASI') return doldur(t.excelAktar.uyariSeriCakismasi, d);
   if (u.kod === 'SERI_NO_YOK') return doldur(t.excelAktar.uyariSeriNoYok, d);
+  if (u.kod === 'KIRA_YOK') return doldur(t.excelAktar.uyariKiraYok, d);
+  if (u.kod === 'DAHIL_FIYATSIZ') return doldur(t.excelAktar.uyariDahilFiyatsiz, d);
+  if (u.kod === 'TARIH_OKUNAMADI') return doldur(t.excelAktar.uyariTarihOkunamadi, d);
+  if (u.kod === 'DONEM_OKUNAMADI') return doldur(t.excelAktar.uyariDonemOkunamadi, d);
+  if (u.kod === 'DONEM_GELECEK') return doldur(t.excelAktar.uyariDonemGelecek, d);
   return u.kod;
 };
 
-export default function ExcelImport() {
+type KiraOzeti = { toplam: number; cihaz: number; kirasiz: number; musteriler: { ad: string; cihaz: number; toplam: number }[] };
+
+/**
+ * Aylık kira toplamı. Kurulumu biz yaptığımızda bayiye tek soru sorulur:
+ * "aylık kira geliriniz aşağı yukarı bu mu?" Tutmazsa bir kolon yanlış
+ * eşlenmiştir; ilk fatura kesilmeden yakalanır.
+ */
+function KiraKutusu({ ozet, t, para }: { ozet: KiraOzeti; t: Sozluk; para: (n: number) => string }) {
+  if (!ozet.cihaz && !ozet.kirasiz) return null;
+  return (
+    <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-900">
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <b>{t.excelAktar.kiraOzetiBaslik}</b>
+        <span><b className="text-lg">{para(ozet.toplam)}</b> <span className="text-xs">{doldur(t.excelAktar.kiraOzetiCihaz, { n: ozet.cihaz })}</span></span>
+      </div>
+      {ozet.kirasiz > 0 && <p className="mt-1 text-xs text-amber-800">{doldur(t.excelAktar.kiraOzetiKirasiz, { n: ozet.kirasiz })}</p>}
+      <p className="mt-1 text-xs">{t.excelAktar.kiraOzetiNot}</p>
+      {ozet.musteriler.length > 1 && (
+        <details className="mt-2 text-xs">
+          <summary className="cursor-pointer font-semibold">{t.excelAktar.kiraOzetiMusteriler}</summary>
+          <ul className="mt-1 space-y-0.5">
+            {ozet.musteriler.map((m, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span className="truncate">{m.ad} <span className="text-emerald-700">· {m.cihaz}</span></span>
+                <span className="font-mono shrink-0">{para(m.toplam)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/**
+ * @param uc         aktarma ucu. Bayinin ekranı `/api/import/sheet`; Nextus
+ *                   kurulum ekibi bayi adına `/api/super-admin/kurulum/<id>/ice-aktar`.
+ *                   İkisi aynı kuraldan geçer (lib/sayfa-ice-aktar.ts).
+ * @param bayiPaneli sonuç ekranındaki "Müşterilere git" bayinin paneline
+ *                   götürür; süper admin ekranında anlamsız, gizlenir.
+ */
+export default function ExcelImport({ uc = '/api/import/sheet', bayiPaneli = true }: { uc?: string; bayiPaneli?: boolean } = {}) {
   const t = useT();
   const b = useBicim();
   const { dil } = useDil();
@@ -121,7 +173,7 @@ export default function ExcelImport() {
   const runPreview = async (text: string, map: (string | null)[] | null) => {
     setBusy(true); setErr(null);
     try {
-      const r = await fetch('/api/import/sheet', {
+      const r = await fetch(uc, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csv: text, mapping: map, dryRun: true }),
       });
@@ -136,7 +188,7 @@ export default function ExcelImport() {
     if (!confirm(doldur(t.excelAktar.onaySorusu, { n: preview.validRows }))) return;
     setBusy(true); setErr(null);
     try {
-      const r = await fetch('/api/import/sheet', {
+      const r = await fetch(uc, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csv, mapping, dryRun: false }),
       });
@@ -196,8 +248,9 @@ export default function ExcelImport() {
             ))}
           </div>
         )}
+        {result.kiraOzeti && <KiraKutusu ozet={result.kiraOzeti} t={t} para={(n) => b.para(n)} />}
         <div className="flex gap-2 flex-wrap">
-          <a href="/customers" className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-semibold no-underline">{t.excelAktar.musterilereGit}</a>
+          {bayiPaneli && <a href="/customers" className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-semibold no-underline">{t.excelAktar.musterilereGit}</a>}
           <button onClick={() => { setResult(null); setPreview(null); setCsv(''); setFileName(''); }}
             className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700">{t.excelAktar.yeniDosya}</button>
         </div>
@@ -277,6 +330,8 @@ export default function ExcelImport() {
               </div>
             )}
 
+            {preview.kiraOzeti && <KiraKutusu ozet={preview.kiraOzeti} t={t} para={(n) => b.para(n)} />}
+
             {/* Örnek satırlar */}
             {preview.sample?.length > 0 && (
               <div className="mb-4">
@@ -288,7 +343,7 @@ export default function ExcelImport() {
                         {/* Kiralık + aylık kira kolonları da görünür: eşleme yanlışsa
                             ("Kiralık" kolonu kira tutarı sanılırsa) kiralık filo
                             sessizce kirasız aktarılıyordu — burada fark edilsin. */}
-                        {[t.excelAktar.ornekMusteri, t.excelAktar.alanTelefon, t.excelAktar.ornekMarkaModel, t.excelAktar.alanSeriNo, t.excelAktar.alanKonum, t.excelAktar.ornekSayac, t.excelAktar.alanKiralik, t.excelAktar.alanKira].map((h) => (
+                        {[t.excelAktar.ornekMusteri, t.excelAktar.alanTelefon, t.excelAktar.ornekMarkaModel, t.excelAktar.alanSeriNo, t.excelAktar.alanKonum, t.excelAktar.ornekSayac, t.excelAktar.alanKiralik, t.excelAktar.alanKira, t.excelAktar.ornekDahil].map((h) => (
                           <th key={h} className="px-2 py-2 text-left font-semibold text-gray-600">{h}</th>
                         ))}
                       </tr>
@@ -304,6 +359,7 @@ export default function ExcelImport() {
                           <td className="px-2 py-1.5 font-mono">{s.counterBlack ?? '—'}</td>
                           <td className="px-2 py-1.5">{s.isRental ? t.genel.evet : t.genel.hayir}</td>
                           <td className="px-2 py-1.5 font-mono">{s.monthlyRent != null ? b.para(Number(s.monthlyRent)) : '—'}</td>
+                          <td className="px-2 py-1.5 font-mono">{s.includedBlack != null ? s.includedBlack : '—'}</td>
                         </tr>
                       ))}
                     </tbody>

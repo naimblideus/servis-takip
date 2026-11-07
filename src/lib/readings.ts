@@ -85,6 +85,7 @@ export type OkumaKaynagi =
   | 'PORTAL'         // müşteri portaldan kendi girdi
   | 'TOPLU'          // sayaç turunda toplu giriş
   | 'SERVIS_FISI'    // servis fişi açılırken girildi
+  | 'GOC'            // Excel aktarımının başlangıç sayacı (faturalanmaz, sayaç toplama sayılmaz)
   | 'ELLE';          // tekil elle giriş
 
 /** Sayaç fotoğrafı: küçültülmüş JPEG data URL; güvenli boyut sınırı */

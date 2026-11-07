@@ -278,13 +278,16 @@ try {
   await p.counterReading.create({ data: { tenantId: tid, deviceId: d1.id, counterBlack: 100, counterColor: 0, source: 'TARAYICI', readingDate: new Date(Date.now() - 2 * GUN) } });
   // 40 gün önceki okuma 35 günlük pencereye girmez.
   await p.counterReading.create({ data: { tenantId: tid, deviceId: d2.id, counterBlack: 50, counterColor: 0, source: 'ELLE', readingDate: new Date(Date.now() - 40 * GUN) } });
+  // Excel aktarımının başlangıç sayacı (GOC) bugün yazıldı ama okuma DEĞİL:
+  // sayılsaydı aktarımdan hemen sonra SAYAÇ adımı yeşil yanardı.
+  await p.counterReading.create({ data: { tenantId: tid, deviceId: d2.id, counterBlack: 60, counterColor: 0, source: k.GOC_KAYNAGI, billed: true, readingDate: new Date() } });
 
   let s = await veri.kurulumSatiri(tid);
   const ad = (kod) => s.kurulum.adimlar.find((a) => a.kod === kod);
   t('firma bilgisi tam → TAMAM', ad('FIRMA').durum === 'TAMAM');
   t('3 cihaz, 2 kiralık', s.cihaz === 3 && ad('CIHAZ').kanit.kiralik === 2, ad('CIHAZ').kanit);
   t('★ fiyat 1/2 kiralıkta → KISMEN (varsayılan sayfa fiyatı sayılmaz)', ad('FIYAT').durum === 'KISMEN' && ad('FIYAT').kanit.n === 1, ad('FIYAT'));
-  t('★ sayaç 1/2 (40 günlük okuma sayılmaz), kendiliğinden %100', ad('SAYAC').durum === 'KISMEN' && ad('SAYAC').kanit.n === 1 && ad('SAYAC').kanit.pay === 100, ad('SAYAC').kanit);
+  t('★ sayaç 1/2 (40 günlük okuma ve aktarım başlangıcı sayılmaz), kendiliğinden %100', ad('SAYAC').durum === 'KISMEN' && ad('SAYAC').kanit.n === 1 && ad('SAYAC').kanit.pay === 100, ad('SAYAC').kanit);
   t('fatura yok → EKSIK; sıradaki FIYAT', ad('FATURA').durum === 'EKSIK' && s.kurulum.sonrakiAdim?.kod === 'FIYAT');
   t('teknisyen var → EKIP TAMAM', ad('EKIP').durum === 'TAMAM' && ad('EKIP').kanit.n === 1);
   t('kurulum 2/5, Hazır değil', s.kurulum.zorunluTamam === 2 && !s.kurulum.hazir, s.kurulum.zorunluTamam);

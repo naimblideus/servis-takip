@@ -59,7 +59,12 @@ export type FieldKey =
   | 'legalName' | 'taxOffice' | 'city' | 'district'
   | 'brand' | 'model' | 'serialNo' | 'location'
   | 'counterBlack' | 'counterColor'
-  | 'isRental' | 'monthlyRent' | 'pricePerBlack' | 'pricePerColor';
+  | 'isRental' | 'monthlyRent' | 'pricePerBlack' | 'pricePerColor'
+  // Kiralığın asıl modeli: kiraya dahil sayfa + aşan sayfanın fiyatı. Device
+  // tablosunda alanlar vardı ama aktarım taşımıyordu; kiralıklar tek tek elle
+  // düzeltiliyor, düzeltilmezse dahil sayfalar da ücretleniyordu.
+  | 'includedBlack' | 'includedColor' | 'overagePriceBlack' | 'overagePriceColor'
+  | 'installedAt' | 'lastInvoicedPeriod';
 
 export const FIELD_LABEL: Record<FieldKey, string> = {
   customerName: 'Müşteri / Firma',
@@ -80,6 +85,12 @@ export const FIELD_LABEL: Record<FieldKey, string> = {
   monthlyRent: 'Aylık kira',
   pricePerBlack: 'Sayfa fiyatı (S/B)',
   pricePerColor: 'Sayfa fiyatı (Renkli)',
+  includedBlack: 'Dahil sayfa (S/B)',
+  includedColor: 'Dahil sayfa (Renkli)',
+  overagePriceBlack: 'Aşım fiyatı (S/B)',
+  overagePriceColor: 'Aşım fiyatı (Renkli)',
+  installedAt: 'Kurulum tarihi',
+  lastInvoicedPeriod: 'Son faturalanan ay',
 };
 
 /**
@@ -114,6 +125,24 @@ const PATTERNS: { key: FieldKey; re: RegExp }[] = [
   { key: 'taxOffice', re: /(vergi dairesi|vergi d\.|v\.d\.|^vd$)/i },
   { key: 'district', re: /(ilce|district|semt)/i },
   { key: 'city', re: /^(il|sehir|city|province)$/i },
+  // KİRALIK ŞARTLARI — kira, fiyat ve sayaç kalıplarından ÖNCE. Sonradan
+  // gelselerdi:
+  //  · "Aşım S/B Fiyatı" sayfa fiyatı kalıbına (/s\/?b.*fiyat/), "Aşım Renkli
+  //    Fiyatı" renkli fiyat kalıbına düşerdi → aşım fiyatı sayfa fiyatı olurdu;
+  //  · "Dahil S/B Sayfa" sayaç kalıbına (/s\/?b\b/), "Aylık Kiraya Dahil Sayfa"
+  //    kira kalıbına (/aylik kira/) düşerdi → dahil sayfa sayaç ya da kira olurdu.
+  // Renkliler siyahtan önce: "Dahil Renkli Sayfa" siyah kalıbına da uyar.
+  // Dahil sayfa bir ADET: başlığında fiyat/ücret/tutar geçen kolon asla dahil
+  // sayfa değildir ("KDV Dahil Fiyat", "Kira (TL)"). "Toner dahil", "Sarf dahil"
+  // gibi evet/hayır kolonları da yakalanmaz: dahil kelimesinin yanında sayfa,
+  // S/B ya da kopya ister.
+  // "asim" kelime sınırıyla: "Kasım Sayacı" (ay adı) aşım fiyatı sanılmasın.
+  { key: 'lastInvoicedPeriod', re: /(son fatura|faturalanan son|last (invoiced|billed)|billed until)/i },
+  { key: 'installedAt', re: /((kurulum|teslim|montaj|kuruldugu).*tarih|^kurulum$|^install(ation|ed)?( date| at)?$)/i },
+  { key: 'includedColor', re: /^(?!.*(fiyat|ucret|birim|tutar|bedel|price|\btl\b|₺)).*((dahil|kota|included|free).*(renkli|colou?r)|(renkli|colou?r).*(dahil|kota|included|free))/i },
+  { key: 'includedBlack', re: /^(?!.*(fiyat|ucret|birim|tutar|bedel|price|\btl\b|₺|renkli|colou?r)).*(dahil.*(sayfa|s\/?b|siyah|mono|kopya|baski|adet)|(sayfa|s\/?b|siyah|mono|kopya|baski).*dahil|^dahil$|kota|included|free pages)/i },
+  { key: 'overagePriceColor', re: /((\basim\b|fazla|overage|excess).*(renkli|colou?r)|(renkli|colou?r).*(\basim\b|fazla|overage|excess))/i },
+  { key: 'overagePriceBlack', re: /(\basim\b|overage|excess|fazla (sayfa|kopya|baski))/i },
   // KİRA — ölçülmüş hata: eskiden aylık kira kalıbı /(kira|aylik|rent)/ idi
   // ve "Kiralık" kolonunu (evet/hayır) KİRA TUTARI sanıyordu; asıl "Aylık
   // Kira" kolonu boşta kalıyordu. Sonuç: kiralık filo "kiralık değil" ve
@@ -209,4 +238,97 @@ export function normalizePhone(v: string | undefined | null): string {
   else if (d.startsWith('90') && d.length === 12) d = d.slice(2);
   else if (d.startsWith('0')) d = d.slice(1);
   return d;
+}
+
+// ── Tarih ve dönem ──────────────────────────────────────────────────────
+// Bayinin dosyasında tarih her biçimde gelir: "15.03.2021", "03/2021", "Mart
+// 2021", "2021", ve xlsx'te tarih hücresi Excel seri numarası olarak ("44270").
+// Okunamayan değer TAHMİN EDİLMEZ: null döner, aktarım uyarıda sayar.
+
+const AY_ADLARI: Record<string, number> = {
+  ocak: 1, oca: 1, subat: 2, sub: 2, mart: 3, mar: 3, nisan: 4, nis: 4, mayis: 5, may: 5,
+  haziran: 6, haz: 6, temmuz: 7, tem: 7, agustos: 8, agu: 8, ags: 8, eylul: 9, eyl: 9,
+  ekim: 10, eki: 10, kasim: 11, kas: 11, aralik: 12, ara: 12,
+  jan: 1, january: 1, feb: 2, february: 2, march: 3, apr: 4, april: 4, jun: 6, june: 6,
+  jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9, september: 9, oct: 10, october: 10,
+  nov: 11, november: 11, dec: 12, december: 12,
+};
+
+type YilAyGun = { yil: number; ay: number; gun: number | null };
+
+/** Excel seri numarası (1900 tabanı) → takvim günü. 20000–80000 arası: 1954–2119. */
+function excelSeri(s: string): YilAyGun | null {
+  const m = /^(\d{5})(?:[.,]\d+)?$/.exec(s);
+  if (!m) return null;
+  const seri = Number(m[1]);
+  if (seri < 20000 || seri > 80000) return null;
+  const d = new Date((seri - 25569) * 86_400_000);
+  return { yil: d.getUTCFullYear(), ay: d.getUTCMonth() + 1, gun: d.getUTCDate() };
+}
+
+/** Serbest yazılmış tarihi yıl/ay/gün'e ayırır; gün yoksa null (ay ya da yıl hassasiyeti). */
+function tarihParcala(v: string | null | undefined): (YilAyGun & { yalnizYil?: boolean }) | null {
+  const s = basligiNormalle(String(v ?? '')).replace(/\s+\d{1,2}:\d{2}(:\d{2})?$/, '');
+  if (!s) return null;
+  const seri = excelSeri(s);
+  if (seri) return seri;
+  let m: RegExpExecArray | null;
+  // 2021-03-15, 2021/03/15, 2021.03.15 (ISO saat eki yukarıda atıldı; "T" ile gelen de)
+  if ((m = /^(\d{4})[-./](\d{1,2})[-./](\d{1,2})(t.*)?$/.exec(s))) return { yil: +m[1], ay: +m[2], gun: +m[3] };
+  // 15.03.2021, 15/03/2021, 15-03-2021 (Türkiye'de gün önce)
+  if ((m = /^(\d{1,2})[-./](\d{1,2})[-./](\d{4})$/.exec(s))) return { yil: +m[3], ay: +m[2], gun: +m[1] };
+  // 2021-03, 2021/03
+  if ((m = /^(\d{4})[-./](\d{1,2})$/.exec(s))) return { yil: +m[1], ay: +m[2], gun: null };
+  // 03.2021, 3/2021
+  if ((m = /^(\d{1,2})[-./](\d{4})$/.exec(s))) return { yil: +m[2], ay: +m[1], gun: null };
+  // 202103 (muhasebe programlarının dönem biçimi)
+  if ((m = /^(\d{4})(0[1-9]|1[0-2])$/.exec(s))) return { yil: +m[1], ay: +m[2], gun: null };
+  // "mart 2021", "mar.21", "ekim-2026", "march 2021"
+  if ((m = /^([a-z]+)\.?[\s\-/']*(\d{2}|\d{4})$/.exec(s)) && AY_ADLARI[m[1]]) {
+    const yil = m[2].length === 2 ? 2000 + Number(m[2]) : Number(m[2]);
+    return { yil, ay: AY_ADLARI[m[1]], gun: null };
+  }
+  // "2021 mart"
+  if ((m = /^(\d{4})[\s\-/]+([a-z]+)$/.exec(s)) && AY_ADLARI[m[2]]) return { yil: +m[1], ay: AY_ADLARI[m[2]], gun: null };
+  // Yalnız yıl
+  if ((m = /^(\d{4})$/.exec(s))) return { yil: +m[1], ay: 1, gun: null, yalnizYil: true };
+  return null;
+}
+
+/** Gerçek bir takvim günü mü (31.02 değil)? */
+function gecerliGun(yil: number, ay: number, gun: number): boolean {
+  const d = new Date(Date.UTC(yil, ay - 1, gun));
+  return d.getUTCFullYear() === yil && d.getUTCMonth() === ay - 1 && d.getUTCDate() === gun;
+}
+
+/**
+ * Son faturalanan ay → 'YYYY-AA' (Device.lastInvoicedPeriod biçimi).
+ * "10.2026", "Ekim 2026", "2026-10", tam tarih ("31.10.2026") ya da Excel seri
+ * numarası kabul edilir. Yalnız yıl ("2026") REDDEDİLİR: hangi ayın kirasının
+ * kesildiğini söylemez; tahmin edilen ay ya çift kira ya kaçan kira demektir.
+ */
+export function donemCoz(v: string | null | undefined): string | null {
+  const p = tarihParcala(v);
+  if (!p || p.yalnizYil) return null;
+  if (p.ay < 1 || p.ay > 12 || p.yil < 2000 || p.yil > 2100) return null;
+  if (p.gun != null && !gecerliGun(p.yil, p.ay, p.gun)) return null;
+  return `${p.yil}-${String(p.ay).padStart(2, '0')}`;
+}
+
+export type TarihHassasiyeti = 'DAY' | 'MONTH' | 'YEAR';
+
+/**
+ * Kurulum tarihi → gün başı (UTC) + hassasiyet. Cihaz kartındaki "kurulum
+ * tarihi" ekranıyla aynı biçim (api/devices/install-date): ay ya da yıl
+ * biliniyorsa ayın/yılın 1'i ve hassasiyeti yazılır. 1990'dan önce ya da
+ * bugünden sonra olan tarih okunamamış sayılır.
+ */
+export function kurulumTarihiCoz(v: string | null | undefined, simdi: Date = new Date()): { tarih: Date; hassasiyet: TarihHassasiyeti } | null {
+  const p = tarihParcala(v);
+  if (!p) return null;
+  if (p.ay < 1 || p.ay > 12 || p.yil < 1990) return null;
+  if (p.gun != null && !gecerliGun(p.yil, p.ay, p.gun)) return null;
+  const tarih = new Date(Date.UTC(p.yil, p.ay - 1, p.gun ?? 1));
+  if (tarih.getTime() > simdi.getTime()) return null;
+  return { tarih, hassasiyet: p.yalnizYil ? 'YEAR' : p.gun != null ? 'DAY' : 'MONTH' };
 }

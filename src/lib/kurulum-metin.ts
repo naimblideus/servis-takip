@@ -93,6 +93,15 @@ export interface KurulumMetni {
   hata: Record<string, string>;
   /** Hazır WhatsApp mesajı — sıradaki adıma göre; TAMAM = kurulum bitti. */
   mesaj: AdimMetni & { TAMAM: string };
+  /** "Veriyi biz yükleyelim": bayinin listesini Nextus ekibi yükler. */
+  yukleBaslik: string;
+  yukleAciklama: string;
+  gerekenleriIste: string;
+  /** {ad} yetkilinin ilk adı. */
+  gerekenlerMesaji: string;
+  yukleKurali: string;
+  /** Yüklemeden sonra kurulum notlarına düşen satır. */
+  aktarimNotu: string;
 }
 
 const tr: KurulumMetni = {
@@ -257,6 +266,12 @@ const tr: KurulumMetni = {
     PORTAL: 'Merhaba {ad}, müşterilerinize portal açarsanız sayaç ve faturalarını kendileri görür. Bir müşteriyle deneyelim mi?',
     TAMAM: 'Merhaba {ad}, kurulumunuz tamam. Nasıl gidiyor, takıldığınız bir yer var mı?',
   },
+  yukleBaslik: 'Veriyi biz yükleyelim',
+  yukleAciklama: 'Bayinin müşteri, cihaz ve kiralık listesini buradan yükleyin. Önizlemedeki aylık kira toplamını bayiyle teyit edin, sonra aktarın. Aynı dosyayı tekrar yüklemek güvenli: çoğaltmaz, günceller.',
+  gerekenleriIste: 'Gerekenleri WhatsApp’tan iste',
+  gerekenlerMesaji: 'Merhaba {ad}, Nextus Servis kurulumunu biz yapıyoruz. Bize şunları gönderir misiniz?\n1) Müşteri ve cihaz listeniz: Excel ya da eski programınızın dökümü olur. Kiralıklarda aylık kira, dahil sayfa, sayfa fiyatı ve son sayaç yazsın.\n2) Logonuz\n3) Faturada yazacak vergi no, vergi dairesi ve adres\n4) Ödemelerin yatacağı IBAN\n5) Sisteme girecek çalışanlarınızın adları\nHepsini yükleyip görüşmede size hazır teslim ediyoruz.',
+  yukleKurali: 'Liste yalnız buradan yüklenir; hiçbir yapay zekâ sohbetine yapıştırılmaz. Yükledikten sonra dosyayı WhatsApp’tan silin.',
+  aktarimNotu: 'Liste Nextus tarafından yüklendi: {yeniMusteri} yeni müşteri, {yeniCihaz} yeni cihaz, {guncellenen} güncellendi. Aylık kira toplamı {kira} ({kiraCihaz} kiralık cihaz).',
 };
 
 const en = {
@@ -421,6 +436,12 @@ const en = {
     PORTAL: 'Hello {ad}, with a portal your customers see their meters and invoices themselves. Shall we try it with one customer?',
     TAMAM: 'Hello {ad}, your setup is complete. How is it going, anything you are stuck on?',
   },
+  yukleBaslik: 'We load the data',
+  yukleAciklama: 'Upload the dealer’s customer, device and rental list here. Confirm the monthly rent total in the preview with the dealer, then import. Uploading the same file again is safe: it updates, never duplicates.',
+  gerekenleriIste: 'Ask for what we need on WhatsApp',
+  gerekenlerMesaji: 'Hello {ad}, we are setting up Nextus Servis for you. Could you send us the following?\n1) Your customer and device list: Excel or an export from your old program works. For rentals, include the monthly rent, included pages, page price and last meter reading.\n2) Your logo\n3) The tax number, tax office and address that print on invoices\n4) The IBAN payments should go to\n5) The names of the staff who will use the system\nWe load everything and hand it over ready in our call.',
+  yukleKurali: 'The list is uploaded only here; it is never pasted into an AI chat. Delete the file from WhatsApp after uploading.',
+  aktarimNotu: 'List loaded by Nextus: {yeniMusteri} new customers, {yeniCihaz} new devices, {guncellenen} updated. Monthly rent total {kira} ({kiraCihaz} rental devices).',
 } satisfies KurulumMetni;
 
 export function kurulumMetni(dil: string | null | undefined): KurulumMetni {
@@ -454,4 +475,10 @@ export function saglikCumlesi(m: KurulumMetni, n: SaglikNedeni): string {
 export function mesajMetni(m: KurulumMetni, o: { yetkili: string | null; firma: string; sonraki: AdimKodu | null }): string {
   const ad = (o.yetkili || o.firma).trim().split(/\s+/)[0] ?? '';
   return doldur(o.sonraki ? m.mesaj[o.sonraki] : m.mesaj.TAMAM, { ad });
+}
+
+/** "Kurulum için gerekenler" mesajı: satış günü bayiye giden tek mesaj. */
+export function gerekenlerMetni(m: KurulumMetni, o: { yetkili: string | null; firma: string }): string {
+  const ad = (o.yetkili || o.firma).trim().split(/\s+/)[0] ?? '';
+  return doldur(m.gerekenlerMesaji, { ad });
 }

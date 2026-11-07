@@ -210,7 +210,8 @@ console.log('\nBİLEŞEN XLSX\'İ BU YOLDAN GEÇİRİYOR (kaynak denetimi)\n');
   const bilesen = readFileSync(join(KOK, 'src/components/ExcelImport.tsx'), 'utf8');
   t('dosya seçici .xlsx kabul ediyor', /accept="\.csv,\.txt,\.xlsx"/.test(bilesen));
   t('★ .xlsx ondalık virgülle okunup CSV yoluna veriliyor', /xlsxOku\(await f\.arrayBuffer\(\), \{ ondalikVirgul: true \}\)/.test(bilesen) && /satirlarCsv\(/.test(bilesen));
-  t('önizlemede kiralık ve aylık kira kolonları var', /alanKiralik, t\.excelAktar\.alanKira\]/.test(bilesen) && /s\.isRental \?/.test(bilesen) && /s\.monthlyRent != null/.test(bilesen));
+  t('önizlemede kiralık ve aylık kira kolonları var', /alanKiralik, t\.excelAktar\.alanKira[,\]]/.test(bilesen) && /s\.isRental \?/.test(bilesen) && /s\.monthlyRent != null/.test(bilesen));
+  t('önizlemede dahil sayfa kolonu ve aylık kira toplamı var', /t\.excelAktar\.ornekDahil\]/.test(bilesen) && /s\.includedBlack != null/.test(bilesen) && /<KiraKutusu /.test(bilesen));
   t('örnek şablon düğmesi var', /sablonCsv\(/.test(bilesen) && /onClick=\{sablonIndir\}/.test(bilesen));
 }
 

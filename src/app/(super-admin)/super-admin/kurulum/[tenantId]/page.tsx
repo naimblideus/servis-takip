@@ -2,10 +2,11 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getSuperAdminSession } from '@/lib/super-admin-auth';
 import { kurulumAyrintisi } from '@/lib/kurulum-veri';
-import { kurulumMetni, kanitCumlesi, saglikCumlesi, mesajMetni, type KurulumMetni } from '@/lib/kurulum-metin';
+import { kurulumMetni, kanitCumlesi, saglikCumlesi, mesajMetni, gerekenlerMetni, type KurulumMetni } from '@/lib/kurulum-metin';
 import { waAdresi, gunMetni, NOT_EN_UZUN, type Adim } from '@/lib/kurulum';
 import { sunucuDili } from '@/lib/i18n/sunucu';
 import { doldur } from '@/lib/i18n/sozluk';
+import ExcelImport from '@/components/ExcelImport';
 import TakipFormu from './TakipFormu';
 import NotFormu from './NotFormu';
 
@@ -44,6 +45,8 @@ export default async function KurulumAyrintiSayfasi({ params }: { params: Promis
   const sonraki = x.kurulum.sonrakiAdim;
   const mesaj = mesajMetni(m, { yetkili: x.yetkili, firma: x.firma, sonraki: sonraki?.kod ?? null });
   const wa = waAdresi(x.telefon, mesaj);
+  // Satış günü giden tek mesaj: liste, logo, vergi bilgisi, IBAN, ekip adları.
+  const waGereken = waAdresi(x.telefon, gerekenlerMetni(m, { yetkili: x.yetkili, firma: x.firma }));
   const tel = x.telefon ? `tel:${x.telefon.replace(/[^\d+]/g, '')}` : null;
   const zorunlu = x.kurulum.adimlar.filter((a) => a.zorunlu);
   const istege = x.kurulum.adimlar.filter((a) => !a.zorunlu);
@@ -73,6 +76,20 @@ export default async function KurulumAyrintiSayfasi({ params }: { params: Promis
             <AdimListesi baslik={m.zorunlu} adimlar={zorunlu} m={m} />
             <div className="h-4" />
             <AdimListesi baslik={m.istegeBagli} adimlar={istege} m={m} />
+          </section>
+
+          {/* VERİYİ BİZ YÜKLEYELİM — bayinin listesi bayi paneline girmeden,
+              bayinin kendi ekranıyla AYNI kuraldan geçerek yüklenir. */}
+          <section className={kart}>
+            <h2 className={altBaslik}>{m.yukleBaslik}</h2>
+            <p className="mb-3 text-sm text-gray-700">{m.yukleAciklama}</p>
+            {waGereken && (
+              <a href={waGereken} target="_blank" rel="noopener noreferrer" className="mb-3 inline-flex min-h-11 items-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-500">
+                {m.gerekenleriIste}
+              </a>
+            )}
+            <p className="mb-3 text-xs text-gray-500">{m.yukleKurali}</p>
+            <ExcelImport uc={`/api/super-admin/kurulum/${encodeURIComponent(x.tenantId)}/ice-aktar`} bayiPaneli={false} />
           </section>
 
           <section className={kart}>

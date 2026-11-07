@@ -11,17 +11,25 @@
 // Örnek satır gerçek bir Pantum (çoğu Pantum siyah-beyaz): renkli sayaç 0,
 // renkli fiyat boş. Sayılar Türk biçiminde (ondalık virgül), çünkü dosya
 // Türk Excel'inde açılıp kaydedilecek.
+//
+// Kiralığın Türkiye'deki asıl modeli: "aylık 1.500 TL, 1.000 sayfa dahil,
+// aşan sayfa 0,45 TL". Dahil sayfa kolonları bunun için. Aşım için AYRI kolon
+// konmadı: dahil paket varken sayfa fiyatı zaten aşan sayfanın fiyatıdır
+// (invoicing → overagePrices). İki fiyat kolonu bayiye "hangisi?" diye
+// sordururdu. Bayinin kendi dosyasındaki "Aşım Fiyatı" kolonu yine tanınır.
+// "Son Faturalanan Ay": eski sistemde kirası kesilmiş son ay; Nextus bir
+// sonraki aydan keser, geçiş ayının kirası iki kez kesilmez.
 
 export type SablonDili = 'tr' | 'en';
 
 export const SABLON: Record<SablonDili, string[][]> = {
   tr: [
-    ['Müşteri Adı', 'Telefon', 'Adres', 'Marka', 'Model', 'Seri No', 'Konum', 'S/B Sayaç', 'Renkli Sayaç', 'Kiralık mı', 'Aylık Kira', 'S/B Sayfa Fiyatı', 'Renkli Sayfa Fiyatı'],
-    ['Örnek Kırtasiye Ltd. Şti.', '0555 111 22 33', 'Atatürk Cad. No:1 Şişli/İstanbul', 'Pantum', 'M7100DW', 'CN0000000001', '2. Kat Muhasebe', '36010', '0', 'Evet', '1500', '0,45', ''],
+    ['Müşteri Adı', 'Telefon', 'Adres', 'Marka', 'Model', 'Seri No', 'Konum', 'S/B Sayaç', 'Renkli Sayaç', 'Kiralık mı', 'Aylık Kira', 'S/B Sayfa Fiyatı', 'Renkli Sayfa Fiyatı', 'Dahil S/B Sayfa', 'Dahil Renkli Sayfa', 'Kurulum Tarihi', 'Son Faturalanan Ay'],
+    ['Örnek Kırtasiye Ltd. Şti.', '0555 111 22 33', 'Atatürk Cad. No:1 Şişli/İstanbul', 'Pantum', 'M7100DW', 'CN0000000001', '2. Kat Muhasebe', '36010', '0', 'Evet', '1500', '0,45', '', '1000', '0', '15.03.2024', '10.2026'],
   ],
   en: [
-    ['Customer Name', 'Phone', 'Address', 'Brand', 'Model', 'Serial No', 'Location', 'Black Counter', 'Color Counter', 'Rental', 'Monthly Rent', 'Black Page Price', 'Color Page Price'],
-    ['Sample Office Supplies Ltd.', '0555 111 22 33', '1 Main Street', 'Pantum', 'M7100DW', 'CN0000000001', '2nd Floor Accounting', '36010', '0', 'Yes', '1500', '0.45', ''],
+    ['Customer Name', 'Phone', 'Address', 'Brand', 'Model', 'Serial No', 'Location', 'Black Counter', 'Color Counter', 'Rental', 'Monthly Rent', 'Black Page Price', 'Color Page Price', 'Included Black Pages', 'Included Colour Pages', 'Install Date', 'Last Invoiced Month'],
+    ['Sample Office Supplies Ltd.', '0555 111 22 33', '1 Main Street', 'Pantum', 'M7100DW', 'CN0000000001', '2nd Floor Accounting', '36010', '0', 'Yes', '1500', '0.45', '', '1000', '0', '2024-03-15', '2026-10'],
   ],
 };
 

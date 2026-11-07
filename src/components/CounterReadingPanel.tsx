@@ -50,6 +50,7 @@ const KAYNAK_RENK: Record<string, { renk: string; arka: string }> = {
     PORTAL:        { renk: '#6d28d9', arka: '#ede9fe' },
     TOPLU:         { renk: '#4b5563', arka: '#f3f4f6' },
     SERVIS_FISI:   { renk: '#4b5563', arka: '#f3f4f6' },
+    GOC:           { renk: '#4b5563', arka: '#f3f4f6' },
     ELLE:          { renk: '#4b5563', arka: '#f3f4f6' },
 };
 

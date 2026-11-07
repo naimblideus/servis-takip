@@ -30,7 +30,7 @@ try {
     '--moduleResolution', 'bundler', '--skipLibCheck',
   ], { stdio: 'pipe' });
 } catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
-const { autoMap, parseCSV, detectDelimiter, trNumber, trBool } = await import(pathToFileURL(join(g, 'sheet-import.js')).href);
+const { autoMap, parseCSV, detectDelimiter, trNumber, trBool, donemCoz, kurulumTarihiCoz } = await import(pathToFileURL(join(g, 'sheet-import.js')).href);
 const { SABLON, sablonCsv } = await import(pathToFileURL(join(g, 'ice-aktar-sablon.js')).href);
 
 let gecti = 0, kaldi = 0;
@@ -86,13 +86,84 @@ console.log('\nESKİ EŞLEMELER BOZULMADI\n');
   t('İlçe → ilçe', esle('İlçe') === 'district', esle('İlçe'));
 }
 
+console.log('\n★ KİRALIK ŞARTLARI — dahil sayfa, aşım, kurulum tarihi, son faturalanan ay\n');
+{
+  const cases = [
+    ['Dahil S/B Sayfa', 'includedBlack'], ['Dahil Sayfa', 'includedBlack'], ['DAHİL SAYFA', 'includedBlack'],
+    ['S/B Dahil', 'includedBlack'], ['Dahil Siyah', 'includedBlack'], ['Sayfa Kotası', 'includedBlack'],
+    ['Kota', 'includedBlack'], ['Dahil', 'includedBlack'], ['Included Pages', 'includedBlack'],
+    ['Aylık Kiraya Dahil Sayfa', 'includedBlack'],
+    ['Dahil Renkli Sayfa', 'includedColor'], ['Renkli Dahil', 'includedColor'], ['Renkli Kota', 'includedColor'],
+    ['Included Colour Pages', 'includedColor'],
+    ['Aşım Fiyatı', 'overagePriceBlack'], ['AŞIM FİYATI', 'overagePriceBlack'], ['Aşım S/B Fiyatı', 'overagePriceBlack'],
+    ['S/B Aşım', 'overagePriceBlack'], ['Fazla Sayfa Ücreti', 'overagePriceBlack'], ['Overage Price', 'overagePriceBlack'],
+    ['Aşım Renkli Fiyatı', 'overagePriceColor'], ['Renkli Aşım', 'overagePriceColor'], ['Colour Overage Price', 'overagePriceColor'],
+    ['Kurulum Tarihi', 'installedAt'], ['KURULUM TARİHİ', 'installedAt'], ['Teslim Tarihi', 'installedAt'],
+    ['Montaj Tarihi', 'installedAt'], ['Kurulduğu Tarih', 'installedAt'], ['Kurulum', 'installedAt'], ['Install Date', 'installedAt'],
+    ['Son Faturalanan Ay', 'lastInvoicedPeriod'], ['Son Fatura Dönemi', 'lastInvoicedPeriod'], ['Son Fatura Tarihi', 'lastInvoicedPeriod'],
+    ['Last Invoiced Month', 'lastInvoicedPeriod'],
+  ];
+  for (const [h, beklenen] of cases) t(`"${h}" → ${beklenen}`, esle(h) === beklenen, esle(h));
+}
+
+console.log('\n★ YENİ KALIPLAR ESKİ KOLONLARI YEMİYOR\n');
+{
+  t('"Kasım Sayacı" aşım fiyatı sanılmıyor (ay adı)', esle('Kasım Sayacı') === 'counterBlack', esle('Kasım Sayacı'));
+  t('"Toner Dahil" dahil sayfa sanılmıyor (evet/hayır kolonu)', esle('Toner Dahil') !== 'includedBlack', esle('Toner Dahil'));
+  t('"Sarf Dahil mi" dahil sayfa sanılmıyor', esle('Sarf Dahil mi') !== 'includedBlack', esle('Sarf Dahil mi'));
+  t('"KDV Dahil Fiyat" dahil sayfa sanılmıyor', esle('KDV Dahil Fiyat') !== 'includedBlack', esle('KDV Dahil Fiyat'));
+  t('"Kurulum Yeri" konum kalıyor', esle('Kurulum Yeri') === 'location', esle('Kurulum Yeri'));
+  t('"Kurulum Adresi" adres kalıyor', esle('Kurulum Adresi') === 'address', esle('Kurulum Adresi'));
+  t('"Fatura Adresi" son fatura sanılmıyor', esle('Fatura Adresi') === 'address', esle('Fatura Adresi'));
+  t('"Renkli Sayfa Fiyatı" renkli fiyat kalıyor', esle('Renkli Sayfa Fiyatı') === 'pricePerColor', esle('Renkli Sayfa Fiyatı'));
+  t('"Konum" dahil (kota) sanılmıyor', esle('Konum') === 'location', esle('Konum'));
+  const m = autoMap(['S/B Sayfa Fiyatı', 'Dahil S/B Sayfa', 'Aşım S/B Fiyatı', 'S/B Sayaç', 'Aylık Kira', 'Kiralık']);
+  t('★ fiyat + dahil + aşım + sayaç + kira yan yana: her biri kendi alanında',
+    ayni(m, ['pricePerBlack', 'includedBlack', 'overagePriceBlack', 'counterBlack', 'monthlyRent', 'isRental']), m);
+  const r = autoMap(['Dahil Renkli Sayfa', 'Dahil S/B Sayfa', 'Renkli Sayaç', 'S/B Sayaç']);
+  t('renkli dahil siyah dahili, renkli sayaç siyah sayacı yemiyor',
+    ayni(r, ['includedColor', 'includedBlack', 'counterColor', 'counterBlack']), r);
+}
+
+console.log('\n★ SON FATURALANAN AY → YYYY-AA\n');
+{
+  const cases = [
+    ['10.2026', '2026-10'], ['10/2026', '2026-10'], ['2026-10', '2026-10'], ['2026/10', '2026-10'],
+    ['Ekim 2026', '2026-10'], ['EKİM 2026', '2026-10'], ['ekim-26', '2026-10'], ['Kasım 2026', '2026-11'],
+    ['Şubat 2027', '2027-02'], ['Ağustos 2026', '2026-08'], ['Aralık 2025', '2025-12'], ['October 2026', '2026-10'],
+    ['31.10.2026', '2026-10'], ['2026-10-31', '2026-10'], ['202610', '2026-10'],
+    ['46326', '2026-10'], // Excel seri numarası: 31.10.2026
+  ];
+  for (const [v, beklenen] of cases) t(`"${v}" → ${beklenen}`, donemCoz(v) === beklenen, donemCoz(v));
+  for (const v of ['2026', '', 'yok', '13.2026', '31.02.2026', 'Ekimm 2026', '1.1.1']) {
+    t(`"${v}" okunamaz → null (tahmin yok)`, donemCoz(v) === null, donemCoz(v));
+  }
+}
+
+console.log('\n★ KURULUM TARİHİ → gün + hassasiyet\n');
+{
+  const simdi = new Date('2026-11-07T12:00:00Z');
+  const k = (v) => { const s = kurulumTarihiCoz(v, simdi); return s ? `${s.tarih.toISOString().slice(0, 10)}/${s.hassasiyet}` : null; };
+  const cases = [
+    ['15.03.2024', '2024-03-15/DAY'], ['15/03/2024', '2024-03-15/DAY'], ['2024-03-15', '2024-03-15/DAY'],
+    ['2024-03-15 10:30:00', '2024-03-15/DAY'], ['03.2024', '2024-03-01/MONTH'], ['Mart 2024', '2024-03-01/MONTH'],
+    ['2024', '2024-01-01/YEAR'], ['45366', '2024-03-15/DAY'],
+  ];
+  for (const [v, beklenen] of cases) t(`"${v}" → ${beklenen}`, k(v) === beklenen, k(v));
+  t('gelecek tarih okunamaz', k('15.03.2027') === null, k('15.03.2027'));
+  t('1990 öncesi okunamaz', k('1985') === null, k('1985'));
+  t('31.02 okunamaz', k('31.02.2024') === null, k('31.02.2024'));
+}
+
 console.log('\n★ ÖRNEK ŞABLON — her başlık doğru alana düşüyor\n');
 {
   const beklenen = ['customerName', 'phone', 'address', 'brand', 'model', 'serialNo', 'location',
-    'counterBlack', 'counterColor', 'isRental', 'monthlyRent', 'pricePerBlack', 'pricePerColor'];
+    'counterBlack', 'counterColor', 'isRental', 'monthlyRent', 'pricePerBlack', 'pricePerColor',
+    'includedBlack', 'includedColor', 'installedAt', 'lastInvoicedPeriod'];
+  const N = beklenen.length;
   for (const dil of ['tr', 'en']) {
     const m = autoMap(SABLON[dil][0]);
-    t(`★ ${dil} şablonu: 13 başlığın 13'ü tanındı, sırası doğru`, ayni(m, beklenen),
+    t(`★ ${dil} şablonu: ${N} başlığın ${N}'si tanındı, sırası doğru`, ayni(m, beklenen),
       SABLON[dil][0].map((h, i) => `${h}→${m[i]}`).filter((_, i) => m[i] !== beklenen[i]));
   }
 
@@ -100,7 +171,7 @@ console.log('\n★ ÖRNEK ŞABLON — her başlık doğru alana düşüyor\n');
   t('TR şablonu BOM ile başlıyor (Excel Türkçe karakteri bozmasın)', csv.charCodeAt(0) === 0xfeff);
   t('TR şablonu noktalı virgüllü', detectDelimiter(csv) === ';', detectDelimiter(csv));
   const satir = parseCSV(csv);
-  t('TR şablonu başlık + 1 örnek satır, 13 kolon', satir.length === 2 && satir.every((s) => s.length === 13), satir.map((s) => s.length));
+  t(`TR şablonu başlık + 1 örnek satır, ${N} kolon`, satir.length === 2 && satir.every((s) => s.length === N), satir.map((s) => s.length));
   t('başlıklar CSV\'den aynen geri okunuyor', ayni(satir[0], SABLON.tr[0]), satir[0]);
   const deger = (k) => satir[1][beklenen.indexOf(k)];
   t('örnek cihaz Pantum M7100DW', deger('brand') === 'Pantum' && deger('model') === 'M7100DW', satir[1]);
@@ -108,11 +179,15 @@ console.log('\n★ ÖRNEK ŞABLON — her başlık doğru alana düşüyor\n');
   t('örnek aylık kira sayı olarak okunuyor', trNumber(deger('monthlyRent')) === 1500, deger('monthlyRent'));
   t('örnek S/B fiyat 0,45 → 0.45', trNumber(deger('pricePerBlack')) === 0.45, deger('pricePerBlack'));
   t('siyah-beyaz örnek: renkli fiyat boş', deger('pricePerColor') === '', deger('pricePerColor'));
+  t('örnek dahil sayfa 1000', trNumber(deger('includedBlack')) === 1000, deger('includedBlack'));
+  t('örnek kurulum tarihi okunuyor', kurulumTarihiCoz(deger('installedAt'), new Date('2026-11-07T12:00:00Z'))?.hassasiyet === 'DAY', deger('installedAt'));
+  t('örnek son faturalanan ay okunuyor', donemCoz(deger('lastInvoicedPeriod')) === '2026-10', deger('lastInvoicedPeriod'));
 
   const en = sablonCsv('en');
   t('EN şablonu virgüllü (İngilizce Excel tek hücreye doldurmasın)', detectDelimiter(en) === ',', detectDelimiter(en));
   const es = parseCSV(en);
-  t('EN şablonu 13 kolon, değerler okunuyor', es.length === 2 && es[1].length === 13 && trNumber(es[1][11]) === 0.45 && trBool(es[1][9]) === true, es[1]);
+  t(`EN şablonu ${N} kolon, değerler okunuyor`, es.length === 2 && es[1].length === N && trNumber(es[1][11]) === 0.45 && trBool(es[1][9]) === true
+    && donemCoz(es[1][16]) === '2026-10', es[1]);
 }
 
 rmSync(g, { recursive: true, force: true });

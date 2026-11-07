@@ -30,14 +30,15 @@ rmSync(g, { recursive: true, force: true });
 
 console.log('\nKural\n');
 t('rolü olmayan (eski) jeton sahip sayılır', r.saRol(undefined) === 'SAHIP' && r.saRol('x') === 'SAHIP' && r.saRol('EKIP') === 'EKIP');
-for (const y of ['/super-admin/kurulum', '/super-admin/kurulum/abc', '/super-admin/sorunlar', '/super-admin/hesabim', '/api/super-admin/kurulum/abc/not', '/api/super-admin/sorunlar/x/ekran', '/api/super-admin/2fa', '/super-admin/login', '/api/super-admin/login']) {
+// ".../ice-aktar": "Veriyi biz yükleyelim" — kurulum ekibi bayinin listesini yükler.
+for (const y of ['/super-admin/kurulum', '/super-admin/kurulum/abc', '/super-admin/sorunlar', '/super-admin/hesabim', '/api/super-admin/kurulum/abc/not', '/api/super-admin/kurulum/abc/ice-aktar', '/api/super-admin/sorunlar/x/ekran', '/api/super-admin/2fa', '/super-admin/login', '/api/super-admin/login']) {
   t(`ekip açar: ${y}`, r.rolErisebilir('EKIP', y));
 }
 for (const y of ['/super-admin/dashboard', '/super-admin/tenants', '/super-admin/tenants/abc', '/super-admin/billing', '/super-admin/settings', '/super-admin/ekip', '/super-admin/aktivasyon', '/super-admin/geri-yukle', '/api/super-admin/tenants', '/api/super-admin/settings', '/api/super-admin/ekip', '/api/super-admin/billing', '/super-admin/kurulumx', '/api/super-admin/sorunlarx']) {
   t(`★ ekibe kapalı: ${y}`, !r.rolErisebilir('EKIP', y));
 }
 t('distribütör yalnız kendi paneli ve hesabı', r.rolErisebilir('DISTRIBUTOR', '/super-admin/distributor') && r.rolErisebilir('DISTRIBUTOR', '/api/super-admin/distributor/duyuru') && r.rolErisebilir('DISTRIBUTOR', '/super-admin/hesabim'));
-for (const y of ['/super-admin/kurulum', '/super-admin/sorunlar', '/super-admin/tenants', '/api/super-admin/tenants', '/api/super-admin/kurulum/x', '/super-admin/ekip', '/super-admin/distributorx']) {
+for (const y of ['/super-admin/kurulum', '/super-admin/sorunlar', '/super-admin/tenants', '/api/super-admin/tenants', '/api/super-admin/kurulum/x', '/api/super-admin/kurulum/x/ice-aktar', '/super-admin/ekip', '/super-admin/distributorx']) {
   t(`★ distribütöre kapalı: ${y}`, !r.rolErisebilir('DISTRIBUTOR', y));
 }
 t('ekip distribütör panelini açamaz', !r.rolErisebilir('EKIP', '/super-admin/distributor'));
