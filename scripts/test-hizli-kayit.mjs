@@ -84,6 +84,15 @@ try {
   ]);
   // Listede iki kez geçen numara tek kişidir: bir kez eklenir, "zaten var" sayılmaz.
   t('★ 2 yeni, 1 zaten kayıtlı, 2 geçersiz; listedeki tekrar birleşir', r.eklenen === 2 && r.zatenVar === 1 && r.gecersiz === 2, r);
+  // Excel'den telefonsuz gelmiş müşteri: rehberde aynı ad varsa telefon tamamlanır, ikinci müşteri açılmaz.
+  const yer = await p.customer.create({ data: { tenantId: bayi.id, name: 'Deniz Hukuk Bürosu', phone: 'BOS-1A2B3C4D' } });
+  const rt = await me.musterileriEkle(bayi.id, [{ ad: 'deniz hukuk bürosu', telefon: '0538 111 00 99', yetkili: 'Av. Deniz' }]);
+  const yer2 = await p.customer.findUnique({ where: { id: yer.id }, select: { phone: true, contactPerson: true } });
+  t('★ telefonsuz (BOS-) müşterinin telefonu rehberden tamamlanır, yeni müşteri yok',
+    rt.eklenen === 0 && rt.telefonuTamamlanan === 1 && yer2?.phone === '5381110099' && yer2?.contactPerson === 'Av. Deniz', { rt, yer2 });
+  const ry = await me.musterileriEkle(bayi.id, [{ ad: 'Yıldız Muhasebe', telefon: '05337778899', yetkili: 'Ayşe Kaya' }]);
+  const yk = await p.customer.findFirst({ where: { tenantId: bayi.id, phone: '5337778899' }, select: { name: true, contactPerson: true } });
+  t('rehberdeki firma müşteri, kişi yetkili olarak yazılır', ry.eklenen === 1 && yk?.name === 'Yıldız Muhasebe' && yk?.contactPerson === 'Ayşe Kaya', yk);
   const r2 = await me.musterileriEkle(bayi.id, [{ ad: 'Çağrı Öztürk', telefon: '05332223344' }]);
   t('aynı liste ikinci kez: hiçbiri eklenmez', r2.eklenen === 0 && r2.zatenVar === 1, r2);
   const cok = Array.from({ length: me.TOPLU_AZAMI + 20 }, (_, i) => ({ ad: `Kişi ${i}`, telefon: `0544${String(1000000 + i)}` }));

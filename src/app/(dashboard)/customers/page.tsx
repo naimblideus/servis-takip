@@ -67,6 +67,11 @@ export default function CustomersPage() {
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 500,
           fontSize: '0.875rem', whiteSpace: 'nowrap',
         }}>{t.genel.excelIndir}</a>
+        <Link href="/customers/rehber" style={{
+          backgroundColor: 'white', color: '#047857', padding: '0.625rem 1rem',
+          borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 500,
+          border: '1px solid #a7f3d0', fontSize: '0.875rem', whiteSpace: 'nowrap',
+        }}>{t.musteriler.rehberden}</Link>
         <Link href="/customers/new" style={{
           backgroundColor: '#3b82f6', color: 'white', padding: '0.625rem 1.25rem',
           borderRadius: '0.5rem', textDecoration: 'none', fontWeight: '500',

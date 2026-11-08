@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 import { useT } from '@/lib/i18n/client';
 
 /**
@@ -12,7 +11,7 @@ import { useT } from '@/lib/i18n/client';
  * demek işe hiç başlamamak demek. Burada liste istemeyen yol başta durur:
  * müşteri, ilk çağrıda fiş ekranında açılır.
  */
-export default function MusteriBaslangic({ ek }: { ek?: ReactNode }) {
+export default function MusteriBaslangic() {
   const t = useT();
   const k = t.musteriler.baslangic;
   const kapi: React.CSSProperties = {
@@ -30,7 +29,11 @@ export default function MusteriBaslangic({ ek }: { ek?: ReactNode }) {
           <div style={baslik}>{k.fis}</div>
           <div style={alt}>{k.fisAlt}</div>
         </Link>
-        {ek}
+        {/* Hiç Excel tutmamış bayinin listesi telefonunun rehberindedir. */}
+        <Link href="/customers/rehber" style={kapi}>
+          <div style={baslik}>{k.rehber}</div>
+          <div style={alt}>{k.rehberAlt}</div>
+        </Link>
         <Link href="/import" style={kapi}>
           <div style={baslik}>{k.excel}</div>
           <div style={alt}>{k.excelAlt}</div>

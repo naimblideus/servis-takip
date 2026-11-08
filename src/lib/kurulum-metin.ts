@@ -161,7 +161,7 @@ const tr: KurulumMetni = {
   },
   nasil: {
     FIRMA: 'Bayi panelinde Ayarlar sayfası. Vergi no ve adres faturada yazar; eksikse fatura eksik çıkar.',
-    CIHAZ: 'Listesi varsa Veri Aktar sayfasında Excel’i yükleyin. Yoksa gerek yok: fiş açarken müşteri ve cihaz aynı ekranda eklenir, seri no’yu teknisyen sahada okutur.',
+    CIHAZ: 'Listesi varsa Veri Aktar sayfasında Excel’i yükleyin. Yoksa gerek yok: fiş açarken müşteri ve cihaz aynı ekranda eklenir, seri no’yu teknisyen sahada okutur. Müşteriler telefon rehberinden de seçilebilir.',
     FIYAT: 'Cihazlar sayfasında cihazı açın, aylık kira ya da siyah sayfa fiyatını yazın. Fiyatsız cihazın faturası çıkmaz.',
     SAYAC: 'Sayaç Turu sayfasından okumaları girin; cihaz e-postası ya da ağ tarayıcı varsa okumalar kendiliğinden gelir.',
     FATURA: 'Faturalar sayfasında dönem faturasını kesin. İlk fatura, bayinin ürünle para kazandığı ilk andır.',
@@ -332,7 +332,7 @@ const en = {
   },
   nasil: {
     FIRMA: 'Settings page in the dealer panel. Tax number and address print on invoices; if missing, invoices are incomplete.',
-    CIHAZ: 'If there is a list, upload the Excel file on the Import page. If not, no need: customer and device are added on the same screen while opening a ticket, and the technician scans the serial number on site.',
+    CIHAZ: 'If there is a list, upload the Excel file on the Import page. If not, no need: customer and device are added on the same screen while opening a ticket, and the technician scans the serial number on site. Customers can also be picked from the phone’s contacts.',
     FIYAT: 'Open the device on the Devices page, enter monthly rent or black page price. A device without a price is never invoiced.',
     SAYAC: 'Enter readings on the Meter Round page; with device e-mail or the network scanner, readings arrive by themselves.',
     FATURA: 'Issue the period invoice on the Invoices page. The first invoice is the first moment the dealer earns with the product.',

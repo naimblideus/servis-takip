@@ -12,8 +12,11 @@
  */
 import { prisma } from '@/lib/prisma';
 import { normalizePhone } from '@/lib/sheet-import';
+import { TOPLU_AZAMI } from '@/lib/rehber-oku';
+import { TELEFON_YOK_ONEKI } from '@/lib/telefon';
+import { adAnahtari } from '@/lib/sayfa-ice-aktar';
 
-export const TOPLU_AZAMI = 500;
+export { TOPLU_AZAMI };
 
 export interface MusteriOzeti { id: string; name: string; phone: string; address: string | null }
 const OZET = { id: true, name: true, phone: true, address: true } as const;
@@ -69,33 +72,56 @@ export async function musteriEkle(tenantId: string, g: {
   }
 }
 
-export interface TopluSonuc { eklenen: number; zatenVar: number; gecersiz: number }
+export interface TopluSonuc { eklenen: number; telefonuTamamlanan: number; zatenVar: number; gecersiz: number }
 
 /**
  * Rehberden seçilen kişileri ekler. Kayıtlı numara atlanır, aynı numara
  * listede iki kez geçerse bir kez eklenir. En çok TOPLU_AZAMI kişi.
  */
-export async function musterileriEkle(tenantId: string, kisiler: { ad: unknown; telefon: unknown }[]): Promise<TopluSonuc> {
+export async function musterileriEkle(tenantId: string, kisiler: { ad: unknown; telefon: unknown; yetkili?: unknown }[]): Promise<TopluSonuc> {
   let gecersiz = 0;
-  const temiz = new Map<string, string>(); // telefon → ad
+  const temiz = new Map<string, { ad: string; yetkili: string | null }>(); // telefon → kişi
   for (const k of kisiler.slice(0, TOPLU_AZAMI)) {
     const ad = typeof k.ad === 'string' ? k.ad.trim().slice(0, 160) : '';
     const tel = musteriTelefonu(k.telefon);
     if (!ad || !tel) { gecersiz++; continue; }
-    if (!temiz.has(tel)) temiz.set(tel, ad);
+    const yetkili = typeof k.yetkili === 'string' && k.yetkili.trim() ? k.yetkili.trim().slice(0, 160) : null;
+    if (!temiz.has(tel)) temiz.set(tel, { ad, yetkili });
   }
-  if (!temiz.size) return { eklenen: 0, zatenVar: 0, gecersiz };
+  if (!temiz.size) return { eklenen: 0, telefonuTamamlanan: 0, zatenVar: 0, gecersiz };
   const kayitli = await prisma.customer.findMany({
     where: { tenantId, phone: { in: [...temiz.keys()] } },
     select: { phone: true },
   });
   const var_ = new Set(kayitli.map((k) => k.phone));
-  const yeni = [...temiz].filter(([tel]) => !var_.has(tel));
+  let yeni = [...temiz].filter(([tel]) => !var_.has(tel));
+
+  // Excel'den telefonsuz gelmiş ("BOS-…" yer tutuculu) aynı adlı müşteri varsa
+  // ikinci müşteri açılmaz: eksik telefonu rehberdeki numarayla tamamlanır.
+  let telefonuTamamlanan = 0;
+  if (yeni.length) {
+    const telefonsuzlar = await prisma.customer.findMany({
+      where: { tenantId, phone: { startsWith: TELEFON_YOK_ONEKI } },
+      select: { id: true, name: true },
+    });
+    const adla = new Map(telefonsuzlar.map((c) => [adAnahtari(c.name), c.id]));
+    const kalan: typeof yeni = [];
+    for (const [tel, k] of yeni) {
+      const anahtar = adAnahtari(k.ad);
+      const id = adla.get(anahtar);
+      if (!id) { kalan.push([tel, k]); continue; }
+      await prisma.customer.update({ where: { id }, data: { phone: tel, ...(k.yetkili ? { contactPerson: k.yetkili } : {}) } });
+      adla.delete(anahtar);
+      telefonuTamamlanan++;
+    }
+    yeni = kalan;
+  }
+
   const r = yeni.length
     ? await prisma.customer.createMany({
-        data: yeni.map(([phone, name]) => ({ tenantId, name, phone })),
+        data: yeni.map(([phone, k]) => ({ tenantId, name: k.ad, phone, contactPerson: k.yetkili })),
         skipDuplicates: true,
       })
     : { count: 0 };
-  return { eklenen: r.count, zatenVar: temiz.size - r.count, gecersiz };
+  return { eklenen: r.count, telefonuTamamlanan, zatenVar: temiz.size - r.count - telefonuTamamlanan, gecersiz };
 }
