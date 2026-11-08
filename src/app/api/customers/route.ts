@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { ucHatasi } from '@/lib/uc-hata';
+import { musteriEkle } from '@/lib/musteri-ekle';
 
 export async function GET() {
   const session = await auth();
@@ -31,21 +33,19 @@ export async function POST(req: Request) {
     const user = await oturumKullanicisi(session);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const body = await req.json();
-    const customer = await prisma.customer.create({
-      data: {
-        tenantId: user.tenantId,
-        name: body.name,
-        phone: body.phone,
-        address: body.address || null,
-        taxNo: body.taxNo || null,
-        // Yeni müşteri formu e-postayı soruyor ama burada YAZILMIYORDU: bayi
-        // doldurdu, kayıt e-postasız oluştu (e-Fatura/ekstre gönderimi boşa).
-        // Küçük harfle: eşleştirme ve tekrar kontrolü harf duyarsız olsun.
-        email: typeof body.email === 'string' && body.email.trim() ? body.email.trim().toLowerCase() : null,
-        consent: body.consent ?? false,
-      },
+    // Kural tek yerde (lib/musteri-ekle): telefon aktarımla aynı biçimde
+    // saklanır; numara kayıtlıysa yeni kayıt açılmaz. Eskiden ham yazılıyordu
+    // ve aynı numara ikinci kez gelince veritabanı hatası ekrana çıkıyordu.
+    // E-posta da yazılır (form soruyordu ama kayıt e-postasız oluşuyordu).
+    const s = await musteriEkle(user.tenantId, {
+      ad: body.name, telefon: body.phone, adres: body.address, vergiNo: body.taxNo,
+      eposta: body.email, onay: body.consent,
     });
-    return NextResponse.json(customer);
+    if (s.durum === 'HATA') return ucHatasi(s.kod, 400);
+    // Fiş ekranı bu durumda mevcut müşteriyi seçer: tezgah aynı kişiyi ikinci
+    // kez açmasın.
+    if (s.durum === 'VAR') return ucHatasi('MUSTERI_TELEFON_KAYITLI', 409, { ek: { musteri: s.musteri } });
+    return NextResponse.json(s.musteri);
   } catch (e: any) {
     console.error('CUSTOMER CREATE ERROR:', e.message);
     return NextResponse.json({ error: e.message }, { status: 500 });

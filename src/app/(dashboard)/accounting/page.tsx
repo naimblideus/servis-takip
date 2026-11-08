@@ -201,7 +201,10 @@ export default function AccountingPage() {
       setQuickCustForm({name:'', phone:'', address:''});
     } else {
       const d = await res.json();
-      alert(doldur(sz.fisler.hata, { n: d.error || sz.muhasebe.bilinmeyenHata }));
+      // Numara zaten kayıtlıysa ikinci müşteri açılmaz; listedeki kayıt seçilir.
+      const var_ = d.kod === 'MUSTERI_TELEFON_KAYITLI' ? allCustomers.find((c: any) => c.id === d.musteri?.id) : null;
+      if (var_) { selectFormCust(var_); setQuickAddCust(false); setQuickCustForm({name:'', phone:'', address:''}); }
+      else alert(doldur(sz.fisler.hata, { n: d.error || sz.muhasebe.bilinmeyenHata }));
     }
     setQuickCustSaving(false);
   };

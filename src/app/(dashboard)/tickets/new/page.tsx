@@ -12,6 +12,7 @@ import SaveSuccess from '@/components/SaveSuccess';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { parseFaultCategory } from '@/lib/fault-categories';
+import { seriBekliyor } from '@/lib/gecici-kimlik';
 
 interface Customer { id: string; name: string; phone: string; address: string | null; }
 interface Device {
@@ -93,17 +94,22 @@ function QuickAddDeviceModal({
         </div>
 
         <form onSubmit={submit} style={{ padding: '1.25rem' }}>
+          {/* Telefonda cihaz çoğu zaman bilinmez: hiçbir alan zorunlu değil.
+              Seri no boşsa geçici kimlik verilir, teknisyen sahada tanımlar. */}
+          <p style={{ fontSize: '0.8rem', color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.6rem 0.75rem', marginBottom: '0.9rem' }}>
+            {sz.cihazHizli.bilmiyorsaniz}
+          </p>
           {/* Marka & Model */}
           <div style={g2}>
             <div>
-              <label style={lbl}>{sz.fisYeni.marka} *</label>
-              <input required style={inp} value={dform.brand}
+              <label style={lbl}>{sz.fisYeni.marka}</label>
+              <input style={inp} value={dform.brand}
                 onChange={e => setDform({ ...dform, brand: e.target.value })}
                 placeholder={sz.cihazHizli.markaYer} />
             </div>
             <div>
-              <label style={lbl}>{sz.fisYeni.model} *</label>
-              <input required style={inp} value={dform.model}
+              <label style={lbl}>{sz.fisYeni.model}</label>
+              <input style={inp} value={dform.model}
                 onChange={e => setDform({ ...dform, model: e.target.value })}
                 placeholder={sz.cihazHizli.modelYer} />
             </div>
@@ -111,8 +117,8 @@ function QuickAddDeviceModal({
 
           {/* Seri No */}
           <div style={{ marginBottom: '0.75rem' }}>
-            <label style={lbl}>{sz.fisDetay.seriNo} *</label>
-            <input required style={inp} value={dform.serialNo}
+            <label style={lbl}>{sz.fisDetay.seriNo}</label>
+            <input style={inp} value={dform.serialNo}
               onChange={e => setDform({ ...dform, serialNo: e.target.value })}
               placeholder={sz.cihazHizli.seriYer} />
           </div>
@@ -363,6 +369,39 @@ export default function NewTicketPage() {
     setShowDropdown(false);
   }, []);
 
+  // ── Yeni müşteri, fiş ekranından çıkmadan ───────────────────────────────
+  // Kaydı olmayan bayide ilk haftaların her çağrısı "yeni müşteri". Eskiden
+  // arama boş dönünce hiçbir şey çıkmıyordu; tezgah fişi bırakıp müşteri
+  // sayfasına gidiyordu. Artık yalnız telefon sorulur.
+  const [yeniMusteri, setYeniMusteri] = useState<{ ad: string; telefon: string } | null>(null);
+  const [yeniKaydediliyor, setYeniKaydediliyor] = useState(false);
+  const [yeniHata, setYeniHata] = useState<string | null>(null);
+  const yeniMusteriKaydet = async () => {
+    if (!yeniMusteri || yeniKaydediliyor) return;
+    setYeniHata(null);
+    setYeniKaydediliyor(true);
+    try {
+      const r = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: yeniMusteri.ad, phone: yeniMusteri.telefon }),
+      });
+      const d = await r.json().catch(() => ({}));
+      const kayit = r.ok ? d : d.kod === 'MUSTERI_TELEFON_KAYITLI' ? d.musteri : null;
+      if (!kayit?.id) { setYeniHata(d.error || sz.genel.baglantiHatasi); return; }
+      const c: Customer = { id: kayit.id, name: kayit.name, phone: kayit.phone, address: kayit.address ?? null };
+      setCustomers(p => (p.some(x => x.id === c.id) ? p : [...p, c]));
+      selectCustomer(c);
+      setYeniMusteri(null);
+      // Numara başka bir adla kayıtlıysa o seçildi: tezgah bunu bilmeli.
+      if (!r.ok) setScanMsg({ text: doldur(sz.fisYeni.musteriVardi, { ad: c.name }), ok: true });
+    } catch {
+      setYeniHata(sz.genel.baglantiHatasi);
+    } finally {
+      setYeniKaydediliyor(false);
+    }
+  };
+
   // Hızlı cihaz ekleme tamamlandı → listeye ekle + seç
   const handleDeviceCreated = (device: Device) => {
     setDevices(prev => [...prev, device]);
@@ -511,11 +550,11 @@ export default function NewTicketPage() {
               placeholder={sz.fisYeni.musteriYer}
               required={!form.customerId}
             />
-            {showDropdown && customerSearch && filteredCustomers.length > 0 && (
+            {showDropdown && customerSearch.trim() && !yeniMusteri && (
               <div style={{
                 position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
                 backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem',
-                maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                maxHeight: '240px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               }}>
                 {filteredCustomers.slice(0, 20).map(c => (
                   <div
@@ -533,9 +572,57 @@ export default function NewTicketPage() {
                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{c.phone} {c.address ? `• ${c.address}` : ''}</div>
                   </div>
                 ))}
+                {/* Aranan kişi listede yoksa (ya da liste hiç yoksa) burada açılır. */}
+                {!filteredCustomers.some(c => c.name.toLocaleLowerCase('tr') === customerSearch.trim().toLocaleLowerCase('tr')) && <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    // Numara yazarak aradıysa numara telefona, ad boş gelir.
+                    const q = customerSearch.trim();
+                    const numara = /^[\d\s+()-]{7,}$/.test(q);
+                    setYeniMusteri({ ad: numara ? '' : q, telefon: numara ? q : '' });
+                    setYeniHata(null); setShowDropdown(false);
+                  }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (e.currentTarget as HTMLElement).click(); } }}
+                  style={{ padding: '0.6rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: '#15803d', background: '#f0fdf4' }}
+                >
+                  {doldur(sz.fisYeni.yeniMusteri, { ad: customerSearch.trim() })}
+                </div>}
               </div>
             )}
           </div>
+
+          {yeniMusteri && (
+            <div style={{ marginBottom: '1rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.5rem', padding: '0.9rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                <div>
+                  <label style={label}>{sz.fisYeni.musteriAdi}</label>
+                  <input style={input} value={yeniMusteri.ad} autoFocus={!yeniMusteri.ad}
+                    onChange={e => setYeniMusteri({ ...yeniMusteri, ad: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); yeniMusteriKaydet(); } }} />
+                </div>
+                <div>
+                  <label style={label}>{sz.fisDetay.telefon}</label>
+                  {/* Enter fişi göndermesin: bu kutu fiş formunun içinde. */}
+                  <input style={input} type="tel" inputMode="tel" autoComplete="off" autoFocus={!!yeniMusteri.ad} value={yeniMusteri.telefon}
+                    placeholder={sz.musteri.telefonYer}
+                    onChange={e => setYeniMusteri({ ...yeniMusteri, telefon: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); yeniMusteriKaydet(); } }} />
+                </div>
+              </div>
+              {yeniHata && <p role="alert" style={{ color: '#b91c1c', fontSize: '0.8rem', marginTop: '0.5rem' }}>{yeniHata}</p>}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                <button type="button" onClick={yeniMusteriKaydet} disabled={yeniKaydediliyor || !yeniMusteri.ad.trim() || !yeniMusteri.telefon.trim()}
+                  style={{ padding: '0.55rem 1.1rem', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', opacity: yeniKaydediliyor || !yeniMusteri.ad.trim() || !yeniMusteri.telefon.trim() ? 0.6 : 1 }}>
+                  {yeniKaydediliyor ? sz.genel.kaydediliyor : sz.fisYeni.yeniMusteriKaydet}
+                </button>
+                <button type="button" onClick={() => { setYeniMusteri(null); setYeniHata(null); }}
+                  style={{ padding: '0.55rem 1rem', border: '1px solid #d1d5db', backgroundColor: 'white', borderRadius: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>
+                  {sz.genel.iptal}
+                </button>
+              </div>
+            </div>
+          )}
 
           {selectedCustomer && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -681,7 +768,9 @@ export default function NewTicketPage() {
                   </div>
                   <div>
                     <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>{sz.fisDetay.seriNo}</label>
-                    <div style={{ fontWeight: '600', fontSize: '0.875rem', fontFamily: 'monospace' }}>{selectedDevice.serialNo}</div>
+                    {seriBekliyor(selectedDevice.serialNo)
+                      ? <div style={{ fontWeight: '600', fontSize: '0.8rem', color: '#b45309' }}>{sz.fisYeni.seriBekliyor}</div>
+                      : <div style={{ fontWeight: '600', fontSize: '0.875rem', fontFamily: 'monospace' }}>{selectedDevice.serialNo}</div>}
                   </div>
                   <div>
                     <label style={{ ...label, fontSize: '0.75rem', color: '#0369a1' }}>{sz.fisDetay.konum}</label>

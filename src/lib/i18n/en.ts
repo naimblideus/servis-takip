@@ -534,13 +534,13 @@ export const en: Sozluk = {
     adimlar: {
       hasCustomers: {
         title: '1. Bring your customers in',
-        desc: 'If you have an Excel list, import it in one go; otherwise add them one by one.',
-        cta: 'Import from Excel',
+        desc: 'If you have a list, import it in one go; if not, no need: add them from the ticket screen on the first call.',
+        cta: 'How do I start',
         how: [
-          'FAST PATH — if you have an Excel list: Settings → Data Import → "Excel / CSV list".',
-          'In Excel: File → Save As → "CSV UTF-8". Pick the file; the system recognises the columns itself.',
+          'NO LIST: Open Ticket → type the customer’s name → "＋ New customer" → phone → "Save and select". Skip the device if you don’t know it; the technician identifies it on site.',
+          'HAVE A LIST: Customers → "Import from Excel". Pick the Excel file as it is; the system recognises the columns itself.',
           'Check the first rows in the preview → "Import". Customers and devices come in together.',
-          'ONE BY ONE: Customers → "＋ New Customer" → name and phone required → Save.',
+          'ONE BY ONE: Customers → "＋ New Customer" → name and phone → Save.',
         ],
       },
       hasDevices: {
@@ -723,6 +723,16 @@ export const en: Sozluk = {
   },
 
   musteriler: {
+    baslangic: {
+      baslik: 'No customers yet. How shall we start?',
+      alt: 'You don’t need a list: customers are added as you work.',
+      fis: 'Open a ticket on the first call',
+      fisAlt: 'The caller is added on the ticket screen with name and phone. Skip the device if you don’t know it.',
+      excel: 'Import from Excel',
+      excelAlt: 'If you have a list or an export from your old program.',
+      tek: 'Add one by one',
+      tekAlt: 'One customer with name and phone.',
+    },
     baslik: 'Customers',
     sayim: '{n} / {toplam} {toplam|customer|customers}',
     excelIpucu: 'Download the customer list as Excel (with balances and invoices)',
@@ -1126,6 +1136,10 @@ export const en: Sozluk = {
     cihazSec: 'Select device *',
     cihazYok: 'No devices found for this customer.',
     hizliCihaz: '+ Quick-add device',
+    yeniMusteri: '＋ New customer: “{ad}”',
+    yeniMusteriKaydet: 'Save and select',
+    musteriVardi: 'This number is already saved as “{ad}”; that customer is selected.',
+    seriBekliyor: 'Serial number pending: the technician will identify it on site',
     cihazAraYer: '🔍 Type a brand, model or serial no...',
     cihazEkle: '+ Add device',
     cihazEkleIpucu: 'Add a new device',
@@ -1160,6 +1174,7 @@ export const en: Sozluk = {
     varsayilan: 'Default',
     ekleniyor: 'Adding...',
     ekleSec: '✅ Add device & select',
+    bilmiyorsaniz: 'Leave any field you don’t know empty. The technician scans the label on site and identifies the device.',
   },
 
   kategoriSecici: {
@@ -1955,6 +1970,7 @@ export const en: Sozluk = {
   },
 
   musteri: {
+    telefonKayitliAc: 'This phone number is already saved as “{ad}”. Open that customer?',
     yeniBaslik: 'New customer',
     bilgiler: 'Customer details',
     adSoyad: 'Name *',
@@ -5435,6 +5451,9 @@ export const en: Sozluk = {
     MUSTERI_ADI_BOS: 'The customer name is empty',
     MUSTERI_ADI_BOS_OLAMAZ: 'The customer name cannot be empty',
     MUSTERI_ADI_GEREKLI: 'A customer name is required',
+    MUSTERI_TELEFON_KAYITLI: 'This phone number is already saved.',
+    SERI_KAYITLI: 'This serial number is already saved on another device.',
+    BARKOD_KAYITLI: 'This barcode is already assigned to another device (it may be a model barcode; use the serial number).',
     MUSTERI_BULUNAMADI: 'The customer was not found',
     MUSTERI_BULUNAMADI_MUSTERIID: 'Customer not found (MusteriID: {p1})',
     MUSTERI_SECILMELI: 'A customer must be chosen',

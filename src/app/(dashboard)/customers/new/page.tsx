@@ -26,6 +26,10 @@ export default function NewCustomerPage() {
     const data = await res.json();
     if (res.ok) {
       router.push(`/customers/${data.id}`);
+    } else if (data.kod === 'MUSTERI_TELEFON_KAYITLI' && data.musteri?.id) {
+      // Aynı numara: ikinci kayıt açmak yerine var olanı göster.
+      if (confirm(doldur(t.musteri.telefonKayitliAc, { ad: data.musteri.name }))) router.push(`/customers/${data.musteri.id}`);
+      setLoading(false);
     } else {
       alert(doldur(t.fisler.hata, { n: data.error || JSON.stringify(data) }));
       setLoading(false);

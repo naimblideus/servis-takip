@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import MusteriBaslangic from '@/components/MusteriBaslangic';
 
 interface Customer {
   id: string;
@@ -101,7 +102,8 @@ export default function CustomersPage() {
         )}
       </div>
 
-      {/* Tablo */}
+      {/* Hiç müşteri yoksa tablo yerine "nasıl başlanır" (listesi olmayan bayi için). */}
+      {!loading && customers.length === 0 ? <MusteriBaslangic /> : (
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
         <table style={{ width: '100%', minWidth: '44rem', borderCollapse: 'collapse' }}>
           <thead>
@@ -145,6 +147,7 @@ export default function CustomersPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

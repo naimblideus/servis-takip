@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import { normalizeBrandModel } from '@/lib/device-brands';
+import { BILINMIYOR, geciciSeri } from '@/lib/gecici-kimlik';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { ucHatasi } from '@/lib/uc-hata';
 
@@ -39,13 +40,17 @@ export async function POST(req: Request) {
     // Marka/model ters girilmişse düzelt, yazımı kanonikleştir ("canon" -> "Canon").
     // Marka tanınmıyorsa dokunulmaz.
     const nz = normalizeBrandModel(body.brand, body.model);
+    // Telefonda cihazı tarif eden müşteri seri no'yu bilmez: boşsa geçici
+    // kimlik (GEC-…), marka/model boşsa "Bilinmiyor". Teknisyen sahada
+    // "Cihazı tanımla" ile tamamlar (lib/gecici-kimlik.ts).
+    const seri = typeof body.serialNo === 'string' ? body.serialNo.trim() : '';
     const device = await prisma.device.create({
       data: {
         tenantId: user.tenantId,
         customerId: body.customerId,
-        brand: nz.brand,
-        model: nz.model,
-        serialNo: body.serialNo,
+        brand: nz.brand || BILINMIYOR,
+        model: nz.model || BILINMIYOR,
+        serialNo: seri || geciciSeri(),
         barcode: body.barcode?.trim() || null,
         location: body.location || null,
         // Cihaz yaşı — geriye dönük telafi edilemez, bu yüzden ilk kayıtta yakalanır
@@ -104,7 +109,7 @@ export async function POST(req: Request) {
     console.error('DEVICE CREATE ERROR:', e.message);
     if (e.code === 'P2002') {
       const f = (e.meta?.target || []).join(',');
-      return NextResponse.json({ error: f.includes('barcode') ? 'Bu barkod başka bir cihaza atanmış (model-bazlı barkod olabilir; seri no kullanın)' : 'Bu seri no zaten kayıtlı' }, { status: 409 });
+      return ucHatasi(f.includes('barcode') ? 'BARKOD_KAYITLI' : 'SERI_KAYITLI', 409);
     }
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

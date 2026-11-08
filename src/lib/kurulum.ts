@@ -130,7 +130,9 @@ export const ZORUNLU_ADIMLAR: readonly AdimKodu[] = ['FIRMA', 'CIHAZ', 'FIYAT', 
 /** Bayinin işi yaptığı sayfa. Tek yer: hem süper admin ekranı hem bayi kartı buradan alır. */
 export const ADIM_YOLU: Record<AdimKodu, string> = {
   FIRMA: '/settings',
-  CIHAZ: '/import',
+  // Excel'e değil müşteri listesine: boşken orada "nasıl başlanır" var ve liste
+  // istemeyen yol (ilk çağrıda fiş) başta duruyor. Listesi olan oradan aktarır.
+  CIHAZ: '/customers',
   FIYAT: '/devices',
   SAYAC: '/sayac-turu',
   FATURA: '/invoices',

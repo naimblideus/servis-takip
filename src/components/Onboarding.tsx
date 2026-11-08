@@ -47,7 +47,9 @@ const HINT_KEY = 'gs_guide_hint_seen_v1'; // rehber işareti bir kez gösterilir
  * (lib/egitim-videolari). Metin t.rehber.adimlar'da.
  */
 const ADIMLAR: { key: keyof Steps; icon: string; href: string; video: EgitimKodu }[] = [
-  { key: 'hasCustomers', icon: '👤', href: '/import', video: 'servis-musteri' },
+  // Excel'e değil: kaydı olmayan bayinin listesi yok. Müşteriler sayfası boşken
+  // yolları gösterir (ilk çağrıda fiş · rehber · Excel · tek tek).
+  { key: 'hasCustomers', icon: '👤', href: '/customers', video: 'servis-musteri' },
   { key: 'hasDevices', icon: '🖨️', href: '/devices', video: 'servis-cihaz' },
   { key: 'hasInventory', icon: '📦', href: '/inventory', video: 'servis-stok-ekip' },
   { key: 'hasTickets', icon: '🧾', href: '/tickets/new', video: 'servis-fis' },

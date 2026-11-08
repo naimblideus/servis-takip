@@ -144,7 +144,7 @@ const tr: KurulumMetni = {
   },
   sirada: {
     FIRMA: 'Firma bilgilerini (vergi no, adres, telefon) birlikte doldurun.',
-    CIHAZ: 'Müşteri ve cihaz listesini yükleyin (Excel olur).',
+    CIHAZ: 'Listesi varsa yükleyin; yoksa cihazlar fiş açtıkça eklenir, teknisyen sahada tanımlar.',
     FIYAT: 'Kiralık cihazlara kira ya da sayfa fiyatını girin.',
     SAYAC: 'Kiralık cihazların sayaçlarını okutun.',
     FATURA: 'İlk müşteri faturasını birlikte kesin.',
@@ -159,7 +159,7 @@ const tr: KurulumMetni = {
   },
   nasil: {
     FIRMA: 'Bayi panelinde Ayarlar sayfası. Vergi no ve adres faturada yazar; eksikse fatura eksik çıkar.',
-    CIHAZ: 'Veri Aktar sayfasında Excel dosyasını yükleyin; tek tek eklemek için Cihazlar sayfası.',
+    CIHAZ: 'Listesi varsa Veri Aktar sayfasında Excel’i yükleyin. Yoksa gerek yok: fiş açarken müşteri ve cihaz aynı ekranda eklenir, seri no’yu teknisyen sahada okutur.',
     FIYAT: 'Cihazlar sayfasında cihazı açın, aylık kira ya da siyah sayfa fiyatını yazın. Fiyatsız cihazın faturası çıkmaz.',
     SAYAC: 'Sayaç Turu sayfasından okumaları girin; cihaz e-postası ya da ağ tarayıcı varsa okumalar kendiliğinden gelir.',
     FATURA: 'Faturalar sayfasında dönem faturasını kesin. İlk fatura, bayinin ürünle para kazandığı ilk andır.',
@@ -252,7 +252,7 @@ const tr: KurulumMetni = {
   },
   mesaj: {
     FIRMA: 'Merhaba {ad}, Nextus Servis’te faturanızda yazacak vergi no ve adres bilgisi eksik. 5 dakikada birlikte dolduralım mı?',
-    CIHAZ: 'Merhaba {ad}, müşteri ve cihaz listenizi (Excel de olur) birlikte yükleyelim mi? 10 dakika sürer.',
+    CIHAZ: 'Merhaba {ad}, müşteri ve cihaz listeniz varsa birlikte yükleyelim; yoksa da sorun değil, ilk fişleri birlikte açalım. 10 dakika sürer.',
     FIYAT: 'Merhaba {ad}, kiralık cihazlarınızın kira ya da sayfa fiyatı eksik; fiyat girilmeyince fatura çıkmıyor. Birlikte girelim mi?',
     SAYAC: 'Merhaba {ad}, kiralık cihazlarınızın sayaçlarını okutunca faturanız kendiliğinden hazırlanıyor. İlk okumayı birlikte yapalım mı?',
     FATURA: 'Merhaba {ad}, cihaz ve sayaçlarınız hazır. İlk müşteri faturanızı birlikte keselim mi?',
@@ -269,7 +269,7 @@ const tr: KurulumMetni = {
   yukleBaslik: 'Veriyi biz yükleyelim',
   yukleAciklama: 'Bayinin müşteri, cihaz ve kiralık listesini buradan yükleyin. Önizlemedeki aylık kira toplamını bayiyle teyit edin, sonra aktarın. Aynı dosyayı tekrar yüklemek güvenli: çoğaltmaz, günceller.',
   gerekenleriIste: 'Gerekenleri WhatsApp’tan iste',
-  gerekenlerMesaji: 'Merhaba {ad}, Nextus Servis kurulumunu biz yapıyoruz. Bize şunları gönderir misiniz?\n1) Müşteri ve cihaz listeniz: Excel ya da eski programınızın dökümü olur. Kiralıklarda aylık kira, dahil sayfa, sayfa fiyatı ve son sayaç yazsın.\n2) Logonuz\n3) Faturada yazacak vergi no, vergi dairesi ve adres\n4) Ödemelerin yatacağı IBAN\n5) Sisteme girecek çalışanlarınızın adları\nHepsini yükleyip görüşmede size hazır teslim ediyoruz.',
+  gerekenlerMesaji: 'Merhaba {ad}, Nextus Servis kurulumunu biz yapıyoruz. Bize şunları gönderir misiniz?\n1) Müşteri ve cihaz listeniz varsa: Excel ya da eski programınızın dökümü olur. Kiralıklarda aylık kira, dahil sayfa, sayfa fiyatı ve son sayaç yazsın. Listeniz yoksa gerek yok; kayıtlar iş yaptıkça oluşur.\n2) Logonuz\n3) Faturada yazacak vergi no, vergi dairesi ve adres\n4) Ödemelerin yatacağı IBAN\n5) Sisteme girecek çalışanlarınızın adları\nHepsini yükleyip görüşmede size hazır teslim ediyoruz.',
   yukleKurali: 'Liste yalnız buradan yüklenir; hiçbir yapay zekâ sohbetine yapıştırılmaz. Yükledikten sonra dosyayı WhatsApp’tan silin.',
   aktarimNotu: 'Liste Nextus tarafından yüklendi: {yeniMusteri} yeni müşteri, {yeniCihaz} yeni cihaz, {guncellenen} güncellendi. Aylık kira toplamı {kira} ({kiraCihaz} kiralık cihaz).',
 };
@@ -314,7 +314,7 @@ const en = {
   },
   sirada: {
     FIRMA: 'Fill in company details (tax number, address, phone) together.',
-    CIHAZ: 'Load the customer and device list (Excel works).',
+    CIHAZ: 'Load the list if there is one; otherwise devices are added as tickets are opened and the technician identifies them on site.',
     FIYAT: 'Enter rent or page price on rental devices.',
     SAYAC: 'Get the rental devices’ meters read.',
     FATURA: 'Issue the first customer invoice together.',
@@ -329,7 +329,7 @@ const en = {
   },
   nasil: {
     FIRMA: 'Settings page in the dealer panel. Tax number and address print on invoices; if missing, invoices are incomplete.',
-    CIHAZ: 'Upload the Excel file on the Import page; to add one by one, use the Devices page.',
+    CIHAZ: 'If there is a list, upload the Excel file on the Import page. If not, no need: customer and device are added on the same screen while opening a ticket, and the technician scans the serial number on site.',
     FIYAT: 'Open the device on the Devices page, enter monthly rent or black page price. A device without a price is never invoiced.',
     SAYAC: 'Enter readings on the Meter Round page; with device e-mail or the network scanner, readings arrive by themselves.',
     FATURA: 'Issue the period invoice on the Invoices page. The first invoice is the first moment the dealer earns with the product.',
@@ -422,7 +422,7 @@ const en = {
   },
   mesaj: {
     FIRMA: 'Hello {ad}, the tax number and address that print on your Nextus Servis invoices are missing. Shall we fill them in together in 5 minutes?',
-    CIHAZ: 'Hello {ad}, shall we load your customer and device list (Excel works) together? It takes 10 minutes.',
+    CIHAZ: 'Hello {ad}, if you have a customer and device list, let’s load it together; if not, no problem, let’s open the first tickets together. It takes 10 minutes.',
     FIYAT: 'Hello {ad}, rent or page prices are missing on your rental devices; without a price no invoice is produced. Shall we enter them together?',
     SAYAC: 'Hello {ad}, once your rental meters are read, your invoice is prepared by itself. Shall we do the first reading together?',
     FATURA: 'Hello {ad}, your devices and meters are ready. Shall we issue your first customer invoice together?',
@@ -439,7 +439,7 @@ const en = {
   yukleBaslik: 'We load the data',
   yukleAciklama: 'Upload the dealer’s customer, device and rental list here. Confirm the monthly rent total in the preview with the dealer, then import. Uploading the same file again is safe: it updates, never duplicates.',
   gerekenleriIste: 'Ask for what we need on WhatsApp',
-  gerekenlerMesaji: 'Hello {ad}, we are setting up Nextus Servis for you. Could you send us the following?\n1) Your customer and device list: Excel or an export from your old program works. For rentals, include the monthly rent, included pages, page price and last meter reading.\n2) Your logo\n3) The tax number, tax office and address that print on invoices\n4) The IBAN payments should go to\n5) The names of the staff who will use the system\nWe load everything and hand it over ready in our call.',
+  gerekenlerMesaji: 'Hello {ad}, we are setting up Nextus Servis for you. Could you send us the following?\n1) Your customer and device list, if you have one: Excel or an export from your old program works. For rentals, include the monthly rent, included pages, page price and last meter reading. No list? No need; records build up as you work.\n2) Your logo\n3) The tax number, tax office and address that print on invoices\n4) The IBAN payments should go to\n5) The names of the staff who will use the system\nWe load everything and hand it over ready in our call.',
   yukleKurali: 'The list is uploaded only here; it is never pasted into an AI chat. Delete the file from WhatsApp after uploading.',
   aktarimNotu: 'List loaded by Nextus: {yeniMusteri} new customers, {yeniCihaz} new devices, {guncellenen} updated. Monthly rent total {kira} ({kiraCihaz} rental devices).',
 } satisfies KurulumMetni;

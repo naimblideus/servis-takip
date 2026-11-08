@@ -567,13 +567,13 @@ export const tr = {
     adimlar: {
       hasCustomers: {
         title: '1. Müşterilerini sisteme al',
-        desc: 'Elinde Excel listesi varsa tek seferde aktar; yoksa tek tek ekle.',
-        cta: 'Excel’den aktar',
+        desc: 'Listen varsa tek seferde aktar; yoksa gerek yok, ilk çağrıda fiş ekranından ekle.',
+        cta: 'Nasıl başlarım',
         how: [
-          'HIZLI YOL — Excel listen varsa: Ayarlar → Veri Aktarma → "Excel / CSV listesi".',
-          'Excel’de: Dosya → Farklı Kaydet → "CSV UTF-8". Dosyayı seç; kolonları sistem kendi tanır.',
+          'LİSTE YOKSA: Fiş Aç → müşterinin adını yaz → "＋ Yeni müşteri" → telefon → "Kaydet ve seç". Cihazı bilmiyorsan boş geç; teknisyen sahada tanımlar.',
+          'LİSTE VARSA: Müşteriler → "Excel’den aktar". Excel dosyasını olduğu gibi seç; kolonları sistem kendi tanır.',
           'Önizlemede ilk satırları kontrol et → "Aktar". Müşteri + cihaz birlikte gelir.',
-          'TEK TEK: Müşteriler → "＋ Yeni Müşteri" → ad ve telefon zorunlu → Kaydet.',
+          'TEK TEK: Müşteriler → "＋ Yeni Müşteri" → ad ve telefon → Kaydet.',
         ],
       },
       hasDevices: {
@@ -759,6 +759,16 @@ export const tr = {
 
   // Müşteri listesi.
   musteriler: {
+    baslangic: {
+      baslik: 'Henüz müşteri yok. Nasıl başlayalım?',
+      alt: 'Listeniz olmasa da olur: müşteriler iş yaptıkça eklenir.',
+      fis: 'İlk çağrıda fiş açın',
+      fisAlt: 'Arayan müşteri fiş ekranında adı ve telefonuyla eklenir. Cihazı bilmiyorsanız boş geçin.',
+      excel: 'Excel’den aktarın',
+      excelAlt: 'Elinizde liste ya da eski programın dökümü varsa.',
+      tek: 'Tek tek ekleyin',
+      tekAlt: 'Ad ve telefonla bir müşteri.',
+    },
     baslik: 'Müşteriler',
     sayim: '{n} / {toplam} müşteri',
     excelIpucu: 'Müşteri listesini Excel olarak indir (borç ve fatura bilgileriyle)',
@@ -1185,6 +1195,10 @@ export const tr = {
     cihazSec: 'Cihaz Seç *',
     cihazYok: 'Bu müşteriye ait cihaz bulunamadı.',
     hizliCihaz: '+ Hızlı Cihaz Ekle',
+    yeniMusteri: '＋ Yeni müşteri: “{ad}”',
+    yeniMusteriKaydet: 'Kaydet ve seç',
+    musteriVardi: 'Bu numara “{ad}” adına kayıtlı; o müşteri seçildi.',
+    seriBekliyor: 'Seri no bekliyor: teknisyen sahada tanımlayacak',
     cihazAraYer: '🔍 Marka, model veya seri no yazın...',
     cihazEkle: '+ Cihaz Ekle',
     cihazEkleIpucu: 'Yeni cihaz ekle',
@@ -1220,6 +1234,7 @@ export const tr = {
     varsayilan: 'Varsayılan',
     ekleniyor: 'Ekleniyor...',
     ekleSec: '✅ Cihazı Ekle & Seç',
+    bilmiyorsaniz: 'Bilmediğiniz alanı boş bırakın. Teknisyen sahada etiketi okutup cihazı tanımlar.',
   },
 
   // Arıza kategorisi seçici.
@@ -2037,6 +2052,7 @@ export const tr = {
 
   // Müşteri ekleme + müşteri detayı.
   musteri: {
+    telefonKayitliAc: 'Bu telefon numarası “{ad}” adına zaten kayıtlı. O müşteriyi açalım mı?',
     yeniBaslik: 'Yeni Müşteri',
     bilgiler: 'Müşteri Bilgileri',
     adSoyad: 'Ad Soyad *',
@@ -5639,6 +5655,9 @@ export const tr = {
     MUSTERI_ADI_BOS: 'Müşteri adı boş',
     MUSTERI_ADI_BOS_OLAMAZ: 'Müşteri adı boş olamaz',
     MUSTERI_ADI_GEREKLI: 'Müşteri adı gerekli',
+    MUSTERI_TELEFON_KAYITLI: 'Bu telefon numarası zaten kayıtlı.',
+    SERI_KAYITLI: 'Bu seri numarası başka bir cihazda kayıtlı.',
+    BARKOD_KAYITLI: 'Bu barkod başka bir cihaza atanmış (model barkodu olabilir; seri no kullanın).',
     MUSTERI_BULUNAMADI: 'Müşteri bulunamadı',
     MUSTERI_BULUNAMADI_MUSTERIID: 'Müşteri bulunamadı (MusteriID: {p1})',
     MUSTERI_SECILMELI: 'Müşteri seçilmeli',
