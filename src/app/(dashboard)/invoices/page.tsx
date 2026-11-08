@@ -7,6 +7,7 @@ import { openPrintable } from '@/lib/print';
 import { useT, useBicim, useMusteriDili } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import EgitimVideosu from '@/components/EgitimVideosu';
+import KiraEksikListesi from '@/components/KiraEksikListesi';
 
 interface Line { kind: string; description: string; quantity: number; unitPrice: number; lineTotal: number; }
 interface Invoice {
@@ -271,6 +272,11 @@ export default function InvoicesPage() {
                 </p>
               )}
             </div>
+
+            {/* Kira bilgisi eksik kiralık cihazlar: burada, faturadan önce doldurulur. */}
+            {!preflight.loading && preflight.data?.kiraEksik?.length > 0 && (
+              <KiraEksikListesi cihazlar={preflight.data.kiraEksik} toplam={preflight.data.kiraEksikSayisi} />
+            )}
 
             {!preflight.loading && preflight.data?.customers?.length > 0 && (
               <div style={{ padding: '.9rem 1.4rem', maxHeight: '46vh', overflowY: 'auto' }}>

@@ -22,6 +22,7 @@ import {
 import { normalizeBrandModel } from '@/lib/device-brands';
 import { donemOf } from '@/lib/fatura-donemi';
 import { GOC_KAYNAGI } from '@/lib/kurulum';
+import { kiraSartiEksik } from '@/lib/kira-sarti';
 import type { UcHataKodu } from '@/lib/uc-hata';
 
 export const AKTARIM_AZAMI_SATIR = 5000;
@@ -256,7 +257,8 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
   // ── KİRALIK ŞARTI UYARILARI ──
   // Kiralık ama kira da sayfa fiyatı da boş: bu cihazdan fatura çıkmaz.
   const kiralikCihaz = valid.filter((p) => cihazli(p) && p.isRental);
-  const sartsiz = kiralikCihaz.filter((p) => !pozitif(p.monthlyRent) && !pozitif(p.pricePerBlack) && !pozitif(p.pricePerColor) && !p.overagePriceBlack);
+  // Kural tek yerde (lib/kira-sarti): fatura öncesi kontrol de aynısını sorar.
+  const sartsiz = kiralikCihaz.filter((p) => kiraSartiEksik(p));
   if (sartsiz.length) warnings.push({ kod: 'KIRA_YOK', n: sartsiz.length, ornek: sartsiz[0].serialNo || sartsiz[0].customerName });
   // Dahil sayfa var, aşım ya da sayfa fiyatı yok: aşan sayfa bayinin varsayılan fiyatından gider.
   const dahilFiyatsiz = kiralikCihaz.filter((p) =>

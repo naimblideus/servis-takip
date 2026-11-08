@@ -26,7 +26,7 @@ const t = (ad, kosul, detay) => {
 };
 const oku = (y) => readFileSync(join(KOK, y), 'utf8');
 
-const { ice, temizle } = derle({ girisler: ['src/lib/musteri-ekle.ts', 'src/lib/gecici-kimlik.ts'], onEk: 'st-hizli-' });
+const { ice, temizle } = derle({ girisler: ['src/lib/musteri-ekle.ts', 'src/lib/gecici-kimlik.ts', 'src/lib/kira-sarti.ts'], onEk: 'st-hizli-' });
 const me = await ice('lib/musteri-ekle');
 const gk = await ice('lib/gecici-kimlik');
 const p = new PrismaClient();
@@ -113,6 +113,17 @@ try {
   const modal = fis.slice(fis.indexOf('function QuickAddDeviceModal'), fis.indexOf('// ─── Ana Sayfa'));
   t('★ hızlı cihazda marka, model, seri zorunlu değil', !/<input required/.test(modal), modal.match(/<input required[^>]*/g));
   t('yeni müşteri kutusunda Enter fişi göndermez', /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); yeniMusteriKaydet\(\); \}/.test(fis));
+  console.log('\n★ AY SONU: KİRA BİLGİSİ EKSİK KİRALIK\n');
+  const ks = await ice('lib/kira-sarti');
+  t('kirası, sayfa ve aşım fiyatı olmayan kiralık eksik', ks.kiraSartiEksik({ monthlyRent: 0, pricePerBlack: null }));
+  t('aylık kira varsa eksik değil (Decimal metni de)', !ks.kiraSartiEksik({ monthlyRent: '1200.00' }));
+  t('yalnız sayfa fiyatı / renkli aşım fiyatı varsa eksik değil', !ks.kiraSartiEksik({ pricePerBlack: 0.45 }) && !ks.kiraSartiEksik({ overagePriceColor: 2 }));
+  const on = oku('src/app/api/invoices/preflight/route.ts');
+  t('★ fatura öncesi kontrol kira eksik cihazları da döner (ortak kural)', /devices\.filter\(kiraSartiEksik\)/.test(on) && /kiraEksikSayisi: kiraEksikHepsi\.length/.test(on));
+  t('Excel ön izlemesi aynı kuralı kullanır', /kiralikCihaz\.filter\(\(p\) => kiraSartiEksik\(p\)\)/.test(oku('src/lib/sayfa-ice-aktar.ts')));
+  const liste = oku('src/components/KiraEksikListesi.tsx');
+  t('★ faturalar ekranında yerinde doldurulur, Türk sayı yazımı okunur', /<KiraEksikListesi /.test(oku('src/app/(dashboard)/invoices/page.tsx')) && /trNumber\(v\.kira\)/.test(liste) && /method: 'PATCH'/.test(liste));
+
   console.log('\n★ CİHAZI SAHADA TANIMLA (kaynak)\n');
   const kart = oku('src/components/CihazTanimla.tsx');
   t('★ "Kiralık mı" yalnız değişirse gönderilir (Excel\'den gelen kira silinmez)', /if \(kiralik !== cihaz\.isRental\) govde\.isRental = kiralik;/.test(kart));

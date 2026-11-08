@@ -3,6 +3,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { acikDonem, donemOkumaKosulu, gecerliDonem, kapananDonem, kesimGunu, varsayilanElleDonem } from '@/lib/fatura-donemi';
+import { kiraSartiEksik, KIRA_EKSIK_LISTE_AZAMI } from '@/lib/kira-sarti';
 
 // GET /api/invoices/preflight?period=YYYY-MM
 // FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ: bu dönem sayacı HİÇ okunmamış kiralık cihazlar.
@@ -29,12 +30,21 @@ export async function GET(req: NextRequest) {
       where: { tenantId, isRental: true },
       select: {
         id: true, brand: true, model: true, location: true, serialNo: true,
+        monthlyRent: true, pricePerBlack: true, pricePerColor: true, overagePriceBlack: true, overagePriceColor: true,
         customer: { select: { id: true, name: true, phone: true } },
       },
     });
     if (devices.length === 0) {
-      return NextResponse.json({ period, secenekler, missingCount: 0, customerCount: 0, totalRental: 0, customers: [] });
+      return NextResponse.json({ period, secenekler, missingCount: 0, customerCount: 0, totalRental: 0, customers: [], kiraEksik: [], kiraEksikSayisi: 0 });
     }
+
+    // KİRA BİLGİSİ EKSİK kiralık cihazlar (lib/kira-sarti): sahada "kiralık"
+    // diye tanımlanmış ama kirası girilmemiş cihazdan sabit kira çıkmaz.
+    // Faturalar ekranı bunları yerinde doldurtur.
+    const kiraEksikHepsi = devices.filter(kiraSartiEksik);
+    const kiraEksik = kiraEksikHepsi.slice(0, KIRA_EKSIK_LISTE_AZAMI).map((d) => ({
+      id: d.id, brand: d.brand, model: d.model, serialNo: d.serialNo, musteri: d.customer?.name ?? '',
+    }));
 
     // Bu dönemde okuması OLAN cihazlar — TOPLU (N+1 yok)
     const read = await prisma.counterReading.groupBy({
@@ -66,6 +76,8 @@ export async function GET(req: NextRequest) {
       customerCount: customers.length,
       totalRental: devices.length,
       customers,
+      kiraEksik,
+      kiraEksikSayisi: kiraEksikHepsi.length,
     });
   } catch (e) {
     return authErrorResponse(e);

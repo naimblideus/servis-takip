@@ -1973,6 +1973,16 @@ export const en: Sozluk = {
     odemeTarih: ' ({n})',
   },
 
+  kiraEksik: {
+    baslik: '{n} rental {n|device has|devices have} no rent details',
+    aciklama: 'No fixed rent is invoiced for these devices. Enter the rent or the page price here, then invoice.',
+    kira: 'Monthly rent ({birim})',
+    dahil: 'Included pages',
+    fiyat: 'Page price ({birim})',
+    kaydet: 'Save',
+    enAzBiri: 'Enter either the monthly rent or the page price.',
+    dahaFazla: '{n} more {n|device|devices}; enter them on the device card.',
+  },
   cihazTanimla: {
     baslik: 'Identify the device',
     aciklama: 'This device was opened without details over the phone. Scan or type the serial number on its label; device e-mail and the network scanner recognise the device by this number.',

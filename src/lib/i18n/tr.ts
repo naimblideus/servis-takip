@@ -2055,6 +2055,16 @@ export const tr = {
   },
 
   // Müşteri ekleme + müşteri detayı.
+  kiraEksik: {
+    baslik: '{n} kiralık cihazın kira bilgisi yok',
+    aciklama: 'Bu cihazlardan sabit kira çıkmaz. Kirayı ya da sayfa fiyatını buradan girin, sonra faturalayın.',
+    kira: 'Aylık kira ({birim})',
+    dahil: 'Dahil sayfa',
+    fiyat: 'Sayfa fiyatı ({birim})',
+    kaydet: 'Kaydet',
+    enAzBiri: 'Aylık kira ya da sayfa fiyatından birini yazın.',
+    dahaFazla: '{n} cihaz daha var; cihaz kartından girin.',
+  },
   cihazTanimla: {
     baslik: 'Cihazı tanımla',
     aciklama: 'Bu cihaz telefonda bilinmeden açıldı. Etiketteki seri numarasını okutun ya da yazın; sayaç e-postası ve ağ tarayıcı cihazı bu numarayla tanır.',
