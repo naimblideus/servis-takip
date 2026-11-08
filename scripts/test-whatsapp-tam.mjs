@@ -37,7 +37,7 @@ Object.assign(process.env, {
 
 // ── Derleme (diğer WhatsApp testleriyle aynı yol) ──
 const g = mkdtempSync(join(tmpdir(), 'st-watam-'));
-const KAYNAKLAR = ['whatsapp-graph', 'whatsapp-sablon', 'whatsapp', 'whatsapp-out', 'whatsapp-inbound', 'vade-hatirlatma', 'reminders'];
+const KAYNAKLAR = ['whatsapp-graph', 'whatsapp-sablon', 'whatsapp', 'whatsapp-out', 'whatsapp-inbound', 'vade-hatirlatma', 'reminders', 'telefon'];
 try {
   execFileSync(process.execPath, [join(KOK, 'node_modules/typescript/bin/tsc'), ...KAYNAKLAR.map((k) => join(KOK, `src/lib/${k}.ts`)),
     '--outDir', g, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--skipLibCheck'], { stdio: 'pipe' });

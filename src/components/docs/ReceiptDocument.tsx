@@ -5,6 +5,7 @@
 import React from 'react';
 import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
 import { bicimYap } from '@/lib/bicim';
+import { telefonGoster } from '@/lib/telefon';
 
 export interface ReceiptDocData {
   receiptNo: string;
@@ -119,7 +120,7 @@ export default function ReceiptDocument({ receipt }: { receipt: ReceiptDocData }
                 <div className="info-row"><span className="info-key">{sz.genel.tarih}</span><span className="info-val">{fmtDate(receipt.paymentDate)}</span></div>
                 <div className="info-row"><span className="info-key">{S.yontem}</span><span className="info-val">{(S.yontemler as Record<string, string>)[receipt.method] ?? receipt.method}</span></div>
                 <div className="info-row"><span className="info-key">{sz.genel.musteri}</span><span className="info-val">{c?.name || '—'}</span></div>
-                {c?.phone && <div className="info-row"><span className="info-key">{sz.fisDetay.telefon}</span><span className="info-val">{c.phone}</span></div>}
+                {telefonGoster(c?.phone) && <div className="info-row"><span className="info-key">{sz.fisDetay.telefon}</span><span className="info-val">{telefonGoster(c?.phone)}</span></div>}
                 {receipt.referenceNo && <div className="info-row" style={{ gridColumn: '1 / -1' }}><span className="info-key">{S.dekontRef}</span><span className="info-val">{receipt.referenceNo}</span></div>}
               </div>
             </div>

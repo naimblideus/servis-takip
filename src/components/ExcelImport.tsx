@@ -3,7 +3,8 @@
 import { useRef, useState } from 'react';
 import { useT, useBicim, useDil } from '@/lib/i18n/client';
 import { doldur, type Sozluk } from '@/lib/i18n/sozluk';
-import { xlsxOku, satirlarCsv } from '@/lib/xlsx-oku';
+import { xlsxOku, xlsxSayfalari, satirlarCsv } from '@/lib/xlsx-oku';
+import { eskiXlsMi, metinTablosu, metniCoz, zipMi } from '@/lib/tablo-metin';
 import { sablonCsv } from '@/lib/ice-aktar-sablon';
 import { yedekli } from '@/lib/sozluk-yedek';
 
@@ -61,6 +62,9 @@ const uyariMetni = (t: Sozluk, u: { kod: string; n: number; ornek?: string; isim
   if (u.kod === 'TARIH_OKUNAMADI') return doldur(t.excelAktar.uyariTarihOkunamadi, d);
   if (u.kod === 'DONEM_OKUNAMADI') return doldur(t.excelAktar.uyariDonemOkunamadi, d);
   if (u.kod === 'DONEM_GELECEK') return doldur(t.excelAktar.uyariDonemGelecek, d);
+  if (u.kod === 'BASLIK_ASAGIDA') return doldur(t.excelAktar.uyariBaslikAsagida, d);
+  if (u.kod === 'MUSTERI_USTTEN') return doldur(t.excelAktar.uyariMusteriUstten, d);
+  if (u.kod === 'TELEFON_YOK') return doldur(t.excelAktar.uyariTelefonYok, d);
   return u.kod;
 };
 
@@ -121,29 +125,61 @@ export default function ExcelImport({ uc = '/api/import/sheet', bayiPaneli = tru
   const [err, setErr] = useState<string | null>(null);
   const [encodingNote, setEncodingNote] = useState<string | null>(null);
 
+  // Birden çok sayfalı Excel: hangi sayfanın okunacağını bayi seçer.
+  const [xlsxBuf, setXlsxBuf] = useState<ArrayBuffer | null>(null);
+  const [sayfalar, setSayfalar] = useState<string[]>([]);
+  const [seciliSayfa, setSeciliSayfa] = useState('');
+
+  /**
+   * XLSX: bayinin elindeki dosya neredeyse hep bu. "Önce CSV'ye çevirin"
+   * demek aktarmamak demekti. Sayfa okunup aynı CSV yoluna veriliyor —
+   * sunucu, eşleme ve önizleme CSV ile birebir aynı. Sayı hücreleri Türk
+   * biçimine (ondalık virgül) çevrilir: "0.125" binlik sanılıp 125 olmasın.
+   */
+  const xlsxSayfasiniOku = async (buf: ArrayBuffer, sayfa: string | undefined, ad: string) => {
+    let metin: string;
+    try {
+      metin = satirlarCsv(await xlsxOku(buf, { ondalikVirgul: true, sayfa }));
+    } catch {
+      setErr(t.excelAktar.okunamadi);
+      return;
+    }
+    if (!metin.trim()) { setErr(t.excelAktar.hataBosDosya); setPreview(null); return; }
+    setCsv(metin); setFileName(ad);
+    await runPreview(metin, null);
+  };
+
+  const sayfaSec = async (sayfa: string) => {
+    if (!xlsxBuf) return;
+    setSeciliSayfa(sayfa); setErr(null); setResult(null); setPreview(null);
+    await xlsxSayfasiniOku(xlsxBuf, sayfa, fileName);
+  };
+
   const pick = async (f: File | null) => {
     if (!f) return;
     setErr(null); setResult(null); setPreview(null); setEncodingNote(null);
-    const xlsx = /\.xlsx$/i.test(f.name);
-    if (!xlsx && !/\.(csv|txt)$/i.test(f.name)) {
-      // .xls (eski ikili biçim) okunamıyor: Excel'de .xlsx ya da CSV olarak kaydedilmeli.
+    setXlsxBuf(null); setSayfalar([]); setSeciliSayfa('');
+    if (!/\.(xlsx|xls|csv|txt|htm|html|xml)$/i.test(f.name)) {
       setErr(yedekli(t.excelAktar, 'desteklenmeyenDosya', t.excelAktar.csvOlmayanDosya));
       return;
     }
     if (f.size > 15 * 1024 * 1024) { setErr(t.excelAktar.dosyaBuyuk); return; }
 
-    // XLSX: bayinin elindeki dosya neredeyse hep bu. "Önce CSV'ye çevirin"
-    // demek aktarmamak demekti. İlk sayfa okunup aynı CSV yoluna veriliyor —
-    // sunucu, eşleme ve önizleme CSV ile birebir aynı. Sayı hücreleri Türk
-    // biçimine (ondalık virgül) çevrilir: "0.125" binlik sanılıp 125 olmasın.
-    if (xlsx) {
-      let metin: string;
-      try {
-        metin = satirlarCsv(await xlsxOku(await f.arrayBuffer(), { ondalikVirgul: true }));
-      } catch {
-        setErr(t.excelAktar.okunamadi);
-        return;
-      }
+    // Biçim adından değil İÇERİKTEN anlaşılır: eski programların ".xls"
+    // dökümlerinin çoğu aslında HTML tablosu ya da XML 2003 (lib/tablo-metin).
+    const buf = await f.arrayBuffer();
+    const bayt = new Uint8Array(buf);
+    if (zipMi(bayt)) {
+      const adlar = await xlsxSayfalari(buf).catch(() => [] as string[]);
+      if (adlar.length > 1) { setXlsxBuf(buf); setSayfalar(adlar); setSeciliSayfa(adlar[0]); }
+      await xlsxSayfasiniOku(buf, adlar[0], f.name);
+      return;
+    }
+    // Gerçek eski ikili Excel (BIFF) okunamaz: Excel'de .xlsx olarak kaydedilmeli.
+    if (eskiXlsMi(bayt)) { setErr(yedekli(t.excelAktar, 'desteklenmeyenDosya', t.excelAktar.csvOlmayanDosya)); return; }
+    const tablo = metinTablosu(metniCoz(bayt));
+    if (tablo) {
+      const metin = satirlarCsv(tablo.satirlar.filter((s) => s.some((h) => h !== '')));
       if (!metin.trim()) { setErr(t.excelAktar.hataBosDosya); return; }
       setCsv(metin); setFileName(f.name);
       await runPreview(metin, null);
@@ -152,7 +188,6 @@ export default function ExcelImport({ uc = '/api/import/sheet', bayiPaneli = tru
 
     // KODLAMA: Excel'in düz "CSV" çıktısı UTF-8 DEĞİL (Türkçe'de windows-1254) — Türkçe karakterler bozulur.
     // Önce katı UTF-8 dene; geçersizse windows-1254'e düş.
-    const buf = await f.arrayBuffer();
     let text: string;
     try {
       text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
@@ -271,7 +306,7 @@ export default function ExcelImport({ uc = '/api/import/sheet', bayiPaneli = tru
         <div onClick={() => inputRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition
             ${fileName ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-emerald-400 hover:bg-gray-50'}`}>
-          <input ref={inputRef} type="file" accept=".csv,.txt,.xlsx" className="hidden"
+          <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv,.txt,.htm,.html,.xml" className="hidden"
             onChange={(e) => { pick(e.target.files?.[0] || null); e.target.value = ''; }} />
           <div className="text-3xl mb-2">{fileName ? '📄' : '📊'}</div>
           <p className="font-medium text-gray-700">{fileName || yedekli(t.excelAktar, 'dosyaSecin', t.excelAktar.csvSecin)}</p>
@@ -288,6 +323,15 @@ export default function ExcelImport({ uc = '/api/import/sheet', bayiPaneli = tru
           </button>
         </div>
 
+        {sayfalar.length > 1 && (
+          <label className="mt-4 flex items-center gap-2 flex-wrap text-sm text-gray-700">
+            <span className="font-semibold">{doldur(t.excelAktar.sayfaSec, { n: sayfalar.length })}</span>
+            <select value={seciliSayfa} disabled={busy} onChange={(e) => sayfaSec(e.target.value)}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white">
+              {sayfalar.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+        )}
         {err && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{err}</div>}
         {encodingNote && <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">ℹ️ {encodingNote}</div>}
         {busy && <p className="mt-4 text-sm text-gray-500">{t.excelAktar.okunuyor}</p>}

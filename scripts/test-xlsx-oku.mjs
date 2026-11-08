@@ -205,11 +205,52 @@ console.log('\nBOZUK / YANLIŞ DOSYA\n');
   t('yarım inmiş dosya hata veriyor', hata3 != null, hata3 && String(hata3));
 }
 
+console.log('\n★ ÇOK SAYFALI KİTAP + BİRLEŞTİRİLMİŞ HÜCRE\n');
+{
+  // İki görünen sayfa: "Satış" (ilk) ve "Kiralık". Kiralık sayfasında A2:A4
+  // dikey birleşik (aynı müşterinin üç cihazı), B6:C6 yatay birleşik (adres).
+  const wb2 = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook ${NS} ${RNS}><sheets><sheet name="Satış &amp; Servis" sheetId="1" r:id="rId1"/><sheet name="Kiralık" sheetId="2" r:id="rId2"/></sheets></workbook>`;
+  const wb2Rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/></Relationships>`;
+  const ic = (r, v) => `<c r="${r}" t="inlineStr"><is><t>${v}</t></is></c>`;
+  const satis = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet ${NS}><sheetData><row r="1">${ic('A1', 'SATIŞ')}</row></sheetData></worksheet>`;
+  const kiralik = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet ${NS}><sheetData>
+<row r="1">${ic('A1', 'Müşteri')}${ic('B1', 'Seri No')}${ic('C1', 'Adres')}</row>
+<row r="2">${ic('A2', 'Yıldız Muhasebe')}${ic('B2', 'CN-1')}</row>
+<row r="3"><c r="A3" s="1"/>${ic('B3', 'CN-2')}</row>
+<row r="4">${ic('B4', 'CN-3')}</row>
+<row r="5">${ic('A5', 'Deniz Hukuk')}${ic('B5', 'KY-1')}</row>
+<row r="6">${ic('A6', 'Ege Ltd')}${ic('B6', 'Kadıköy')}<c r="C6" s="1"/></row>
+</sheetData><mergeCells count="2"><mergeCell ref="A2:A4"/><mergeCell ref="B6:C6"/></mergeCells></worksheet>`;
+  const kitap2 = zipYaz([
+    { ad: '[Content_Types].xml', icerik: contentTypes },
+    { ad: 'xl/workbook.xml', icerik: wb2 },
+    { ad: 'xl/_rels/workbook.xml.rels', icerik: wb2Rels },
+    { ad: 'xl/worksheets/sheet1.xml', icerik: satis },
+    { ad: 'xl/worksheets/sheet2.xml', icerik: kiralik },
+  ]);
+  const { xlsxSayfalari } = await import(pathToFileURL(join(g, 'xlsx-oku.js')).href);
+  const adlar = await xlsxSayfalari(kitap2);
+  t('★ görünen sayfa adları sırayla (XML varlığı çözülmüş)', ayni(adlar, ['Satış & Servis', 'Kiralık']), adlar);
+  const ilk = await xlsxOku(kitap2);
+  t('sayfa verilmezse ilk sayfa okunur', ilk.flat().includes('SATIŞ'), ilk);
+  const ki = await xlsxOku(kitap2, { sayfa: 'Kiralık' });
+  t('★ seçilen sayfa (Kiralık) okunur', ki[0]?.[0] === 'Müşteri' && ki.length === 6, ki);
+  t('★ dikey birleşik müşteri hücresi alttaki satırlara yazıldı (CN-2, CN-3)', ki[2]?.[0] === 'Yıldız Muhasebe' && ki[3]?.[0] === 'Yıldız Muhasebe', ki.slice(1, 4));
+  t('birleşim dışındaki satır kendi değerini korudu', ki[4]?.[0] === 'Deniz Hukuk', ki[4]);
+  t('★ yatay birleşik hücre yan kolona KOPYALANMADI (adres kolonu boş kaldı)', ki[5]?.[2] === '' || ki[5]?.[2] === undefined, ki[5]);
+  const yok = await xlsxOku(kitap2, { sayfa: 'Böyle Sayfa Yok' });
+  t('olmayan sayfa adı ilk sayfaya düşer (patlamaz)', yok.flat().includes('SATIŞ'), yok);
+}
+
 console.log('\nBİLEŞEN XLSX\'İ BU YOLDAN GEÇİRİYOR (kaynak denetimi)\n');
 {
   const bilesen = readFileSync(join(KOK, 'src/components/ExcelImport.tsx'), 'utf8');
-  t('dosya seçici .xlsx kabul ediyor', /accept="\.csv,\.txt,\.xlsx"/.test(bilesen));
-  t('★ .xlsx ondalık virgülle okunup CSV yoluna veriliyor', /xlsxOku\(await f\.arrayBuffer\(\), \{ ondalikVirgul: true \}\)/.test(bilesen) && /satirlarCsv\(/.test(bilesen));
+  t('dosya seçici .xlsx ve eski .xls dökümünü kabul ediyor', /accept="\.xlsx,\.xls,\.csv,\.txt,\.htm,\.html,\.xml"/.test(bilesen));
+  t('★ .xlsx ondalık virgülle okunup CSV yoluna veriliyor', /xlsxOku\(buf, \{ ondalikVirgul: true, sayfa \}\)/.test(bilesen) && /satirlarCsv\(/.test(bilesen));
+  t('★ biçim adından değil içerikten: ZIP, eski ikili .xls, HTML/XML 2003', /zipMi\(bayt\)/.test(bilesen) && /eskiXlsMi\(bayt\)/.test(bilesen) && /metinTablosu\(metniCoz\(bayt\)\)/.test(bilesen));
+  t('birden çok sayfada sayfa seçici çıkıyor', /sayfalar\.length > 1/.test(bilesen) && /sayfaSec\(e\.target\.value\)/.test(bilesen));
   t('önizlemede kiralık ve aylık kira kolonları var', /alanKiralik, t\.excelAktar\.alanKira[,\]]/.test(bilesen) && /s\.isRental \?/.test(bilesen) && /s\.monthlyRent != null/.test(bilesen));
   t('önizlemede dahil sayfa kolonu ve aylık kira toplamı var', /t\.excelAktar\.ornekDahil\]/.test(bilesen) && /s\.includedBlack != null/.test(bilesen) && /<KiraKutusu /.test(bilesen));
   t('örnek şablon düğmesi var', /sablonCsv\(/.test(bilesen) && /onClick=\{sablonIndir\}/.test(bilesen));

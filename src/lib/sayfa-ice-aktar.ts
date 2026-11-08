@@ -67,6 +67,37 @@ const kes = (s: string, n: number) => (s.length > n ? s.slice(0, n).trim() : s);
 const pozitif = (n: number | null) => (n != null && n > 0 ? n : null);
 const sayfaAdedi = (n: number | null) => (n != null && n >= 0 ? n : null);
 
+/**
+ * BAŞLIK SATIRI NEREDE — bayi dosyalarının çoğunda 1. satır değil.
+ * Üstte firma adı, "2026 Kiralık Listesi" ya da boş satır oluyor; eskiden
+ * 1. satır başlık sayılınca hiçbir kolon tanınmıyordu. İlk 15 satırda en çok
+ * kolonu tanınan satır başlıktır (eşitlikte üstteki). Hiçbiri tanınmazsa 1.
+ */
+export const BASLIK_ARAMA_SATIRI = 15;
+export function baslikSatiriBul(rows: string[][]): number {
+  let enIyi = 0, skor = 0;
+  for (let i = 0; i < Math.min(BASLIK_ARAMA_SATIRI, rows.length - 1); i++) {
+    const s = autoMap(rows[i].map((h) => h.trim())).filter(Boolean).length;
+    if (s > skor) { skor = s; enIyi = i; }
+  }
+  return enIyi;
+}
+
+/** Ad eşleşmesi için: Türkçe küçük harf, noktalama ve fazla boşluk yok. */
+export function adAnahtari(ad: string): string {
+  return ad.toLocaleLowerCase('tr-TR').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+/**
+ * Telefonu olmayan müşterinin yer tutucusu. Müşteri bayi içinde telefonla
+ * tekil ve telefon zorunlu; SQL aktarımı yıllardır "BOS-…" yazıyor ve
+ * WhatsApp/SMS yolları bunu numara saymıyor (lib/share waPhone). Addan
+ * türetildiği için aynı dosya ikinci kez yüklenince aynı kimlik çıkar.
+ */
+export function telefonsuzKimlik(ad: string): string {
+  return 'BOS-' + crypto.createHash('sha1').update(adAnahtari(ad)).digest('hex').slice(0, 8).toUpperCase();
+}
+
 export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
   const { tenantId } = g;
   const simdi = g.simdi ?? new Date();
@@ -81,8 +112,12 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
     return { ok: false, hata: 'DOSYADA_BASLIK_SATIRI_EN_AZ', durum: 400, ek: { kod: 'SATIR_YOK' } };
   }
 
-  const headers = rows[0].map((h) => h.trim());
-  const dataRows = rows.slice(1);
+  const baslikNo = baslikSatiriBul(rows);
+  const headers = rows[baslikNo].map((h) => h.trim());
+  // Tamamen boş satırlar atılır ama Excel satır numarası korunur.
+  const dataRows = rows.slice(baslikNo + 1)
+    .map((r, i) => ({ r, satirNo: baslikNo + i + 2 }))
+    .filter(({ r }) => r.some((h) => h.trim() !== ''));
   if (dataRows.length > AKTARIM_AZAMI_SATIR) {
     return { ok: false, hata: 'TEK_SEFERDE_EN_FAZLA_SATIR', durum: 400, deger: { p1: AKTARIM_AZAMI_SATIR, p2: dataRows.length } };
   }
@@ -108,8 +143,30 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
   const okunamayan = { tarih: 0, tarihOrnek: '', donem: 0, donemOrnek: '', gelecek: 0, gelecekOrnek: '' };
   const buAy = donemOf(simdi);
 
+  // ── Boş müşteri hücresi üst satırdan ──
+  // Aynı müşterinin 2. ve sonraki cihaz satırlarında müşteri hücresi çoğu
+  // zaman boş: birleştirilmiş hücre ya da "üsttekiyle aynı" diye boş
+  // bırakılmış. Eskiden bu satırlar "müşteri adı boş" diye düşüyordu. Yalnız
+  // satırda cihaz bilgisi varsa ve müşteri kolonlarının HEPSİ boşsa alınır.
+  const musteriKolonlari = (['customerName', 'legalName', 'phone'] as FieldKey[]).map(idx).filter((i) => i >= 0);
+  let usttenAlinan = 0;
+  if (hasCustomer && hasDevice) {
+    let onceki: string[] | null = null;
+    for (const d of dataRows) {
+      const musteriBos = musteriKolonlari.every((i) => !(d.r[i] ?? '').trim());
+      const cihazVar = !!(get(d.r, 'serialNo') || get(d.r, 'brand') || get(d.r, 'model'));
+      if (!musteriBos) { onceki = d.r; continue; }
+      if (cihazVar && onceki) {
+        const kopya = [...d.r];
+        for (const i of musteriKolonlari) kopya[i] = onceki[i] ?? '';
+        d.r = kopya;
+        usttenAlinan++;
+      }
+    }
+  }
+
   // ── Satırları çöz ──
-  const parsed: Satir[] = dataRows.map((r, i) => {
+  const parsed: Satir[] = dataRows.map(({ r, satirNo }) => {
     const hamTarih = get(r, 'installedAt');
     const tarih = hamTarih ? kurulumTarihiCoz(hamTarih, simdi) : null;
     if (hamTarih && !tarih) { okunamayan.tarih++; okunamayan.tarihOrnek ||= kes(hamTarih, 30); }
@@ -121,7 +178,7 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
     if (donem && donem > buAy) { okunamayan.gelecek++; okunamayan.gelecekOrnek ||= donem; donem = null; }
 
     const p: Satir = {
-      row: i + 2, // Excel satır numarası (başlık 1. satır)
+      row: satirNo, // Excel satır numarası (başlık satırı atlanmış üst satırlar dahil)
       // Tek ad kolonu "Ünvan" ise defterdeki ad da o olur: aksi hâlde
       // dosya dolu olduğu hâlde her satır "müşteri adı boş" derdi.
       customerName: kes(get(r, 'customerName') || get(r, 'legalName'), 160),
@@ -153,7 +210,8 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
     };
     // Kod dönüyor, cümle değil: ekran bunu kullanıcının dilinde yazıyor.
     if (hasCustomer && !p.customerName) p.errors.push('MUSTERI_ADI_BOS');
-    if (hasCustomer && !p.phone) p.errors.push('TELEFON_BOS');
+    // Telefon artık şart değil: kiralık cihaz listelerinde çoğu zaman yok.
+    // Telefonsuz müşteri adla eşleşir (aşağıda, AKTAR).
     if (hasDevice && !p.serialNo && !(p.brand || p.model)) p.errors.push('CIHAZ_BILGISI_YOK');
     return p;
   });
@@ -208,6 +266,11 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
   if (okunamayan.tarih) warnings.push({ kod: 'TARIH_OKUNAMADI', n: okunamayan.tarih, ornek: okunamayan.tarihOrnek });
   if (okunamayan.donem) warnings.push({ kod: 'DONEM_OKUNAMADI', n: okunamayan.donem, ornek: okunamayan.donemOrnek });
   if (okunamayan.gelecek) warnings.push({ kod: 'DONEM_GELECEK', n: okunamayan.gelecek, ornek: okunamayan.gelecekOrnek });
+  // Dosyanın nasıl okunduğu: bayi "neden 1. satır yok" diye sormasın.
+  if (baslikNo > 0) warnings.push({ kod: 'BASLIK_ASAGIDA', n: baslikNo, ornek: kes(headers.filter(Boolean).slice(0, 3).join(', '), 60) });
+  if (usttenAlinan) warnings.push({ kod: 'MUSTERI_USTTEN', n: usttenAlinan });
+  const telefonsuz = new Set(valid.filter((p) => p.customerName && !p.phone).map((p) => adAnahtari(p.customerName)));
+  if (telefonsuz.size) warnings.push({ kod: 'TELEFON_YOK', n: telefonsuz.size, ornek: valid.find((p) => p.customerName && !p.phone)?.customerName });
 
   // ── AYLIK KİRA ÖZETİ ──
   // Kurulumu biz yaptığımızda bayiye sorulan tek soru: "aylık kira geliriniz
@@ -243,7 +306,7 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
         totalRows: dataRows.length,
         validRows: valid.length,
         invalidRows: invalid.length,
-        willCreateCustomers: new Set(valid.filter((p) => p.customerName && p.phone).map((p) => p.phone)).size,
+        willCreateCustomers: new Set(valid.filter((p) => p.customerName).map((p) => p.phone || `ad:${adAnahtari(p.customerName)}`)).size,
         willCreateDevices: valid.filter(cihazli).length,
         warnings,
         kiraOzeti,
@@ -266,19 +329,49 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
   // Devredilen sayac icin yazilan acilis okumasi sayisi (faturalanmaz).
   let baslangicOkumasi = 0;
   const failures: { row: number; error: string; kod?: string }[] = [];
+  // Dosya içi eşleşme: telefon varsa telefon, yoksa "ad:<adAnahtari>".
   const custIdByPhone = new Map<string, string>();
+
+  // Ada göre eşleşme için bayinin müşterileri BİR KEZ okunur (Türkçe harf
+  // ve noktalama farkı burada, JS'te yok sayılıyor; veritabanında ILIKE
+  // joker karakterleri yüzünden kullanılmıyor). Yalnız gerekiyorsa.
+  const adlaGerekli = valid.some((p) => p.customerName && !p.phone);
+  const adIndeksi = new Map<string, { id: string; phone: string }>();
+  let adIndeksiKuruldu = false;
+  const adIndeksiniKur = async () => {
+    if (adIndeksiKuruldu) return;
+    adIndeksiKuruldu = true;
+    const hepsi = await prisma.customer.findMany({ where: { tenantId }, select: { id: true, name: true, phone: true }, orderBy: { createdAt: 'asc' } });
+    for (const c of hepsi) { const k = adAnahtari(c.name); if (k && !adIndeksi.has(k)) adIndeksi.set(k, { id: c.id, phone: c.phone }); }
+  };
+  if (adlaGerekli) await adIndeksiniKur();
 
   for (const p of valid) {
     try {
-      // 1) Müşteri (tenant+telefon tekil) — varsa güncelle, yoksa oluştur
+      // 1) Müşteri — telefonla (yoksa adla) bulunur; varsa güncellenir, yoksa açılır.
       let customerId: string | null = null;
-      if (p.customerName && p.phone) {
-        customerId = custIdByPhone.get(p.phone) || null;
+      const dosyaAnahtari = p.phone || `ad:${adAnahtari(p.customerName)}`;
+      if (p.customerName) {
+        customerId = custIdByPhone.get(dosyaAnahtari) || null;
         if (!customerId) {
-          const existing = await prisma.customer.findFirst({
-            where: { tenantId, phone: p.phone },
-            select: { id: true },
-          });
+          let existing: { id: string } | null = null;
+          if (p.phone) {
+            existing = await prisma.customer.findFirst({ where: { tenantId, phone: p.phone }, select: { id: true } });
+            if (!existing) {
+              // Daha önce telefonsuz (yer tutuculu) açılmış aynı adlı müşteri
+              // varsa telefon şimdi ona yazılır; ikinci müşteri açılmaz.
+              await adIndeksiniKur();
+              const ayni = adIndeksi.get(adAnahtari(p.customerName));
+              if (ayni && ayni.phone.startsWith('BOS-')) {
+                await prisma.customer.update({ where: { id: ayni.id }, data: { phone: p.phone } });
+                ayni.phone = p.phone;
+                existing = { id: ayni.id };
+              }
+            }
+          } else {
+            const ayni = adIndeksi.get(adAnahtari(p.customerName));
+            if (ayni) existing = { id: ayni.id };
+          }
           if (existing) {
             customerId = existing.id;
             // Yalnız DOLU gelen alanlar yazılıyor: eski dosyada boş olan
@@ -297,7 +390,7 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
           } else {
             const c = await prisma.customer.create({
               data: {
-                tenantId, name: p.customerName, phone: p.phone,
+                tenantId, name: p.customerName, phone: p.phone || telefonsuzKimlik(p.customerName),
                 address: p.address || null, taxNo: p.taxNo || null,
                 legalName: p.legalName || null, taxOffice: p.taxOffice || null,
                 city: p.city || null, district: p.district || null,
@@ -305,8 +398,10 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
             });
             customerId = c.id;
             customersCreated++;
+            const k = adAnahtari(p.customerName);
+            if (k && !adIndeksi.has(k)) adIndeksi.set(k, { id: c.id, phone: c.phone });
           }
-          custIdByPhone.set(p.phone, customerId);
+          custIdByPhone.set(dosyaAnahtari, customerId);
         }
       }
 

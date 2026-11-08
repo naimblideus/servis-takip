@@ -10,6 +10,7 @@ import ContactActions from '@/components/ContactActions';
 import { oturumKullanicisi, yoneticiMi } from '@/lib/api-auth';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
+import { telefonGoster } from '@/lib/telefon';
 
 // Etiketler sözlükte (durum.fisKisa); burada yalnız renk.
 const statusRenk: Record<string, string> = {
@@ -71,7 +72,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.musteri.iletisim}</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
           {[
-            [sz.fisDetay.telefon, customer.phone],
+            [sz.fisDetay.telefon, telefonGoster(customer.phone, '—')],
             [sz.fisYeni.adres, customer.address || '-'],
             [sz.musteri.kayitTarihi, b.tarih(customer.createdAt)],
           ].map(([k, v]) => (

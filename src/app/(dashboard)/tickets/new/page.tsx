@@ -13,6 +13,7 @@ import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { parseFaultCategory } from '@/lib/fault-categories';
 import { seriBekliyor } from '@/lib/gecici-kimlik';
+import { telefonGoster } from '@/lib/telefon';
 
 interface Customer { id: string; name: string; phone: string; address: string | null; }
 interface Device {
@@ -569,7 +570,7 @@ export default function NewTicketPage() {
                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = form.customerId === c.id ? '#eff6ff' : 'white')}
                   >
                     <div style={{ fontWeight: '500' }}>{c.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{c.phone} {c.address ? `• ${c.address}` : ''}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{telefonGoster(c.phone)} {c.address ? `• ${c.address}` : ''}</div>
                   </div>
                 ))}
                 {/* Aranan kişi listede yoksa (ya da liste hiç yoksa) burada açılır. */}
@@ -628,7 +629,7 @@ export default function NewTicketPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label style={label}>{sz.fisDetay.telefon}</label>
-                <input style={readonlyInput} value={selectedCustomer.phone} readOnly />
+                <input style={readonlyInput} value={telefonGoster(selectedCustomer.phone, '—')} readOnly />
               </div>
               <div>
                 <label style={label}>{sz.fisYeni.adres}</label>

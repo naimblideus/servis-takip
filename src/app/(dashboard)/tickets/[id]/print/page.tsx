@@ -6,6 +6,7 @@ import { oturumKullanicisi } from '@/lib/api-auth';
 import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
 import { bicimYap } from '@/lib/bicim';
 import { belgeMagazaAdresi } from '@/lib/magaza-baglanti';
+import { telefonGoster } from '@/lib/telefon';
 
 export default async function TicketPrintPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -397,7 +398,7 @@ export default async function TicketPrintPage({ params }: { params: Promise<{ id
                                     </div>
                                     <div className="info-row">
                                         <span className="info-key">{sz.fisDetay.telefon}</span>
-                                        <span className="info-val">{ticket.device.customer.phone}</span>
+                                        <span className="info-val">{telefonGoster(ticket.device.customer.phone, '—')}</span>
                                     </div>
                                     {ticket.device.customer.address && (
                                         <div className="info-row">

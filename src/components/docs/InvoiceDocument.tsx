@@ -8,6 +8,7 @@
 import React from 'react';
 import { sozluk, doldur, dilMi, VARSAYILAN_DIL, type Dil } from '@/lib/i18n/sozluk';
 import { bicimYap } from '@/lib/bicim';
+import { telefonGoster } from '@/lib/telefon';
 
 const STATUS_RENK: Record<string, { bg: string; color: string; border: string }> = {
   OPEN: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
@@ -206,7 +207,8 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocData }
               <div className="info-card-header">{S.alici}</div>
               <div className="info-card-body">
                 <div className="info-row"><span className="info-key">{S.adUnvan}</span><span className="info-val">{c.name}</span></div>
-                <div className="info-row"><span className="info-key">{sz.fisDetay.telefon}</span><span className="info-val">{c.phone}</span></div>
+                {/* Telefonu olmayan müşterinin yer tutucusu ("BOS-…") faturaya basılmaz. */}
+                {telefonGoster(c.phone) && <div className="info-row"><span className="info-key">{sz.fisDetay.telefon}</span><span className="info-val">{telefonGoster(c.phone)}</span></div>}
                 {c.taxNo && <div className="info-row"><span className="info-key">{S.vergiNo}</span><span className="info-val">{c.taxNo}</span></div>}
                 {c.contactPerson && <div className="info-row"><span className="info-key">{S.yetkili}</span><span className="info-val">{c.contactPerson}</span></div>}
                 {c.address && <div className="info-row" style={{ gridColumn: '1 / -1' }}><span className="info-key">{sz.fisYeni.adres}</span><span className="info-val" style={{ fontSize: '12px' }}>{c.address}</span></div>}

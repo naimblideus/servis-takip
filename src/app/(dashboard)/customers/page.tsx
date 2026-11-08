@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import MusteriBaslangic from '@/components/MusteriBaslangic';
+import { telefonGoster } from '@/lib/telefon';
 
 interface Customer {
   id: string;
@@ -123,7 +124,7 @@ export default function CustomersPage() {
             ) : filtered.map((c, i) => (
               <tr key={c.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: i % 2 === 0 ? 'white' : '#f9fafb' }}>
                 <td style={{ padding: '0.75rem 1rem', fontWeight: '500' }}>{c.name}</td>
-                <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>{c.phone}</td>
+                <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>{telefonGoster(c.phone, '—')}</td>
                 <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', color: '#6b7280' }}>{c.address || '—'}</td>
                 <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem' }}>
                   <span style={{

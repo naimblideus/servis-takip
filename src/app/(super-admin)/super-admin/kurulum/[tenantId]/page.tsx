@@ -7,6 +7,8 @@ import { waAdresi, gunMetni, NOT_EN_UZUN, type Adim } from '@/lib/kurulum';
 import { sunucuDili } from '@/lib/i18n/sunucu';
 import { doldur } from '@/lib/i18n/sozluk';
 import ExcelImport from '@/components/ExcelImport';
+import { prisma } from '@/lib/prisma';
+import { TELEFON_YOK_ONEKI } from '@/lib/telefon';
 import TakipFormu from './TakipFormu';
 import NotFormu from './NotFormu';
 
@@ -38,6 +40,8 @@ export default async function KurulumAyrintiSayfasi({ params }: { params: Promis
   const veri = await kurulumAyrintisi(tenantId);
   if (!veri) notFound();
   const { satir: x, notlar, ekip } = veri;
+  // Telefonu olmayan müşteri ("BOS-…" yer tutucu, lib/telefon): yalnız sayı.
+  const telefonsuz = await prisma.customer.count({ where: { tenantId, phone: { startsWith: TELEFON_YOK_ONEKI } } });
   const yerel = dil === 'en' ? 'en-GB' : 'tr-TR';
   const tarih = (d: Date) => d.toLocaleDateString(yerel, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Istanbul' });
   const saat = (d: Date) => d.toLocaleString(yerel, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
@@ -89,6 +93,12 @@ export default async function KurulumAyrintiSayfasi({ params }: { params: Promis
               </a>
             )}
             <p className="mb-3 text-xs text-gray-500">{m.yukleKurali}</p>
+            {/* Telefonsuz listeden gelen müşteriler: görüşmede bayiye sorulur. */}
+            {telefonsuz > 0 && (
+              <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {doldur(m.telefonsuzMusteri, { n: telefonsuz })}
+              </p>
+            )}
             <ExcelImport uc={`/api/super-admin/kurulum/${encodeURIComponent(x.tenantId)}/ice-aktar`} bayiPaneli={false} />
           </section>
 

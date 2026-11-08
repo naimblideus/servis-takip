@@ -15,6 +15,7 @@ import { waUrl, statusMessage, NOTIFY_STATUSES } from '@/lib/share';
 import { oturumKullanicisi } from '@/lib/api-auth';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
+import { telefonGoster, telefonYok } from '@/lib/telefon';
 
 // Etiketler sözlükte (durum.fisKisa); burada yalnız renk.
 const statusRenk: Record<string, { color: string; text: string }> = {
@@ -220,7 +221,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           <h2 style={{ fontWeight: '600', marginBottom: '1rem' }}>{sz.fisDetay.cihazMusteri}</h2>
           {[
             [sz.genel.musteri, ticket.device.customer.name],
-            [sz.fisDetay.telefon, ticket.device.customer.phone],
+            [sz.fisDetay.telefon, telefonGoster(ticket.device.customer.phone, '—')],
             [sz.genel.cihaz, `${ticket.device.brand} ${ticket.device.model}`],
             [sz.fisDetay.seriNo, ticket.device.serialNo],
             [sz.fisDetay.konum, ticket.device.location || '-'],
@@ -240,7 +241,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           <ContactActions phone={ticket.device.customer.phone} address={ticket.device.customer.address} />
 
           {/* Müşteriye durum bildirimi — durum değiştirdiğin an değil, fiş açık olduğu SÜRECE burada durur */}
-          {NOTIFY_STATUSES.includes(ticket.status) && ticket.device.customer.phone && (() => {
+          {NOTIFY_STATUSES.includes(ticket.status) && !telefonYok(ticket.device.customer.phone) && (() => {
             const done = ticket.status === 'READY' || ticket.status === 'DELIVERED';
             const label = ticket.status === 'READY' ? sz.fisDetay.bildirHazir
               : ticket.status === 'DELIVERED' ? sz.fisDetay.bildirTeslim

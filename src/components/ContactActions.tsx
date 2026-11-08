@@ -2,6 +2,7 @@
 
 import { telUrl, waUrl, mapsUrl } from '@/lib/share';
 import { useT } from '@/lib/i18n/client';
+import { telefonGoster } from '@/lib/telefon';
 
 // Mobil-öncelikli iletişim aksiyonları: 📞 Ara (tel:), 💬 WhatsApp (wa.me),
 // 🗺️ Yol Tarifi (Google Maps). Üç <a> etiketinden ibaret.
@@ -11,7 +12,7 @@ import { useT } from '@/lib/i18n/client';
 // duruyor ve sunucu bileşeni onu okuyamıyor. Bedeli üç bağlantılık bir
 // paket; karşılığı beş ekranda birden doğru dil.
 export default function ContactActions({
-  phone,
+  phone: hamTelefon,
   address,
   whatsappText,
 }: {
@@ -20,6 +21,8 @@ export default function ContactActions({
   whatsappText?: string;
 }) {
   const t = useT();
+  // Telefonu olmayan müşterinin yer tutucusuna ("BOS-…") Ara/WhatsApp çizilmez.
+  const phone = telefonGoster(hamTelefon) || null;
   const base: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0.45rem 0.85rem',
     borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',

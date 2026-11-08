@@ -18,6 +18,7 @@ import { prisma } from '@/lib/prisma';
 import { markOverdueInvoices } from '@/lib/invoicing';
 import { sendOneWhatsApp, waConfigured } from '@/lib/whatsapp';
 import { borcParametreleri } from '@/lib/whatsapp-sablon';
+import { telefonYok } from '@/lib/telefon';
 import { retListesi, son10 } from '@/lib/whatsapp-inbound';
 import { fmtTLm } from '@/lib/reminders';
 
@@ -47,7 +48,9 @@ export async function vadeHatirlatmalari(simdi = new Date()) {
     // Müşteri başına topla: tek mesaj, toplam açık tutar.
     const musteriler = new Map<string, { ad: string; telefon: string; acik: number; faturalar: string[] }>();
     for (const f of faturalar) {
-      if (!f.customerId || !f.customer?.phone || ret.has(son10(f.customer.phone))) continue;
+      // Telefonu olmayan müşteri ("BOS-…" yer tutucu) atlanır: her gün
+      // "geçersiz telefon" diye başarısız kayıt üretiyordu.
+      if (!f.customerId || telefonYok(f.customer?.phone) || ret.has(son10(f.customer!.phone))) continue;
       const acik = Number(f.totalAmount) - Number(f.paidAmount);
       if (acik < 0.01) continue;
       const m = musteriler.get(f.customerId) ?? { ad: f.customer.name, telefon: f.customer.phone, acik: 0, faturalar: [] };

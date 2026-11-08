@@ -167,12 +167,31 @@ function sayiMetni(v: string, ondalikVirgul: boolean): string {
 export interface XlsxSecenek {
   /** Sayı hücrelerinde ondalık ayracı virgül yap (Türk CSV biçimi, trNumber için). */
   ondalikVirgul?: boolean;
+  /**
+   * Okunacak sayfanın adı. Verilmezse ilk görünen sayfa. Bayi dosyalarında
+   * "Kiralık", "Satış", "Eski" gibi birden çok sayfa oluyor; eskiden yalnız
+   * ilki okunuyordu ve kiralıklar ikinci sayfadaysa hiç gelmiyordu.
+   */
+  sayfa?: string;
+}
+
+/** Görünen sayfaların adları, çalışma kitabındaki sırayla. */
+export async function xlsxSayfalari(buf: ArrayBuffer): Promise<string[]> {
+  const zip = zipDizini(buf);
+  const g = zip.get('xl/workbook.xml') ?? [...zip.entries()].find(([k]) => k.toLowerCase() === 'xl/workbook.xml')?.[1];
+  if (!g) return [];
+  const kitap = new TextDecoder('utf-8').decode(await girdiyiAc(buf, g));
+  return [...kitap.matchAll(new RegExp(`<${ONEK}sheet\\b([^>]*)/?>`, 'g'))]
+    .map((m) => nitelikler(m[1]))
+    .filter((a) => !a.state || a.state === 'visible')
+    .map((a) => xmlCoz(a.name ?? ''))
+    .filter(Boolean);
 }
 
 /**
- * XLSX'in İLK görünen sayfasını satır satır metin olarak döndürür.
- * Boş hücre '' olur, satırlar en geniş satıra kadar doldurulur; tamamen boş
- * satırlar atılır (CSV ayrıştırıcısı da öyle yapıyor).
+ * XLSX'in bir sayfasını (varsayılan: İLK görünen) satır satır metin olarak
+ * döndürür. Boş hücre '' olur, satırlar en geniş satıra kadar doldurulur;
+ * tamamen boş satırlar atılır (CSV ayrıştırıcısı da öyle yapıyor).
  */
 export async function xlsxOku(buf: ArrayBuffer, secenek: XlsxSecenek = {}): Promise<string[][]> {
   const zip = zipDizini(buf);
@@ -204,7 +223,8 @@ export async function xlsxOku(buf: ArrayBuffer, secenek: XlsxSecenek = {}): Prom
   let sayfaYolu: string | null = null;
   if (kitap) {
     const sayfalar = [...kitap.matchAll(new RegExp(`<${ONEK}sheet\\b([^>]*)/?>`, 'g'))].map((m) => nitelikler(m[1]));
-    const gorunen = sayfalar.find((a) => !a.state || a.state === 'visible') ?? sayfalar[0];
+    const istenen = secenek.sayfa != null ? sayfalar.find((a) => xmlCoz(a.name ?? '') === secenek.sayfa) : undefined;
+    const gorunen = istenen ?? sayfalar.find((a) => !a.state || a.state === 'visible') ?? sayfalar[0];
     if (gorunen) {
       const rid = Object.entries(gorunen).find(([k]) => k === 'r:id' || k.endsWith(':id'))?.[1];
       const h = rid ? hedefler.get(rid) : undefined;
@@ -271,6 +291,28 @@ export async function xlsxOku(buf: ArrayBuffer, secenek: XlsxSecenek = {}): Prom
       if (deger.trim() !== '') satir.set(k, deger);
     }
     if (satir.size) seyrek.set(r, satir);
+  }
+
+  // ── Dikey birleştirilmiş hücreler ──
+  // "Müşteri" hücresi aynı müşterinin cihaz satırları boyunca birleştirilmiş
+  // oluyor; değer yalnız ilk hücrede durur, alttakiler boş görünür. Değer
+  // aralığın tamamına yazılır. YALNIZ TEK KOLONLUK (dikey) aralıklar: yatay
+  // birleşmede (ör. iki kolonu kaplayan adres) değer yan kolona kopyalanırsa
+  // komşu kolonun (telefon gibi) içine yanlış veri yazılırdı.
+  for (const m of sayfa.matchAll(new RegExp(`<${ONEK}mergeCell\\b([^>]*)/?>`, 'g'))) {
+    const ref = nitelikler(m[1]).ref ?? '';
+    const [bas, son] = ref.split(':');
+    if (!bas || !son) continue;
+    const k1 = kolonNo(bas), k2 = kolonNo(son);
+    const r1 = parseInt(bas.replace(/^[A-Z]+/i, ''), 10) - 1, r2 = parseInt(son.replace(/^[A-Z]+/i, ''), 10) - 1;
+    if (k1 !== k2 || !(r2 > r1) || r2 - r1 > 5000) continue;
+    const deger = seyrek.get(r1)?.get(k1);
+    if (deger == null) continue;
+    for (let r = r1 + 1; r <= r2; r++) {
+      const satir = seyrek.get(r);
+      // Tamamen boş satır birleşme yüzünden doluymuş gibi görünmesin.
+      if (satir && !satir.has(k1)) satir.set(k1, deger);
+    }
   }
 
   const sira = [...seyrek.keys()].sort((x, y) => x - y);

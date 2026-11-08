@@ -100,6 +100,8 @@ export interface KurulumMetni {
   /** {ad} yetkilinin ilk adı. */
   gerekenlerMesaji: string;
   yukleKurali: string;
+  /** Telefonsuz listeden açılmış müşteri sayısı (görüşmede sorulur). */
+  telefonsuzMusteri: string;
   /** Yüklemeden sonra kurulum notlarına düşen satır. */
   aktarimNotu: string;
 }
@@ -271,6 +273,7 @@ const tr: KurulumMetni = {
   gerekenleriIste: 'Gerekenleri WhatsApp’tan iste',
   gerekenlerMesaji: 'Merhaba {ad}, Nextus Servis kurulumunu biz yapıyoruz. Bize şunları gönderir misiniz?\n1) Müşteri ve cihaz listeniz varsa: Excel ya da eski programınızın dökümü olur. Kiralıklarda aylık kira, dahil sayfa, sayfa fiyatı ve son sayaç yazsın. Listeniz yoksa gerek yok; kayıtlar iş yaptıkça oluşur.\n2) Logonuz\n3) Faturada yazacak vergi no, vergi dairesi ve adres\n4) Ödemelerin yatacağı IBAN\n5) Sisteme girecek çalışanlarınızın adları\nHepsini yükleyip görüşmede size hazır teslim ediyoruz.',
   yukleKurali: 'Liste yalnız buradan yüklenir; hiçbir yapay zekâ sohbetine yapıştırılmaz. Yükledikten sonra dosyayı WhatsApp’tan silin.',
+  telefonsuzMusteri: '{n} müşterinin telefonu yok. Görüşmede bayiye sorun; müşteri kartından eklenir.',
   aktarimNotu: 'Liste Nextus tarafından yüklendi: {yeniMusteri} yeni müşteri, {yeniCihaz} yeni cihaz, {guncellenen} güncellendi. Aylık kira toplamı {kira} ({kiraCihaz} kiralık cihaz).',
 };
 
@@ -441,6 +444,7 @@ const en = {
   gerekenleriIste: 'Ask for what we need on WhatsApp',
   gerekenlerMesaji: 'Hello {ad}, we are setting up Nextus Servis for you. Could you send us the following?\n1) Your customer and device list, if you have one: Excel or an export from your old program works. For rentals, include the monthly rent, included pages, page price and last meter reading. No list? No need; records build up as you work.\n2) Your logo\n3) The tax number, tax office and address that print on invoices\n4) The IBAN payments should go to\n5) The names of the staff who will use the system\nWe load everything and hand it over ready in our call.',
   yukleKurali: 'The list is uploaded only here; it is never pasted into an AI chat. Delete the file from WhatsApp after uploading.',
+  telefonsuzMusteri: '{n} {n|customer has|customers have} no phone. Ask the dealer in the call; it is added on the customer card.',
   aktarimNotu: 'List loaded by Nextus: {yeniMusteri} new customers, {yeniCihaz} new devices, {guncellenen} updated. Monthly rent total {kira} ({kiraCihaz} rental devices).',
 } satisfies KurulumMetni;
 

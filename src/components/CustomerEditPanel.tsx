@@ -6,6 +6,7 @@ import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { faturaEksikleri } from '@/lib/fatura-kimlik';
 import { useT, useDil } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import { telefonGoster } from '@/lib/telefon';
 
 interface Props {
     customer: {
@@ -35,7 +36,8 @@ export default function CustomerEditPanel({ customer }: Props) {
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
         name: customer.name,
-        phone: customer.phone,
+        // Telefonu olmayan müşterinin yer tutucusu ("BOS-…") kutuda görünmez.
+        phone: telefonGoster(customer.phone),
         address: customer.address || '',
         taxNo: customer.taxNo || '',
         email: customer.email || '',
@@ -64,7 +66,9 @@ export default function CustomerEditPanel({ customer }: Props) {
         const res = await fetch(`/api/customers/${customer.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(form),
+            // Telefon boş bırakıldıysa gönderilmez: yer tutucu (müşteri bayi
+            // içinde telefonla tekil) yerinde kalır, boş telefon yazılmaz.
+            body: JSON.stringify(form.phone.trim() ? form : { ...form, phone: undefined }),
         });
         if (res.ok) {
             router.refresh();

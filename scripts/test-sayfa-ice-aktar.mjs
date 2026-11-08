@@ -101,6 +101,48 @@ try {
   t('★ başka bayiye tek satır yazılmadı',
     (await p.device.count({ where: { tenantId: baska.id } })) === 0 && (await p.customer.count({ where: { tenantId: baska.id } })) === 0);
 
+  console.log('\n★ GERÇEK DOSYA DÜZENLERİ (telefonsuz, başlık aşağıda, boş müşteri hücresi)\n');
+  // Bayilerin elindeki kiralık listesi: üstte firma adı ve boş satır, telefon
+  // kolonu yok, aynı müşterinin 2. cihazında müşteri hücresi boş.
+  const yeni = await p.tenant.create({ data: { name: 'Dağınık Liste', slug: `${SLUG}-d` } });
+  kiraciIdleri.push(yeni.id);
+  const daginik = [
+    'ABC FOTOKOPİ 2026 KİRALIK LİSTESİ;;;;',
+    ';;;;',
+    'Müşteri;Marka;Model;Seri No;Aylık Kira',
+    'Yıldız Muhasebe Ltd. Şti.;Canon;iR 2425;CN-1;1200',
+    ';Canon;iR 2206;CN-2;800',
+    'Deniz Hukuk;Kyocera;M2040;KY-1;950',
+    ';;;;',
+    'yıldız muhasebe ltd şti;HP;M402;HP-9;300',
+  ].join('\n');
+  const don = await sayfaIceAktar({ tenantId: yeni.id, csv: daginik, dryRun: true, simdi });
+  const dg = don.govde ?? {};
+  const du = (k) => (dg.warnings ?? []).find((w) => w.kod === k);
+  t('★ başlık 3. satırda bulundu, kolonlar tanındı', don.ok && dg.headers?.[0] === 'Müşteri' && dg.mapping?.includes('serialNo'), { ok: don.ok, h: dg.headers, m: dg.mapping, hata: don.hata });
+  t('★ telefonsuz satırlar düşmedi: 4 geçerli satır, 0 hatalı', dg.validRows === 4 && dg.invalidRows === 0, { v: dg.validRows, i: dg.invalidRows, e: dg.errorsSample });
+  t('2 müşteri (aynı ad farklı yazım tek müşteri)', dg.willCreateCustomers === 2, dg.willCreateCustomers);
+  // Tamamen boş satırları CSV okuyucu zaten atıyor; sayı değil başlığın kendisi söylenir.
+  t('BASLIK_ASAGIDA uyarısı: üst satırlar atlandı, bulunan başlık söyleniyor', du('BASLIK_ASAGIDA')?.n > 0 && /^Müşteri, Marka/.test(du('BASLIK_ASAGIDA')?.ornek ?? ''), dg.warnings);
+  t('MUSTERI_USTTEN uyarısı: 1 satır üstten aldı', du('MUSTERI_USTTEN')?.n === 1, dg.warnings);
+  t('TELEFON_YOK uyarısı: 2 telefonsuz müşteri', du('TELEFON_YOK')?.n === 2, dg.warnings);
+  t('kira toplamı 3.250 (4 cihaz)', dg.kiraOzeti?.toplam === 3250 && dg.kiraOzeti?.cihaz === 4, dg.kiraOzeti);
+  const dak = await sayfaIceAktar({ tenantId: yeni.id, csv: daginik, dryRun: false, simdi });
+  t('aktarım: 2 müşteri, 4 cihaz', dak.ok && dak.govde.customersCreated === 2 && dak.govde.devicesCreated === 4, dak.govde);
+  const yildiz = await p.customer.findFirst({ where: { tenantId: yeni.id, name: 'Yıldız Muhasebe Ltd. Şti.' }, include: { devices: { select: { serialNo: true } } } });
+  t('★ boş hücreli satır (CN-2) ve farklı yazımlı satır (HP-9) aynı müşteride',
+    yildiz?.devices.map((d) => d.serialNo).sort().join(',') === 'CN-1,CN-2,HP-9', yildiz?.devices);
+  t('★ telefonsuz müşteri "BOS-" yer tutucusu aldı (WhatsApp/SMS numara saymaz)', /^BOS-[0-9A-F]{8}$/.test(yildiz?.phone ?? ''), yildiz?.phone);
+  const dak2 = await sayfaIceAktar({ tenantId: yeni.id, csv: daginik, dryRun: false, simdi });
+  t('★ aynı dosya ikinci kez: 0 yeni müşteri, 0 yeni cihaz', dak2.ok && dak2.govde.customersCreated === 0 && dak2.govde.devicesCreated === 0, dak2.govde);
+  // Sonra telefonlu liste gelir: yer tutuculu müşteriye telefon yazılır, ikinci müşteri açılmaz.
+  const telli = 'Müşteri Adı;Telefon;Seri No\nYıldız Muhasebe Ltd. Şti.;0532 444 55 66;CN-1';
+  const dak3 = await sayfaIceAktar({ tenantId: yeni.id, csv: telli, dryRun: false, simdi });
+  const yildiz2 = await p.customer.findUnique({ where: { id: yildiz.id }, select: { phone: true } });
+  t('★ telefonlu liste gelince yer tutucu gerçek telefona döndü, yeni müşteri yok',
+    dak3.ok && dak3.govde.customersCreated === 0 && yildiz2?.phone === '5324445566', { g: dak3.govde, tel: yildiz2?.phone });
+  t('dağınık liste başka bayiye yazmadı', (await p.customer.count({ where: { tenantId: tid, name: { contains: 'Yıldız' } } })) === 0);
+
   console.log('\nHATALAR\n');
   const bos = await sayfaIceAktar({ tenantId: tid, csv: '   ', dryRun: true });
   t('boş dosya → DOSYA_BOS_GORUNUYOR, ekrana BOS_DOSYA', !bos.ok && bos.hata === 'DOSYA_BOS_GORUNUYOR' && bos.ek?.kod === 'BOS_DOSYA', bos);
