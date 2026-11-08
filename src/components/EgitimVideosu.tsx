@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSession } from 'next-auth/react';
 import { useDil, useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
-import { EGITIM_DOSYALARI, EGITIM_VIDEOLARI, egitimDakika, egitimKaynagi, type EgitimKodu } from '@/lib/egitim-videolari';
+import {
+  EGITIM_DOSYALARI, EGITIM_VIDEOLARI, egitimDakika, egitimKaynagi, izlenenlereEkle, type EgitimKodu,
+} from '@/lib/egitim-videolari';
 
 /**
  * "▶ 1 dk" — EKRAN İÇİ EĞİTİM VİDEOSU (harita: lib/egitim-videolari.ts).
@@ -12,6 +15,14 @@ import { EGITIM_DOSYALARI, EGITIM_VIDEOLARI, egitimDakika, egitimKaynagi, type E
  * Düğme pencere açar; video bölümün başından başlar, sonunda durur. Kurulum
  * görüşmesinden sonra gelen yeni personel ve unutulan adım için: anlatan
  * kimse yokken ekranın kendisi anlatsın.
+ *
+ * ── ÖĞRENEN KİŞİDE KALKAR ───────────────────────────────────────────────
+ * Sayfalardaki düğme (varsayılan) yalnız kişinin ilk 45 gününde görünür
+ * (/api/egitim/durum) ve klibi sonuna kadar izleyen kişide bir sonraki
+ * açılışta kalkar. İzlenenler tarayıcıda, kişiye özel anahtarla durur; liste
+ * yalnız düğme ekrana gelirken okunur: izlerken düğme kaybolmaz, geri sarıp
+ * yeniden bakmak isteyen bulsun. `herZaman`: ilk giriş adımları (adım bitince
+ * zaten gider) ve Yardım (unutulan adımın videosu orada kalır).
  *
  * ── DOSYA YOKSA DÜĞME YOK ───────────────────────────────────────────────
  * Dosya bir kez HEAD ile sorulur (sayfa başına değil, dosya başına; sonuç
@@ -33,7 +44,7 @@ import { EGITIM_DOSYALARI, EGITIM_VIDEOLARI, egitimDakika, egitimKaynagi, type E
  */
 
 const varMi = new Map<string, Promise<boolean>>();
-function dosyaVarMi(yol: string): Promise<boolean> {
+export function dosyaVarMi(yol: string): Promise<boolean> {
   let p = varMi.get(yol);
   if (!p) {
     p = fetch(yol, { method: 'HEAD', cache: 'no-store' }).then((r) => r.ok).catch(() => false);
@@ -42,18 +53,52 @@ function dosyaVarMi(yol: string): Promise<boolean> {
   return p;
 }
 
-export default function EgitimVideosu({ kod, onIzlendi, className }: {
+// Kişi öğrenme döneminde mi: kişi başına bir kez sorulur (aynı sayfadaki iki düğme tek istek).
+const donemler = new Map<string, Promise<boolean>>();
+function ogrenmedeMi(kisi: string): Promise<boolean> {
+  let p = donemler.get(kisi);
+  if (!p) {
+    p = fetch('/api/egitim/durum', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { ogrenmede?: unknown } | null) => d?.ogrenmede === true)
+      .catch(() => false);
+    donemler.set(kisi, p);
+  }
+  return p;
+}
+
+const izlenenAnahtari = (kisi: string) => `nextus-egitim-izlenen:${kisi}`;
+function izlenenler(kisi: string): unknown[] {
+  try {
+    const x = JSON.parse(localStorage.getItem(izlenenAnahtari(kisi)) || '[]');
+    return Array.isArray(x) ? x : [];
+  } catch { return []; } // özel sekme: düğme kalır, zararı yok
+}
+function izlendiYaz(kisi: string, kod: EgitimKodu) {
+  try { localStorage.setItem(izlenenAnahtari(kisi), JSON.stringify(izlenenlereEkle(izlenenler(kisi), kod))); } catch { /* yoksay */ }
+}
+
+export default function EgitimVideosu({ kod, onIzlendi, herZaman = false, baslikli = false, className }: {
   kod: EgitimKodu | null | undefined;
   onIzlendi?: () => void;
+  /** İlk giriş adımı ve Yardım: kişinin süresine ve izlediğine bakılmaz. */
+  herZaman?: boolean;
+  /** Düğmede klibin adı da yazar (Yardım'daki liste). */
+  baslikli?: boolean;
   className?: string;
 }) {
   const t = useT();
   const { dil } = useDil();
+  const { data: oturum } = useSession();
+  const kisi = (oturum?.user as { id?: string } | undefined)?.id ?? null;
   const v = kod ? EGITIM_VIDEOLARI[kod] : null;
   const dosya = v ? EGITIM_DOSYALARI[v.dosya] : null;
   // Video Türkçe: arayüz başka dildeyse düğme çıkmaz.
   const dilUyar = !!dosya && dosya.dil === dil;
   const [var_, setVar] = useState(false);
+  // Sayfa düğmesi: cevap gelene kadar çizilmez (önce görünüp sonra kaybolmasın).
+  const [izinliKod, setIzinliKod] = useState<EgitimKodu | null>(null);
+  const izinli = herZaman || (!!kod && izinliKod === kod);
   const [acik, setAcik] = useState(false);
   const [hata, setHata] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
@@ -67,6 +112,14 @@ export default function EgitimVideosu({ kod, onIzlendi, className }: {
     dosyaVarMi(dosya.yol).then((ok) => { if (!iptal) setVar(ok); });
     return () => { iptal = true; };
   }, [dosya, dilUyar]);
+
+  useEffect(() => {
+    if (herZaman || !kod || !dilUyar || !kisi) return;
+    if (izlenenler(kisi).includes(kod)) return; // bu klibi sonuna kadar izledi: sayfada bir daha yok
+    let iptal = false;
+    ogrenmedeMi(kisi).then((ok) => { if (!iptal && ok) setIzinliKod(kod); });
+    return () => { iptal = true; };
+  }, [herZaman, kod, dilUyar, kisi]);
 
   const kapat = useCallback(() => {
     video.current?.pause();
@@ -85,7 +138,7 @@ export default function EgitimVideosu({ kod, onIzlendi, className }: {
     return () => window.removeEventListener('keydown', tus);
   }, [acik, kapat]);
 
-  if (!kod || !v || !dilUyar || !var_) return null;
+  if (!kod || !v || !dilUyar || !var_ || !izinli) return null;
 
   const dk = egitimDakika(kod);
   const baslik = t.egitim.video[v.baslik];
@@ -95,7 +148,11 @@ export default function EgitimVideosu({ kod, onIzlendi, className }: {
     if (!el) return;
     if (el.currentTime >= v.bit - 0.05) {
       el.pause();
-      if (!izlendi.current) { izlendi.current = true; onIzlendi?.(); }
+      if (!izlendi.current) {
+        izlendi.current = true;
+        if (kisi) izlendiYaz(kisi, kod); // nerede izlenirse izlensin (Yardım dahil) sayfadaki düğme kalkar
+        onIzlendi?.();
+      }
     }
   };
   const oynarken = () => {
@@ -107,8 +164,8 @@ export default function EgitimVideosu({ kod, onIzlendi, className }: {
     <>
       <button ref={acanDugme} type="button" onClick={() => setAcik(true)}
         aria-label={doldur(t.egitim.dugmeEtiket, { baslik, n: dk })} title={baslik}
-        className={`inline-flex min-h-[36px] items-center gap-1 whitespace-nowrap rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 ${className ?? ''}`}>
-        {doldur(t.egitim.dugme, { n: dk })}
+        className={`inline-flex min-h-[36px] items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 ${baslikli ? 'text-left' : 'whitespace-nowrap'} ${className ?? ''}`}>
+        {baslikli ? doldur(t.egitim.baslikliDugme, { baslik, n: dk }) : doldur(t.egitim.dugme, { n: dk })}
       </button>
       {acik && createPortal(
         <div role="dialog" aria-modal="true" aria-label={baslik}

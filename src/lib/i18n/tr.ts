@@ -660,7 +660,7 @@ export const tr = {
         ilkIsSon: 'Elinde Excel listesi varsa tek seferde aktarabilirsin.',
         kutuOn: 'Takıldığın an sol menüde',
         kutuVurgu: '“Nasıl Kullanılır?”',
-        kutuOrta: 'var — her ekranın ne işe yaradığı orada yazılı. Sağ alttaki',
+        kutuOrta: 'var — her ekranın ne işe yaradığı ve 1 dakikalık videoları orada. Sağ alttaki',
         kutuVurgu2: 'rehber',
         kutuSon: 'de ilk kurulumda sana adım adım eşlik eder.',
       },
@@ -726,6 +726,13 @@ export const tr = {
     ust: 'Eğitim videosu',
     kapat: 'Kapat',
     acilmadi: 'Video açılmadı. İnternet bağlantınızı kontrol edip yeniden deneyin.',
+    baslikliDugme: '▶ {baslik} · {n} dk',
+    // Yardım'daki liste: sayfalardaki düğmeler kişinin ilk günlerinden sonra kalkar, videolar burada kalır.
+    kutuphane: {
+      baslik: 'Eğitim videoları',
+      alt: 'Takıldığınız işin kısa videosu. Sayfalardaki ▶ düğmeleri ilk {gun} günden sonra kalkar, videolar burada kalır.',
+      grup: { servis: 'Servis', kiralik: 'Kiralama', magaza: 'Mağaza', teknisyen: 'Teknisyen' },
+    },
     video: {
       servisMusteri: 'Müşterileri sisteme alın',
       servisCihaz: 'Cihazları tanımlayın',

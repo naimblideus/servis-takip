@@ -174,9 +174,9 @@ export default function Onboarding() {
               </div>
             ))}
           </div>
-          {/* Bütün akış tek klipte (teknisyen); dosya yoksa düğme çıkmaz. */}
+          {/* Bütün akış tek klipte (teknisyen); dosya yoksa düğme çıkmaz. Karşılama bir kez çıkar: süre sınırı gerekmez. */}
           {ekip && ROL_TANITIM_VIDEOSU[ekip] && (
-            <div style={{ marginTop: '0.8rem' }}><EgitimVideosu kod={ROL_TANITIM_VIDEOSU[ekip]} /></div>
+            <div style={{ marginTop: '0.8rem' }}><EgitimVideosu kod={ROL_TANITIM_VIDEOSU[ekip]} herZaman /></div>
           )}
         </>
       ),
@@ -384,8 +384,9 @@ export default function Onboarding() {
                             <button onClick={() => setOpenHow(howOpen ? null : c.key)} style={{ padding: '0.3rem 0.6rem', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 }}>
                               {howOpen ? r.gizle : r.nasilYapilir}
                             </button>
-                            {/* Ekip adımı klibi sonuna kadar izlenince tamam sayılır; yöneticininki veriden sayılır. */}
-                            <EgitimVideosu kod={c.video} onIzlendi={ekip ? () => adimiIsaretle(c.key) : undefined} />
+                            {/* Ekip adımı klibi sonuna kadar izlenince tamam sayılır; yöneticininki veriden sayılır.
+                                Adım bitince satırla birlikte gider: süre sınırı gerekmez (herZaman). */}
+                            <EgitimVideosu kod={c.video} herZaman onIzlendi={ekip ? () => adimiIsaretle(c.key) : undefined} />
                           </div>
                         )}
                         {!done && howOpen && (

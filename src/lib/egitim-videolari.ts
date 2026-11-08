@@ -25,6 +25,18 @@
  * bölüm başlarında anahtar kare (atlama anında olsun). Videolarda yalnız
  * ÖRNEK veri var ("Gerçek ekran · demo verisi"): depo herkese açık.
  * Videolar Türkçe; arayüz başka dildeyse düğme çıkmaz (`dil`).
+ *
+ * ── ÖĞRENDİKTEN SONRA HER SEFERİNDE ÇIKMAZ ───────────────────────────────
+ * Video hiçbir yerde kendiliğinden açılmaz; yalnız düğme durur. Düğme nerede
+ * ne kadar durur:
+ *  - İlk giriş adımları (Başlangıç Rehberi, teknisyenin karşılama ekranı):
+ *    adım bitince adımla birlikte gider.
+ *  - Sayfalar (aktarma, Sayaç Turu, Faturalar, Mağaza): kişinin ilk
+ *    EGITIM_ACIK_GUN gününde. 45 gün: kim ayın hangi günü katılırsa katılsın
+ *    ilk ay sonu sayaç ve faturası içine girsin. Klibi sonuna kadar izleyen
+ *    kişide o düğme bir sonraki açılışta kalkar (`izlenenlereEkle`).
+ *    Süre kişinin hesabından sayılır: yeni gelen personel kendi 45 gününü alır.
+ *  - Yardım: her zaman, bütün klipler (unutulan adım).
  */
 import type { Dil } from './i18n/sozluk';
 
@@ -96,4 +108,29 @@ export function egitimDakika(kod: EgitimKodu): number {
 export function egitimKaynagi(kod: EgitimKodu): string {
   const v = EGITIM_VIDEOLARI[kod];
   return `${EGITIM_DOSYALARI[v.dosya].yol}#t=${v.bas},${v.bit}`;
+}
+
+/** Sayfalardaki düğmeler kişinin hesabı açıldıktan sonra bu kadar gün görünür. */
+export const EGITIM_ACIK_GUN = 45;
+
+/** Kişi öğrenme döneminde mi (hesabın açıldığı an → şimdi < 45 gün). Tarih okunamazsa evet. */
+export function egitimDonemindeMi(katilim: Date | string | number, simdi: number = Date.now()): boolean {
+  const an = new Date(katilim).getTime();
+  if (!Number.isFinite(an)) return true;
+  return simdi - an < EGITIM_ACIK_GUN * 86_400_000;
+}
+
+/**
+ * Sonuna kadar izlenen klibi listeye ekler; aynı videoda onun içinde kalan
+ * klipler de izlenmiş sayılır (teknisyenin tam klibini izleyen "Sayaç Turu"
+ * parçasını da gördü). Listede bilinmeyen kod varsa atılır.
+ */
+export function izlenenlereEkle(once: readonly unknown[], kod: EgitimKodu): EgitimKodu[] {
+  const v: EgitimVideo = EGITIM_VIDEOLARI[kod];
+  const sonra = new Set<EgitimKodu>(once.filter(egitimKoduMu));
+  for (const k of Object.keys(EGITIM_VIDEOLARI) as EgitimKodu[]) {
+    const w: EgitimVideo = EGITIM_VIDEOLARI[k];
+    if (w.dosya === v.dosya && w.bas >= v.bas && w.bit <= v.bit) sonra.add(k);
+  }
+  return [...sonra];
 }

@@ -692,6 +692,12 @@ export const en: Sozluk = {
     ust: 'Training video',
     kapat: 'Close',
     acilmadi: 'The video did not open. Check your internet connection and try again.',
+    baslikliDugme: '▶ {baslik} · {n} min',
+    kutuphane: {
+      baslik: 'Training videos',
+      alt: 'A short video for each task. The ▶ buttons on pages go away after your first {gun} days; the videos stay here.',
+      grup: { servis: 'Service', kiralik: 'Rentals', magaza: 'Store', teknisyen: 'Technician' },
+    },
     video: {
       servisMusteri: 'Bring in your customers',
       servisCihaz: 'Add your devices',

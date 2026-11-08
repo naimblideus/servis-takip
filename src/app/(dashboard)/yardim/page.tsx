@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n/client';
 import type { Sozluk } from '@/lib/i18n/sozluk';
 import { sorunBildirAc } from '@/components/SorunBildir';
 import EgitimVideosu from '@/components/EgitimVideosu';
+import EgitimKutuphanesi from '@/components/EgitimKutuphanesi';
 import type { EgitimKodu } from '@/lib/egitim-videolari';
 
 type BolumAnahtari = keyof Sozluk['yardim']['bolum'];
@@ -177,6 +178,10 @@ export default function YardimPage() {
         </div>
       </section>
 
+      {/* EĞİTİM VİDEOLARI — bütün klipler. Sayfalardaki "▶ 1 dk" düğmeleri kişinin
+          ilk 45 gününden sonra kalkar; unutulan adımın videosu burada kalır. */}
+      <EgitimKutuphanesi className="mt-5" />
+
       {/* AYRINTILI BÖLÜMLER */}
       <div className="mt-8 lg:grid lg:grid-cols-[210px_1fr] lg:gap-8">
         {/* İÇİNDEKİLER — 23 bölümü kaydırmadan gezmenin tek yolu. */}
@@ -231,7 +236,7 @@ export default function YardimPage() {
                           <span className="flex-1 text-[0.95rem] font-bold text-gray-900">{metin.baslik}</span>
                           <span className="text-lg text-gray-400">{isOpen ? '−' : '+'}</span>
                         </button>
-                        {b.video && <EgitimVideosu kod={b.video} className="mr-3 shrink-0" />}
+                        {b.video && <EgitimVideosu kod={b.video} herZaman className="mr-3 shrink-0" />}
                       </div>
                       {isOpen && (
                         <div className="border-t px-4 pb-4">
