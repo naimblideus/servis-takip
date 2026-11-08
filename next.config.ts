@@ -36,6 +36,12 @@ const nextConfig: NextConfig = {
       source: '/:path*',
       has: [{ type: 'host', value: '(www\\.)?nextusservis\\.com' }],
       headers: [{ key: 'Strict-Transport-Security', value: 'max-age=31536000' }],
+    }, {
+      // Eğitim videoları: ikinci izleyiş telefonun önbelleğinden açılsın, yeniden inmesin.
+      // Güvenli, çünkü adreste dosyanın içerik özeti var (?v=, lib/egitim-videolari
+      // egitimDosyaAdresi): video değişince adres değişir, eskisi gösterilmez.
+      source: '/egitim/:path*',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
     }];
   },
 };

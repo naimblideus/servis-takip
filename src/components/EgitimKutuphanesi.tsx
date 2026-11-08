@@ -5,7 +5,7 @@ import { useDil, useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import EgitimVideosu, { dosyaVarMi } from '@/components/EgitimVideosu';
 import {
-  EGITIM_ACIK_GUN, EGITIM_DOSYALARI, EGITIM_VIDEOLARI, type EgitimDosyasi, type EgitimKodu,
+  EGITIM_ACIK_GUN, EGITIM_DOSYALARI, EGITIM_VIDEOLARI, egitimDosyaAdresi, type EgitimDosyasi, type EgitimKodu,
 } from '@/lib/egitim-videolari';
 
 /**
@@ -30,7 +30,8 @@ export default function EgitimKutuphanesi({ className }: { className?: string })
   useEffect(() => {
     let iptal = false;
     const adaylar = GRUPLAR.filter((d) => EGITIM_DOSYALARI[d].dil === dil);
-    Promise.all(adaylar.map((d) => dosyaVarMi(EGITIM_DOSYALARI[d].yol))).then((ok) => {
+    // Düğmelerle aynı adres: dosya başına tek HEAD isteği (sonuç bellekte paylaşılır).
+    Promise.all(adaylar.map((d) => dosyaVarMi(egitimDosyaAdresi(d)))).then((ok) => {
       if (!iptal) setOlanlar(adaylar.filter((_, i) => ok[i]));
     });
     return () => { iptal = true; };

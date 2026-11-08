@@ -37,15 +37,31 @@
  *    kişide o düğme bir sonraki açılışta kalkar (`izlenenlereEkle`).
  *    Süre kişinin hesabından sayılır: yeni gelen personel kendi 45 gününü alır.
  *  - Yardım: her zaman, bütün klipler (unutulan adım).
+ *
+ * ── SİSTEMİ YAVAŞLATMAZ ──────────────────────────────────────────────────
+ *  - Video yalnız ▶'e basılınca iner: `<video>` pencere açılınca kurulur,
+ *    preload="none"; inen de dosyanın tamamı değil, izlenen bölüm (moov önde,
+ *    tarayıcı parça parça ister).
+ *  - İkinci izleyiş telefonun kendi önbelleğinden: adreste dosyanın içerik
+ *    özeti var (`surum`, ?v=) ve /egitim/ bir yıl önbellekte kalır
+ *    (next.config.ts). Video değişince özet, dolayısıyla adres değişir;
+ *    eskisi gösterilmez. scripts/test-egitim-videolari.mjs özeti dosyadan
+ *    hesaplayıp karşılaştırır.
+ *  - Telefona kurulan uygulamanın service worker'ı videolara karışmaz,
+ *    önceden indirmez (public/sw.js; test kilitliyor).
+ *  - Süresi dolan ya da klibi izleyen kişide sayfa hiçbir istek atmaz:
+ *    dönemin bitiş anı bir kez sorulur, tarayıcıda saklanır; dosya
+ *    kontrolü yalnız düğme gösterilecekse yapılır (EgitimVideosu).
  */
 import type { Dil } from './i18n/sozluk';
 
+/** `surum`: dosyanın SHA-256 özetinin ilk 8 hanesi (önbellek adresi; test denetler). */
 export const EGITIM_DOSYALARI = {
-  servis: { yol: '/egitim/servis-kurulum.mp4', sure: 286.85, dil: 'tr' },
-  kiralik: { yol: '/egitim/servis-kiralama.mp4', sure: 391.32, dil: 'tr' },
-  magaza: { yol: '/egitim/magaza-kurulum.mp4', sure: 385.34, dil: 'tr' },
-  teknisyen: { yol: '/egitim/teknisyen-telefonda.mp4', sure: 87.85, dil: 'tr' },
-} as const satisfies Record<string, { yol: string; sure: number; dil: Dil }>;
+  servis: { yol: '/egitim/servis-kurulum.mp4', sure: 286.85, dil: 'tr', surum: '9c1b90c9' },
+  kiralik: { yol: '/egitim/servis-kiralama.mp4', sure: 391.32, dil: 'tr', surum: '0781d475' },
+  magaza: { yol: '/egitim/magaza-kurulum.mp4', sure: 385.34, dil: 'tr', surum: 'f0bee205' },
+  teknisyen: { yol: '/egitim/teknisyen-telefonda.mp4', sure: 87.85, dil: 'tr', surum: '740a1c2d' },
+} as const satisfies Record<string, { yol: string; sure: number; dil: Dil; surum: string }>;
 
 export type EgitimDosyasi = keyof typeof EGITIM_DOSYALARI;
 
@@ -104,20 +120,31 @@ export function egitimDakika(kod: EgitimKodu): number {
   return Math.max(1, Math.round((v.bit - v.bas) / 60));
 }
 
+/** Dosyanın adresi, içerik özetiyle: video değişince adres de değişir (uzun önbellek güvenli). */
+export function egitimDosyaAdresi(dosya: EgitimDosyasi): string {
+  const d = EGITIM_DOSYALARI[dosya];
+  return `${d.yol}?v=${d.surum}`;
+}
+
 /** `<video src>`: dosya + bölüm (Media Fragments: tarayıcı baştan açar, sonda durur). */
 export function egitimKaynagi(kod: EgitimKodu): string {
   const v = EGITIM_VIDEOLARI[kod];
-  return `${EGITIM_DOSYALARI[v.dosya].yol}#t=${v.bas},${v.bit}`;
+  return `${egitimDosyaAdresi(v.dosya)}#t=${v.bas},${v.bit}`;
 }
 
 /** Sayfalardaki düğmeler kişinin hesabı açıldıktan sonra bu kadar gün görünür. */
 export const EGITIM_ACIK_GUN = 45;
 
+/** Öğrenme döneminin bittiği an (ms). Tarih okunamazsa null. */
+export function egitimDonemiBitisi(katilim: Date | string | number): number | null {
+  const an = new Date(katilim).getTime();
+  return Number.isFinite(an) ? an + EGITIM_ACIK_GUN * 86_400_000 : null;
+}
+
 /** Kişi öğrenme döneminde mi (hesabın açıldığı an → şimdi < 45 gün). Tarih okunamazsa evet. */
 export function egitimDonemindeMi(katilim: Date | string | number, simdi: number = Date.now()): boolean {
-  const an = new Date(katilim).getTime();
-  if (!Number.isFinite(an)) return true;
-  return simdi - an < EGITIM_ACIK_GUN * 86_400_000;
+  const bitis = egitimDonemiBitisi(katilim);
+  return bitis === null || simdi < bitis;
 }
 
 /**

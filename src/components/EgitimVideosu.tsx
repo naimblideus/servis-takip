@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useDil, useT } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import {
-  EGITIM_DOSYALARI, EGITIM_VIDEOLARI, egitimDakika, egitimKaynagi, izlenenlereEkle, type EgitimKodu,
+  EGITIM_DOSYALARI, EGITIM_VIDEOLARI, egitimDakika, egitimDosyaAdresi, egitimKaynagi, izlenenlereEkle, type EgitimKodu,
 } from '@/lib/egitim-videolari';
 
 /**
@@ -26,9 +26,16 @@ import {
  *
  * ── DOSYA YOKSA DÜĞME YOK ───────────────────────────────────────────────
  * Dosya bir kez HEAD ile sorulur (sayfa başına değil, dosya başına; sonuç
- * bellekte). Cevap gelene kadar da düğme çizilmez: basınca boş pencere açan
- * düğme, hiç olmayan düğmeden kötüdür. Video yalnız oynatılınca iner
- * (preload="none"); telefonda kota yemez.
+ * bellekte) ve YALNIZ düğme gösterilecekse: süresi dolan ya da klibi izleyen
+ * kişide hiç sorulmaz. Cevap gelene kadar da düğme çizilmez: basınca boş
+ * pencere açan düğme, hiç olmayan düğmeden kötüdür.
+ *
+ * ── SİSTEMİ YAVAŞLATMAZ ─────────────────────────────────────────────────
+ * Video yalnız ▶'e basılınca iner: <video> pencere açılınca kurulur,
+ * preload="none", inen de yalnız izlenen bölüm. Adreste içerik özeti var
+ * (egitimDosyaAdresi): ikinci izleyiş telefonun önbelleğinden açılır.
+ * Öğrenme döneminin bitiş anı kişi başına bir kez sorulur ve tarayıcıda
+ * saklanır; sonraki açılışlarda bu uca istek gitmez.
  *
  * ── BÖLÜMÜN DIŞINA TAŞMAZ ───────────────────────────────────────────────
  * `#t=bas,bit` tarayıcıya bölümü söyler ama yeniden "oynat"a basınca bazı
@@ -53,15 +60,28 @@ export function dosyaVarMi(yol: string): Promise<boolean> {
   return p;
 }
 
-// Kişi öğrenme döneminde mi: kişi başına bir kez sorulur (aynı sayfadaki iki düğme tek istek).
+// Kişi öğrenme döneminde mi. Dönemin bitiş anı kişi başına BİR KEZ sorulur ve
+// tarayıcıda saklanır: sonraki açılışlarda istek gitmez, süre dolunca da hiç
+// gitmez. Bitişi olmayan cevap (demo) saklanmaz, sayfa açılışı başına bir kez
+// sorulur (aynı sayfadaki iki düğme tek istek).
+const donemAnahtari = (kisi: string) => `nextus-egitim-donem:${kisi}`;
 const donemler = new Map<string, Promise<boolean>>();
 function ogrenmedeMi(kisi: string): Promise<boolean> {
+  try {
+    const kayit = JSON.parse(localStorage.getItem(donemAnahtari(kisi)) || 'null') as { bitis?: unknown } | null;
+    if (kayit && typeof kayit.bitis === 'number') return Promise.resolve(Date.now() < kayit.bitis);
+  } catch { /* özel sekme: uca sorulur */ }
   let p = donemler.get(kisi);
   if (!p) {
     p = fetch('/api/egitim/durum', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { ogrenmede?: unknown } | null) => d?.ogrenmede === true)
-      .catch(() => false);
+      .then((d: { ogrenmede?: unknown; bitis?: unknown } | null) => {
+        if (d && typeof d.bitis === 'number') {
+          try { localStorage.setItem(donemAnahtari(kisi), JSON.stringify({ bitis: d.bitis })); } catch { /* yoksay */ }
+        }
+        return d?.ogrenmede === true;
+      })
+      .catch(() => { donemler.delete(kisi); return false; }); // ağ yoksa sonraki açılışta yeniden sorulur
     donemler.set(kisi, p);
   }
   return p;
@@ -106,12 +126,14 @@ export default function EgitimVideosu({ kod, onIzlendi, herZaman = false, baslik
   const acanDugme = useRef<HTMLButtonElement>(null);
   const izlendi = useRef(false);
 
+  // Dosya yalnız düğme gösterilecekse sorulur (süresi dolan kişide istek yok).
+  const dosyaKodu = v?.dosya ?? null;
   useEffect(() => {
-    if (!dosya || !dilUyar) return;
+    if (!dosyaKodu || !dilUyar || !izinli) return;
     let iptal = false;
-    dosyaVarMi(dosya.yol).then((ok) => { if (!iptal) setVar(ok); });
+    dosyaVarMi(egitimDosyaAdresi(dosyaKodu)).then((ok) => { if (!iptal) setVar(ok); });
     return () => { iptal = true; };
-  }, [dosya, dilUyar]);
+  }, [dosyaKodu, dilUyar, izinli]);
 
   useEffect(() => {
     if (herZaman || !kod || !dilUyar || !kisi) return;

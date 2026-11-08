@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
 import { ucHatasi } from '@/lib/uc-hata';
-import { egitimDonemindeMi } from '@/lib/egitim-videolari';
+import { egitimDonemiBitisi, egitimDonemindeMi } from '@/lib/egitim-videolari';
 
 /**
  * GET /api/egitim/durum — sayfalardaki "▶ 1 dk" düğmeleri bu kişiye hâlâ
@@ -13,7 +13,10 @@ import { egitimDonemindeMi } from '@/lib/egitim-videolari';
  * EGITIM_ACIK_GUN); sonra düğmeler yalnız Yardım'da ve ilk giriş adımlarında.
  * Süre KİŞİDEN sayılır, bayiden değil: sonradan gelen teknisyen kendi 45
  * gününü alır, yıllardır kullanan sahibin ekranı dolmaz.
- * Demo bayisinde hep evet: orayı gezen herkes yeni.
+ *
+ * `bitis`: dönemin bittiği an (ms). Tarayıcı bunu saklar ve bir daha sormaz;
+ * böylece her sayfa açılışında bu uca istek gitmez. Demo bayisinde hep evet
+ * (gezen herkes yeni) ve bitis yok: saklanmaz.
  */
 export async function GET() {
   const session = await auth();
@@ -25,6 +28,10 @@ export async function GET() {
     select: { createdAt: true, tenant: { select: { demo: true } } },
   });
   // Kayıt bulunamazsa düğme çıkmaz.
-  const ogrenmede = user ? Boolean(user.tenant?.demo) || egitimDonemindeMi(user.createdAt) : false;
-  return NextResponse.json({ ogrenmede });
+  if (!user) return NextResponse.json({ ogrenmede: false, bitis: null });
+  const demo = Boolean(user.tenant?.demo);
+  return NextResponse.json({
+    ogrenmede: demo || egitimDonemindeMi(user.createdAt),
+    bitis: demo ? null : egitimDonemiBitisi(user.createdAt),
+  });
 }

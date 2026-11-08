@@ -14,8 +14,12 @@
 //   · teknisyenin adımlarında yalnız teknisyen klibi var (para ekranı klibi yok);
 //   · öğrendikten sonra her seferinde çıkmaz: sayfa düğmeleri kişinin ilk 45
 //     gününde ve izlenene kadar; ilk giriş adımı ve Yardım kalıcı; Yardım'daki
-//     liste bütün klipleri taşır (45 günden sonra hiçbir klip ulaşılamaz kalmasın).
+//     liste bütün klipleri taşır (45 günden sonra hiçbir klip ulaşılamaz kalmasın);
+//   · sistemi yavaşlatmaz: adresteki özet dosyanınki (uzun önbellek güvenli),
+//     /egitim/ bir yıl önbellekte, service worker videoya karışmaz, süresi
+//     dolan kişide uç bir daha sorulmaz, dosya yalnız düğme gösterilecekse sorulur.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { derle, KOK } from './_derle.mjs';
 
@@ -113,6 +117,10 @@ for (const [ad, d] of Object.entries(DOSYALAR)) {
   const mbDk = m.bayt / 1e6 / (m.sure / 60);
   t(`${ad}: dakikası en çok 1,3 MB (${mbDk.toFixed(2)} MB/dk)`, mbDk <= 1.3, mbDk);
   t(`${ad}: dil tanımlı`, d.dil === 'tr' || d.dil === 'en', d.dil);
+  // Adres bir yıl önbellekte kalıyor: video değişip özet değişmezse telefonlar eskisini oynatırdı.
+  const ozet = createHash('sha256').update(readFileSync(yol)).digest('hex').slice(0, 8);
+  t(`★ ${ad}: adresteki özet dosyanınki (surum ${d.surum} = ${ozet})`, d.surum === ozet, { surum: d.surum, dosya: ozet });
+  t(`${ad}: adres özetli (${ev.egitimDosyaAdresi(ad)})`, ev.egitimDosyaAdresi(ad) === `${d.yol}?v=${d.surum}`);
 }
 // Depo herkese açık ve her push canlıya gidiyor: klasör sessizce şişmesin.
 const klasor = join(KOK, 'public', 'egitim');
@@ -128,7 +136,7 @@ for (const [kod, v] of Object.entries(VIDEOLAR)) {
   if (!d) continue;
   t(`★ ${kod}: 0 ≤ bas < bit ≤ süre (${v.bas} → ${v.bit} / ${d.sure})`, v.bas >= 0 && v.bas < v.bit && v.bit <= d.sure + 0.01, [v.bas, v.bit, d.sure]);
   t(`${kod}: en az 8 sn (bölüm, kırpıntı değil)`, v.bit - v.bas >= 8, v.bit - v.bas);
-  t(`${kod}: kaynak "${ev.egitimKaynagi(kod)}"`, ev.egitimKaynagi(kod) === `${d.yol}#t=${v.bas},${v.bit}`);
+  t(`${kod}: kaynak "${ev.egitimKaynagi(kod)}"`, ev.egitimKaynagi(kod) === `${d.yol}?v=${d.surum}#t=${v.bas},${v.bit}`);
   const dk = ev.egitimDakika(kod);
   t(`${kod}: düğmede ${dk} dk (en az 1, gerçek süreye yakın)`, dk >= 1 && Math.abs(dk * 60 - (v.bit - v.bas)) <= 45, [dk, v.bit - v.bas]);
   const m = olcu[v.dosya];
@@ -253,8 +261,10 @@ t('★ uç var: /api/egitim/durum', uc.length > 0);
 t('oturumsuz istek 401 (OTURUM_BULUNAMADI)', /ucHatasi\('OTURUM_BULUNAMADI', 401\)/.test(uc));
 t('kişi kendi bayisinde aranır (bayiSuzgeci)', /bayiSuzgeci\(session\)/.test(uc));
 t('★ süre KİŞİNİN hesabından sayılır (createdAt → egitimDonemindeMi)', /egitimDonemindeMi\(user\.createdAt\)/.test(uc));
-t('demo bayisinde düğmeler hep açık (gezen herkes yeni)', /tenant\?\.demo/.test(uc));
-t('cevap tek alan: ogrenmede', /NextResponse\.json\(\{ ogrenmede \}\)/.test(uc));
+t('demo bayisinde düğmeler hep açık (gezen herkes yeni)', /tenant\?\.demo/.test(uc) && /ogrenmede: demo \|\| egitimDonemindeMi\(user\.createdAt\)/.test(uc));
+t('★ uç dönemin bitiş anını verir (tarayıcı saklar, bir daha sormaz); demoda yok',
+  /bitis: demo \? null : egitimDonemiBitisi\(user\.createdAt\)/.test(uc));
+t(`dönem bitişi = hesabın açılışı + ${ev.EGITIM_ACIK_GUN} gün`, ev.egitimDonemiBitisi(simdi) === simdi + ev.EGITIM_ACIK_GUN * GUN && ev.egitimDonemiBitisi('bozuk') === null);
 
 t('★ bileşen sayfa düğmesi için ucu kişi başına bir kez sorar', /fetch\('\/api\/egitim\/durum'/.test(bil) && /donemler\.get\(kisi\)/.test(bil));
 t('izlenenler kişiye özel anahtarla tarayıcıda', /nextus-egitim-izlenen:\$\{kisi\}/.test(bil));
@@ -263,6 +273,27 @@ t('izlenmiş klibin sayfa düğmesi sorulmadan gizli', /izlenenler\(kisi\)\.incl
 t('★ izlerken düğme kaybolmaz: izin yalnız ekrana gelirken verilir (setIzinliKod tek yerde)',
   (bil.match(/setIzinliKod\(/g) || []).length === 1, (bil.match(/setIzinliKod\(/g) || []).length);
 t('kalıcı düğme süreye bakmaz (herZaman)', /const izinli = herZaman \|\|/.test(bil));
+
+console.log('\n★ SİSTEMİ YAVAŞLATMAZ\n');
+t('★ video yalnız pencere açılınca kurulur (düğmeden önce <video> yok)',
+  /\{acik && createPortal\(/.test(bil) && (bil.match(/<video ref=/g) || []).length === 1 && bil.indexOf('<video ref=') > bil.indexOf('{acik && createPortal('));
+t('★ dönemin bitişi tarayıcıda saklanır, saklıysa uca gidilmez',
+  /nextus-egitim-donem:\$\{kisi\}/.test(bil) && /typeof kayit\.bitis === 'number'\) return Promise\.resolve\(Date\.now\(\) < kayit\.bitis\)/.test(bil));
+t('★ dosya yalnız düğme gösterilecekse sorulur (süresi dolanda HEAD yok)', /if \(!dosyaKodu \|\| !dilUyar \|\| !izinli\) return;/.test(bil));
+t('düğme ve liste aynı özetli adresi sorar (dosya başına tek HEAD)',
+  /dosyaVarMi\(egitimDosyaAdresi\(dosyaKodu\)\)/.test(bil) && /dosyaVarMi\(egitimDosyaAdresi\(d\)\)/.test(kut));
+const ayar = readFileSync(join(KOK, 'next.config.ts'), 'utf8');
+t('★ /egitim/ bir yıl önbellekte (ikinci izleyiş telefondan açılır)',
+  /source: '\/egitim\/:path\*',\s*headers: \[\{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' \}\]/.test(ayar));
+const sw = readFileSync(join(KOK, 'public/sw.js'), 'utf8');
+const statikGovde = sw.match(/const statikMi = \(u\) =>([\s\S]*?);\r?\n/);
+let statikMi = null;
+// Parantez şart: gövde satır sonuyla başlıyor, "return" yalnız kalırsa boş döner.
+try { statikMi = statikGovde ? new Function('u', `return (${statikGovde[1]});`) : null; } catch { /* aşağıda kalır */ }
+const videoAdresi = new URL(`https://ornek.local${ev.egitimDosyaAdresi('servis')}`);
+t('★ service worker videoyu önbelleğe almaz (statikMi .mp4 için hayır)', !!statikMi && statikMi(videoAdresi) === false && statikMi(new URL('https://ornek.local/icon-192.png')) === true);
+const onceden = sw.match(/const ONCEDEN = \[[^\]]*\]/);
+t('★ service worker videoyu önceden indirmez (kurulum listesinde yok)', !!onceden && !/egitim|\.mp4/.test(onceden[0]), onceden?.[0]);
 
 temizle();
 console.log(`\n${gecti} geçti, ${kaldi} kaldı`);
