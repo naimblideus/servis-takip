@@ -13,6 +13,8 @@ import { UYARI_TURU, UYARI_KATEGORISI, TONER_KRITIK, PARCA_KRITIK, DURUM_TAZE_MS
 import { uyariGecmisi } from '@/lib/sayac-tarama-veri';
 import { parcaOmruVerisi } from '@/lib/parca-omru-veri';
 import ParcaOmruSatiri from '@/components/ParcaOmruSatiri';
+import CihazTanimla from '@/components/CihazTanimla';
+import { cihazTanimlanmali, seriBekliyor } from '@/lib/gecici-kimlik';
 
 // statusLabel and priorityLabel removed — replaced with counter columns
 
@@ -144,8 +146,15 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
             }} />
           </div>
         </div>
-        <p style={{ color: '#6b7280' }}>{doldur(sz.cihaz.seriNoEtiket, { n: device.serialNo })}</p>
+        <p style={{ color: '#6b7280' }}>{doldur(sz.cihaz.seriNoEtiket, { n: seriBekliyor(device.serialNo) ? sz.fisYeni.seriBekliyor : device.serialNo })}</p>
       </div>
+
+      {/* Seri no'su ya da modeli bilinmeyen cihaz: teknisyen sahada tamamlar. */}
+      {cihazTanimlanmali(device) && (
+        <div style={{ marginBottom: '1rem' }}>
+          <CihazTanimla cihaz={{ id: device.id, serialNo: device.serialNo, brand: device.brand, model: device.model, isRental: device.isRental }} />
+        </div>
+      )}
 
       {/* Cihaz + Müşteri + Kiralık Bilgisi */}
       {/* auto-fit: kiralık cihazda üç kart 375 px'e sığmıyordu, "Kira
@@ -157,7 +166,7 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
           {[
             [sz.fisYeni.marka, device.brand],
             [sz.fisYeni.model, device.model],
-            [sz.fisDetay.seriNo, device.serialNo],
+            [sz.fisDetay.seriNo, seriBekliyor(device.serialNo) ? sz.fisYeni.seriBekliyor : device.serialNo],
             [sz.cihaz.sayacSiyah, device.counterBlack ? b.sayi(device.counterBlack) : '-'],
             [sz.cihaz.sayacRenkli, device.counterColor ? b.sayi(device.counterColor) : '-'],
             [sz.fisDetay.konum, device.location || '-'],

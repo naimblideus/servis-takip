@@ -1973,6 +1973,21 @@ export const en: Sozluk = {
     odemeTarih: ' ({n})',
   },
 
+  cihazTanimla: {
+    baslik: 'Identify the device',
+    aciklama: 'This device was opened without details over the phone. Scan or type the serial number on its label; device e-mail and the network scanner recognise the device by this number.',
+    seri: 'Serial number',
+    seriYer: 'Serial no on the label',
+    marka: 'Brand',
+    model: 'Model',
+    kiralikMi: 'Is it a rental?',
+    evet: 'Yes, rental',
+    hayir: 'No',
+    kiraNot: 'The manager enters the rent; if it is missing, the Invoices screen asks for it at month end.',
+    kaydet: 'Save device',
+    kaydedildi: '✓ Device identified.',
+    bos: 'Enter at least one of serial no, brand or model.',
+  },
   rehberEkle: {
     baslik: 'Add customers from contacts',
     aciklama: 'If your customers are in your phone’s contacts, you don’t need a list: pick them from your contacts and they are added as customers. For a contact with a company name, the customer is the company and the person is saved as the contact.',

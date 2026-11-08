@@ -113,6 +113,17 @@ try {
   const modal = fis.slice(fis.indexOf('function QuickAddDeviceModal'), fis.indexOf('// ─── Ana Sayfa'));
   t('★ hızlı cihazda marka, model, seri zorunlu değil', !/<input required/.test(modal), modal.match(/<input required[^>]*/g));
   t('yeni müşteri kutusunda Enter fişi göndermez', /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); yeniMusteriKaydet\(\); \}/.test(fis));
+  console.log('\n★ CİHAZI SAHADA TANIMLA (kaynak)\n');
+  const kart = oku('src/components/CihazTanimla.tsx');
+  t('★ "Kiralık mı" yalnız değişirse gönderilir (Excel\'den gelen kira silinmez)', /if \(kiralik !== cihaz\.isRental\) govde\.isRental = kiralik;/.test(kart));
+  t('kamerayla seri okutma var, boş seri gönderilmez', /<CameraScanner onDetect=/.test(kart) && /if \(seri\.trim\(\)\) govde\.serialNo/.test(kart));
+  const fisDetay = oku('src/app/(dashboard)/tickets/[id]/page.tsx');
+  const cihazDetay = oku('src/app/(dashboard)/devices/[id]/page.tsx');
+  t('fiş detayında ve cihaz kartında, yalnız tanımlanması gereken cihazda görünür',
+    /cihazTanimlanmali\(ticket\.device\) && \(/.test(fisDetay) && /cihazTanimlanmali\(device\) && \(/.test(cihazDetay));
+  t('geçici seri ekranda "Seri no bekliyor" yazar', /seriBekliyor\(ticket\.device\.serialNo\) \? sz\.fisYeni\.seriBekliyor/.test(fisDetay));
+  t('cihaz güncellemede seri çakışması kodlu hata', /'BARKOD_KAYITLI' : 'SERI_KAYITLI', 409\)/.test(oku('src/app/api/devices/[id]/route.ts')));
+
   const tr = oku('src/lib/i18n/tr.ts');
   t('ilk adım Excel\'e değil müşterilere gider', /key: 'hasCustomers', icon: '👤', href: '\/customers'/.test(oku('src/components/Onboarding.tsx')));
   t('kurulum CIHAZ adımı müşterilere gider', /CIHAZ: '\/customers'/.test(oku('src/lib/kurulum.ts')));

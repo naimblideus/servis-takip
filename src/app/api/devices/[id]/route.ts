@@ -89,8 +89,9 @@ export async function PATCH(
     } catch (e: any) {
         console.error('DEVICE UPDATE ERROR:', e.message);
         if (e.code === 'P2002') {
+            // Sahada okutulan seri başka bir cihazdaysa kodlu hata: "Cihazı tanımla" kartı söyler.
             const f = (e.meta?.target || []).join(',');
-            return NextResponse.json({ error: f.includes('barcode') ? 'Bu barkod başka bir cihaza atanmış (model-bazlı barkod olabilir; seri no kullanın)' : 'Bu seri no zaten kayıtlı' }, { status: 409 });
+            return ucHatasi(f.includes('barcode') ? 'BARKOD_KAYITLI' : 'SERI_KAYITLI', 409);
         }
         return NextResponse.json({ error: e.message }, { status: 500 });
     }

@@ -2055,6 +2055,21 @@ export const tr = {
   },
 
   // Müşteri ekleme + müşteri detayı.
+  cihazTanimla: {
+    baslik: 'Cihazı tanımla',
+    aciklama: 'Bu cihaz telefonda bilinmeden açıldı. Etiketteki seri numarasını okutun ya da yazın; sayaç e-postası ve ağ tarayıcı cihazı bu numarayla tanır.',
+    seri: 'Seri numarası',
+    seriYer: 'Etiketteki seri no',
+    marka: 'Marka',
+    model: 'Model',
+    kiralikMi: 'Kiralık mı?',
+    evet: 'Evet, kiralık',
+    hayir: 'Hayır',
+    kiraNot: 'Kira bilgisini yönetici girer; eksikse ay sonunda Faturalar ekranında sorulur.',
+    kaydet: 'Cihazı kaydet',
+    kaydedildi: '✓ Cihaz tanımlandı.',
+    bos: 'Seri no, marka ya da modelden en az birini girin.',
+  },
   rehberEkle: {
     baslik: 'Rehberden müşteri ekle',
     aciklama: 'Müşterileriniz telefonunuzun rehberindeyse liste hazırlamanıza gerek yok: rehberden seçin, müşteri olarak eklensin. Firma adı yazılı kişide müşteri adı firma olur, kişi yetkili olarak kaydedilir.',

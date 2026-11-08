@@ -16,6 +16,8 @@ import { oturumKullanicisi } from '@/lib/api-auth';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
 import { telefonGoster, telefonYok } from '@/lib/telefon';
+import { cihazTanimlanmali, seriBekliyor } from '@/lib/gecici-kimlik';
+import CihazTanimla from '@/components/CihazTanimla';
 
 // Etiketler sözlükte (durum.fisKisa); burada yalnız renk.
 const statusRenk: Record<string, { color: string; text: string }> = {
@@ -223,7 +225,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             [sz.genel.musteri, ticket.device.customer.name],
             [sz.fisDetay.telefon, telefonGoster(ticket.device.customer.phone, '—')],
             [sz.genel.cihaz, `${ticket.device.brand} ${ticket.device.model}`],
-            [sz.fisDetay.seriNo, ticket.device.serialNo],
+            [sz.fisDetay.seriNo, seriBekliyor(ticket.device.serialNo) ? sz.fisYeni.seriBekliyor : ticket.device.serialNo],
             [sz.fisDetay.konum, ticket.device.location || '-'],
           ].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.875rem' }}>
@@ -236,6 +238,13 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             <span style={{ color: '#d1d5db' }}>|</span>
             <Link href={`/customers/${ticket.device.customer.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', textDecoration: 'none' }}>{sz.fisDetay.musteriDetayi}</Link>
           </div>
+
+          {/* Telefonda "bilmiyorum" diye açılan cihaz: teknisyen sahada tanımlar. */}
+          {cihazTanimlanmali(ticket.device) && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <CihazTanimla cihaz={{ id: ticket.device.id, serialNo: ticket.device.serialNo, brand: ticket.device.brand, model: ticket.device.model, isRental: ticket.device.isRental }} />
+            </div>
+          )}
 
           {/* Mobil iletişim aksiyonları */}
           <ContactActions phone={ticket.device.customer.phone} address={ticket.device.customer.address} />
