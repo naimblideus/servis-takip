@@ -240,6 +240,11 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
         </div>
       )}
 
+      {/* Sayaç okumaları — bilgi kartlarının hemen altında. En alttaydı: cihaz
+          eklenince bu sayfaya gelen bayi toner, parça ömrü ve fişlerin altına
+          inmeden sayaç giremiyordu; Kaçan Gelir'deki rakam sayaçla çıkar. */}
+      <CounterReadingPanel deviceId={device.id} />
+
       {/* Cihazdan ölçülen durum — yazıcının kendi söylediği (Ağ Tarayıcı) */}
       {olcumAt && (
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.25rem 1.5rem', marginTop: '1rem', border: '1px solid #bae6fd' }}>
@@ -414,9 +419,6 @@ export default async function DeviceDetailPage({ params }: { params: Promise<{ i
           </p>
         )}
       </div>
-
-      {/* Sayaç Okumalar */}
-      <CounterReadingPanel deviceId={device.id} />
     </div>
   );
 }

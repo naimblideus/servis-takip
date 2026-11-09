@@ -552,8 +552,8 @@ export const tr = {
     simdilikGec: 'Şimdilik geç',
     geri: '← Geri',
     ileri: 'İleri →',
-    excelAktar: 'Excel’den aktar',
-    musteriEkle: 'Müşteri ekle →',
+    listemVar: 'Müşteri listemi ekle',
+    fisAc: 'İlk fişi aç →',
     tebrik: 'Tebrikler, hepsini tamamladınız! 🎉',
     ilerleme: '{n}/{toplam} adım tamamlandı — sırayla ilerleyin',
     gizle: '▲ Gizle',
@@ -578,7 +578,7 @@ export const tr = {
         ],
       },
       hasDevices: {
-        title: '2. Cihazları tanımla',
+        title: '3. Cihazları tanımla',
         desc: 'Müşterinin yazıcısını ekle. Kiralıksa sayaç ve aylık kira buradan işler.',
         cta: 'Cihazlar',
         how: [
@@ -589,7 +589,7 @@ export const tr = {
         ],
       },
       hasInventory: {
-        title: '3. Stoğuna parça ekle',
+        title: '6. Stoğuna parça ekle',
         desc: 'Toner, drum, yedek parça gir. Barkodu varsa okuyucuyla okutarak hızlıca bulabilirsin.',
         cta: 'Stok',
         how: [
@@ -599,7 +599,7 @@ export const tr = {
         ],
       },
       hasTickets: {
-        title: '4. İlk servis fişini aç',
+        title: '2. İlk servis fişini aç',
         desc: 'Arıza/bakım geldiğinde fiş oluştur, kullanılan parçaları ekle (barkodla okutabilirsin), işçilik gir.',
         cta: 'Yeni Fiş',
         how: [
@@ -609,7 +609,7 @@ export const tr = {
         ],
       },
       hasInvoices: {
-        title: '5. Sayaçları oku ve faturala',
+        title: '4. Sayaçları oku ve faturala',
         desc: 'Ayda bir: sayaçları topluca oku, sonra tek tıkla faturala.',
         cta: 'Sayaç Turu',
         how: [
@@ -621,7 +621,7 @@ export const tr = {
         ],
       },
       hasCollections: {
-        title: '6. Tahsilatını al ve borcu takip et',
+        title: '5. Tahsilatını al ve borcu takip et',
         desc: 'Para geldiğinde gir; borç kendiliğinden düşer. Ödemeyenlere toplu hatırlatma gönder.',
         cta: 'Muhasebe',
         how: [
@@ -634,7 +634,6 @@ export const tr = {
     },
     sihirbaz: {
       zincir: {
-        title: 'Sistem tek bir zincir',
         ogeler: [
           ['Müşteri', 'kime hizmet veriyorsun'],
           ['Cihaz', 'onun yazıcısı (kiralıksa sayaç + kira)'],
@@ -643,22 +642,11 @@ export const tr = {
         ],
         son: 'Hepsi bu. Müşteriyi ve cihazı bir kere kaydedersin; gerisi her fişte kendiliğinden bağlanır.',
       },
-      gunluk: {
-        title: 'Günde yaptığın 3 şey',
-        ogeler: [
-          ['Arıza gelince', 'Yeni Fiş aç — parçayı barkoddan okut, işi yaz, teslim et.'],
-          ['Ayda bir', 'Sayaç Turu — müşteriyi seç, tüm cihazların sayacını tek listede gir.'],
-          ['Para gelince', 'Muhasebe — tahsilatı gir, borç kendiliğinden düşer.'],
-        ],
-        sonOn: 'Fatura, cari hesap ve borç takibini',
-        sonVurgu: 'sistem kendi yapar',
-        sonSon: '— sen girmezsin.',
-      },
       hazir: {
-        title: 'Hazırsın',
+        title: 'Hoş geldin',
         ilkIsOn: 'İlk iş:',
-        ilkIsVurgu: 'müşterilerini sisteme al.',
-        ilkIsSon: 'Elinde Excel listesi varsa tek seferde aktarabilirsin.',
+        ilkIsVurgu: 'ilk gelen arızayı fiş olarak aç.',
+        ilkIsSon: 'Müşteri ve cihaz fişin içinde açılır. Listen varsa rehberden ya da Excel’den de ekleyebilirsin.',
         kutuOn: 'Takıldığın an sol menüde',
         kutuVurgu: '“Nasıl Kullanılır?”',
         kutuOrta: 'var — her ekranın ne işe yaradığı ve 1 dakikalık videoları orada. Sağ alttaki',

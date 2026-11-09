@@ -74,13 +74,16 @@ console.log('\n★ ADIMLAR VERİDEN\n');
 {
   const s = k.kurulumDurumu(bos(), once(3));
   t('13 adım, 5 zorunlu', s.adimlar.length === 13 && s.zorunluToplam === 5);
-  t('boş bayi: sıradaki adım FIRMA', s.sonrakiAdim?.kod === 'FIRMA', s.sonrakiAdim);
+  t('boş bayi: sıradaki adım CIHAZ (firma bilgisi faturadan önce istenir)', s.sonrakiAdim?.kod === 'CIHAZ', s.sonrakiAdim);
+  const firmasiz = k.kurulumDurumu({ ...tam(), firma: { vergiNo: false, adres: false, telefon: true }, faturaSayisi: 0, ilkFatura: null }, once(3));
+  t('★ cihaz, fiyat, sayaç tamam → sırada FIRMA, sonra FATURA', firmasiz.sonrakiAdim?.kod === 'FIRMA', firmasiz.sonrakiAdim);
+  t('firma eksikken Hazır değil (zorunluluk değişmedi)', !k.kurulumDurumu({ ...tam(), firma: { vergiNo: false, adres: true, telefon: true } }, once(30)).hazir);
   t('★ kiralık yoksa FIYAT ve SAYAC gerekmez (UYGULANMAZ)', adimi(s, 'FIYAT').durum === 'UYGULANMAZ' && adimi(s, 'SAYAC').durum === 'UYGULANMAZ');
   t('gerekmeyen adımlar n/5 içinde sayılır: 2/5', s.zorunluTamam === 2, s.zorunluTamam);
   t('boş bayi Hazır değil, hazır günü yok', !s.hazir && s.hazirGunu === null);
 
   const f = k.kurulumDurumu({ ...bos(), firma: { vergiNo: true, adres: false, telefon: true } }, once(3));
-  t('firma 2/3 → KISMEN, yine sıradaki', adimi(f, 'FIRMA').durum === 'KISMEN' && f.sonrakiAdim?.kod === 'FIRMA');
+  t('firma 2/3 → KISMEN', adimi(f, 'FIRMA').durum === 'KISMEN');
 
   const oran = (fiyatli) => adimi(k.kurulumDurumu({ ...tam(), fiyatliKiralik: fiyatli }, once(30)), 'FIYAT').durum;
   t('★ fiyat 8/10 (%80) → TAMAM', oran(8) === 'TAMAM');

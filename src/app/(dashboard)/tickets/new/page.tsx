@@ -9,6 +9,7 @@ import TicketProgress from '@/components/TicketProgress';
 import FaultInsight, { type FaultHistory } from '@/components/FaultInsight';
 import CihazUyarilari from '@/components/CihazUyarilari';
 import SaveSuccess from '@/components/SaveSuccess';
+import YeniMusteriKutusu, { aramadanIlk } from '@/components/YeniMusteriKutusu';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { parseFaultCategory } from '@/lib/fault-categories';
@@ -374,33 +375,14 @@ export default function NewTicketPage() {
   // Kaydı olmayan bayide ilk haftaların her çağrısı "yeni müşteri". Eskiden
   // arama boş dönünce hiçbir şey çıkmıyordu; tezgah fişi bırakıp müşteri
   // sayfasına gidiyordu. Artık yalnız telefon sorulur.
+  // Kutu ve kayıt: components/YeniMusteriKutusu (cihaz formu da kullanır).
   const [yeniMusteri, setYeniMusteri] = useState<{ ad: string; telefon: string } | null>(null);
-  const [yeniKaydediliyor, setYeniKaydediliyor] = useState(false);
-  const [yeniHata, setYeniHata] = useState<string | null>(null);
-  const yeniMusteriKaydet = async () => {
-    if (!yeniMusteri || yeniKaydediliyor) return;
-    setYeniHata(null);
-    setYeniKaydediliyor(true);
-    try {
-      const r = await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: yeniMusteri.ad, phone: yeniMusteri.telefon }),
-      });
-      const d = await r.json().catch(() => ({}));
-      const kayit = r.ok ? d : d.kod === 'MUSTERI_TELEFON_KAYITLI' ? d.musteri : null;
-      if (!kayit?.id) { setYeniHata(d.error || sz.genel.baglantiHatasi); return; }
-      const c: Customer = { id: kayit.id, name: kayit.name, phone: kayit.phone, address: kayit.address ?? null };
-      setCustomers(p => (p.some(x => x.id === c.id) ? p : [...p, c]));
-      selectCustomer(c);
-      setYeniMusteri(null);
-      // Numara başka bir adla kayıtlıysa o seçildi: tezgah bunu bilmeli.
-      if (!r.ok) setScanMsg({ text: doldur(sz.fisYeni.musteriVardi, { ad: c.name }), ok: true });
-    } catch {
-      setYeniHata(sz.genel.baglantiHatasi);
-    } finally {
-      setYeniKaydediliyor(false);
-    }
+  const yeniMusteriSecildi = (c: Customer, vardi: boolean) => {
+    setCustomers(p => (p.some(x => x.id === c.id) ? p : [...p, c]));
+    selectCustomer(c);
+    setYeniMusteri(null);
+    // Numara başka bir adla kayıtlıysa o seçildi: tezgah bunu bilmeli.
+    if (vardi) setScanMsg({ text: doldur(sz.fisYeni.musteriVardi, { ad: c.name }), ok: true });
   };
 
   // Hızlı cihaz ekleme tamamlandı → listeye ekle + seç
@@ -578,11 +560,8 @@ export default function NewTicketPage() {
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    // Numara yazarak aradıysa numara telefona, ad boş gelir.
-                    const q = customerSearch.trim();
-                    const numara = /^[\d\s+()-]{7,}$/.test(q);
-                    setYeniMusteri({ ad: numara ? '' : q, telefon: numara ? q : '' });
-                    setYeniHata(null); setShowDropdown(false);
+                    setYeniMusteri(aramadanIlk(customerSearch));
+                    setShowDropdown(false);
                   }}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (e.currentTarget as HTMLElement).click(); } }}
                   style={{ padding: '0.6rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: '#15803d', background: '#f0fdf4' }}
@@ -594,35 +573,7 @@ export default function NewTicketPage() {
           </div>
 
           {yeniMusteri && (
-            <div style={{ marginBottom: '1rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.5rem', padding: '0.9rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-                <div>
-                  <label style={label}>{sz.fisYeni.musteriAdi}</label>
-                  <input style={input} value={yeniMusteri.ad} autoFocus={!yeniMusteri.ad}
-                    onChange={e => setYeniMusteri({ ...yeniMusteri, ad: e.target.value })}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); yeniMusteriKaydet(); } }} />
-                </div>
-                <div>
-                  <label style={label}>{sz.fisDetay.telefon}</label>
-                  {/* Enter fişi göndermesin: bu kutu fiş formunun içinde. */}
-                  <input style={input} type="tel" inputMode="tel" autoComplete="off" autoFocus={!!yeniMusteri.ad} value={yeniMusteri.telefon}
-                    placeholder={sz.musteri.telefonYer}
-                    onChange={e => setYeniMusteri({ ...yeniMusteri, telefon: e.target.value })}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); yeniMusteriKaydet(); } }} />
-                </div>
-              </div>
-              {yeniHata && <p role="alert" style={{ color: '#b91c1c', fontSize: '0.8rem', marginTop: '0.5rem' }}>{yeniHata}</p>}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                <button type="button" onClick={yeniMusteriKaydet} disabled={yeniKaydediliyor || !yeniMusteri.ad.trim() || !yeniMusteri.telefon.trim()}
-                  style={{ padding: '0.55rem 1.1rem', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', opacity: yeniKaydediliyor || !yeniMusteri.ad.trim() || !yeniMusteri.telefon.trim() ? 0.6 : 1 }}>
-                  {yeniKaydediliyor ? sz.genel.kaydediliyor : sz.fisYeni.yeniMusteriKaydet}
-                </button>
-                <button type="button" onClick={() => { setYeniMusteri(null); setYeniHata(null); }}
-                  style={{ padding: '0.55rem 1rem', border: '1px solid #d1d5db', backgroundColor: 'white', borderRadius: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>
-                  {sz.genel.iptal}
-                </button>
-              </div>
-            </div>
+            <YeniMusteriKutusu ilk={yeniMusteri} onSecildi={yeniMusteriSecildi} onIptal={() => setYeniMusteri(null)} />
           )}
 
           {selectedCustomer && (

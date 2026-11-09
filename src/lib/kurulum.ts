@@ -125,7 +125,12 @@ export const KENDILIGINDEN_KAYNAKLAR = ['CIHAZ_EPOSTA', 'TARAYICI', 'PORTAL', 'W
  */
 export const GOC_KAYNAGI = 'GOC';
 
-export const ZORUNLU_ADIMLAR: readonly AdimKodu[] = ['FIRMA', 'CIHAZ', 'FIYAT', 'SAYAC', 'FATURA'];
+/**
+ * Sıra = bayiye "sırada" diye gösterilen sıra. FİRMA (vergi no, adres) faturadan
+ * hemen önce: ilk müşteriden sonra bayiyi ayarlara yollamak cihaz ve sayaçtan
+ * önce bir sapaktı. Zorunluluğu değişmez; fatura kesilmeden istenir.
+ */
+export const ZORUNLU_ADIMLAR: readonly AdimKodu[] = ['CIHAZ', 'FIYAT', 'SAYAC', 'FIRMA', 'FATURA'];
 
 /** Bayinin işi yaptığı sayfa. Tek yer: hem süper admin ekranı hem bayi kartı buradan alır. */
 export const ADIM_YOLU: Record<AdimKodu, string> = {
@@ -169,12 +174,6 @@ export function kurulumDurumu(g: KurulumGirdisi, acilis: Date): KurulumSonucu {
   const sayacDurumu = oranDurumu(g.okunanKiralik, g.kiralik);
 
   const adimlar: Adim[] = [
-    adim('FIRMA', firmaVar === 3 ? 'TAMAM' : firmaVar > 0 ? 'KISMEN' : 'EKSIK', {
-      vergiNo: g.firma.vergiNo ? 1 : 0,
-      adres: g.firma.adres ? 1 : 0,
-      telefon: g.firma.telefon ? 1 : 0,
-      n: firmaVar,
-    }),
     adim('CIHAZ', varYok(g.cihaz), { n: g.cihaz, kiralik: g.kiralik }),
     adim('FIYAT', oranDurumu(g.fiyatliKiralik, g.kiralik), { n: g.fiyatliKiralik, toplam: g.kiralik }),
     adim('SAYAC', sayacDurumu, {
@@ -184,6 +183,12 @@ export function kurulumDurumu(g: KurulumGirdisi, acilis: Date): KurulumSonucu {
       kendiliginden: g.kendiliginden,
       // Kendiliğinden gelen pay: okuma yoksa -1 (ekranda "bilinmiyor", %0 değil).
       pay: g.okuma > 0 ? Math.round((g.kendiliginden / g.okuma) * 100) : -1,
+    }),
+    adim('FIRMA', firmaVar === 3 ? 'TAMAM' : firmaVar > 0 ? 'KISMEN' : 'EKSIK', {
+      vergiNo: g.firma.vergiNo ? 1 : 0,
+      adres: g.firma.adres ? 1 : 0,
+      telefon: g.firma.telefon ? 1 : 0,
+      n: firmaVar,
     }),
     adim('FATURA', varYok(g.faturaSayisi), { n: g.faturaSayisi }),
     adim('EKIP', varYok(g.ekip), { n: g.ekip }),

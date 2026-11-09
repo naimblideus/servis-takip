@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import { MARKA_ONERILERI } from '@/lib/device-brands';
+import YeniMusteriKutusu, { aramadanIlk } from '@/components/YeniMusteriKutusu';
 
 interface Customer {
   id: string;
@@ -42,6 +43,7 @@ export default function NewDevicePage() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [yeniMusteri, setYeniMusteri] = useState<{ ad: string; telefon: string } | null>(null);
   const customerSearchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -174,16 +176,37 @@ export default function NewDevicePage() {
                   ))}
                 </div>
               )}
-              {showCustomerResults && customerSearch && filteredCustomers.length === 0 && (
+              {showCustomerResults && customerSearch && filteredCustomers.length === 0 && !yeniMusteri && (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
                   backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '0.5rem',
-                  padding: '0.75rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)', overflow: 'hidden',
                 }}>
-                  <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: 0 }}>{t.cihaz.musteriBulunamadi}</p>
+                  <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: 0, padding: '0.75rem' }}>{t.cihaz.musteriBulunamadi}</p>
+                  {/* Müşterisi olmayan bayi burada takılıyordu: cihaz formundan müşteri eklenemiyordu. */}
+                  <button
+                    type="button"
+                    onClick={() => { setYeniMusteri(aramadanIlk(customerSearch)); setShowCustomerResults(false); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.7rem 0.75rem', minHeight: 44, border: 'none', borderTop: '1px solid #f3f4f6', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: '#15803d', background: '#f0fdf4' }}
+                  >
+                    {doldur(t.fisYeni.yeniMusteri, { ad: customerSearch.trim() })}
+                  </button>
                 </div>
               )}
             </div>
+            {yeniMusteri && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <YeniMusteriKutusu
+                  ilk={yeniMusteri}
+                  onSecildi={(c) => {
+                    setCustomers((p) => (p.some((x) => x.id === c.id) ? p : [...p, c]));
+                    selectCustomer(c);
+                    setYeniMusteri(null);
+                  }}
+                  onIptal={() => setYeniMusteri(null)}
+                />
+              </div>
+            )}
             {selectedCustomer && (
               <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem', fontWeight: '500' }}>
                 {doldur(t.cihaz.musteriSecildi, { n: selectedCustomer.name })}

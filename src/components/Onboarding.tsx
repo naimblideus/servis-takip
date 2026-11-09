@@ -50,15 +50,17 @@ const ADIMLAR: { key: keyof Steps; icon: string; href: string; video: EgitimKodu
   // Excel'e değil: kaydı olmayan bayinin listesi yok. Müşteriler sayfası boşken
   // yolları gösterir (ilk çağrıda fiş · rehber · Excel · tek tek).
   { key: 'hasCustomers', icon: '👤', href: '/customers', video: 'servis-musteri' },
-  { key: 'hasDevices', icon: '🖨️', href: '/devices', video: 'servis-cihaz' },
-  { key: 'hasInventory', icon: '📦', href: '/inventory', video: 'servis-stok-ekip' },
+  // Fiş cihazdan önce: fiş ekranı müşteriyi ve cihazı içinde açar; ilk çağrı
+  // üç adımı birden işaretler. Cihaz formu müşterisi olmayana çıkmaz sokaktı.
   { key: 'hasTickets', icon: '🧾', href: '/tickets/new', video: 'servis-fis' },
+  { key: 'hasDevices', icon: '🖨️', href: '/devices', video: 'servis-cihaz' },
   { key: 'hasInvoices', icon: '📄', href: '/sayac-turu', video: 'servis-sayac-fatura' },
   { key: 'hasCollections', icon: '💰', href: '/accounting', video: 'servis-tahsilat' },
+  // Stok sonda: ilk fiş, sayaç ve fatura için gerekmiyor.
+  { key: 'hasInventory', icon: '📦', href: '/inventory', video: 'servis-stok-ekip' },
 ];
 
 const ZINCIR_IKON = ['👤', '🖨️', '🧾', '💰'];
-const GUNLUK_IKON = ['🧾', '🔢', '💰'];
 
 export default function Onboarding() {
   const { status: authStatus, data: oturum } = useSession();
@@ -185,13 +187,18 @@ export default function Onboarding() {
     },
   ] : [];
 
-  // 3 EKRAN — hedef: sistemi 2 DAKİKADAN kısa sürede kavratmak.
-  // Ayrıntı burada DEĞİL: "Nasıl Kullanılır?" sayfasında. Burada yalnız çalışma mantığı var.
+  // TEK EKRAN — kayıttan ilk fişe giden yoldaki ilk engel buydu: 3 ekran
+  // okutup sonunda Excel'e ya da müşteri formuna yolluyordu, fişe değil.
+  // Şimdi: ilk iş + zincir + yardımın yeri, ana düğme "İlk fişi aç".
+  // Ayrıntı "Nasıl Kullanılır?" sayfasında ve sağ alttaki rehberde.
   const SAHIP_SIHIRBAZI: { title: string; body: React.ReactNode }[] = [
     {
-      title: r.sihirbaz.zincir.title,
+      title: r.sihirbaz.hazir.title,
       body: (
         <>
+          <p style={{ margin: '0 0 0.9rem', fontSize: '0.95rem' }}>
+            {r.sihirbaz.hazir.ilkIsOn} <b>{r.sihirbaz.hazir.ilkIsVurgu}</b> {r.sihirbaz.hazir.ilkIsSon}
+          </p>
           <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '0.9rem' }}>
             {r.sihirbaz.zincir.ogeler.map(([ad, aciklama], idx, arr) => (
               <div key={ad}>
@@ -205,39 +212,8 @@ export default function Onboarding() {
               </div>
             ))}
           </div>
-          <p style={{ margin: 0, color: '#475569', fontSize: '0.9rem' }}>
+          <p style={{ margin: '0 0 0.9rem', color: '#475569', fontSize: '0.9rem' }}>
             {r.sihirbaz.zincir.son}
-          </p>
-        </>
-      ),
-    },
-    {
-      title: r.sihirbaz.gunluk.title,
-      body: (
-        <>
-          <div style={{ display: 'grid', gap: '0.7rem' }}>
-            {r.sihirbaz.gunluk.ogeler.map(([ad, aciklama], idx) => (
-              <div key={ad} style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', background: '#f8fafc', borderRadius: 10, padding: '0.7rem 0.8rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>{GUNLUK_IKON[idx]}</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>{ad}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: 2, lineHeight: 1.5 }}>{aciklama}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p style={{ margin: '0.9rem 0 0', color: '#475569', fontSize: '0.88rem' }}>
-            {r.sihirbaz.gunluk.sonOn} <b>{r.sihirbaz.gunluk.sonVurgu}</b> {r.sihirbaz.gunluk.sonSon}
-          </p>
-        </>
-      ),
-    },
-    {
-      title: r.sihirbaz.hazir.title,
-      body: (
-        <>
-          <p style={{ margin: '0 0 0.8rem', fontSize: '0.95rem' }}>
-            {r.sihirbaz.hazir.ilkIsOn} <b>{r.sihirbaz.hazir.ilkIsVurgu}</b> {r.sihirbaz.hazir.ilkIsSon}
           </p>
           <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '0.75rem 0.9rem', fontSize: '0.86rem', color: '#075985', lineHeight: 1.6 }}>
             {r.sihirbaz.hazir.kutuOn} <b>{r.sihirbaz.hazir.kutuVurgu}</b> {r.sihirbaz.hazir.kutuOrta}{' '}
@@ -303,14 +279,18 @@ export default function Onboarding() {
       {showWizard && (
         <div className="gs-noprint" style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div style={{ background: 'white', borderRadius: '1rem', width: '100%', maxWidth: '560px', boxShadow: '0 25px 70px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
-            {/* İlerleme çubuğu */}
-            <div style={{ height: '5px', background: '#e2e8f0' }}>
-              <div style={{ height: '100%', width: `${((step + 1) / WIZARD.length) * 100}%`, background: 'linear-gradient(90deg,#2563eb,#06b6d4)', transition: 'width .3s ease' }} />
-            </div>
+            {/* İlerleme çubuğu — tek ekranda anlamsız, çizilmez */}
+            {WIZARD.length > 1 && (
+              <div style={{ height: '5px', background: '#e2e8f0' }}>
+                <div style={{ height: '100%', width: `${((step + 1) / WIZARD.length) * 100}%`, background: 'linear-gradient(90deg,#2563eb,#06b6d4)', transition: 'width .3s ease' }} />
+              </div>
+            )}
             {/* Başlık */}
             <div style={{ background: 'linear-gradient(135deg,#0f2253,#2563eb)', color: 'white', padding: '1.1rem 1.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: '0.7rem', opacity: 0.8, letterSpacing: '0.08em', fontWeight: 700 }}>{doldur(r.adimBasligi, { n: step + 1, toplam: WIZARD.length })}</div>
+                {WIZARD.length > 1 && (
+                  <div style={{ fontSize: '0.7rem', opacity: 0.8, letterSpacing: '0.08em', fontWeight: 700 }}>{doldur(r.adimBasligi, { n: step + 1, toplam: WIZARD.length })}</div>
+                )}
                 <h2 style={{ margin: '0.2rem 0 0', fontSize: '1.25rem', fontWeight: 800 }}>{WIZARD[step].title}</h2>
               </div>
               <button onClick={finishWizard} title={r.simdilikGec} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: '1rem' }}>✕</button>
@@ -322,7 +302,7 @@ export default function Onboarding() {
             {/* Alt */}
             <div style={{ padding: '0.9rem 1.4rem', borderTop: '1px solid #eef2f7', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem' }}>
               <button onClick={finishWizard} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>{r.simdilikGec}</button>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {step > 0 && (
                   <button onClick={() => setStep((s) => s - 1)} style={{ padding: '0.55rem 1rem', background: 'white', border: '1px solid #cbd5e1', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>{r.geri}</button>
                 )}
@@ -336,8 +316,9 @@ export default function Onboarding() {
                   </button>
                 ) : (
                   <>
-                    <button onClick={async () => { await finishWizard(); router.push('/import'); }} style={{ padding: '0.55rem 0.9rem', background: 'white', border: '1px solid #cbd5e1', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: '#334155' }}>{r.excelAktar}</button>
-                    <button onClick={async () => { await finishWizard(); router.push('/customers/new'); }} style={{ padding: '0.55rem 1.2rem', background: 'linear-gradient(135deg,#059669,#10b981)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>{r.musteriEkle}</button>
+                    {/* Listesi olan: Müşteriler sayfası (rehber · Excel · tek tek). Olmayan: doğrudan fiş. */}
+                    <button onClick={async () => { await finishWizard(); router.push('/customers'); }} style={{ padding: '0.55rem 0.9rem', background: 'white', border: '1px solid #cbd5e1', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: '#334155' }}>{r.listemVar}</button>
+                    <button onClick={async () => { await finishWizard(); router.push('/tickets/new'); }} style={{ padding: '0.55rem 1.2rem', background: 'linear-gradient(135deg,#059669,#10b981)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>{r.fisAc}</button>
                   </>
                 )}
               </div>

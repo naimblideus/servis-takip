@@ -519,8 +519,8 @@ export const en: Sozluk = {
     simdilikGec: 'Skip for now',
     geri: '← Back',
     ileri: 'Next →',
-    excelAktar: 'Import from Excel',
-    musteriEkle: 'Add a customer →',
+    listemVar: 'Add my customer list',
+    fisAc: 'Open the first ticket →',
     tebrik: 'Congratulations, you’ve completed everything! 🎉',
     ilerleme: '{n}/{toplam} {toplam|step|steps} done — go in order',
     gizle: '▲ Hide',
@@ -545,7 +545,7 @@ export const en: Sozluk = {
         ],
       },
       hasDevices: {
-        title: '2. Register the devices',
+        title: '3. Register the devices',
         desc: 'Add the customer’s printer. If it is rented, meter and monthly rent are handled from here.',
         cta: 'Devices',
         how: [
@@ -556,7 +556,7 @@ export const en: Sozluk = {
         ],
       },
       hasInventory: {
-        title: '3. Add parts to your inventory',
+        title: '6. Add parts to your inventory',
         desc: 'Enter toner, drums, spare parts. If there is a barcode, scan it to find items quickly.',
         cta: 'Inventory',
         how: [
@@ -566,7 +566,7 @@ export const en: Sozluk = {
         ],
       },
       hasTickets: {
-        title: '4. Open your first service ticket',
+        title: '2. Open your first service ticket',
         desc: 'When a fault or maintenance comes in, create a ticket, add the parts used (scan them), enter labour.',
         cta: 'New Ticket',
         how: [
@@ -576,7 +576,7 @@ export const en: Sozluk = {
         ],
       },
       hasInvoices: {
-        title: '5. Read the meters and invoice',
+        title: '4. Read the meters and invoice',
         desc: 'Once a month: read all meters in bulk, then invoice with one click.',
         cta: 'Meter Round',
         how: [
@@ -588,7 +588,7 @@ export const en: Sozluk = {
         ],
       },
       hasCollections: {
-        title: '6. Collect payments and track debt',
+        title: '5. Collect payments and track debt',
         desc: 'Enter payments as they come in; the balance updates itself. Send bulk reminders to those who have not paid.',
         cta: 'Accounting',
         how: [
@@ -601,7 +601,6 @@ export const en: Sozluk = {
     },
     sihirbaz: {
       zincir: {
-        title: 'The system is one chain',
         ogeler: [
           ['Customer', 'who you serve'],
           ['Device', 'their printer (meter + rent if rented)'],
@@ -610,22 +609,11 @@ export const en: Sozluk = {
         ],
         son: 'That’s all. Register the customer and the device once; everything else links up on every ticket by itself.',
       },
-      gunluk: {
-        title: 'The 3 things you do every day',
-        ogeler: [
-          ['A fault comes in', 'Open a New Ticket — scan the part, describe the work, deliver.'],
-          ['Once a month', 'Meter Round — pick the customer, enter every device’s meter in one list.'],
-          ['Money comes in', 'Accounting — enter the payment, the balance updates itself.'],
-        ],
-        sonOn: 'Invoicing, ledger and debt tracking',
-        sonVurgu: 'are handled by the system',
-        sonSon: '— you don’t enter them.',
-      },
       hazir: {
-        title: 'You’re ready',
+        title: 'Welcome',
         ilkIsOn: 'First job:',
-        ilkIsVurgu: 'bring your customers in.',
-        ilkIsSon: 'If you have an Excel list, you can import it in one go.',
+        ilkIsVurgu: 'open the next fault that comes in as a ticket.',
+        ilkIsSon: 'The customer and the device are created inside the ticket. If you have a list, you can also add it from your contacts or Excel.',
         kutuOn: 'Whenever you get stuck, the left menu has',
         kutuVurgu: '“How it works”',
         kutuOrta: '— what every screen is for is written there. The',
