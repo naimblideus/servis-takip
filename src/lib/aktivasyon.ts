@@ -16,6 +16,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import { KAYIT_NOTU } from '@/lib/kayit';
+import { GOC_KAYNAGI } from '@/lib/kurulum';
 import { adimBul, nedenBul, etkinlikAdi, type NedenKodu } from '@/lib/aktivasyon-kural';
 
 export type { NedenKodu };
@@ -67,7 +68,13 @@ export async function aktivasyonListesi(o: { sadeceToplanti?: boolean; odeyenler
   const [musteri, cihaz, okuma, fis, kullanicilar, girisler, hareket, odeme] = await Promise.all([
     prisma.customer.groupBy({ by: ['tenantId'], where: w, _count: { _all: true } }),
     prisma.device.groupBy({ by: ['tenantId'], where: w, _count: { _all: true } }),
-    prisma.counterReading.groupBy({ by: ['tenantId'], where: w, _count: { _all: true } }),
+    // Gerçek okuma: aktarımın başlangıç sayacı (GOC) ve cihaz eklenirken yazılan
+    // zincir başı (ELLE, fark 0, kapalı, fişsiz) bayinin okuttuğu sayaç değil.
+    prisma.counterReading.groupBy({
+      by: ['tenantId'],
+      where: { ...w, source: { not: GOC_KAYNAGI }, NOT: { source: 'ELLE', billed: true, deltaBlack: 0, deltaColor: 0, ticketId: null } },
+      _count: { _all: true },
+    }),
     prisma.serviceTicket.groupBy({ by: ['tenantId'], where: w, _count: { _all: true } }),
     prisma.user.groupBy({ by: ['tenantId', 'role'], where: { ...w, isActive: true }, _count: { _all: true } }),
     // Giriş: ilk-giriş sihirbazını gören (tamamlayan ya da atlayan) bir kullanıcı.

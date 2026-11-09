@@ -3,6 +3,18 @@ import { redirect } from 'next/navigation';
 import { getSuperAdminSession } from '@/lib/super-admin-auth';
 import { aktivasyonListesi, type AktivasyonSatiri, type NedenKodu } from '@/lib/aktivasyon';
 import { aktivasyonMetni, type AktivasyonMetni } from '@/lib/aktivasyon-metin';
+import { anHesaplari } from '@/lib/aktivasyon-an-veri';
+import {
+  AZ_ODEYEN,
+  VARSAYILAN_AN,
+  haftalikOran,
+  isKoduMu,
+  odeyenlerTablosu,
+  sonBitenHafta,
+  type HaftaSatiri,
+  type IsKodu,
+  type OdeyenTablosu,
+} from '@/lib/aktivasyon-an';
 import { sunucuDili } from '@/lib/i18n/sunucu';
 import { doldur } from '@/lib/i18n/sozluk';
 
@@ -19,22 +31,30 @@ export const dynamic = 'force-dynamic';
 export default async function AktivasyonSayfasi({
   searchParams,
 }: {
-  searchParams: Promise<{ t?: string; o?: string }>;
+  searchParams: Promise<{ t?: string; o?: string; an?: string }>;
 }) {
   const admin = await getSuperAdminSession();
   if (!admin) redirect('/super-admin/login');
 
-  const { t, o } = await searchParams;
+  const { t, o, an } = await searchParams;
   const sadeceToplanti = t === 'toplanti';
   const odeyenlerDahil = o === '1';
+  const elleAn = isKoduMu(an) ? an : null;
   const m = aktivasyonMetni(await sunucuDili());
   const simdi = new Date();
-  const liste = await aktivasyonListesi({ sadeceToplanti, odeyenlerDahil, simdi });
+  const [liste, hesaplar] = await Promise.all([aktivasyonListesi({ sadeceToplanti, odeyenlerDahil, simdi }), anHesaplari()]);
+
+  // O an: elle seçilen > tablonun bulduğu > varsayım (sayaç).
+  const tablo = odeyenlerTablosu(hesaplar, simdi);
+  const seciliAn: IsKodu = elleAn ?? tablo.an ?? VARSAYILAN_AN;
+  const anKaynagi = elleAn ? 'secili' : tablo.an ? 'tablo' : 'varsayim';
+  const haftalar = haftalikOran(hesaplar, seciliAn, simdi);
 
   const cip = (aktif: boolean) =>
     `px-3 py-1.5 rounded-xl text-sm border ${aktif ? 'bg-blue-100 border-blue-300 text-gray-900' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'}`;
-  const adres = (yeniT: string | null, yeniO: boolean) =>
-    `/super-admin/aktivasyon?${new URLSearchParams({ ...(yeniT ? { t: yeniT } : {}), ...(yeniO ? { o: '1' } : {}) })}`;
+  const adres = (yeniT: string | null, yeniO: boolean, yeniAn: IsKodu | null = elleAn) =>
+    `/super-admin/aktivasyon?${new URLSearchParams({ ...(yeniT ? { t: yeniT } : {}), ...(yeniO ? { o: '1' } : {}), ...(yeniAn ? { an: yeniAn } : {}) })}`;
+  const anAdresi = (yeniAn: IsKodu | null) => adres(sadeceToplanti ? 'toplanti' : null, odeyenlerDahil, yeniAn);
 
   return (
     <div className="min-h-full">
@@ -50,7 +70,10 @@ export default async function AktivasyonSayfasi({
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <TekSayi m={m} haftalar={haftalar} an={seciliAn} kaynak={anKaynagi} sifirla={elleAn ? anAdresi(null) : null} />
+        <OdeyenlerTablosu m={m} tablo={tablo} seciliAn={seciliAn} acik={!!elleAn} anAdresi={anAdresi} />
+
         {/* Huni özeti: kaç hesap hangi adımda. */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
           {m.adimlar.map((ad, i) => (
@@ -130,6 +153,144 @@ function Satir({ s, m, simdi }: { s: AktivasyonSatiri; m: AktivasyonMetni; simdi
         </div>
       </div>
     </li>
+  );
+}
+
+const kisaTarih = (gun: string) =>
+  new Date(`${gun}T12:00:00Z`).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/**
+ * Tepedeki tek sayı: 7 günü dolmuş son haftada açılan hesapların yüzde kaçı
+ * ilk 7 günde o ana vardı; yanında son 8 hafta. Kurulumda değiştirdiğimiz
+ * her şeyin işe yarayıp yaramadığı burada görünür.
+ */
+function TekSayi({
+  m,
+  haftalar,
+  an,
+  kaynak,
+  sifirla,
+}: {
+  m: AktivasyonMetni;
+  haftalar: HaftaSatiri[];
+  an: IsKodu;
+  kaynak: keyof AktivasyonMetni['anKaynak'];
+  sifirla: string | null;
+}) {
+  const son = sonBitenHafta(haftalar);
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-5 mb-4">
+      <h2 className="text-sm font-medium text-gray-600">{m.tekSayiBaslik}</h2>
+      <div className="mt-2 flex flex-wrap items-end gap-x-8 gap-y-4">
+        <div className="min-w-[200px]">
+          <div className="text-5xl font-bold tabular-nums">{son?.yuzde != null ? `%${son.yuzde}` : '—'}</div>
+          <div className="mt-1 text-sm text-gray-600">
+            {son ? doldur(m.tekSayiAlt, { h: kisaTarih(son.hafta), v: son.varan, n: son.acilan, an: m.isler[an] }) : m.tekSayiYok}
+          </div>
+        </div>
+        {/* Son 8 hafta, eskiden yeniye. Açık renk = 7 günü dolmamış hesap var, sayı artabilir. */}
+        <div className="flex items-start gap-1.5">
+          {haftalar.map((h) => (
+            <div key={h.hafta} className="flex w-8 flex-col items-center gap-1">
+              <div className="text-[11px] tabular-nums text-gray-700">{h.yuzde == null ? '–' : `%${h.yuzde}`}</div>
+              <div className="flex h-14 w-5 items-end overflow-hidden rounded bg-gray-100">
+                <div className={`w-full ${h.suruyor ? 'bg-sky-300' : 'bg-emerald-500'}`} style={{ height: `${h.yuzde ?? 0}%` }} />
+              </div>
+              <div className="text-[10px] leading-tight text-gray-500">{kisaTarih(h.hafta)}</div>
+              <div className="text-[10px] leading-tight tabular-nums text-gray-500">
+                {h.varan}/{h.acilan}
+              </div>
+              {h.suruyor && <div className="text-[10px] leading-tight text-sky-800">{m.suruyor}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-gray-500">
+        <span className="font-medium text-gray-700">{doldur(m.anSatiri, { an: m.isler[an] })}</span> · {m.anKaynak[kaynak]}
+        {sifirla && (
+          <>
+            {' · '}
+            <Link href={sifirla} className="text-blue-700 hover:underline">
+              {m.anSifirla}
+            </Link>
+          </>
+        )}
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Ödeyenler ilk 7 günde ne yaptı: her iş için ödeyen ve denemesi bitip
+ * ödemeyen hesapların yüzdesi yan yana; en büyük fark o an. Günlük arama
+ * listesini aşağı itmesin diye kapalı gelir.
+ */
+function OdeyenlerTablosu({
+  m,
+  tablo,
+  seciliAn,
+  acik,
+  anAdresi,
+}: {
+  m: AktivasyonMetni;
+  tablo: OdeyenTablosu;
+  seciliAn: IsKodu;
+  acik: boolean;
+  anAdresi: (an: IsKodu) => string;
+}) {
+  const karsilastirilir = tablo.odeyenN > 0 && tablo.odemeyenN > 0;
+  const yuzde = (x: number | null) => (x == null ? '—' : `%${x}`);
+  return (
+    <details open={acik} className="mb-6 rounded-2xl border border-gray-200 bg-white">
+      <summary className="cursor-pointer px-5 py-3 font-semibold">
+        {m.tabloBaslik}
+        <span className="ml-2 text-sm font-normal text-gray-500">{doldur(m.tabloOzet, { a: tablo.odeyenN, b: tablo.odemeyenN })}</span>
+      </summary>
+      <div className="px-5 pb-5">
+        <p className="max-w-3xl text-sm text-gray-600">{m.tabloAlt}</p>
+        {!karsilastirilir ? (
+          <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{m.karsilastirmaYok}</p>
+        ) : (
+          tablo.odeyenN < AZ_ODEYEN && (
+            <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{doldur(m.azUyari, { n: tablo.odeyenN })}</p>
+          )
+        )}
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[420px] text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
+                <th className="py-2 pr-3 font-medium">{m.sutunIs}</th>
+                <th className="py-2 pr-3 text-right font-medium">
+                  {m.sutunOdeyen} ({tablo.odeyenN})
+                </th>
+                <th className="py-2 pr-3 text-right font-medium">
+                  {m.sutunOdemeyen} ({tablo.odemeyenN})
+                </th>
+                <th className="py-2 text-right font-medium">{m.sutunFark}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tablo.satirlar.map((s) => (
+                <tr key={s.kod} className={`border-b border-gray-100 ${s.kod === seciliAn ? 'bg-emerald-50' : ''}`}>
+                  <td className="py-2 pr-3">
+                    <Link href={anAdresi(s.kod)} className="hover:underline">
+                      {m.isler[s.kod]}
+                    </Link>
+                    {s.kod === tablo.an && <span className="ml-2 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] text-white">{m.anIsareti}</span>}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums">{yuzde(s.odeyen)}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">{yuzde(s.odemeyen)}</td>
+                  <td className={`py-2 text-right font-semibold tabular-nums ${s.fark != null && s.fark > 0 ? 'text-emerald-700' : 'text-gray-500'}`}>
+                    {s.fark == null ? '—' : s.fark > 0 ? `+${s.fark}` : s.fark}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs text-gray-500">{m.belirsizNot}</p>
+      </div>
+    </details>
   );
 }
 
