@@ -8,13 +8,14 @@ import { doldur } from '@/lib/i18n/sozluk';
 import { matbaaMetni } from '@/lib/matbaa-metin';
 import { saatYaz, tl } from '@/lib/matbaa-bicim';
 import { gunAraligi, isNo, ODEME_YOLLARI } from '@/lib/baski-is';
+import KasaKapanis from '@/components/matbaa/KasaKapanis';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * KASA — günün alınan parası: nakit / kart / havale toplamları ve satır
  * satır ödemeler; ayrıca o gün cariye yazılarak teslim edilen işler.
- * Gün sonu kapanışı Faz C. Operatör para görmez.
+ * Gün sonu: kasadaki nakit sayılır, farkı yazılır. Operatör para görmez.
  */
 type Arama = Promise<Record<string, string | string[] | undefined>>;
 
@@ -32,7 +33,7 @@ export default async function Kasa({ searchParams }: { searchParams: Arama }) {
   const istenen = (await searchParams).gun;
   const { bas, bit, gun } = gunAraligi(tz, new Date(), typeof istenen === 'string' ? istenen : null);
 
-  const [odemeler, cariIsler] = await Promise.all([
+  const [odemeler, cariIsler, kapanis] = await Promise.all([
     prisma.baskiOdeme.findMany({
       where: { tenantId, tarih: { gte: bas, lte: bit } },
       select: { id: true, tutar: true, yol: true, tarih: true, aliciAd: true, is: { select: { id: true, no: true } } },
@@ -42,7 +43,11 @@ export default async function Kasa({ searchParams }: { searchParams: Arama }) {
       where: { tenantId, durum: 'TESLIM', odemeYolu: 'CARI', teslimAt: { gte: bas, lte: bit } },
       select: { toplam: true, odenen: true },
     }),
+    prisma.baskiKasaKapanis.findUnique({ where: { tenantId_gun: { tenantId, gun } } }),
   ]);
+  const yonetici = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+  // Kapanıştan sonra alınan para: kapanış kaydı eskimiş demektir.
+  const sonradan = kapanis ? odemeler.filter((o) => o.tarih > kapanis.createdAt).reduce((s, o) => s + o.tutar, 0) : 0;
   const toplam = odemeler.reduce((s, o) => s + o.tutar, 0);
   const yolToplam = Object.fromEntries(ODEME_YOLLARI.map((y) => [y, odemeler.filter((o) => o.yol === y).reduce((s, o) => s + o.tutar, 0)]));
   const cari = cariIsler.reduce((s, i) => s + Math.max(0, i.toplam - i.odenen), 0);
@@ -67,6 +72,20 @@ export default async function Kasa({ searchParams }: { searchParams: Arama }) {
         ))}
       </div>
       {cari > 0 && <p className="mt-3 text-sm text-blue-800">{doldur(m.kasaCari, { tutar: b.para(tl(cari)) })}</p>}
+
+      {kapanis && (
+        <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 text-sm">
+          <p className="font-semibold text-gray-800">
+            {doldur(m.kapanisYapildi, { sayilan: b.para(tl(kapanis.sayilan)), kim: kapanis.kapatanAd ?? '', saat: saatYaz(kapanis.createdAt, dil, tz) })}
+            <span className={`ml-2 ${kapanis.fark === 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+              {kapanis.fark === 0 ? m.kapanisTam : doldur(kapanis.fark > 0 ? m.kapanisFazla : m.kapanisEksik, { tutar: b.para(tl(Math.abs(kapanis.fark))) })}
+            </span>
+          </p>
+          {sonradan > 0 && <p className="mt-1 text-amber-800">{doldur(m.kapanisSonrasi, { tutar: b.para(tl(sonradan)) })}</p>}
+        </div>
+      )}
+      {/* Kapanmamış gün herkese; kapanmış günü yalnız sahip yeniden sayar. */}
+      {(!kapanis || yonetici) && <KasaKapanis gun={gun} nakit={yolToplam.NAKIT} yeniden={!!kapanis} />}
 
       <div className="mt-5 overflow-x-auto rounded-2xl border border-gray-200 bg-white">
         {odemeler.length === 0 ? <p className="p-6 text-center text-sm text-gray-500">{m.kasaBos}</p> : (

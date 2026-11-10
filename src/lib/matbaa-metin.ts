@@ -223,6 +223,28 @@ const tr = {
   degerEkle: '+ Seçenek',
   degerTur: { 'YOK': 'Fiyat farkı yok', 'BIRIM': 'Birim başı ek', 'SABIT': 'İşe bir kez ek', 'CARPAN': 'Çarpan' },
   grupZorunlu: 'Seçim zorunlu',
+
+  // Gün sonu ve rapor
+  kapanisSayilan: 'Kasada sayılan nakit',
+  kapanisKapat: 'Günü kapat',
+  kapanisYeniden: 'Yeniden say',
+  kapanisTam: 'Kasa tam',
+  kapanisFazla: '{tutar} fazla',
+  kapanisEksik: '{tutar} eksik',
+  kapanisYapildi: 'Gün kapatıldı: sayılan {sayilan} · {kim} · {saat}',
+  kapanisSonrasi: 'Kapanıştan sonra {tutar} daha alındı.',
+  raporBaslik: 'Rapor',
+  raporGun: '{n} gün',
+  raporSatiri: '{tutar} ciro · {n} iş · %{oran} online',
+  raporBos: 'Bu dönemde iş yok.',
+  raporHazirlama: 'Ortalama hazırlama süresi',
+  raporAcik: 'Tahsil edilmemiş',
+  raporKanal: 'İşler nereden geldi',
+  raporEnCok: 'En çok satan',
+  raporIptal: '{n} iptal edilen iş sayılmadı.',
+
+  // Pano kartı
+  kartDosya: '{n} dosya',
 };
 
 export type MatbaaMetni = typeof tr;
@@ -431,6 +453,26 @@ const en: MatbaaMetni = {
   degerEkle: '+ Option',
   degerTur: { 'YOK': 'No price difference', 'BIRIM': 'Extra per unit', 'SABIT': 'One-off extra', 'CARPAN': 'Multiplier' },
   grupZorunlu: 'Choice required',
+
+  kapanisSayilan: 'Cash counted in the till',
+  kapanisKapat: 'Close the day',
+  kapanisYeniden: 'Count again',
+  kapanisTam: 'The till is exact',
+  kapanisFazla: '{tutar} over',
+  kapanisEksik: '{tutar} short',
+  kapanisYapildi: 'Day closed: counted {sayilan} · {kim} · {saat}',
+  kapanisSonrasi: '{tutar} more was taken after closing.',
+  raporBaslik: 'Report',
+  raporGun: '{n} days',
+  raporSatiri: '{tutar} revenue · {n} jobs · {oran}% online',
+  raporBos: 'No jobs in this period.',
+  raporHazirlama: 'Average time to ready',
+  raporAcik: 'Not yet collected',
+  raporKanal: 'Where jobs came from',
+  raporEnCok: 'Best sellers',
+  raporIptal: '{n} cancelled jobs are not counted.',
+
+  kartDosya: '{n} files',
 };
 
 export function matbaaMetni(dil: string | null | undefined): MatbaaMetni {

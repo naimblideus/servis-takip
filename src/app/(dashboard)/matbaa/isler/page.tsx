@@ -51,6 +51,8 @@ export default async function IslerPanosu({ searchParams }: { searchParams: Aram
       id: true, no: true, durum: true, acil: true, bitisGerekli: true, tahmini: true, sozVerilenAt: true,
       toplam: true, odenen: true, customerId: true, odemeYolu: true, musteriAd: true, firma: true,
       kalemler: { select: { ozet: true }, orderBy: { sira: 'asc' } },
+      // Karttaki "n dosya": operatör basacağı dosyanın geldiğini panodan görsün.
+      _count: { select: { dosyalar: { where: { durum: 'HAZIR', tur: 'BASKI' } } } },
     },
     orderBy: [{ acil: 'desc' }, { sozVerilenAt: 'asc' }, { createdAt: 'asc' }],
     take: 400,
@@ -123,6 +125,7 @@ export default async function IslerPanosu({ searchParams }: { searchParams: Aram
                       {(is.musteriAd || is.firma) && <p className="mt-1 truncate text-sm font-medium text-gray-800">{is.musteriAd || is.firma}</p>}
                       <p className="mt-0.5 text-sm text-gray-600">
                         {is.kalemler[0]?.ozet}{is.kalemler.length > 1 ? ` +${is.kalemler.length - 1}` : ''}
+                        {is._count.dosyalar > 0 && <span className="ml-1 whitespace-nowrap rounded bg-blue-50 px-1.5 text-xs font-semibold text-blue-700">{doldur(m.kartDosya, { n: is._count.dosyalar })}</span>}
                       </p>
                       <div className="mt-2 flex items-end justify-between gap-2">
                         {!operator ? <span className={`text-xs font-semibold ${odemeRenk[od]}`}>{m.odemeDurumu[od]}</span> : <span />}

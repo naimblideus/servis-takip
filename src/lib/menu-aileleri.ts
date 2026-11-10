@@ -78,7 +78,7 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'yardim',     bolum: 'SISTEM',  uyeler: ['/yardim'] },
   { anahtar: 'admin',      bolum: 'SISTEM',  uyeler: ['/admin'] },
 
-  { anahtar: 'matbaaKasa', bolum: 'PARA',    uyeler: ['/matbaa/kasa'] },
+  { anahtar: 'matbaaKasa', bolum: 'PARA',    uyeler: ['/matbaa/kasa', '/matbaa/rapor'] },
   { anahtar: 'matbaaFiyat', bolum: 'PARA',   uyeler: ['/matbaa/fiyatlar', '/matbaa/ayarlar'] },
 ];
 
@@ -118,6 +118,8 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/matbaa/fiyatlar',
   // Sipariş sayfasının adresi ve açık/kapalı olması işletme kararıdır.
   '/matbaa/ayarlar',
+  // Ciro ve kanal payı: tezgah günün kasasını görür, dönemin cirosunu değil.
+  '/matbaa/rapor',
 ];
 
 /**
@@ -169,7 +171,7 @@ export const YALNIZ_MATBAA: readonly string[] = ['/matbaa', '/matbaa-tv'];
  * çıkmazlar, sayfası gelince ayrıca izin vermek gerekmez.
  */
 export const MATBAA_MENUSU: readonly string[] = [
-  '/matbaa', '/matbaa-tv', '/matbaa/isler', '/matbaa/fiyatlar', '/matbaa/ayarlar', '/matbaa/kasa',
+  '/matbaa', '/matbaa-tv', '/matbaa/isler', '/matbaa/fiyatlar', '/matbaa/ayarlar', '/matbaa/kasa', '/matbaa/rapor',
   '/customers',
   '/settings', '/users', '/abonelik',
   '/yardim',
