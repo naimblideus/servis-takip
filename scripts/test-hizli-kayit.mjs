@@ -109,10 +109,11 @@ try {
   const musteriUcu = oku('src/app/api/customers/route.ts');
   t('müşteri ucu ortak kuralı kullanır, kayıtlıda 409 + mevcut müşteri', /musteriEkle\(/.test(musteriUcu) && /MUSTERI_TELEFON_KAYITLI', 409, \{ ek: \{ musteri/.test(musteriUcu));
   const fis = oku('src/app/(dashboard)/tickets/new/page.tsx');
-  t('fiş ekranında "＋ Yeni müşteri" satırı var', /sz\.fisYeni\.yeniMusteri/.test(fis) && /yeniMusteriKaydet/.test(fis));
+  const kutu = oku('src/components/YeniMusteriKutusu.tsx');
+  t('fiş ekranında "＋ Yeni müşteri" satırı var', /sz\.fisYeni\.yeniMusteri/.test(fis) && /<YeniMusteriKutusu/.test(fis) && /yeniMusteriKaydet/.test(kutu));
   const modal = fis.slice(fis.indexOf('function QuickAddDeviceModal'), fis.indexOf('// ─── Ana Sayfa'));
   t('★ hızlı cihazda marka, model, seri zorunlu değil', !/<input required/.test(modal), modal.match(/<input required[^>]*/g));
-  t('yeni müşteri kutusunda Enter fişi göndermez', /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); yeniMusteriKaydet\(\); \}/.test(fis));
+  t('yeni müşteri kutusunda Enter fişi göndermez', /if \(e\.key === 'Enter'\) \{\s*e\.preventDefault\(\);\s*kaydet\(\);/.test(kutu) && /type="button"/.test(kutu));
   console.log('\n★ AY SONU: KİRA BİLGİSİ EKSİK KİRALIK\n');
   const ks = await ice('lib/kira-sarti');
   t('kirası, sayfa ve aşım fiyatı olmayan kiralık eksik', ks.kiraSartiEksik({ monthlyRent: 0, pricePerBlack: null }));

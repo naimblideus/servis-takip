@@ -55,18 +55,19 @@ console.log('\nKalabalık (tek otel IP, yüzlerce kayıt)\n');
 console.log('\nPara (mükerrer fatura yok)\n');
 {
   const inv = oku('src/lib/invoicing.ts');
-  // Saf fonksiyonu kaynaktan çalıştır.
-  const govde = inv.slice(inv.indexOf('export function kiraKesilir'), inv.indexOf('export const kiraIsaretiKosulu'))
-    .replace(/export function kiraKesilir\(d: KiraCihazi, period: string, donemSonu\?: Date\): boolean/, 'function kiraKesilir(d, period, donemSonu)');
+  // Saf fonksiyonu kaynaktan çalıştır (kural lib/kira-donemi'nde; kira dönem dönem tutuluyor).
+  const kd = oku('src/lib/kira-donemi.ts');
+  const govde = kd.slice(kd.indexOf('export function kiraKesilir'), kd.indexOf('/**\n * Verilen dönemden geriye doğru'))
+    .replace(/export function kiraKesilir\(d: KiraCihazi, period: string, donemSonu: Date \| undefined, kesildi: boolean\): boolean/, 'function kiraKesilir(d, period, donemSonu, kesildi)');
   const kiraKesilir = new Function(`${govde}; return kiraKesilir;`)();
   const cihaz = (son, kurulus = new Date('2026-01-01')) => ({ isRental: true, monthlyRent: 1000, lastInvoicedPeriod: son, createdAt: kurulus });
-  t('★ bu dönemin kirası işaret önceki dönemdeyse kesilir', kiraKesilir(cihaz('2026-09'), '2026-10', new Date('2026-11-01')));
-  t('★ geçmiş dönem kesimi kirayı İKİNCİ kez yazmaz', !kiraKesilir(cihaz('2026-10'), '2026-07', new Date('2026-08-01')));
-  t('★ aynı dönem iki kez kesilmez', !kiraKesilir(cihaz('2026-10'), '2026-10', new Date('2026-11-01')));
-  t('dönem bittikten sonra kurulan cihazın o döneme kirası yok', !kiraKesilir(cihaz(null, new Date('2026-10-05')), '2026-09', new Date('2026-10-01')));
-  t('kiralık değil ya da kira 0 → kira yok', !kiraKesilir({ ...cihaz(null), isRental: false }, '2026-10') && !kiraKesilir({ ...cihaz(null), monthlyRent: 0 }, '2026-10'));
-  t('★ kira işareti yalnız ileri gider (updateMany koşulu)', /lastInvoicedPeriod: \{ lt: period \}/.test(inv) && /\.\.\.kiraIsaretiKosulu\(period\)/.test(inv));
-  t('★ dönem kesimi, fatura ve Kaçan Gelir aynı kuralı kullanır', /kiraKesilir\(d, period, end\)/.test(oku('src/lib/period-charges.ts')) && /kiraKesilir\(d, period, end\)/.test(oku('src/app/api/revenue-risk/route.ts')));
+  t('★ bu dönemin kirası taban önceki dönemdeyse kesilir', kiraKesilir(cihaz('2026-09'), '2026-10', new Date('2026-11-01'), false));
+  t('★ tabanın altındaki dönem kesilmez', !kiraKesilir(cihaz('2026-10'), '2026-07', new Date('2026-08-01'), false));
+  t('★ aynı dönem iki kez kesilmez (dönem kaydı varsa)', !kiraKesilir(cihaz('2026-09'), '2026-10', new Date('2026-11-01'), true));
+  t('dönem bittikten sonra kurulan cihazın o döneme kirası yok', !kiraKesilir(cihaz(null, new Date('2026-10-05')), '2026-09', new Date('2026-10-01'), false));
+  t('kiralık değil ya da kira 0 → kira yok', !kiraKesilir({ ...cihaz(null), isRental: false }, '2026-10', undefined, false) && !kiraKesilir({ ...cihaz(null), monthlyRent: 0 }, '2026-10', undefined, false));
+  t('★ kira dönem kaydıyla tutulur, kesim işareti ilerletmez', /tx\.kiraDonemi\.createMany/.test(inv) && !/lastInvoicedPeriod: period/.test(inv));
+  t('★ dönem kesimi, fatura ve Kaçan Gelir aynı kuralı kullanır', /faturaHesapla\(tx, tenantId, customerId, periodOf\(\)\)/.test(oku('src/lib/period-charges.ts')) && /kiraKesilir\(d, period, end, kirasiKesilen\.has\(d\.id\)\)/.test(oku('src/app/api/revenue-risk/route.ts')));
   t('★ başka bayinin müşterisine cihaz bağlanamaz', /customer\.findFirst\(\{ where: \{ id: String\(body\.customerId \?\? ''\), tenantId: user\.tenantId \}/.test(oku('src/app/api/devices/route.ts')));
 }
 

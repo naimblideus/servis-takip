@@ -10,6 +10,10 @@ import {
 } from '@prisma/client';
 import { ayCarpani, donemAraligi, donemOf, donemOkumaKosulu } from '@/lib/fatura-donemi';
 import { bekletmeGerekceleri, type CihazOzeti, type Gerekce } from '@/lib/fatura-bekletme';
+import { kiraKesilir } from '@/lib/kira-donemi';
+import { seriBekliyor } from '@/lib/gecici-kimlik';
+
+export { kiraKesilir, type KiraCihazi } from '@/lib/kira-donemi';
 
 type Tx = Prisma.TransactionClient;
 
@@ -87,10 +91,18 @@ export function counterOverage(
  * uygulanıyordu: "ayda 1.000 dahil" anlaşmasında 2.500 sayfa için 1.500 aşım
  * kesiliyordu, doğrusu 500. Müşteri fazla ödüyordu ve itiraz ettiğinde haklıydı.
  *
- * Çarpan = son faturalanmış sayaç dönemi ile bu dönem arasındaki ay sayısı
- * (lib/fatura-donemi ayCarpani, 1..12). Renkli kanal ayrı sayılır: e-posta
- * raporunda renkli sayaç yoksa son değer taşınır (renkliOlculdu=false); o
- * aylar renkli için "okunmamış" sayılır, renkli sayfalar gelince paketi de gelir.
+ * Çarpan = cihazın bu dönemden ÖNCEKİ son okumasının dönemi ile bu dönem
+ * arasındaki ay sayısı (lib/fatura-donemi ayCarpani, 1..12): iki okuma arası
+ * kaç aysa o kadar paket. Renkli kanal ayrı sayılır: e-posta raporunda renkli
+ * sayaç yoksa son değer taşınır (renkliOlculdu=false); o aylar renkli için
+ * "okunmamış" sayılır, renkli sayfalar gelince paketi de gelir.
+ *
+ * ── SIRADAN BAĞIMSIZ ──────────────────────────────────────────────────────
+ * Eskiden "son FATURALANMIŞ okuma"ya bakılıyordu. Temmuz'un okuması taslakta
+ * beklerken Ağustos kesilince Ağustos iki ayın paketini alıyor, Temmuz
+ * onaylanınca kendi paketini bir daha alıyordu: iki ay için üç paket. Artık
+ * okumanın faturalanmış olması aranmıyor; okumanın dönemi yazılırken
+ * sabitlendiği için sonuç hangi ayın önce kesildiğine bağlı değil.
  */
 export type AyCarpani = { siyah: number; renkli: number };
 
@@ -98,11 +110,12 @@ export type AyCarpani = { siyah: number; renkli: number };
 export async function sayacAyCarpanlari(
   db: Pick<Tx, '$queryRaw'>,
   tenantId: string,
-  deviceIds: string[],
+  cihazlar: { id: string }[],
   period: string,
 ): Promise<Map<string, AyCarpani>> {
   const harita = new Map<string, AyCarpani>();
-  if (deviceIds.length === 0) return harita;
+  if (cihazlar.length === 0) return harita;
+  const deviceIds = cihazlar.map((c) => c.id);
   // Dönem: damga varsa damga, yoksa okumanın İstanbul ayı (fatura-donemi ile aynı kural).
   const satirlar = await db.$queryRaw<{ deviceId: string; son: string | null; sonRenkli: string | null }[]>`
     SELECT "deviceId",
@@ -112,11 +125,11 @@ export async function sayacAyCarpanlari(
       SELECT "deviceId", "renkliOlculdu",
         COALESCE("faturaDonemi", to_char("readingDate" + interval '3 hours', 'YYYY-MM')) AS donem
       FROM "CounterReading"
-      WHERE "tenantId" = ${tenantId} AND "deviceId" = ANY(${deviceIds}) AND "billed" = true
+      WHERE "tenantId" = ${tenantId} AND "deviceId" = ANY(${deviceIds})
     ) r
     GROUP BY "deviceId"
   `;
-  for (const s of satirlar) harita.set(s.deviceId, { siyah: ayCarpani(s.son, period), renkli: ayCarpani(s.sonRenkli, period) });
+  for (const x of satirlar) harita.set(x.deviceId, { siyah: ayCarpani(x.son, period), renkli: ayCarpani(x.sonRenkli, period) });
   return harita;
 }
 
@@ -188,37 +201,6 @@ interface LineInput {
   ayCarpani?: number | null;
 }
 
-/**
- * KİRA BU DÖNEM KESİLİR Mİ — fatura, dönem kesimi ve Kaçan Gelir'in ortak kuralı.
- *
- * Cihazın `lastInvoicedPeriod`u kirasının kesildiği SON dönemdir ('YYYY-AA';
- * metin karşılaştırması sıralı). Eskiden kural "son dönem bu dönem değilse"
- * idi: geçmiş bir dönemi kesmek ("2026-07 dönemini kes") her kiralık cihaza
- * o ayın kirasını İKİNCİ kez yazıyor, işareti de geriye çekip bu ayın kirasını
- * yeniden "kesilmemiş" gösteriyordu. Doğrusu: yalnız işaretten SONRAKİ dönem
- * kesilir, işaret asla geri gitmez (kiraIsaretiKosulu).
- *
- * Cihaz dönem bittikten sonra kurulduysa o dönemin kirası yoktur.
- */
-export type KiraCihazi = {
-  isRental: boolean;
-  monthlyRent: unknown;
-  lastInvoicedPeriod: string | null;
-  createdAt?: Date | null;
-};
-
-export function kiraKesilir(d: KiraCihazi, period: string, donemSonu?: Date): boolean {
-  if (!d.isRental || !(Number(d.monthlyRent) > 0)) return false;
-  if ((d.lastInvoicedPeriod ?? '') >= period) return false;
-  if (donemSonu && d.createdAt && d.createdAt >= donemSonu) return false;
-  return true;
-}
-
-/** updateMany koşulu: işaret yalnız ileri gider (eşzamanlı iki kesimde de). */
-export const kiraIsaretiKosulu = (period: string) => ({
-  OR: [{ lastInvoicedPeriod: null }, { lastInvoicedPeriod: { lt: period } }],
-});
-
 /** Fatura toplamları — kesilen fatura ve taslak AYNI hesaptan. */
 export function faturaToplami(lines: { lineTotal: number }[], vatRate: number) {
   const subtotal = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
@@ -255,7 +237,9 @@ async function postInvoice(
   const { tenantId, customerId, period, source, lines } = params;
   if (lines.length === 0) return null;
 
-  const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
+  // Yalnız gereken iki alan: satırın tamamı bayinin logosunu da taşır (2 MB'a
+  // kadar) ve bu sorgu müşteri başına koşuyor.
+  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { vatRate: true, paymentTermDays: true } });
   if (!tenant) throw new Error('Tenant bulunamadı');
 
   const vatRate = Number(tenant.vatRate);
@@ -331,7 +315,7 @@ async function postInvoice(
  * yönetici Ekim'i) aynı fiş iki faturaya girerdi. Taslak da aynı kilitle
  * yazılır ve kesilir.
  */
-async function musteriFaturaKilidi(tx: Tx, tenantId: string, customerId: string) {
+export async function musteriFaturaKilidi(tx: Tx, tenantId: string, customerId: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId}), hashtext(${`fatura:${customerId}`}))`;
 }
 
@@ -340,56 +324,135 @@ async function musteriFaturaKilidi(tx: Tx, tenantId: string, customerId: string)
  * cihazlıysa bekleyen işlem varsayılan 5 sn'de boşuna düşmesin. Bekleyen
  * işlemler bağlantı tuttuğu için havuzdan bağlantı alma süresi de uzun.
  */
-const FATURA_ISLEMI = { timeout: 30_000, maxWait: 10_000 } as const;
+export const FATURA_ISLEMI = { timeout: 30_000, maxWait: 10_000 } as const;
+
+/** Fatura hesabının bayiden okuduğu alanlar (satırın tamamı değil: logo megabaytlarca). */
+const HESAP_BAYISI = { id: true, pricePerBlack: true, pricePerColor: true, vatRate: true, faturaOnayi: true } as const;
+type HesapBayisi = Prisma.TenantGetPayload<{ select: typeof HESAP_BAYISI }>;
+
+/** Fatura hesabının cihazdan okuduğu alanlar (ölçüm, sarf, QR gibi geniş alanlar çekilmez). */
+const HESAP_CIHAZI = {
+  id: true, brand: true, model: true, serialNo: true, isRental: true, monthlyRent: true,
+  pricePerBlack: true, pricePerColor: true, includedBlack: true, includedColor: true,
+  overagePriceBlack: true, overagePriceColor: true,
+  lastInvoicedPeriod: true, createdAt: true,
+} as const;
 
 /** Bir dönem faturasının hesabı — veritabanına HİÇBİR ŞEY yazmaz. */
-interface FaturaHesabi {
-  tenant: Prisma.TenantGetPayload<object>;
+export interface FaturaHesabi {
+  tenant: HesapBayisi;
   customerId: string;
   period: string;
   lines: LineInput[];
   readingIdsToBill: string[];
-  deviceRentToMark: string[];
+  /** Bu faturada kirası kesilen cihazlar ve tutarları (KiraDonemi satırı olur) */
+  kiralar: { deviceId: string; tutar: number }[];
   ticketIdsToMark: string[];
   /** Sayaç satırı olan cihazlar — bekletme kuralları buna bakar */
   cihazlar: CihazOzeti[];
+  /** deviceId → "Marka Model · seri" (cari dökümü ve taslak için) */
+  cihazAdlari: Map<string, string>;
+}
+
+/** Faturada cihazı ayırt eden ad: 300 aynı model yazıcıda satırlar birbirine karışmasın. */
+function cihazAdi(d: { brand: string; model: string; serialNo: string | null }): string {
+  const seri = d.serialNo && !seriBekliyor(d.serialNo) ? ` · ${d.serialNo}` : '';
+  return `${d.brand} ${d.model}${seri}`;
 }
 
 /**
  * Bir müşterinin dönem faturasını HESAPLAR (kilit içinde çağrılır):
  *  - Faturalanmamış sayaç okumaları (mono/renkli delta × birim fiyat)
- *  - Sabit aylık kira (dönem başına 1 kez)
+ *  - Sabit aylık kira (cihaz × dönem başına 1 kez — lib/kira-donemi)
  *  - Teslim edilmiş, faturalanmamış iş emirleri (parça + işçilik)
  * Kesmek ayrı adım (faturaKes): taslakta bekleyen fatura hiçbir işareti
  * değiştirmez, kesilirken hesap yeniden yapılır.
+ *
+ * SORGU SAYISI CİHAZ SAYISINA BAĞLI DEĞİL. Eskiden cihaz başına iki sorgu
+ * atılıyordu (okumalar + dönem içi önceki toplam): 300 cihazlı bir hastanede
+ * 600 sorgu, hepsi 30 saniyelik işlemin içinde. Okuma satırının tamamı
+ * çekildiği için sayaç fotoğrafları (okuma başına 800 KB'a kadar) da geliyordu.
  */
-async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, period: string): Promise<FaturaHesabi> {
-  // Kira kuralı dönem sonuna bakar (dönemden sonra kurulan cihazın o ayın
+export async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, period: string): Promise<FaturaHesabi> {
+  // Kira kuralı dönem sonuna bakar (dönemden sonra eklenen cihazın o ayın
   // kirası yok). Okumalar ise DÖNEM DAMGASIYLA seçilir (donemOkumaKosulu):
   // kesim günü 3 olan bayide 1 Kasım'da gelen rapor Ekim'in okumasıdır.
   const { end } = donemAraligi(period);
   const donemdeki = donemOkumaKosulu(period);
 
-  const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
+  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: HESAP_BAYISI });
   if (!tenant) throw new Error('Tenant bulunamadı');
 
   const lines: LineInput[] = [];
   const readingIdsToBill: string[] = [];
-  const deviceRentToMark: string[] = [];
+  const kiralar: { deviceId: string; tutar: number }[] = [];
   const cihazlar: CihazOzeti[] = [];
+  const cihazAdlari = new Map<string, string>();
 
-  const devices = await tx.device.findMany({ where: { tenantId, customerId } });
+  const devices = await tx.device.findMany({
+    where: { tenantId, customerId },
+    select: HESAP_CIHAZI,
+    orderBy: [{ brand: 'asc' }, { model: 'asc' }, { serialNo: 'asc' }],
+  });
+  // AYRILAN CİHAZLAR: bu müşterideyken okunmuş, henüz faturalanmamış sayfası
+  // olan ama artık başka müşteride duran cihazlar. Sayfaları BU müşteriye
+  // kesilir (okuma anındaki müşteri); kiraları cihazın şimdiki müşterisinde.
+  const buradakiIds = devices.map((d) => d.id);
+  const ayrilanIds = (
+    await tx.counterReading.findMany({
+      where: { tenantId, customerId, billed: false, deviceId: { notIn: buradakiIds }, AND: [donemdeki] },
+      select: { deviceId: true },
+      distinct: ['deviceId'],
+    })
+  ).map((r) => r.deviceId);
+  const ayrilanlar = ayrilanIds.length
+    ? (await tx.device.findMany({ where: { tenantId, id: { in: ayrilanIds } }, select: HESAP_CIHAZI })).filter(sayfaUcretliMi)
+    : [];
+  const ayrilanKume = new Set(ayrilanlar.map((d) => d.id));
+
+  const ucretli = [...devices.filter(sayfaUcretliMi), ...ayrilanlar];
+  const ucretliIds = ucretli.map((d) => d.id);
+  const kiralikIds = devices.filter((d) => d.isRental).map((d) => d.id);
+  // Bu müşterinin okuması: damgası bu müşteri, ya da damgasız (eski kayıt) ve cihaz şu an burada.
+  const buMusterinin = { OR: [{ customerId }, { customerId: null, deviceId: { in: buradakiIds } }] };
+
   // Okunmayan ayların dahil paketi (tek sorgu): bkz. sayacAyCarpanlari.
-  const carpanlar = await sayacAyCarpanlari(tx, tenantId, devices.filter(sayfaUcretliMi).map((d) => d.id), period);
+  const carpanlar = await sayacAyCarpanlari(tx, tenantId, ucretli, period);
+  // a) Bu dönemin faturalanmamış okumaları — YALNIZ sayfa başı ücretli cihazda.
+  // Ücretsiz cihazın okuması "faturalandı" diye kapatılmaz (bkz. sayfaUcretliMi).
+  const okumalar = ucretliIds.length
+    ? await tx.counterReading.findMany({
+        where: { tenantId, deviceId: { in: ucretliIds }, billed: false, AND: [donemdeki, buMusterinin] },
+        select: { id: true, deviceId: true, deltaBlack: true, deltaColor: true, supheli: true },
+      })
+    : [];
+  // Dahil paket dönem boyunca KÜMÜLATİF: bu dönemde daha önce faturalanmış sayfalar.
+  const oncekiler = ucretliIds.length
+    ? await tx.counterReading.groupBy({
+        by: ['deviceId'],
+        where: { tenantId, deviceId: { in: ucretliIds }, billed: true, AND: [donemdeki, buMusterinin] },
+        _sum: { deltaBlack: true, deltaColor: true },
+      })
+    : [];
+  // Bu dönemin kirası kesilmiş cihazlar (lib/kira-donemi).
+  const kesilmis = kiralikIds.length
+    ? new Set((await tx.kiraDonemi.findMany({ where: { deviceId: { in: kiralikIds }, period }, select: { deviceId: true } })).map((k) => k.deviceId))
+    : new Set<string>();
 
-  for (const device of devices) {
-    // a) Faturalanmamış sayaç okumaları (bu dönem) — YALNIZ sayfa başı
-    // ücretli cihazda. Ücretsiz cihazın okuması "faturalandı" diye
-    // kapatılmaz (bkz. sayfaUcretliMi: sessiz sayaç yanması).
+  const okumaHaritasi = new Map<string, typeof okumalar>();
+  for (const r of okumalar) {
+    const l = okumaHaritasi.get(r.deviceId);
+    if (l) l.push(r);
+    else okumaHaritasi.set(r.deviceId, [r]);
+  }
+  const oncekiHaritasi = new Map(oncekiler.map((o) => [o.deviceId, { siyah: o._sum.deltaBlack ?? 0, renkli: o._sum.deltaColor ?? 0 }]));
+
+  for (const device of [...devices, ...ayrilanlar]) {
+    const ad = cihazAdi(device);
+    cihazAdlari.set(device.id, ad);
+
     if (sayfaUcretliMi(device)) {
-      const readings = await tx.counterReading.findMany({
-        where: { tenantId, deviceId: device.id, billed: false, ...donemdeki },
-      });
+      const readings = okumaHaritasi.get(device.id) ?? [];
       let sumBlack = 0;
       let sumColor = 0;
       let supheli = 0;
@@ -399,15 +462,11 @@ async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, perio
         if (r.supheli) supheli++;
         readingIdsToBill.push(r.id);
       }
-      // Dahil paketi dönem boyunca KÜMÜLATİF uygula: bu dönemde daha önce faturalanmış sayfaları çek
-      const prevAgg = await tx.counterReading.aggregate({
-        where: { tenantId, deviceId: device.id, billed: true, ...donemdeki },
-        _sum: { deltaBlack: true, deltaColor: true },
-      });
+      const onceki = oncekiHaritasi.get(device.id) ?? { siyah: 0, renkli: 0 };
       // Kademeli: dahil sayfa kira içinde; yalnız aşım faturalanır (included=0 ise düz fiyat).
       // Okunmayan ay varsa dahil paket o kadar ay uygulanır (dahilCarpanli).
       const k = carpanlar.get(device.id) ?? { siyah: 1, renkli: 1 };
-      const ch = counterOverage(dahilCarpanli(device, k), sumBlack, sumColor, fiyatTabani(device, tenant), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+      const ch = counterOverage(dahilCarpanli(device, k), sumBlack, sumColor, fiyatTabani(device, tenant), onceki.siyah, onceki.renkli);
       const fmtN = (n: number) => n.toLocaleString('tr-TR');
       const ayEki = (n: number) => (n > 1 ? ` (${n} ay)` : '');
       // Müşteri makinesinde fiyatı girilmemiş kanal (yalnız S/B anlaşması
@@ -419,7 +478,7 @@ async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, perio
         lines.push({
           tenantId,
           kind: 'COUNTER',
-          description: `Sayaç (S/B) — ${device.brand} ${device.model}${ch.inclB > 0 ? ` · ${fmtN(sumBlack)} okundu, ${fmtN(ch.inclB)} dahil${ayEki(k.siyah)}, ${fmtN(ch.billB)} aşım` : ''}`,
+          description: `Sayaç (S/B) — ${ad}${ch.inclB > 0 ? ` · ${fmtN(sumBlack)} okundu, ${fmtN(ch.inclB)} dahil${ayEki(k.siyah)}, ${fmtN(ch.billB)} aşım` : ''}`,
           deviceId: device.id,
           quantity: ch.billB,
           unitPrice: ch.overBlack,
@@ -433,7 +492,7 @@ async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, perio
         lines.push({
           tenantId,
           kind: 'COUNTER',
-          description: `Sayaç (Renkli) — ${device.brand} ${device.model}${ch.inclC > 0 ? ` · ${fmtN(sumColor)} okundu, ${fmtN(ch.inclC)} dahil${ayEki(k.renkli)}, ${fmtN(ch.billC)} aşım` : ''}`,
+          description: `Sayaç (Renkli) — ${ad}${ch.inclC > 0 ? ` · ${fmtN(sumColor)} okundu, ${fmtN(ch.inclC)} dahil${ayEki(k.renkli)}, ${fmtN(ch.billC)} aşım` : ''}`,
           deviceId: device.id,
           quantity: ch.billC,
           unitPrice: ch.overColor,
@@ -445,7 +504,7 @@ async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, perio
       if (readings.length)
         cihazlar.push({
           deviceId: device.id,
-          cihaz: `${device.brand} ${device.model}${device.serialNo ? ` · ${device.serialNo}` : ''}`,
+          cihaz: ad,
           sayfa: sumBlack + sumColor,
           tutar: round2(tutar),
           carpan: k.siyah,
@@ -453,18 +512,20 @@ async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, perio
         });
     }
 
-    // b) Sabit kira — dönem başına 1 kez; geçmiş dönem kesimi kirayı tekrar yazmaz (kiraKesilir)
-    if (kiraKesilir(device, period, end)) {
+    // b) Sabit kira — cihaz × dönem başına 1 kez; hangi ayın önce kesildiği önemsiz.
+    // Ayrılan cihazın kirası burada kesilmez (cihazın şimdiki müşterisinde).
+    if (!ayrilanKume.has(device.id) && kiraKesilir(device, period, end, kesilmis.has(device.id))) {
+      const kira = round2(Number(device.monthlyRent));
       lines.push({
         tenantId,
         kind: 'RENTAL',
-        description: `Aylık kira — ${device.brand} ${device.model}`,
+        description: `Aylık kira — ${ad}`,
         deviceId: device.id,
         quantity: 1,
         unitPrice: Number(device.monthlyRent),
-        lineTotal: round2(Number(device.monthlyRent)),
+        lineTotal: kira,
       });
-      deviceRentToMark.push(device.id);
+      kiralar.push({ deviceId: device.id, tutar: kira });
     }
   }
 
@@ -483,7 +544,10 @@ async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, perio
       tenantId, customerId, status: 'DELIVERED', invoiceId: null, deletedAt: null, paymentStatus: 'UNPAID',
       ...(cariTicketIds.length ? { id: { notIn: cariTicketIds } } : {}),
     },
-    include: { ticketParts: { include: { part: true } } },
+    select: {
+      id: true, ticketNumber: true, laborCost: true,
+      ticketParts: { select: { partId: true, quantity: true, unitPrice: true, part: { select: { name: true } } } },
+    },
   });
   const ticketIdsToMark: string[] = [];
   for (const t of tickets) {
@@ -513,7 +577,19 @@ async function faturaHesapla(tx: Tx, tenantId: string, customerId: string, perio
     ticketIdsToMark.push(t.id);
   }
 
-  return { tenant, customerId, period, lines, readingIdsToBill, deviceRentToMark, ticketIdsToMark, cihazlar };
+  return { tenant, customerId, period, lines, readingIdsToBill, kiralar, ticketIdsToMark, cihazlar, cihazAdlari };
+}
+
+/**
+ * Bu fatura bu okumaları ve bu kiraları SAHİPLENEMEDİ: hesapla kesim arasında
+ * başka bir yol (elle "cariye ekle") aynı kalemi faturalamış. İşlem geri
+ * alınır; bir sonraki deneme hesabı baştan yapar.
+ */
+export class FaturaCakismasi extends Error {
+  constructor(ne: string) {
+    super(`FATURA_CAKISMASI: ${ne}`);
+    this.name = 'FaturaCakismasi';
+  }
 }
 
 /** Hesabı keser: fatura + satırlar + "faturalandı" işaretleri (aynı işlem). Satır yoksa null. */
@@ -523,11 +599,23 @@ async function faturaKes(tx: Tx, h: FaturaHesabi, source: InvoiceSource) {
   const invoice = await postInvoice(tx, { tenantId, customerId, period, source, lines: h.lines });
   if (!invoice) return null;
 
-  // Idempotency işaretleri — aynı transaction
-  if (h.readingIdsToBill.length)
-    await tx.counterReading.updateMany({ where: { id: { in: h.readingIdsToBill } }, data: { billed: true } });
-  if (h.deviceRentToMark.length)
-    await tx.device.updateMany({ where: { id: { in: h.deviceRentToMark }, ...kiraIsaretiKosulu(period) }, data: { lastInvoicedPeriod: period } });
+  // Idempotency işaretleri — aynı transaction.
+  // Okumalar SAHİPLENİLİR: yalnız hâlâ faturalanmamış olanlar işaretlenir ve
+  // sayı tutmazsa fatura kesilmez. Eskiden koşulsuz işaretleniyordu; aynı
+  // okumayı az önce cari yolu faturaladıysa sayfalar iki kez borç yazılıyordu.
+  if (h.readingIdsToBill.length) {
+    const r = await tx.counterReading.updateMany({
+      where: { tenantId, id: { in: h.readingIdsToBill }, billed: false },
+      data: { billed: true, faturaId: invoice.id },
+    });
+    if (r.count !== h.readingIdsToBill.length) throw new FaturaCakismasi(`okuma ${r.count}/${h.readingIdsToBill.length}`);
+  }
+  // Kira: cihaz × dönem satırı. Tekil dizin (deviceId, period) aynı kiranın
+  // ikinci kez kesilmesini veritabanında durdurur (işlem geri alınır).
+  if (h.kiralar.length)
+    await tx.kiraDonemi.createMany({
+      data: h.kiralar.map((k) => ({ tenantId, deviceId: k.deviceId, period, tutar: k.tutar, kaynak: 'FATURA', invoiceId: invoice.id })),
+    });
   if (h.ticketIdsToMark.length)
     await tx.serviceTicket.updateMany({
       where: { id: { in: h.ticketIdsToMark } },
@@ -550,7 +638,10 @@ export async function buildInvoiceForCustomerPeriod(
   return prisma.$transaction(async (tx) => {
     await musteriFaturaKilidi(tx, tenantId, customerId);
     const h = await faturaHesapla(tx, tenantId, customerId, period);
-    return faturaKes(tx, h, source);
+    const invoice = await faturaKes(tx, h, source);
+    // Müşterinin avansı varsa yeni faturaya hemen düşer (bkz. avanslariMahsupEt).
+    if (invoice) await avanslariMahsupEt(tx, tenantId, customerId);
+    return invoice;
   }, FATURA_ISLEMI);
 }
 
@@ -618,6 +709,8 @@ export async function donemFaturasiHazirla(
     const invoice = await faturaKes(tx, h, source);
     if (!invoice) return null;
     if (bekleyen) await tx.faturaTaslagi.update({ where: { id: bekleyen.id }, data: { durum: 'KESILDI', invoiceId: invoice.id } });
+    // Müşterinin avansı varsa yeni faturaya hemen düşer (bkz. avanslariMahsupEt).
+    await avanslariMahsupEt(tx, tenantId, customerId);
     return { tur: 'KESILDI', invoice };
   }, FATURA_ISLEMI);
 }
@@ -672,6 +765,7 @@ export async function createInvoiceForTicket(ticketId: string) {
       where: { id: t.id },
       data: { invoiceId: invoice.id, invoicedAt: invoice.invoiceDate },
     });
+    await avanslariMahsupEt(tx, t.tenantId, t.customerId);
     return invoice;
   });
 }
@@ -698,6 +792,118 @@ type TahsilatGirdisi = {
   paymentId?: string;
   ticketId?: string | null;
 };
+
+type Dagitim = { invoiceId: string; invoiceNumber: string; amount: number; status: string };
+
+/**
+ * Bir tahsilatın `tutar` kadarını müşterinin açık faturalarına EN ESKİ VADEDEN
+ * başlayarak dağıtır (çağıran müşteri kilidini almış olmalı). Fatura, mahsup
+ * kaydı ve nakit-esaslı gelir satırı birlikte yazılır. Dağıtılamayan `remaining`
+ * tahsilatın üstünde avans olarak kalır.
+ */
+async function faturalaraDagit(
+  tx: Tx,
+  g: { tenantId: string; customerId: string; paymentId: string; tutar: number; pmethod: PaymentMethod; tarih: Date },
+): Promise<{ allocations: Dagitim[]; remaining: number }> {
+  const { tenantId, customerId, paymentId, pmethod } = g;
+  const open = await tx.customerInvoice.findMany({
+    where: { tenantId, customerId, status: { in: ['OPEN', 'PARTIAL', 'OVERDUE'] }, deletedAt: null },
+    orderBy: [{ dueDate: 'asc' }, { invoiceDate: 'asc' }],
+  });
+
+  let remaining = round2(g.tutar);
+  const allocations: Dagitim[] = [];
+
+  for (const inv of open) {
+    if (remaining <= 0.001) break;
+    const openAmt = round2(Number(inv.totalAmount) - Number(inv.paidAmount));
+    if (openAmt <= 0) continue;
+    const alloc = round2(Math.min(remaining, openAmt));
+    const newPaid = round2(Number(inv.paidAmount) + alloc);
+    const fullyPaid = newPaid >= Number(inv.totalAmount) - 0.001;
+
+    await tx.invoicePayment.create({ data: { tenantId, invoiceId: inv.id, paymentId, amount: alloc } });
+    await tx.customerInvoice.update({
+      where: { id: inv.id },
+      data: {
+        paidAmount: newPaid,
+        // Vadesi geçmiş fatura kısmi ödemeyle "vadesi geçmiş" olmaktan çıkmaz.
+        status: fullyPaid ? 'PAID' : inv.status === 'OVERDUE' ? 'OVERDUE' : 'PARTIAL',
+        paidAt: fullyPaid ? new Date() : inv.paidAt,
+      },
+    });
+    // Nakit-esaslı gelir kaydı — mahsup edilen tutar kadar
+    await tx.financialTransaction.create({
+      data: {
+        tenantId,
+        customerId,
+        invoiceId: inv.id,
+        type: 'INCOME',
+        category: inv.source === 'TICKET' ? 'SERVICE_FEE' : 'COUNTER_FEE',
+        amount: alloc,
+        method: pmethod,
+        description: `Tahsilat — ${inv.invoiceNumber}`,
+        date: g.tarih,
+      },
+    });
+    allocations.push({
+      invoiceId: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      amount: alloc,
+      status: fullyPaid ? 'PAID' : 'PARTIAL',
+    });
+    remaining = round2(remaining - alloc);
+  }
+  return { allocations, remaining };
+}
+
+/**
+ * AVANS — faturalara dağıtılmamış tahsilat.
+ *
+ * Müşteri ₺6.000 borcuna ₺10.000 yatırdığında artan ₺4.000 tahsilat kaydının
+ * üstünde kalıyor ama hiçbir şey onu bir daha kullanmıyordu: sonraki ay kesilen
+ * fatura "açık" duruyor, vadesi geçince hatırlatma gidiyordu — alacağı olan
+ * müşteriye. (Ölçüldü: açık borç ₺2.000 olması gerekirken ₺6.000.)
+ *
+ * Avans = tahsilat tutarı − o tahsilatın faturalara mahsup edilen toplamı.
+ * Yalnız müşteri tahsilatları (fişe bağlı ödeme fişi kapatır, avans değildir).
+ */
+export async function dagitilmamisTahsilatlar(
+  db: Pick<Tx, '$queryRaw'>,
+  tenantId: string,
+  customerId: string,
+): Promise<{ id: string; kalan: number; method: string; paymentDate: Date }[]> {
+  return db.$queryRaw<{ id: string; kalan: number; method: string; paymentDate: Date }[]>`
+    SELECT p."id", p."method"::text AS "method", p."paymentDate",
+      (p."amount" - COALESCE(SUM(ip."amount"), 0))::float8 AS "kalan"
+    FROM "Payment" p
+    LEFT JOIN "InvoicePayment" ip ON ip."paymentId" = p."id"
+    WHERE p."tenantId" = ${tenantId} AND p."customerId" = ${customerId} AND p."ticketId" IS NULL
+    GROUP BY p."id"
+    HAVING p."amount" - COALESCE(SUM(ip."amount"), 0) > 0.005
+    ORDER BY p."paymentDate", p."createdAt"
+  `;
+}
+
+/**
+ * Müşterinin avansını açık faturalarına mahsup eder (en eski tahsilat, en eski
+ * vade). Yeni fatura kesilir kesilmez çağrılır; kesen işlemin içinde.
+ * Mahsup edilen toplamı döner.
+ */
+export async function avanslariMahsupEt(tx: Tx, tenantId: string, customerId: string): Promise<number> {
+  await musteriyiKilitle(tx, tenantId, customerId);
+  const avanslar = await dagitilmamisTahsilatlar(tx, tenantId, customerId);
+  let toplam = 0;
+  for (const a of avanslar) {
+    const pmethod = PaymentMethod[a.method as keyof typeof PaymentMethod] ?? PaymentMethod.TRANSFER;
+    const { allocations, remaining } = await faturalaraDagit(tx, {
+      tenantId, customerId, paymentId: a.id, tutar: Number(a.kalan), pmethod, tarih: new Date(),
+    });
+    toplam += allocations.reduce((s, x) => s + x.amount, 0);
+    if (remaining > 0.005) break; // açık fatura kalmadı
+  }
+  return round2(toplam);
+}
 
 export async function allocatePayment(params: TahsilatGirdisi) {
   return prisma.$transaction((tx) => allocatePaymentTx(tx, params));
@@ -744,53 +950,9 @@ export async function allocatePaymentTx(tx: Tx, params: TahsilatGirdisi) {
       paymentId = p.id;
     }
 
-    const open = await tx.customerInvoice.findMany({
-      where: { tenantId, customerId, status: { in: ['OPEN', 'PARTIAL', 'OVERDUE'] }, deletedAt: null },
-      orderBy: [{ dueDate: 'asc' }, { invoiceDate: 'asc' }],
+    const { allocations, remaining } = await faturalaraDagit(tx, {
+      tenantId, customerId, paymentId, tutar: amount, pmethod, tarih: params.date ?? new Date(),
     });
-
-    let remaining = amount;
-    const allocations: { invoiceId: string; invoiceNumber: string; amount: number; status: string }[] = [];
-
-    for (const inv of open) {
-      if (remaining <= 0.001) break;
-      const openAmt = round2(Number(inv.totalAmount) - Number(inv.paidAmount));
-      if (openAmt <= 0) continue;
-      const alloc = round2(Math.min(remaining, openAmt));
-      const newPaid = round2(Number(inv.paidAmount) + alloc);
-      const fullyPaid = newPaid >= Number(inv.totalAmount) - 0.001;
-
-      await tx.invoicePayment.create({ data: { tenantId, invoiceId: inv.id, paymentId, amount: alloc } });
-      await tx.customerInvoice.update({
-        where: { id: inv.id },
-        data: {
-          paidAmount: newPaid,
-          status: fullyPaid ? 'PAID' : 'PARTIAL',
-          paidAt: fullyPaid ? new Date() : inv.paidAt,
-        },
-      });
-      // Nakit-esaslı gelir kaydı — mahsup edilen tutar kadar
-      await tx.financialTransaction.create({
-        data: {
-          tenantId,
-          customerId,
-          invoiceId: inv.id,
-          type: 'INCOME',
-          category: inv.source === 'TICKET' ? 'SERVICE_FEE' : 'COUNTER_FEE',
-          amount: alloc,
-          method: pmethod,
-          description: `Tahsilat — ${inv.invoiceNumber}`,
-          date: params.date ?? new Date(),
-        },
-      });
-      allocations.push({
-        invoiceId: inv.id,
-        invoiceNumber: inv.invoiceNumber,
-        amount: alloc,
-        status: fullyPaid ? 'PAID' : 'PARTIAL',
-      });
-      remaining = round2(remaining - alloc);
-    }
 
     if (params.method && params.method !== 'OPEN_ACCOUNT') {
       await tx.payment.update({ where: { id: paymentId }, data: { reconciled: true } });

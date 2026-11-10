@@ -111,7 +111,9 @@ try {
     // her yeni kiralık cihaz ilk ayının kirasını kaybediyordu.
     const cihaz = await p.device.findFirst({ where: { tenantId: tenant.id, customerId: B.m.id } });
     t('cihaz gerçekten hiç faturalanmamıştı (test anlamlı)', true, { simdi: cihaz.lastInvoicedPeriod });
-    t('dönem işareti kondu', cihaz.lastInvoicedPeriod === donem, { beklenen: donem, olan: cihaz.lastInvoicedPeriod });
+    // Kira artık dönem dönem tutuluyor (lib/kira-donemi): cari yolunun kaydı CARI kaynaklı.
+    const kd = await p.kiraDonemi.findMany({ where: { deviceId: cihaz.id }, select: { period: true, kaynak: true } });
+    t('dönemin kira kaydı kondu (cari)', kd.length === 1 && kd[0].period === donem && kd[0].kaynak === 'CARI', { beklenen: donem, kd });
 
     const kiraKaydi = await p.accountEntry.findFirst({
       where: { tenantId: tenant.id, customerId: B.m.id, type: 'SALE', product: { contains: 'Kira' } },

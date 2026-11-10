@@ -359,7 +359,7 @@ if (veri) {
     t('nakit esaslı gelir yalnız faturaya mahsup edilen kadar (1200 + 300)', Number(gelir._sum.amount) === 1500, gelir._sum);
 
     const b1 = await bakiye.tumBakiyeler(bayi);
-    t('★ müşterilerin TOPLAM borcu ödenen kadar düştü', b1.get(A).toplamBorc === 300 && b1.get(B).toplamBorc === 300 && b1.get(C).toplamBorc === 0,
+    t('★ müşterilerin TOPLAM borcu ödenen kadar düştü', b1.get(A).toplamBorc === 300 && b1.get(B).toplamBorc === 300 && b1.get(C).toplamBorc === -200 && b1.get(C).avans === 200,
       [...b1.values()].map((x) => [x.customerId === A ? 'A' : x.customerId === B ? 'B' : 'C', x.toplamBorc]));
 
     const sayim = async () => ({
@@ -397,6 +397,9 @@ if (veri) {
 
     // Önizleme — işlenmiş satır, adla eşleşme, elle girilmiş uyarısı
     await p.payment.create({ data: { tenantId: bayi, customerId: B, amount: 999, method: 'TRANSFER', paymentDate: new Date('2026-09-20T10:00:00Z') } });
+    // Elle girilen tahsilat faturaya düşmediği için avanstır ve bakiyede alacak görünür
+    // (lib/musteri-bakiye). B borçlu kalsın diye aynı tutarda servis borcu da var.
+    await p.accountEntry.create({ data: { tenantId: bayi, customerId: B, type: 'SALE', product: 'Servis', amount: 999, method: 'OPEN_ACCOUNT', date: new Date('2026-09-19T10:00:00Z') } });
     const hYeni = hk('EFT ALFA OFIS', 42);
     const hElle = hk('BETA BURO', 999, '2026-09-21');
     const on = await ekstreOnizle(bayi, [hA, hYeni, hElle]);

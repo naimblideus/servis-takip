@@ -22,6 +22,7 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bayiSuzgeci } from '@/lib/api-auth';
+import { cihazAyriliyor } from '@/lib/okuma-sahibi';
 
 /** GET = ÖNİZLEME (yazmaz) · POST = UYGULA */
 export async function GET() { return calistir(false); }
@@ -68,6 +69,7 @@ async function calistir(uygula: boolean) {
                     // Cihazı hedef müşteriye taşı
                     try {
                         if (uygula) {
+                            await cihazAyriliyor(prisma, tenantId, device.id, device.customerId);
                             await prisma.device.update({
                                 where: { id: device.id },
                                 data: { customerId: ticket.customerId },

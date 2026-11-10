@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { donemFaturasiHazirla } from '@/lib/invoicing';
 import { tekSeferlik } from '@/lib/zamanlanmis-is';
 import { donemAraligi, gecerliDonem, kapananDonem, kesimGunu } from '@/lib/fatura-donemi';
-import { donemKapaliMi, kosuDonemiKapatir, kosuyuKaydet } from '@/lib/fatura-turu';
+import { bitmemisDonemler, donemKapaliMi } from '@/lib/fatura-turu';
+import { bayiDoneminiFaturala } from '@/lib/fatura-kosusu';
 
 // Vercel function timeout (saniye) — büyük tenant'lar için
 export const maxDuration = 300;
@@ -74,52 +74,27 @@ async function run(elleDonem: string | null, tenantId?: string) {
 
   for (const tenant of tenants) {
     const kesim = kesimGunu(tenant.invoiceDayOfMonth);
-    const period = elleDonem ?? kapananDonem(new Date(), kesim);
-    if (!elleDonem && (donemAraligi(period).end <= tenant.createdAt || (await donemKapaliMi(tenant.id, period)))) {
-      results.push({ tenantId: tenant.id, tenantName: tenant.name, period, invoices: 0, total: 0, errors: 0, bekleyen: 0, atlandi: true });
-      continue;
-    }
-    const customers = await prisma.customer.findMany({
-      where: { tenantId: tenant.id },
-      select: { id: true },
-    });
-
-    let invoices = 0;
-    let total = 0;
-    let bekleyen = 0;
-    const hatalar: { customerId: string; hata: string }[] = [];
-
-    for (const c of customers) {
-      try {
-        const s = await donemFaturasiHazirla(tenant.id, c.id, period, { source: 'AUTO_MONTHLY' });
-        if (s?.tur === 'KESILDI') {
-          invoices++;
-          total += Number(s.invoice.totalAmount);
-        } else if (s?.tur === 'TASLAK') bekleyen++;
-      } catch (e: any) {
-        hatalar.push({ customerId: c.id, hata: String(e?.message ?? e).slice(0, 300) });
-        console.error(`INVOICE CRON ERROR tenant=${tenant.id} customer=${c.id}:`, e?.message);
-      }
+    const kapanan = kapananDonem(new Date(), kesim);
+    // Koşulacak dönemler: elle verilen dönem; yoksa önce yarım kalmış (hata
+    // almış) eski koşular, sonra az önce kapanan dönem. Hata alan müşteri
+    // böylece ertesi gün ve ay dönse de yeniden denenir (lib/fatura-kosusu).
+    const donemler: string[] = [];
+    if (elleDonem) donemler.push(elleDonem);
+    else {
+      donemler.push(...(await bitmemisDonemler(tenant.id, kapanan)));
+      // Bayi açılmadan önce biten dönem koşulmaz; koşusu bitmiş dönem atlanır.
+      if (donemAraligi(kapanan).end <= tenant.createdAt || (await donemKapaliMi(tenant.id, kapanan))) {
+        if (donemler.length === 0) {
+          results.push({ tenantId: tenant.id, tenantName: tenant.name, period: kapanan, invoices: 0, total: 0, errors: 0, bekleyen: 0, atlandi: true });
+          continue;
+        }
+      } else if (!donemler.includes(kapanan)) donemler.push(kapanan);
     }
 
-    const toplam = Math.round(total * 100) / 100;
-    try {
-      await kosuyuKaydet(tenant.id, period, 'CRON',
-        { faturaSayisi: invoices, toplam, hataSayisi: hatalar.length, hatalar },
-        kosuDonemiKapatir(period, kesim));
-    } catch (e: any) {
-      console.error(`FATURA TURU KAYIT HATASI tenant=${tenant.id}:`, e?.message);
+    for (const period of donemler) {
+      const r = await bayiDoneminiFaturala(tenant.id, period, 'CRON', kesim);
+      results.push({ tenantId: tenant.id, tenantName: tenant.name, period, invoices: r.invoices, total: r.total, errors: r.errors, bekleyen: r.bekleyen });
     }
-
-    results.push({
-      tenantId: tenant.id,
-      tenantName: tenant.name,
-      period,
-      invoices,
-      total: toplam,
-      errors: hatalar.length,
-      bekleyen,
-    });
   }
 
   return results;

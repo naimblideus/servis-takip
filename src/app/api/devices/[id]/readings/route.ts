@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { counterOverage } from '@/lib/invoicing';
-import { createReading, ReadingError, okumaFarki } from '@/lib/readings';
+import { createReading, ReadingError, okumaDuzelt, okumaSil } from '@/lib/readings';
 import { oturumKullanicisi } from '@/lib/api-auth';
 
 export async function POST(
@@ -103,6 +102,33 @@ export async function GET(
     });
 }
 
+/**
+ * Okuma zinciri hatasını (lib/readings ReadingError) ucun çevrilebilir yanıtına çevirir.
+ * `yol` aynı kodun iki uçtaki cümlesini ayırır (silinemez / düzenlenemez).
+ */
+function zincirHatasi(e: ReadingError, yol: 'SIL' | 'DUZELT') {
+    switch (e.code) {
+        case 'READING_NOT_FOUND': return ucHatasi('OKUMA_BULUNAMADI', 404);
+        case 'DEVICE_NOT_FOUND': return ucHatasi('CIHAZ_BULUNAMADI', 404);
+        case 'BILLED':
+            return ucHatasi(yol === 'SIL' ? 'BU_OKUMA_FATURALANDIGI_ICIN_SILINEMEZ' : 'BU_OKUMA_FATURALANDIGI_ICIN_DUZENLENEMEZ', 409);
+        case 'NEXT_BILLED':
+            return yol === 'SIL'
+                ? ucHatasi('BU_OKUMA_SILINEMEZ_SONRASINDAKI_OKUMA', 409)
+                : ucHatasi('BIR_SONRAKI_OKUMA_FATURALANDIGI_ICIN', 409, { ek: { code: 'SONRAKI_FATURALI' } });
+        case 'NEXT_LOWER':
+            // Sayı sunucuda biçimlenmiyor: cümleyi kuran sözlük, biçimi de okuyanın diline bırakıyor.
+            return ucHatasi('BU_DEGER_BIR_SONRAKI_OKUMADAN', 400, { deger: { p1: Number(e.veri?.p1 ?? 0) }, ek: { code: 'SONRAKI_DUSUK' } });
+        case 'COUNTER_DECREASE':
+            return ucHatasi('SAYAC_DEGERI_ONCEKINDEN_DUSUK_CIHAZ', 400, { ek: { code: 'COUNTER_DECREASE' } });
+        default:
+            return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
+    }
+}
+
+// Silme ve düzeltmenin kuralları lib/readings.ts'te (okumaSil, okumaDuzelt):
+// kilitler, faturalanmış okuma koruması, beyanın (cihaz değişti / sayaç
+// sıfırlandı) korunması ve zincirin onarımı tek yerde.
 export async function DELETE(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -119,68 +145,10 @@ export async function DELETE(
         const readingId = url.searchParams.get('readingId');
         if (!readingId) return NextResponse.json({ error: 'readingId zorunlu' }, { status: 400 });
 
-        // Okumanın var olduğunu ve tenant'a ait olduğunu kontrol et
-        const reading = await prisma.counterReading.findFirst({
-            where: { id: readingId, tenantId: user.tenantId, deviceId },
-        });
-        if (!reading) return ucHatasi('OKUMA_BULUNAMADI', 404);
-        if (reading.billed) return ucHatasi('BU_OKUMA_FATURALANDIGI_ICIN_SILINEMEZ', 409);
-
-        // ── SİLİNEN OKUMADAN SONRAKİNİN FARKI ─────────────────────────────
-        // Okumalar bir ZİNCİR: her okumanın farkı bir öncekine göre hesaplanır.
-        // Ortadaki halka silinince sonrakinin farkı ESKİ öncekine göre kalıyordu:
-        //   #1 140.000 (fark 0) · #2 150.000 (fark 10.000) · #3 160.000 (fark 10.000)
-        // #2 silinince #3'ün farkı hâlâ 10.000 görünüyordu; oysa artık öncesi
-        // 140.000 olduğu için gerçek fark 20.000. Aradaki 10.000 sayfa
-        // faturadan SESSİZCE düşüyordu.
-        const sonraki = await prisma.counterReading.findFirst({
-            where: { tenantId: user.tenantId, deviceId, readingDate: { gt: reading.readingDate } },
-            orderBy: { readingDate: 'asc' },
-        });
-
-        // Sonraki okuma FATURALANMIŞSA farkını değiştiremeyiz — kesilmiş fatura
-        // geriye dönük bozulur. Düzeltmezsek de sayfa kaybolur. İkisi de kabul
-        // edilemez, o yüzden silme reddedilir ve sebebi söylenir.
-        if (sonraki?.billed) {
-            return ucHatasi('BU_OKUMA_SILINEMEZ_SONRASINDAKI_OKUMA', 409);
-        }
-
-        const oncekiOkuma = await prisma.counterReading.findFirst({
-            where: { tenantId: user.tenantId, deviceId, readingDate: { lt: reading.readingDate } },
-            orderBy: { readingDate: 'desc' },
-        });
-
-        await prisma.$transaction(async (tx) => {
-            await tx.counterReading.delete({ where: { id: readingId } });
-
-            // Zinciri onar: sonraki okumanın farkı artık BİR ÖNCEKİNE göre.
-            // Öncesi hiç yoksa o okuma zincirin başı olur → fark 0.
-            if (sonraki) {
-                await tx.counterReading.update({
-                    where: { id: sonraki.id },
-                    data: {
-                        deltaBlack: oncekiOkuma ? Math.max(0, sonraki.counterBlack - oncekiOkuma.counterBlack) : 0,
-                        deltaColor: oncekiOkuma ? Math.max(0, sonraki.counterColor - oncekiOkuma.counterColor) : 0,
-                    },
-                });
-            }
-
-            // Cihaz sayaç değerlerini son okumayla güncelle
-            const lastReading = await tx.counterReading.findFirst({
-                where: { tenantId: user.tenantId, deviceId },
-                orderBy: { readingDate: 'desc' },
-            });
-            await tx.device.update({
-                where: { id: deviceId },
-                data: {
-                    counterBlack: lastReading?.counterBlack ?? null,
-                    counterColor: lastReading?.counterColor ?? null,
-                },
-            });
-        });
-
-        return NextResponse.json({ success: true, zincirOnarildi: !!sonraki });
+        const r = await okumaSil({ tenantId: user.tenantId, deviceId, readingId });
+        return NextResponse.json({ success: true, zincirOnarildi: r.zincirOnarildi });
     } catch (e: any) {
+        if (e instanceof ReadingError) return zincirHatasi(e, 'SIL');
         console.error('COUNTER READING DELETE ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
@@ -204,130 +172,19 @@ export async function PATCH(
 
         const body = await req.json();
         const { counterBlack, counterColor, reset, resetTur } = body;
-
         if (counterBlack === undefined || counterColor === undefined) {
             return NextResponse.json({ error: 'counterBlack ve counterColor zorunlu' }, { status: 400 });
         }
 
-        // Okumanın var olduğunu ve tenant'a ait olduğunu kontrol et
-        const reading = await prisma.counterReading.findFirst({
-            where: { id: readingId, tenantId: user.tenantId, deviceId },
-        });
-        if (!reading) return ucHatasi('OKUMA_BULUNAMADI', 404);
-        // Faturalanmış okuma DEĞİŞTİRİLEMEZ (immutable evidence — fatura/defter desync olmasın).
-        if (reading.billed) return ucHatasi('BU_OKUMA_FATURALANDIGI_ICIN_DUZENLENEMEZ', 409);
-
-        const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
-        if (!device) return ucHatasi('CIHAZ_BULUNAMADI', 404);
-
-        const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
-
-        // Bir önceki okumayı bul (bu okumadan önce)
-        const prev = await prisma.counterReading.findFirst({
-            where: { tenantId: user.tenantId, deviceId, readingDate: { lt: reading.readingDate }, id: { not: readingId } },
-            orderBy: { readingDate: 'desc' },
-        });
-
-        const prevB = prev ? prev.counterBlack : null;
-        const prevC = prev ? prev.counterColor : null;
-        const decreased = (prevB !== null && counterBlack < prevB) || (prevC !== null && counterColor < prevC);
-        if (decreased && !reset) {
-            return ucHatasi('SAYAC_DEGERI_ONCEKINDEN_DUSUK_CIHAZ', 400, { ek: { code: 'COUNTER_DECREASE' } });
-        }
-        // TEK KURAL: fark hesabı src/lib/readings.ts'teki okumaFarki().
-        // Burada AYRI bir kopya vardı ve o kopya, oluşturma yolunda düzeltilen
-        // hatanın eski hâlini taşıyordu: yalnız düşüş yönünü koruyor, sıfırlama
-        // türünü hiç bilmiyordu. Yani bayi cihaz değişimini beyan etse bile
-        // DÜZENLEME yolunda yeni makinenin ömür boyu sayacı o ayın kullanımı
-        // sayılabiliyordu (oluşturma yolunda ölçülen aynı hatanın bedeli
-        // ₺235.000'di). Kopya kaldırıldı; iki yol da aynı fonksiyonu çağırıyor.
-        const deltaBlack = okumaFarki(counterBlack, prevB, reset, resetTur);
-        const deltaColor = okumaFarki(counterColor, prevC, reset, resetTur);
-
-        // ── SONRAKİ OKUMA ZİNCİRİ ────────────────────────────────────────────
-        // Bir okumayı değiştirmek YALNIZ onu ilgilendirmez: bir SONRAKİ okumanın
-        // farkı da bu değere göre hesaplanmıştı. Sonraki yeniden hesaplanmazsa
-        // fark sessizce yanlış kalır ve o fark faturaya girer.
-        const sonraki = await prisma.counterReading.findFirst({
-            where: { tenantId: user.tenantId, deviceId, readingDate: { gt: reading.readingDate } },
-            orderBy: { readingDate: 'asc' },
-        });
-
-        // Yeni değer sonraki okumadan büyükse zincir bozulur (sonraki düşüş olur).
-        // Sonraki FATURALANMIŞSA hiç dokunamayız — düzenlemeyi tümden reddediyoruz,
-        // yarım tutarlı bir zincir bırakmaktansa hayır demek doğru.
-        if (sonraki) {
-            if (counterBlack > sonraki.counterBlack || counterColor > sonraki.counterColor) {
-                return ucHatasi('BU_DEGER_BIR_SONRAKI_OKUMADAN', 400, {
-                    // Sayı sunucuda biçimlenmiyor: cümleyi kuran sözlük,
-                    // biçimi de okuyanın diline bırakıyor.
-                    deger: { p1: sonraki.counterBlack },
-                    ek: { code: 'SONRAKI_DUSUK' },
-                });
-            }
-            if (sonraki.billed) {
-                return ucHatasi('BIR_SONRAKI_OKUMA_FATURALANDIGI_ICIN', 409, {
-                    ek: { code: 'SONRAKI_FATURALI' },
-                });
-            }
-        }
-
-        let calculatedCost = 0;
-        if (device.isRental && tenant) {
-            // Kademeli ücret — bu dönemde bu okumadan ÖNCEKİ sayfalar dahil paketi kümülatif yer
-            const rd = reading.readingDate;
-            const pStart = new Date(rd.getFullYear(), rd.getMonth(), 1);
-            const prevAgg = await prisma.counterReading.aggregate({
-                where: { tenantId: user.tenantId, deviceId, id: { not: readingId }, readingDate: { gte: pStart, lt: rd } },
-                _sum: { deltaBlack: true, deltaColor: true },
-            });
-            const ch = counterOverage(device, deltaBlack, deltaColor, tenant, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
-            calculatedCost = ch.total + Number(reading.monthlyRent);
-        }
-
-        // Okuma + zincir TEK transaction'da: yarım güncellenmiş zincir kalmasın.
-        const { updated, sonrakiYeniFark } = await prisma.$transaction(async (tx) => {
-            const updated = await tx.counterReading.update({
-                where: { id: readingId },
-                data: { counterBlack, counterColor, deltaBlack, deltaColor, calculatedCost },
-            });
-
-            // SONRAKİ okumanın farkını yeni değere göre yeniden hesapla.
-            let sonrakiYeniFark: { black: number; color: number } | null = null;
-            if (sonraki) {
-                const sdB = Math.max(0, sonraki.counterBlack - counterBlack);
-                const sdC = Math.max(0, sonraki.counterColor - counterColor);
-                let sMaliyet = 0;
-                if (device.isRental && tenant) {
-                    const srd = sonraki.readingDate;
-                    const sStart = new Date(srd.getFullYear(), srd.getMonth(), 1);
-                    const sAgg = await tx.counterReading.aggregate({
-                        where: {
-                            tenantId: user.tenantId, deviceId, id: { not: sonraki.id },
-                            readingDate: { gte: sStart, lt: srd },
-                        },
-                        _sum: { deltaBlack: true, deltaColor: true },
-                    });
-                    const sch = counterOverage(device, sdB, sdC, tenant, sAgg._sum.deltaBlack ?? 0, sAgg._sum.deltaColor ?? 0);
-                    sMaliyet = sch.total + Number(sonraki.monthlyRent);
-                }
-                await tx.counterReading.update({
-                    where: { id: sonraki.id },
-                    data: { deltaBlack: sdB, deltaColor: sdC, calculatedCost: sMaliyet },
-                });
-                sonrakiYeniFark = { black: sdB, color: sdC };
-            }
-
-            // Bu EN SON okumaysa cihazın "güncel sayaç" önbelleği de güncellenir.
-            const lastReading = await tx.counterReading.findFirst({
-                where: { tenantId: user.tenantId, deviceId },
-                orderBy: { readingDate: 'desc' },
-                select: { id: true },
-            });
-            if (lastReading?.id === readingId) {
-                await tx.device.update({ where: { id: deviceId }, data: { counterBlack, counterColor } });
-            }
-            return { updated, sonrakiYeniFark };
+        const { updated, sonrakiYeniFark } = await okumaDuzelt({
+            tenantId: user.tenantId,
+            deviceId,
+            readingId,
+            counterBlack: Number(counterBlack),
+            counterColor: Number(counterColor),
+            // Gönderilmediyse okumanın saklı beyanı korunur (düzeltme penceresi göndermiyor).
+            reset: typeof reset === 'boolean' ? reset : undefined,
+            resetTur: resetTur === 'SAYAC_SIFIRLANDI' || resetTur === 'CIHAZ_DEGISTI' ? resetTur : undefined,
         });
 
         return NextResponse.json({
@@ -337,6 +194,7 @@ export async function PATCH(
             sonrakiGuncellendi: sonrakiYeniFark,
         });
     } catch (e: any) {
+        if (e instanceof ReadingError) return zincirHatasi(e, 'DUZELT');
         console.error('COUNTER READING PATCH ERROR:', e.message);
         return NextResponse.json({ error: e.message }, { status: 500 });
     }

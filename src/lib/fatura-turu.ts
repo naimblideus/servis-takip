@@ -10,7 +10,7 @@
  * açık kalır, ay içindeki kalan okumalar aynı ayın paketiyle faturalanır.
  */
 import { prisma } from '@/lib/prisma';
-import { acikDonem, kesimGunu } from '@/lib/fatura-donemi';
+import { acikDonem, kesimGunu, oncekiDonem } from '@/lib/fatura-donemi';
 
 const ONBELLEK_MS = 60_000;
 type Kayit = { kapali: boolean; son: number };
@@ -58,7 +58,11 @@ export async function bekleyenSayisiniTazele(tenantId: string, period: string): 
 /**
  * Koşunun sonucunu yazar. `kapat` doğruysa dönem TAMAM olur (geç okumalar
  * sonraki döneme kayar); değilse özet tutulur, dönem açık kalır. Aynı dönem
- * ikinci kez koşulursa (kalan okumaları elle kesmek) özet birikir.
+ * ikinci kez koşulursa (kalan okumaları elle kesmek) fatura sayısı ve toplam
+ * birikir; hata sayısı ise SON koşunundur ("şu an kaç müşteri kesilemedi").
+ *
+ * Hata alan koşu dönemi kapatmaz (çağıran `kapat`ı buna göre verir) ve dönem
+ * HATA olarak işaretlenir: gece işi ertesi gün yeniden dener (bitmemisDonemler).
  */
 export async function kosuyuKaydet(
   tenantId: string,
@@ -73,7 +77,7 @@ export async function kosuyuKaydet(
     where: { tenantId_period: { tenantId, period } },
     create: {
       tenantId, period, kaynak,
-      durum: kapat ? 'TAMAM' : 'CALISIYOR',
+      durum: kapat ? 'TAMAM' : ozet.hataSayisi > 0 ? 'HATA' : 'CALISIYOR',
       faturaSayisi: ozet.faturaSayisi,
       toplam: ozet.toplam,
       hataSayisi: ozet.hataSayisi,
@@ -85,10 +89,14 @@ export async function kosuyuKaydet(
       ...(kapat ? { durum: 'TAMAM', bitis: simdi } : {}),
       faturaSayisi: { increment: ozet.faturaSayisi },
       toplam: { increment: ozet.toplam },
-      hataSayisi: { increment: ozet.hataSayisi },
-      ...(hatalar && hatalar.length ? { hatalar } : {}),
+      hataSayisi: ozet.hataSayisi,
+      hatalar: hatalar && hatalar.length ? hatalar : [],
     },
   });
+  // Hata alan koşu: dönem kapanmadıysa HATA (zaten TAMAM olan dönem geri açılmaz).
+  if (!kapat && ozet.hataSayisi > 0) {
+    await prisma.faturaTuru.updateMany({ where: { tenantId, period, durum: { not: 'TAMAM' } }, data: { durum: 'HATA' } });
+  }
   await bekleyenSayisiniTazele(tenantId, period);
   onbellek.set(`${tenantId}:${period}`, { kapali: kapat || (await donemKapaliMiTaze(tenantId, period)), son: Date.now() });
 }
@@ -96,4 +104,21 @@ export async function kosuyuKaydet(
 async function donemKapaliMiTaze(tenantId: string, period: string): Promise<boolean> {
   const t = await prisma.faturaTuru.findUnique({ where: { tenantId_period: { tenantId, period } }, select: { durum: true } });
   return t?.durum === 'TAMAM';
+}
+
+/**
+ * Kapanmış ama koşusu bitmemiş dönemler (hata almış ya da yarım kalmış),
+ * eskiden yeniye. Gece işi yalnız "az önce kapanan" döneme bakıyordu; ay
+ * dönünce önceki ayın yarım kalmış koşusu bir daha hiç denenmiyordu.
+ * `geriAy` kadar geriye bakar: daha eskisi bayinin elle karar vereceği iştir.
+ */
+export async function bitmemisDonemler(tenantId: string, kapanan: string, geriAy = 3): Promise<string[]> {
+  let alt = kapanan;
+  for (let i = 0; i < geriAy; i++) alt = oncekiDonem(alt);
+  const r = await prisma.faturaTuru.findMany({
+    where: { tenantId, durum: { not: 'TAMAM' }, period: { gte: alt, lt: kapanan } },
+    select: { period: true },
+    orderBy: { period: 'asc' },
+  });
+  return r.map((x) => x.period);
 }

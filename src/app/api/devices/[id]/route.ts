@@ -4,6 +4,22 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { normalizeBrandModel } from '@/lib/device-brands';
 import { oturumKullanicisi } from '@/lib/api-auth';
+import { sayfaUcretliMi } from '@/lib/invoicing';
+import { cihazAyriliyor } from '@/lib/okuma-sahibi';
+
+/**
+ * Cihazın faturalanmamış SAYFASI var mı (sayfa başı ücretli cihazda, farkı > 0 okuma)?
+ * Böyle bir cihaz ücretsize çevrilirse ya da silinirse o sayfalar bir daha
+ * hiçbir faturaya girmez ve Kaçan Gelir'den de düşer (orası yalnız ücretli
+ * cihazları listeler) — iz bırakmadan kaybolur.
+ */
+async function faturasizSayfaVar(tenantId: string, cihaz: { id: string; isRental: boolean; pricePerBlack: unknown; pricePerColor: unknown }): Promise<boolean> {
+    if (!sayfaUcretliMi(cihaz)) return false;
+    const n = await prisma.counterReading.count({
+        where: { tenantId, deviceId: cihaz.id, billed: false, OR: [{ deltaBlack: { gt: 0 } }, { deltaColor: { gt: 0 } }] },
+    });
+    return n > 0;
+}
 
 /** "YYYY-AA-GG" → YEREL gece yarısı. UTC olarak okunursa gün sayısı kayar. */
 function yerelTarih(v: unknown): Date | null {
@@ -81,9 +97,22 @@ export async function PATCH(
             updateData.overagePriceColor = null;
         }
 
-        const device = await prisma.device.update({
-            where: { id },
-            data: updateData,
+        // Ücretli cihaz ücretsize dönüyorsa (kiralık kapatıldı, sayfa fiyatı silindi)
+        // ve faturalanmamış sayfası varsa: önce o sayfalar faturalanmalı.
+        const sonra = {
+            isRental: updateData.isRental ?? existing.isRental,
+            pricePerBlack: updateData.pricePerBlack !== undefined ? updateData.pricePerBlack : existing.pricePerBlack,
+            pricePerColor: updateData.pricePerColor !== undefined ? updateData.pricePerColor : existing.pricePerColor,
+        };
+        if (!sayfaUcretliMi(sonra) && (await faturasizSayfaVar(user.tenantId, existing))) {
+            return ucHatasi('FATURALANMAMIS_SAYFA_VAR_UCRETSIZ', 409);
+        }
+
+        const tasiniyor = !!updateData.customerId && updateData.customerId !== existing.customerId;
+        const device = await prisma.$transaction(async (tx) => {
+            // Cihaz başka müşteriye geçiyor: burada okunmuş sayfalar eski müşteride kalsın (lib/okuma-sahibi).
+            if (tasiniyor) await cihazAyriliyor(tx, user.tenantId, id, existing.customerId);
+            return tx.device.update({ where: { id }, data: updateData });
         });
         return NextResponse.json(device);
     } catch (e: any) {
@@ -108,6 +137,13 @@ export async function DELETE(
     try {
         const user = await oturumKullanicisi(session);
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        // Silme okumaları da siler: faturalanmamış sayfası olan cihaz silinirse o
+        // sayfalar bir daha faturalanamaz. Önce faturalanmalı (ya da okuma silinmeli).
+        const cihaz = await prisma.device.findFirst({
+            where: { id, tenantId: user.tenantId },
+            select: { id: true, isRental: true, pricePerBlack: true, pricePerColor: true },
+        });
+        if (cihaz && (await faturasizSayfaVar(user.tenantId, cihaz))) return ucHatasi('FATURALANMAMIS_SAYFA_VAR_SILINEMEZ', 409);
         // IDOR koruması: yalnızca bu tenant'ın cihazı silinebilir
         const res = await prisma.device.deleteMany({ where: { id, tenantId: user.tenantId } });
         if (res.count === 0) return ucHatasi('BULUNAMADI', 404);

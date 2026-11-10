@@ -14,6 +14,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { InvoiceStatus } from '@prisma/client';
+import { dagitilmamisTahsilatlar } from '@/lib/invoicing';
 
 // Faturada "hâlâ borç" sayılan durumlar. DRAFT henüz kesilmemiştir,
 // CANCELLED iptal, PAID kapanmıştır — üçü de açık borç değildir.
@@ -38,15 +39,22 @@ export type MusteriBakiye = {
   customerId: string;
   servisBorc: number;   // AccountEntry: SALE - PAYMENT
   faturaBorc: number;   // CustomerInvoice: Σ(total - paid), yalnız açık durumlar
-  toplamBorc: number;   // ikisinin toplamı — EKRANDA GÖSTERİLEN GERÇEK
+  /** Faturalara dağıtılmamış tahsilat (fazla ödeme): müşterinin ALACAĞI. */
+  avans: number;
+  toplamBorc: number;   // servis + fatura − avans — EKRANDA GÖSTERİLEN GERÇEK (eksi = müşteri alacaklı)
 };
+
+// AVANS BAKİYEDE GÖRÜNÜR. Müşteri ₺6.000 borcuna ₺10.000 yatırınca bakiye 0
+// görünüyordu, −4.000 değil: artan para hiçbir ekranda yoktu. Avans artık
+// alacak olarak düşülüyor; yeni fatura kesilince de kendiliğinden mahsup
+// ediliyor (lib/invoicing avanslariMahsupEt).
 
 /**
  * Tüm müşterilerin birleşik bakiyesi — customerId → MusteriBakiye.
  * Borçsuz müşteri de haritada olur (toplamBorc 0), çağıran filtreler.
  */
 export async function tumBakiyeler(tenantId: string): Promise<Map<string, MusteriBakiye>> {
-  const [entries, invoices] = await Promise.all([
+  const [entries, invoices, avanslar] = await Promise.all([
     prisma.accountEntry.groupBy({
       by: ['customerId', 'type'],
       where: { tenantId },
@@ -56,12 +64,20 @@ export async function tumBakiyeler(tenantId: string): Promise<Map<string, Muster
       where: { tenantId, deletedAt: null, status: { in: ACIK_FATURA } },
       select: { customerId: true, totalAmount: true, paidAmount: true },
     }),
+    prisma.$queryRaw<{ customerId: string; avans: number }[]>`
+      SELECT k."customerId", SUM(k.kalan)::float8 AS "avans" FROM (
+        SELECT p."customerId", p."amount" - COALESCE(SUM(ip."amount"), 0) AS kalan
+        FROM "Payment" p LEFT JOIN "InvoicePayment" ip ON ip."paymentId" = p."id"
+        WHERE p."tenantId" = ${tenantId} AND p."customerId" IS NOT NULL AND p."ticketId" IS NULL
+        GROUP BY p."id"
+      ) k WHERE k.kalan > 0.005 GROUP BY k."customerId"
+    `,
   ]);
 
   const harita = new Map<string, MusteriBakiye>();
   const al = (id: string) => {
     let b = harita.get(id);
-    if (!b) { b = { customerId: id, servisBorc: 0, faturaBorc: 0, toplamBorc: 0 }; harita.set(id, b); }
+    if (!b) { b = { customerId: id, servisBorc: 0, faturaBorc: 0, avans: 0, toplamBorc: 0 }; harita.set(id, b); }
     return b;
   };
 
@@ -76,10 +92,13 @@ export async function tumBakiyeler(tenantId: string): Promise<Map<string, Muster
     b.faturaBorc += Number(inv.totalAmount) - Number(inv.paidAmount);
   }
 
+  for (const a of avanslar) al(a.customerId).avans = Number(a.avans);
+
   for (const b of harita.values()) {
     b.servisBorc = yuvarla(b.servisBorc);
     b.faturaBorc = yuvarla(b.faturaBorc);
-    b.toplamBorc = yuvarla(b.servisBorc + b.faturaBorc);
+    b.avans = yuvarla(b.avans);
+    b.toplamBorc = yuvarla(b.servisBorc + b.faturaBorc - b.avans);
   }
   return harita;
 }
@@ -94,7 +113,7 @@ export async function tumBakiyeler(tenantId: string): Promise<Map<string, Muster
  * açılışta bu yolu kullanıyor.
  */
 export async function bakiye(tenantId: string, customerId: string): Promise<MusteriBakiye> {
-  const [gruplar, faturalar] = await Promise.all([
+  const [gruplar, faturalar, avanslar] = await Promise.all([
     prisma.accountEntry.groupBy({
       by: ['type'],
       where: { tenantId, customerId },
@@ -104,13 +123,16 @@ export async function bakiye(tenantId: string, customerId: string): Promise<Must
       where: { tenantId, customerId, deletedAt: null, status: { in: ACIK_FATURA } },
       _sum: { totalAmount: true, paidAmount: true },
     }),
+    dagitilmamisTahsilatlar(prisma, tenantId, customerId),
   ]);
 
   const topla = (t: string) => Number(gruplar.find((g) => g.type === t)?._sum.amount ?? 0);
   const servisBorc = yuvarla(topla('SALE') - topla('PAYMENT'));
   const faturaBorc = yuvarla(Number(faturalar._sum.totalAmount ?? 0) - Number(faturalar._sum.paidAmount ?? 0));
 
-  return { customerId, servisBorc, faturaBorc, toplamBorc: yuvarla(servisBorc + faturaBorc) };
+  const avans = yuvarla(avanslar.reduce((t, a) => t + Number(a.kalan), 0));
+
+  return { customerId, servisBorc, faturaBorc, avans, toplamBorc: yuvarla(servisBorc + faturaBorc - avans) };
 }
 
 /**
@@ -199,6 +221,21 @@ export async function ekstre(tenantId: string, customerId: string): Promise<Baki
         bagli: inv.id,
       });
     }
+  }
+
+  // Avans: tahsilatın henüz hiçbir faturaya düşmemiş kısmı. Ekstre toplamı
+  // bakiyeyle tutsun diye ayrı ödeme satırı (fatura satırlarında görünmez).
+  for (const a of await dagitilmamisTahsilatlar(prisma, tenantId, customerId)) {
+    satirlar.push({
+      id: `avans-${a.id}`,
+      kaynak: 'FATURA',
+      tip: 'ODEME',
+      aciklama: 'Avans (faturaya henüz düşmeyen tahsilat)',
+      tutar: yuvarla(Number(a.kalan)),
+      tarih: new Date(a.paymentDate).toISOString(),
+      detay: null,
+      bagli: null,
+    });
   }
 
   satirlar.sort((a, b) => b.tarih.localeCompare(a.tarih));

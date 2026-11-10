@@ -38,7 +38,11 @@ export async function GET() {
   });
   const ids = devices.map((d) => d.id);
   // Okunmayan ayların dahil paketi — faturayla aynı kural (tek sorgu).
-  const carpanlar = await sayacAyCarpanlari(prisma, user.tenantId, ids, period);
+  const carpanlar = await sayacAyCarpanlari(prisma, user.tenantId, devices, period);
+  // Bu dönemin kirası kesilmiş cihazlar (lib/kira-donemi): kira dönem dönem tutuluyor.
+  const kirasiKesilen = new Set(
+    (await prisma.kiraDonemi.findMany({ where: { tenantId: user.tenantId, period }, select: { deviceId: true } })).map((k) => k.deviceId),
+  );
 
   // Bu dönem faturalanmamış okumalar (tek sorgu, JS'te grupla)
   const readings = ids.length
@@ -117,7 +121,7 @@ export async function GET() {
     const prev = prevSums.get(d.id) || { b: 0, c: 0 };
     const ch = counterOverage(dahilCarpanli(d, carpanlar.get(d.id)), s.b, s.c, fiyatTabani(d, tenant), prev.b, prev.c);
     const counterAmount = ch.total; // aşım tutarı (dahil paket düşülmüş)
-    const rentUncut = kiraKesilir(d, period, end);
+    const rentUncut = kiraKesilir(d, period, end, kirasiKesilen.has(d.id));
     const rentAmount = rentUncut ? round2(Number(d.monthlyRent)) : 0;
     if (counterAmount <= 0 && rentAmount <= 0) continue;
 

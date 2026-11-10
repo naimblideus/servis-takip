@@ -70,6 +70,9 @@ export function gerekceleriBul(cihazlar: CihazOzeti[], gecmis: Map<string, numbe
 /**
  * Cihazların bu dönemden ÖNCEKİ faturalı dönem sayfaları — tek sorgu.
  * Dönem kuralı lib/invoicing sayacAyCarpanlari ile aynı (damga, yoksa İstanbul ayı).
+ * Cihazın ilk kaydı (başlangıç / devir sayacı) ve aktarım kaydı (GOC) dönem
+ * sayılmaz: sayfası sıfırdır, ortalamayı yarıya indirip aktarımdan sonraki
+ * ikinci ayı boş yere "şok" gösteriyordu.
  */
 export async function gecmisSayfalar(
   db: Pick<Prisma.TransactionClient, '$queryRaw'>,
@@ -82,13 +85,14 @@ export async function gecmisSayfalar(
   const satirlar = await db.$queryRaw<{ deviceId: string; donem: string; sayfa: number }[]>`
     SELECT "deviceId", donem, SUM("deltaBlack" + "deltaColor")::int AS sayfa
     FROM (
-      SELECT "deviceId", "deltaBlack", "deltaColor",
-        COALESCE("faturaDonemi", to_char("readingDate" + interval '3 hours', 'YYYY-MM')) AS donem
+      SELECT "deviceId", "deltaBlack", "deltaColor", "billed", "source", "readingDate",
+        COALESCE("faturaDonemi", to_char("readingDate" + interval '3 hours', 'YYYY-MM')) AS donem,
+        ROW_NUMBER() OVER (PARTITION BY "deviceId" ORDER BY "readingDate", "createdAt", "id") AS sira
       FROM "CounterReading"
-      WHERE "tenantId" = ${tenantId} AND "deviceId" = ANY(${deviceIds}) AND "billed" = true
-        AND "readingDate" > NOW() - interval '400 days'
+      WHERE "tenantId" = ${tenantId} AND "deviceId" = ANY(${deviceIds})
     ) r
-    WHERE donem < ${period}
+    WHERE donem < ${period} AND "billed" = true AND sira > 1 AND "source" <> 'GOC'
+      AND "readingDate" > NOW() - interval '400 days'
     GROUP BY "deviceId", donem
     ORDER BY "deviceId", donem DESC
   `;

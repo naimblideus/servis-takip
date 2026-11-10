@@ -217,8 +217,9 @@ if (!yerel) {
       t('★ dönemde müşteriye TEK fatura', o.fatura === 1, o);
       t('★ kira bir kez, 1.500 sayfa bir kez, işçilik bir kez', o.kira === 1 && o.sayfa === 1500 && o.iscilik === 1, o);
       const kalan = await p.counterReading.count({ where: { deviceId: cihaz.id, billed: false } });
-      const d = await p.device.findUnique({ where: { id: cihaz.id }, select: { lastInvoicedPeriod: true } });
-      t('okumalar faturalandı, kira işareti Eylül', kalan === 0 && d.lastInvoicedPeriod === '2026-09', { kalan, d });
+      // Kira artık dönem dönem tutuluyor (lib/kira-donemi): Eylül'ün tek satırı var.
+      const kd = await p.kiraDonemi.findMany({ where: { deviceId: cihaz.id }, select: { period: true, kaynak: true } });
+      t('okumalar faturalandı, Eylül kirası tek kayıt', kalan === 0 && kd.length === 1 && kd[0].period === '2026-09' && kd[0].kaynak === 'FATURA', { kalan, kd });
       const tekrar = await inv.buildInvoiceForCustomerPeriod(bayi.id, m.id, '2026-09');
       t('sonradan bir daha basmak da boş döner', tekrar === null);
     }

@@ -1,11 +1,20 @@
 // Manuel-tetikli kira + sayaç → CARİ (AccountEntry).
 // Kullanıcı butona basınca hesaplanır ve cariye eklenir; OTOMATİK eklenmez (karışıklık önlenir).
-// Mükerrer engeli faturalama ile AYNI bayraklar: CounterReading.billed + Device.lastInvoicedPeriod.
-// Böylece bu yol ile "Bu Dönemi Faturala" yolu birbirini çift saymaz.
+//
+// HESAP FATURAYLA AYNI FONKSİYONDAN (lib/invoicing faturaHesapla). Eskiden bu
+// dosya dahil paketi, aşımı ve kirayı kendi döngüsüyle bir daha hesaplıyordu;
+// iki kopya aynı kalsın diye her düzeltme iki yere yazılıyordu ve yazılmadığı
+// oldu (KDV, kira işaretindeki NULL tuzağı). Artık tek hesap var; bu yol yalnız
+// sonucu fatura yerine cariye yazar. İş emirleri bu yolda yazılmaz (onlar
+// cariye fişten işlenir).
+//
+// MÜKERRER ENGELİ faturalama ile ORTAK ve aynı kilidin içinde:
+//   · okuma: billed=false → true (hangi cari kaydının faturaladığı da yazılır)
+//   · kira:  KiraDonemi(cihaz, dönem) satırı — tekil dizin (lib/kira-donemi)
+// Böylece bu yol ile "Bu Dönemi Faturala" birbirini çift saymaz ve cari kaydı
+// silinirse (api/muhasebe) neyin geri açılacağı bilinir.
 import { prisma } from '@/lib/prisma';
-import { counterOverage, dahilCarpanli, periodOf, sayacAyCarpanlari, sayfaUcretliMi, fiyatTabani, kiraKesilir, kiraIsaretiKosulu } from '@/lib/invoicing';
-import type { Prisma } from '@prisma/client';
-import { donemAraligi, donemOkumaKosulu } from '@/lib/fatura-donemi';
+import { FATURA_ISLEMI, FaturaCakismasi, faturaHesapla, musteriFaturaKilidi, periodOf } from '@/lib/invoicing';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -31,102 +40,65 @@ export interface PeriodCharges {
   rentDeviceIds: string[];
 }
 
-// Cari'ye YAZMADAN, müşterinin bu dönem kira + sayaç bedelini hesapla (faturalama ile aynı mantık).
-async function compute(tx: Prisma.TransactionClient | typeof prisma, tenantId: string, customerId: string): Promise<PeriodCharges> {
-  const period = periodOf();
-  // Faturalama ile AYNI dönem kuralı (lib/fatura-donemi): İstanbul saati + okumanın dönem damgası.
-  const { end } = donemAraligi(period);
-  const donemdeki = donemOkumaKosulu(period);
-  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { pricePerBlack: true, pricePerColor: true, vatRate: true } });
-  const devices = await tx.device.findMany({ where: { tenantId, customerId } });
-  // Okunmayan ayların dahil paketi — faturayla aynı kural.
-  const carpanlar = await sayacAyCarpanlari(tx as any, tenantId, devices.filter(sayfaUcretliMi).map((d) => d.id), period);
+type Hesap = Awaited<ReturnType<typeof faturaHesapla>>;
 
-  let rent = 0, counter = 0;
+/** Fatura hesabını cari kalemlerine çevirir (KDV dahil toplamlar + cihaz kırılımı). */
+function kalemler(h: Hesap): PeriodCharges {
   const rentDetail: { device: string; amount: number }[] = [];
-  const counterDetail: { device: string; amount: number }[] = [];
-  const readingIds: string[] = [];
-  const rentDeviceIds: string[] = [];
-
-  for (const d of devices) {
-    // Faturalama ile AYNI kural: kiralık ya da kendi sayfa fiyatı olan
-    // müşteri makinesi (kopya başı anlaşma). Ücretsiz cihaz hiç işlenmez.
-    if (!sayfaUcretliMi(d)) continue;
-    const label = `${d.brand} ${d.model}`;
-
-    // Sayaç: bu dönem faturalanmamış okumalar
-    const readings = await tx.counterReading.findMany({ where: { tenantId, deviceId: d.id, billed: false, ...donemdeki } });
-    let sb = 0, sc = 0;
-    for (const r of readings) { sb += r.deltaBlack; sc += r.deltaColor; readingIds.push(r.id); }
-    if (sb > 0 || sc > 0) {
-      const prevAgg = await tx.counterReading.aggregate({ where: { tenantId, deviceId: d.id, billed: true, ...donemdeki }, _sum: { deltaBlack: true, deltaColor: true } });
-      const ch = counterOverage(dahilCarpanli(d as any, carpanlar.get(d.id)), sb, sc, fiyatTabani(d, tenant as any), prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
-      if (ch.total > 0) { counter += ch.total; counterDetail.push({ device: label, amount: ch.total }); }
-    }
-
-    // Kira: dönem başına 1 kez (lastInvoicedPeriod ile mükerrer engeli). Yalnız kiralık.
-    if (kiraKesilir(d, period, end)) {
-      rent += Number(d.monthlyRent);
-      rentDetail.push({ device: label, amount: Number(d.monthlyRent) });
-      rentDeviceIds.push(d.id);
+  const sayac = new Map<string, number>();
+  let rent = 0;
+  let counter = 0;
+  for (const l of h.lines) {
+    const ad = (l.deviceId && h.cihazAdlari.get(l.deviceId)) || l.description;
+    if (l.kind === 'RENTAL') {
+      rent += l.lineTotal;
+      rentDetail.push({ device: ad, amount: l.lineTotal });
+    } else if (l.kind === 'COUNTER') {
+      counter += l.lineTotal;
+      sayac.set(ad, round2((sayac.get(ad) ?? 0) + l.lineTotal));
     }
   }
-
   // ── NEDEN KDV EKLENİYOR ─────────────────────────────────────────────
   // Bu yol ile OTOMATİK FATURALAMA (lib/invoicing) aynı borcu yazmalı.
   // invoicing subtotal + KDV yazıyordu, burası KDV'siz yazıyordu ve
   // lib/musteri-bakiye ikisini AYNI bakiyede topluyor. Sonuç: aynı ₺10.000
   // kira, hangi düğmeye basıldığına göre ₺12.000 ya da ₺10.000 borç
-  // üretiyordu — bayinin alacağı yanlış görünüyordu. Dosyanın kendi
-  // başlığı da "faturalama ile aynı mantık" diyor; artık gerçekten öyle.
-  const vatRate = Number(tenant?.vatRate ?? 0);
+  // üretiyordu — bayinin alacağı yanlış görünüyordu.
+  const vatRate = Number(h.tenant.vatRate ?? 0);
   const kdvli = (net: number) => round2(net * (1 + vatRate / 100));
   const rentNet = round2(rent);
   const counterNet = round2(counter);
-
   return {
-    period,
-    rent: kdvli(rentNet), counter: kdvli(counterNet),
-    rentNet, counterNet, vatRate,
-    rentDetail, counterDetail, readingIds, rentDeviceIds,
+    period: h.period,
+    rent: kdvli(rentNet),
+    counter: kdvli(counterNet),
+    rentNet,
+    counterNet,
+    vatRate,
+    rentDetail,
+    counterDetail: [...sayac].map(([device, amount]) => ({ device, amount })),
+    readingIds: h.readingIdsToBill,
+    rentDeviceIds: h.kiralar.map((k) => k.deviceId),
   };
 }
 
 /** Önizleme — cari'ye yazmadan hesapla (kullanıcı onayından önce gösterilir). */
 export function previewPeriodCharges(tenantId: string, customerId: string) {
-  return compute(prisma, tenantId, customerId);
+  return prisma.$transaction(async (tx) => kalemler(await faturaHesapla(tx, tenantId, customerId, periodOf())), FATURA_ISLEMI);
 }
 
-/** Onaydan sonra: kira + sayaç bedelini CARİ'ye SALE olarak ekle + mükerrer bayraklarını işaretle. */
+/** Onaydan sonra: kira + sayaç bedelini CARİ'ye SALE olarak ekle + mükerrer işaretlerini koy. */
 export async function commitPeriodCharges(tenantId: string, customerId: string) {
   return prisma.$transaction(async (tx) => {
-    const c = await compute(tx, tenantId, customerId);
+    // Faturalamayla AYNI kilit: ikisi aynı okumayı / aynı kirayı aynı anda göremez.
+    await musteriFaturaKilidi(tx, tenantId, customerId);
+    const h = await faturaHesapla(tx, tenantId, customerId, periodOf());
+    const c = kalemler(h);
     let added = 0;
 
-    // ÖNCE CLAIM (atomik mükerrer engeli): işaretlemeyi CREATE'ten ÖNCE yap. updateMany row-lock +
-    // koşullu where → eşzamanlı çift çağrıda ikinci count=0 alır, çift SALE (çift fatura) yazmaz.
-    const readClaim = c.readingIds.length
-      ? await tx.counterReading.updateMany({ where: { tenantId, id: { in: c.readingIds }, billed: false }, data: { billed: true } })
-      : { count: 0 };
-    const rentClaim = c.rentDeviceIds.length
-      // NULL TUZAĞI: `{ not: 'X' }` SQL'de NULL satırları EŞLEŞTİRMEZ. Hiç
-      // faturalanmamış cihazın lastInvoicedPeriod'u NULL olduğu için claim
-      // 0 satır dönüyor, alttaki `rentClaim.count > 0` koşulu yüzünden KİRA
-      // SESSİZCE YAZILMIYORDU: önizleme kirayı gösteriyor, kullanıcı
-      // onaylıyor, cariye yalnız sayaç düşüyordu — yani her yeni kiralık
-      // cihaz ilk ayının kirasını kaybediyordu. (Ölçüldü: count=0.)
-      ? await tx.device.updateMany({
-          where: {
-            tenantId, id: { in: c.rentDeviceIds },
-            ...kiraIsaretiKosulu(c.period),
-          },
-          data: { lastInvoicedPeriod: c.period },
-        })
-      : { count: 0 };
-
-    // SALE yalnız GERÇEKTEN bu çağrının claim ettiği kalemler için yazılır.
-    if (c.rent > 0 && rentClaim.count > 0) {
-      await tx.accountEntry.create({
+    let kiraKaydi: string | null = null;
+    if (c.rent > 0) {
+      const e = await tx.accountEntry.create({
         data: {
           tenantId, customerId, type: 'SALE',
           product: `Aylık Kira — ${c.period}`,
@@ -136,10 +108,12 @@ export async function commitPeriodCharges(tenantId: string, customerId: string) 
           date: new Date(),
         },
       });
+      kiraKaydi = e.id;
       added++;
     }
-    if (c.counter > 0 && readClaim.count > 0) {
-      await tx.accountEntry.create({
+    let sayacKaydi: string | null = null;
+    if (c.counter > 0) {
+      const e = await tx.accountEntry.create({
         data: {
           tenantId, customerId, type: 'SALE',
           product: `Sayaç — ${c.period}`,
@@ -149,9 +123,47 @@ export async function commitPeriodCharges(tenantId: string, customerId: string) 
           date: new Date(),
         },
       });
+      sayacKaydi = e.id;
       added++;
     }
 
+    // Sahiplen: sayı tutmazsa hiçbir şey yazılmaz (işlem geri alınır).
+    // Paketin içinde kalan okumalar da kapanır (tutar 0); bağlandıkları cari
+    // kaydı silinirse geri açılabilsinler diye bir kayda bağlanırlar.
+    if (c.readingIds.length) {
+      const r = await tx.counterReading.updateMany({
+        where: { tenantId, id: { in: c.readingIds }, billed: false },
+        data: { billed: true, cariKayitId: sayacKaydi ?? kiraKaydi },
+      });
+      if (r.count !== c.readingIds.length) throw new FaturaCakismasi(`okuma ${r.count}/${c.readingIds.length}`);
+    }
+    if (h.kiralar.length)
+      await tx.kiraDonemi.createMany({
+        data: h.kiralar.map((k) => ({ tenantId, deviceId: k.deviceId, period: c.period, tutar: k.tutar, kaynak: 'CARI', cariKayitId: kiraKaydi })),
+      });
+
     return { period: c.period, rent: c.rent, counter: c.counter, added };
-  });
+  }, FATURA_ISLEMI);
+}
+
+/**
+ * Bir cari kaydını siler ve o kaydın kapattıklarını GERİ AÇAR.
+ *
+ * "Kira + sayaç cariye ekle" ile yazılan kalem okumaları "faturalandı" yapıp
+ * dönemin kirasını kesilmiş sayıyordu. Kalem silinince bunlar öyle kalıyordu:
+ * bayi kalemi silip düzgün fatura kesmek istediğinde fatura boş çıkıyor, kira
+ * ve sayfalar iki defterde de yok oluyordu. Okuma ve kira kaydı hangi cari
+ * kaydına bağlı olduğunu taşır (cariKayitId); üçü tek işlemde.
+ */
+export async function cariKaydiSil(tenantId: string, id: string): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const kayit = await tx.accountEntry.findFirst({ where: { id, tenantId }, select: { id: true, customerId: true } });
+    if (!kayit) return false;
+    // Faturalamayla aynı kilit: geri açılan okumayı o an kesilen bir fatura yarım görmesin.
+    await musteriFaturaKilidi(tx, tenantId, kayit.customerId);
+    await tx.counterReading.updateMany({ where: { tenantId, cariKayitId: id }, data: { billed: false, cariKayitId: null } });
+    await tx.kiraDonemi.deleteMany({ where: { tenantId, cariKayitId: id } });
+    await tx.accountEntry.delete({ where: { id } });
+    return true;
+  }, FATURA_ISLEMI);
 }

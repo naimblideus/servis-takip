@@ -1,3 +1,4 @@
+import { cariKaydiSil } from '@/lib/period-charges';
 import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
@@ -236,9 +237,8 @@ export async function DELETE(req: Request) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id zorunlu' }, { status: 400 });
 
-    await prisma.accountEntry.deleteMany({
-        where: { id, tenantId: user.tenantId },
-    });
+    // Kalemin kapattigi okumalar ve kira donemi de geri acilir (lib/period-charges cariKaydiSil).
+    await cariKaydiSil(user.tenantId, id);
 
     return NextResponse.json({ success: true });
 }

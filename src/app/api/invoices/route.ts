@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { donemFaturasiHazirla } from '@/lib/invoicing';
 import { gecerliDonem, kesimGunu, varsayilanElleDonem } from '@/lib/fatura-donemi';
-import { kosuDonemiKapatir, kosuyuKaydet } from '@/lib/fatura-turu';
+import { bayiDoneminiFaturala } from '@/lib/fatura-kosusu';
 import { docToken } from '@/lib/doc-token';
 import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 import { ucHatasi } from '@/lib/uc-hata';
@@ -132,40 +131,10 @@ export async function POST(req: Request) {
   if (FATURALAMA_SURUYOR.has(tenantId)) return ucHatasi('FATURALAMA_SURUYOR', 409);
   FATURALAMA_SURUYOR.add(tenantId);
   try {
-    const customers = await prisma.customer.findMany({
-      where: { tenantId },
-      select: { id: true },
-    });
-
-    let created = 0;
-    let total = 0;
-    let bekleyen = 0;
-    const hatalar: { customerId: string; hata: string }[] = [];
-    for (const c of customers) {
-      try {
-        // Şüpheli / şoklu fatura (ya da bayi onayı açıksa hepsi) taslakta bekler.
-        const s = await donemFaturasiHazirla(tenantId, c.id, period, { source: 'AUTO_MONTHLY' });
-        if (s?.tur === 'KESILDI') {
-          created++;
-          total += Number(s.invoice.totalAmount);
-        } else if (s?.tur === 'TASLAK') bekleyen++;
-      } catch (e: any) {
-        hatalar.push({ customerId: c.id, hata: String(e?.message ?? e).slice(0, 300) });
-        console.error('INVOICE MANUAL ERROR:', e?.message);
-      }
-    }
-
-    // Kapanmış ayı faturalamak dönemi kapatır (geç okumalar sonraki aya kayar);
-    // açık ayı ayın ortasında faturalamak ara faturadır, dönem açık kalır.
-    try {
-      await kosuyuKaydet(tenantId, period, 'ELLE',
-        { faturaSayisi: created, toplam: round2(total), hataSayisi: hatalar.length, hatalar },
-        kosuDonemiKapatir(period, kesim));
-    } catch (e: any) {
-      console.error('FATURA TURU KAYIT HATASI:', e?.message);
-    }
-
-    return NextResponse.json({ ok: true, period, created, total: round2(total), errors: hatalar.length, bekleyen });
+    // Koşu tek yerde (lib/fatura-kosusu): müşteri müşteri keser, hata alan
+    // varsa dönemi kapatmaz (gece işi yeniden dener), kapanınca süpürür.
+    const r = await bayiDoneminiFaturala(tenantId, period, 'ELLE', kesim);
+    return NextResponse.json({ ok: true, period, created: r.invoices, total: r.total, errors: r.errors, bekleyen: r.bekleyen });
   } finally {
     FATURALAMA_SURUYOR.delete(tenantId);
   }

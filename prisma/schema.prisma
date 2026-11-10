@@ -226,6 +226,7 @@ model Tenant {
   sorunBildirimleri   SorunBildirimi[]
   faturaTurlari       FaturaTuru[]
   faturaTaslaklari    FaturaTaslagi[]
+  kiraDonemleri       KiraDonemi[]
   baskiUrunleri       BaskiUrunu[]
   baskiIsleri         BaskiIsi[]
   matbaaAyar          MatbaaAyar?
@@ -900,7 +901,12 @@ model Device {
   uyariAt              DateTime? // şu anki uyarıların ilk görüldüğü an
   olcumParca           Int? // parça ömrü (drum, fırın, bakım kiti, atık kutusu) en düşüğü %
   olcumSarf            Json? // taramadaki bütün sarf kalemleri [{ad, yuzde, tur}]
-  lastInvoicedPeriod   String? // Çift kira faturalamayı önlemek için son faturalanan dönem (YYYY-MM)
+  // KİRA TABANI: "bu ay ve öncesinin kirası kapandı" (YYYY-MM). Aktarım "son
+  // faturalanan ay"ı buraya yazar; eski düzenden gelen cihazda yeni düzene
+  // geçildiği andaki değerdir. KESİM BUNU ARTIK DEĞİŞTİRMEZ: eskiden her kesimde
+  // ileri alınan tek işaretti ve aylar sırasız kesilince atlanan ayın kirası
+  // sessizce kayboluyordu. Kira dönem dönem KiraDonemi'nde (lib/kira-donemi).
+  lastInvoicedPeriod   String?
   publicCode           String         @unique // e.g., DEV-8F3A12 (for QR URL)
   qrTokenHash          String // Hashed version of QR token
   qrExpiresAt          DateTime? // Optional token expiry
@@ -919,6 +925,7 @@ model Device {
   tonerSevkleri   TonerSevki[]
   portalRequests  PortalRequest[]
   contractDevices ContractDevice[]
+  kiraDonemleri   KiraDonemi[]
 
   @@unique([tenantId, serialNo])
   @@unique([tenantId, barcode])
@@ -1195,6 +1202,22 @@ model CounterReading {
   // Anomali (lib/sayac-anomali): makinenin kendi hızına göre inanılmaz artış.
   // Okuma yazılır ama dönem faturası taslakta bekler (lib/fatura-bekletme).
   supheli        Boolean  @default(false)
+  // Bayi bu okumada "sayaç sıfırlandı / cihaz değişti" dedi mi (lib/readings
+  // okumaFarki). Saklanmıyordu: fark ≠ sayaç − önceki sayaç olan bir okumanın
+  // beyanlı sıfırlama mı yoksa bozuk kayıt mı olduğu sonradan ayırt edilemiyordu.
+  // Zincir denetimi (lib/sayac-zinciri) buna bakar. CIHAZ_DEGISTI | SAYAC_SIFIRLANDI.
+  sifirlama      String?
+  // Bu okumayı HANGİ BELGE faturaladı (billed=true ise biri dolu). Eskiden yalnız
+  // "faturalandı" bayrağı vardı: fatura iptal edilse ya da cari kalemi silinse
+  // hangi okumaların geri açılacağı bilinemiyordu, mutabakat da kurulamıyordu.
+  faturaId       String? // CustomerInvoice.id
+  cariKayitId    String? // AccountEntry.id (elle "cariye ekle" yolu)
+  // Okuma alındığında cihaz KİMDEYDİ. Okumada müşteri yoktu; fatura "cihazın
+  // şimdiki müşterisi"ne kesiliyordu. Cihaz ay ortasında A'dan B'ye taşınınca
+  // A'da basılan sayfalar B'ye faturalanıyor, A'ya hiç kesilmiyordu. Boşsa
+  // (eski kayıt) cihazın şimdiki müşterisi sayılır; cihaz taşınırken eski
+  // müşterinin faturalanmamış okumaları onunla damgalanır (lib/okuma-sahibi).
+  customerId     String?
   createdAt      DateTime @default(now())
 
   // Relations
@@ -1205,6 +1228,33 @@ model CounterReading {
   @@index([tenantId, deviceId, readingDate(sort: Desc)])
   @@index([tenantId, ticketId])
   @@index([tenantId, faturaDonemi])
+  @@index([faturaId])
+  @@index([tenantId, customerId])
+}
+
+// BİR CİHAZIN BİR DÖNEMLİK KİRASI EN FAZLA BİR KEZ KESİLİR — satır = kesildi.
+// Eskiden tek bir "son kesilen ay" işareti vardı (Device.lastInvoicedPeriod):
+// Temmuz taslakta beklerken Ağustos kesilince işaret Ağustos'a gidiyor,
+// Temmuz'un kirası bir daha kesilemiyordu (ölçüldü: ₺4.000 yerine ₺2.500).
+// Dönem başına satır tutunca sıra önemsizleşir, atlanan ay "kesilmemiş kira"
+// olarak görünür kalır ve aynı kira iki kez kesilemez (tekil dizin).
+model KiraDonemi {
+  id        String   @id @default(cuid())
+  tenantId  String
+  deviceId  String
+  period    String // 'YYYY-MM'
+  tutar     Decimal  @db.Decimal(12, 2) // kesilen kira, KDV hariç
+  kaynak    String // FATURA | CARI
+  invoiceId String? // FATURA ise hangi fatura
+  cariKayitId String? // CARI ise hangi cari kaydı (AccountEntry.id)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, period])
+  @@index([tenantId, period])
+  @@index([invoiceId])
 }
 
 // Ay sonu fatura koşusu: bayi × dönem. Kapanmış bir dönemin koşusu bitince

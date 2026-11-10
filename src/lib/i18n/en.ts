@@ -5420,6 +5420,8 @@ export const en: Sozluk = {
     BU_MESAJDAN_ZATEN_FIS_ACILMIS: 'A ticket has already been opened from this message',
     BU_OKUMA_FATURALANDIGI_ICIN_DUZENLENEMEZ: 'This reading cannot be edited because it has been invoiced.',
     BU_OKUMA_FATURALANDIGI_ICIN_SILINEMEZ: 'This reading cannot be deleted because it has been invoiced',
+    FATURALANMAMIS_SAYFA_VAR_UCRETSIZ: 'This device has pages that are not invoiced yet. Invoice the period first; otherwise those pages will never be billed.',
+    FATURALANMAMIS_SAYFA_VAR_SILINEMEZ: 'This device has pages that are not invoiced yet and cannot be deleted. Invoice the period first.',
     BU_OKUMA_SILINEMEZ_SONRASINDAKI_OKUMA: 'This reading cannot be deleted: the reading after it has been invoiced. Deleting it would break the page difference that invoice rests on. Cancel that invoice first.',
     BU_SIPARIS_ZATEN_DEGERLENDIRILDI: 'This order has already been reviewed',
     BULUNAMADI: 'Not found',

@@ -15,27 +15,10 @@ import { tmpdir } from 'node:os';
 import { PrismaClient } from '@prisma/client';
 
 const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
-const g = mkdtempSync(join(tmpdir(), 'st-bakiye-'));
-let tumBakiyeler, bakiye, ekstre;
-try {
-  execFileSync(process.execPath, [
-    join(KOK, 'node_modules/typescript/bin/tsc'),
-    join(KOK, 'src/lib/musteri-bakiye.ts'), join(KOK, 'src/lib/prisma.ts'),
-    '--outDir', g, '--module', 'esnext', '--target', 'es2022',
-    '--moduleResolution', 'bundler', '--skipLibCheck',
-  ], { stdio: 'pipe' });
-} catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
-
-const P = pathToFileURL(join(KOK, 'node_modules/@prisma/client/default.js')).href;
-const fs = await import('node:fs');
-const duzelt = (dosya, esle) => {
-  const y = join(g, dosya); let s = fs.readFileSync(y, 'utf8');
-  for (const [a, b] of esle) s = s.split(a).join(b);
-  fs.writeFileSync(y, s);
-};
-fs.writeFileSync(join(g, 'prisma-shim.js'), `import { PrismaClient } from ${JSON.stringify(P)};\nexport const prisma = new PrismaClient();\n`);
-duzelt('musteri-bakiye.js', [["'@/lib/prisma'", "'./prisma-shim.js'"], ["'@prisma/client'", JSON.stringify(P)]]);
-({ tumBakiyeler, bakiye, ekstre } = await import(pathToFileURL(join(g, 'musteri-bakiye.js')).href));
+// Ortak derleyici: musteri-bakiye artık lib/invoicing'i de içe aktarıyor (avans).
+const { derle } = await import('./_derle.mjs');
+const { dizin: g, ice } = derle({ girisler: ['src/lib/musteri-bakiye.ts'], onEk: 'st-bakiye-' });
+const { tumBakiyeler, bakiye, ekstre } = await ice('lib/musteri-bakiye');
 
 const p = new PrismaClient();
 let gecti = 0, kaldi = 0;

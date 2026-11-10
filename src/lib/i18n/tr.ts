@@ -5622,6 +5622,8 @@ export const tr = {
     BU_MESAJDAN_ZATEN_FIS_ACILMIS: 'Bu mesajdan zaten fiş açılmış',
     BU_OKUMA_FATURALANDIGI_ICIN_DUZENLENEMEZ: 'Bu okuma faturalandığı için düzenlenemez.',
     BU_OKUMA_FATURALANDIGI_ICIN_SILINEMEZ: 'Bu okuma faturalandığı için silinemez',
+    FATURALANMAMIS_SAYFA_VAR_UCRETSIZ: 'Bu cihazın faturalanmamış sayfaları var. Önce dönemi faturalayın; yoksa o sayfalar hiçbir faturaya girmez.',
+    FATURALANMAMIS_SAYFA_VAR_SILINEMEZ: 'Bu cihazın faturalanmamış sayfaları var, silinemez. Önce dönemi faturalayın.',
     BU_OKUMA_SILINEMEZ_SONRASINDAKI_OKUMA: 'Bu okuma silinemez: sonrasındaki okuma faturalandı. Silinirse o faturanın dayandığı sayfa farkı bozulur. Önce ilgili faturayı iptal edin.',
     BU_SIPARIS_ZATEN_DEGERLENDIRILDI: 'Bu sipariş zaten değerlendirildi',
     BULUNAMADI: 'Bulunamadı',

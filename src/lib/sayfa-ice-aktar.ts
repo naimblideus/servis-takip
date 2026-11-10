@@ -23,6 +23,7 @@ import { normalizeBrandModel } from '@/lib/device-brands';
 import { donemOf } from '@/lib/fatura-donemi';
 import { GOC_KAYNAGI } from '@/lib/kurulum';
 import { kiraSartiEksik } from '@/lib/kira-sarti';
+import { cihazAyriliyor } from '@/lib/okuma-sahibi';
 import type { UcHataKodu } from '@/lib/uc-hata';
 
 export const AKTARIM_AZAMI_SATIR = 5000;
@@ -47,6 +48,8 @@ type Satir = {
   brand: string; model: string; serialNo: string; location: string;
   counterBlack: number | null; counterColor: number | null;
   isRental: boolean; monthlyRent: number | null; pricePerBlack: number | null; pricePerColor: number | null;
+  /** Dosya bu satır için kiralık olup olmadığını SÖYLÜYOR mu (kiralık kolonu dolu ya da kira yazılı). */
+  kiralikBelirtildi: boolean;
   includedBlack: number | null; includedColor: number | null;
   overagePriceBlack: number | null; overagePriceColor: number | null;
   installedAt: string | null; installedAtPrecision: TarihHassasiyeti | null;
@@ -197,6 +200,7 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
       counterBlack: trInt(get(r, 'counterBlack')),
       counterColor: trInt(get(r, 'counterColor')),
       isRental: idx('isRental') >= 0 ? trBool(get(r, 'isRental')) : (trNumber(get(r, 'monthlyRent')) || 0) > 0,
+      kiralikBelirtildi: idx('isRental') >= 0 ? !!get(r, 'isRental').trim() : trNumber(get(r, 'monthlyRent')) != null,
       monthlyRent: trNumber(get(r, 'monthlyRent')),
       pricePerBlack: trNumber(get(r, 'pricePerBlack')),
       pricePerColor: trNumber(get(r, 'pricePerColor')),
@@ -430,7 +434,7 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
       if (seriYok) seriNosuz++;
       const existing = await prisma.device.findFirst({
         where: { tenantId, serialNo: serial },
-        select: { id: true, lastInvoicedPeriod: true },
+        select: { id: true, lastInvoicedPeriod: true, customerId: true },
       });
 
       // Marka/model sütunları sık sık ters doldurulmuş geliyor (bir bayide %97).
@@ -441,10 +445,21 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
         brand: nz.brand || 'Bilinmiyor',
         model: nz.model || 'Bilinmiyor',
         location: p.location || null,
-        isRental: p.isRental,
       };
-      if (p.counterBlack != null) base.counterBlack = p.counterBlack;
-      if (p.counterColor != null) base.counterColor = p.counterColor;
+      // KİRALIK İŞARETİ SİLİNMEZ: dosyada kiralık/kira kolonu yoksa (ya da bu
+      // satırda boşsa) mevcut cihazın işaretine dokunulmaz. Eskiden koşulsuz
+      // yazılıyordu: yalnız "Müşteri | Seri No | Sayaç" içeren bir güncelleme
+      // dosyası bütün kiralık cihazları kiralık olmaktan çıkarıyor, kira ve
+      // sayfa faturası sessizce duruyordu. Yeni cihazda dosyanın dediği geçer.
+      if (!existing || p.kiralikBelirtildi) base.isRental = p.isRental;
+      // SAYAÇ: zinciri olan cihazda kartı dosyadan ezmeyiz — fatura farkı son
+      // OKUMAYA göre hesaplanır; kart başka bir sayı gösterirse bayi ile fatura
+      // iki ayrı sayıya bakar. Okuması olmayan cihazda dosyadaki sayaç
+      // başlangıç okuması olur (aşağıda).
+      const okumasiVar = existing ? (await prisma.counterReading.count({ where: { tenantId, deviceId: existing.id } })) > 0 : false;
+      const sayacYaz = !okumasiVar && (p.counterBlack != null || p.counterColor != null);
+      if (sayacYaz && p.counterBlack != null) base.counterBlack = p.counterBlack;
+      if (sayacYaz && p.counterColor != null) base.counterColor = p.counterColor;
       if (p.monthlyRent != null) base.monthlyRent = p.monthlyRent;
       if (p.pricePerBlack != null) base.pricePerBlack = p.pricePerBlack;
       if (p.pricePerColor != null) base.pricePerColor = p.pricePerColor;
@@ -458,16 +473,35 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
         base.installedAtPrecision = p.installedAtPrecision;
         base.installDateUnknown = false;
       }
-      // SON FATURALANAN AY yalnız İLERİ gider (invoicing → kiraIsaretiKosulu
-      // ile aynı kural). Geri çekilseydi faturası kesilmiş ayların kirası
-      // yeniden "kesilmemiş" görünür, ikinci kez faturalanırdı.
+      // SON FATURALANAN AY = kira tabanı (lib/kira-donemi) ve yalnız İLERİ gider.
+      // Geri çekilseydi eski sistemde kesilmiş ayların kirası yeniden
+      // "kesilmemiş" görünür, ikinci kez faturalanırdı.
       if (p.lastInvoicedPeriod && (!existing?.lastInvoicedPeriod || existing.lastInvoicedPeriod < p.lastInvoicedPeriod)) {
         base.lastInvoicedPeriod = p.lastInvoicedPeriod;
       }
 
+      // Zincirin başı: delta 0, faturaya girmez (aşağıdaki açıklama).
+      const baslangicYaz = (deviceId: string) => prisma.counterReading.create({
+        data: {
+          tenantId, deviceId, customerId,
+          counterBlack: p.counterBlack ?? 0,
+          counterColor: p.counterColor ?? 0,
+          deltaBlack: 0, deltaColor: 0,
+          calculatedCost: 0,
+          billed: true,
+          source: GOC_KAYNAGI,
+        },
+      });
+
       if (existing) {
+        // Cihaz başka müşteriye geçiyorsa eski müşteride okunmuş sayfalar onda kalsın.
+        if (existing.customerId !== customerId) await cihazAyriliyor(prisma, tenantId, existing.id, existing.customerId);
         await prisma.device.update({ where: { id: existing.id }, data: { ...base, customerId } });
         devicesUpdated++;
+        // Okuması hiç olmayan mevcut cihaz: dosyadaki sayaç başlangıç okuması
+        // olur. Yoksa ilk gerçek okuma zincirin başı sayılır (fark 0) ve o
+        // güne kadar basılan sayfalar hiçbir faturaya girmez.
+        if (sayacYaz) { await baslangicYaz(existing.id); baslangicOkumasi++; }
       } else {
         const yeniCihaz = await prisma.device.create({
           data: {
@@ -491,17 +525,7 @@ export async function sayfaIceAktar(g: AktarimGirdisi): Promise<AktarimSonucu> {
         // faturaya asla girmez. Bundan sonraki ilk gerçek okuma farkı
         // doğru hesaplar. Kaynak GOC: kurulum ekranı bunu sayaç toplama saymaz.
         if (p.counterBlack != null || p.counterColor != null) {
-          await prisma.counterReading.create({
-            data: {
-              tenantId, deviceId: yeniCihaz.id,
-              counterBlack: p.counterBlack ?? 0,
-              counterColor: p.counterColor ?? 0,
-              deltaBlack: 0, deltaColor: 0,
-              calculatedCost: 0,
-              billed: true,
-              source: GOC_KAYNAGI,
-            },
-          });
+          await baslangicYaz(yeniCihaz.id);
           baslangicOkumasi++;
         }
       }

@@ -2,9 +2,10 @@
 // Hem tekil uç (/api/devices/[id]/readings) hem toplu uç (/api/readings/bulk) bunu çağırır.
 // KRİTİK: bu mantık kopyalanmamalı — aşım/dahil-paket hesabı ikiye çatallanırsa fatura hatası olur.
 import { prisma } from '@/lib/prisma';
-import { counterOverage, dahilCarpanli, sayacAyCarpanlari } from '@/lib/invoicing';
+import type { Prisma } from '@prisma/client';
+import { counterOverage, dahilCarpanli, musteriFaturaKilidi, sayacAyCarpanlari } from '@/lib/invoicing';
 import { anomaliDegerlendir, type AnomaliSonucu } from '@/lib/sayac-anomali';
-import { donemOkumaKosulu, kesimGunu, okumaDonemiAta } from '@/lib/fatura-donemi';
+import { donemOkumaKosulu, kesimGunu, okumaDonemiAta, okumaninDonemi } from '@/lib/fatura-donemi';
 import { donemKapaliMi } from '@/lib/fatura-turu';
 
 /** Cihaz saati biraz ileride olabilir; bundan fazlası "gelecek" sayılır. */
@@ -30,13 +31,18 @@ export function okumaAni(verilen: Date | string | null | undefined, sonOkuma: Da
 export class ReadingError extends Error {
   code: string;
   status: number;
-  constructor(code: string, message: string, status = 400) {
+  /** Hata cümlesine girecek değerler (ör. sonraki okumanın sayacı). */
+  veri?: Record<string, number | string>;
+  constructor(code: string, message: string, status = 400, veri?: Record<string, number | string>) {
     super(message);
     this.name = 'ReadingError';
     this.code = code;
     this.status = status;
+    this.veri = veri;
   }
 }
+
+export type Sifirlama = 'CIHAZ_DEGISTI' | 'SAYAC_SIFIRLANDI';
 
 export interface CreateReadingInput {
   tenantId: string;
@@ -125,6 +131,86 @@ export function okumaFarki(
   return Math.max(0, yeni - onceki);
 }
 
+type Tx = Prisma.TransactionClient;
+
+/**
+ * CİHAZ OKUMA KİLİDİ — okuma zincirine dokunan her işlemin başında.
+ *
+ * Fark "son okumaya göre" hesaplanır. Eskiden son okuma okunuyor, fark
+ * hesaplanıyor, yeni satır yazılıyordu — arada kilit yoktu. Aynı cihaza aynı
+ * anda iki okuma gelince (cihaz e-postası + ağ tarayıcı, aynı ağda iki
+ * tarayıcı, çift tıklama) ikisi de AYNI "son okuma"yı görüyor, aynı sayfalar
+ * iki kez fark olarak yazılıyordu. (Ölçüldü: sayaç 10.000 → 10.500 için beş
+ * eşzamanlı okuma 1.200 sayfa yazdı.) Kilit işlem bitene kadar ikinciyi
+ * bekletir; ikinci, birincinin yazdığı okumayı "son okuma" olarak görür.
+ */
+export async function cihazOkumaKilidi(tx: Tx, tenantId: string, deviceId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId}), hashtext(${`okuma:${deviceId}`}))`;
+}
+
+/** Kilit beklemesi işlem süresine sayılır; toplu girişte aynı cihaz art arda gelebilir. */
+const OKUMA_ISLEMI = { timeout: 20_000, maxWait: 15_000 } as const;
+
+/** Zincir sırası: okuma anı, eşitse kayıt anı, o da eşitse kimlik. Eşit tarihli iki okumada "önceki" belirsiz kalmasın. */
+const ZINCIR_SIRASI_YENI = [{ readingDate: 'desc' as const }, { createdAt: 'desc' as const }, { id: 'desc' as const }];
+const ZINCIR_SIRASI_ESKI = [{ readingDate: 'asc' as const }, { createdAt: 'asc' as const }, { id: 'asc' as const }];
+
+type Halka = {
+  id: string;
+  counterBlack: number;
+  counterColor: number;
+  deltaBlack: number;
+  deltaColor: number;
+  sifirlama: string | null;
+  billed: boolean;
+  readingDate: Date;
+  createdAt: Date;
+  monthlyRent: Prisma.Decimal;
+  faturaDonemi: string | null;
+};
+const HALKA = {
+  id: true, counterBlack: true, counterColor: true, deltaBlack: true, deltaColor: true, sifirlama: true,
+  billed: true, readingDate: true, createdAt: true, monthlyRent: true, faturaDonemi: true,
+} as const;
+
+const oncesi = (r: Pick<Halka, 'id' | 'readingDate' | 'createdAt'>) => ({
+  OR: [
+    { readingDate: { lt: r.readingDate } },
+    { readingDate: r.readingDate, createdAt: { lt: r.createdAt } },
+    { readingDate: r.readingDate, createdAt: r.createdAt, id: { lt: r.id } },
+  ],
+});
+const sonrasi = (r: Pick<Halka, 'id' | 'readingDate' | 'createdAt'>) => ({
+  OR: [
+    { readingDate: { gt: r.readingDate } },
+    { readingDate: r.readingDate, createdAt: { gt: r.createdAt } },
+    { readingDate: r.readingDate, createdAt: r.createdAt, id: { gt: r.id } },
+  ],
+});
+
+/**
+ * Bu okuma hangi beyanla yazılmıştı? Yeni kayıtlarda saklı (`sifirlama`).
+ * Eski kayıtlarda saklanmıyordu; farkından çıkarılır:
+ *   · fark = sayaç − önceki            → olağan okuma
+ *   · fark 0 ama sayaç değişmiş         → cihaz değişti
+ *   · sayaç düşmüş                      → sayaç sıfırlandı
+ * Hiçbirine uymuyorsa (bozuk kayıt) olağan sayılır.
+ */
+export function okumaBeyani(
+  r: Pick<Halka, 'counterBlack' | 'counterColor' | 'deltaBlack' | 'deltaColor' | 'sifirlama'>,
+  onceki: Pick<Halka, 'counterBlack' | 'counterColor'> | null,
+): Sifirlama | null {
+  if (r.sifirlama === 'CIHAZ_DEGISTI' || r.sifirlama === 'SAYAC_SIFIRLANDI') return r.sifirlama;
+  if (!onceki) return null;
+  const duzB = Math.max(0, r.counterBlack - onceki.counterBlack);
+  const duzC = Math.max(0, r.counterColor - onceki.counterColor);
+  const dustu = r.counterBlack < onceki.counterBlack || r.counterColor < onceki.counterColor;
+  if (r.deltaBlack === duzB && r.deltaColor === duzC && !dustu) return null;
+  if (r.deltaBlack === 0 && r.deltaColor === 0) return 'CIHAZ_DEGISTI';
+  if (dustu) return 'SAYAC_SIFIRLANDI';
+  return null;
+}
+
 export async function createReading(
   input: CreateReadingInput,
   /** Toplu çağrıda tenant'ı bir kez çekip geçir (N+1 önle) */
@@ -139,153 +225,320 @@ export async function createReading(
     throw new ReadingError('INVALID', 'Sayaç değeri geçersiz');
   }
 
-  // Tenant-scoped cihaz (IDOR guard)
-  const device = await prisma.device.findFirst({ where: { id: deviceId, tenantId } });
-  if (!device) throw new ReadingError('DEVICE_NOT_FOUND', 'Cihaz bulunamadı', 404);
-
-  const tenant = preloadedTenant ?? await prisma.tenant.findUnique({ where: { id: tenantId } });
+  // Yalnız gereken alanlar: bayi satırının tamamı logoyu da taşır (2 MB'a kadar)
+  // ve bu sorgu okuma başına koşuyor.
+  const tenant = preloadedTenant ?? await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true, pricePerBlack: true, pricePerColor: true, invoiceDayOfMonth: true },
+  });
   if (!tenant) throw new ReadingError('TENANT_NOT_FOUND', 'Tenant bulunamadı', 404);
 
-  // Son okumalar. Bir satır yeter gibi görünür (delta için öyle) ama anomali
-  // kararı cihazın KENDİ hızına bakıyor ve o hız birkaç aralıktan çıkıyor.
-  // Aynı sorguda 6 satır çekmek, ayrı bir geçmiş sorgusu açmaktan ucuz.
-  const gecmis = await prisma.counterReading.findMany({
-    where: { tenantId, deviceId },
-    orderBy: { readingDate: 'desc' },
-    take: 6,
-    select: { readingDate: true, counterBlack: true, counterColor: true },
-  });
-  const prev = gecmis[0] ?? null;
+  return prisma.$transaction(async (tx) => {
+    // KİLİT ÖNCE: son okumayı okumakla yeni okumayı yazmak arasına başka okuma giremez.
+    await cihazOkumaKilidi(tx, tenantId, deviceId);
 
-  // Düşüş kontrolü: sayaç gerilemişse SESSİZCE 0 yazma. 'reset' onayı yoksa REDDET
-  // (yoksa ya gelir kaybı [delta=0] ya da yanlış devasa delta oluşur).
-  const prevB = prev ? prev.counterBlack : null;
-  const prevC = prev ? prev.counterColor : null;
-  const decreased = (prevB !== null && counterBlack < prevB) || (prevC !== null && counterColor < prevC);
-  if (decreased && !reset) {
-    throw new ReadingError(
-      'COUNTER_DECREASE',
-      'Sayaç değeri öncekinden düşük. Cihaz sıfırlandıysa/değiştiyse "sayaç sıfırlandı" onayıyla tekrar gönderin.',
-    );
-  }
+    // Tenant-scoped cihaz (IDOR guard)
+    const device = await tx.device.findFirst({ where: { id: deviceId, tenantId } });
+    if (!device) throw new ReadingError('DEVICE_NOT_FOUND', 'Cihaz bulunamadı', 404);
 
-  // ── DÜŞÜŞTE DELTA ─────────────────────────────────────────────────────
-  // Eskiden `reset` onayı verildiğinde delta = OKUNAN DEĞER oluyordu. Bu yalnız
-  // "sayaç sıfırlandı" için doğru. "Cihaz değişti"de felaket üretiyordu:
-  // müşteride 620.000'de arızalanan makinenin yerine depodan 480.000 sayfalık
-  // ikinci el takılınca, o makinenin ÖMÜR BOYU sayacı o ayın kullanımı sayılıp
-  // faturalanıyordu — ₺0,42'den ₺201.600 yanlış fatura.
-  //
-  // Artık sebep ayrıştırılıyor. Tür belirtilmemişse CIHAZ_DEGISTI varsayılır:
-  // eksik faturalamak, fahiş faturalamaktan iyidir; eksik kalan sayfa bir
-  // sonraki okumada zaten farka giriyor, fahiş fatura ise müşteriyi kaybettirir.
-  /**
-   * ── CİHAZ DEĞİŞİMİ ARTIK HER İKİ YÖNDE DE KORUYOR ───────────────────
-   * İlk düzeltmede koşul yalnız DÜŞÜŞE bakıyordu (`yeni < onceki`). Oysa
-   * sahada ters yön DAHA SIK: bayi müşterideki 10.000 sayfalık makineyi
-   * alıp depodan 480.000 sayfalık ikinci el takıyor — sayaç DÜŞMÜYOR,
-   * ARTIYOR. O hâlde eski koşul hiç devreye girmiyor ve aradaki 470.000
-   * sayfa o ayın kullanımı sayılıp faturalanıyordu.
-   * (Uçtan uca testte ölçüldü: fark 470.000, tutar ₺235.000.)
-   *
-   * Doğrusu yönden bağımsız: takılan makinenin geçmişi, müşterinin bu ay
-   * bastığı sayfa DEĞİLDİR. Bu dönemin farkı sıfırdır; yeni sayaç
-   * başlangıç olur ve bir sonraki okuma farkı doğru hesaplar.
-   */
-  const deltaBlack = okumaFarki(counterBlack, prevB, reset, resetTur);
-  const deltaColor = okumaFarki(counterColor, prevC, reset, resetTur);
-
-  // ── ANOMALİ: "bu artış bu makineye ait olamaz" ──────────────────────
-  // Eskiden tek sabit eşik vardı (delta > 200.000). İki yönde de kördü:
-  // ayda 3.000 basan makinenin 150.000'e fırlaması eşiğin ALTINDA kalıyor,
-  // gerçekten ayda 250.000 basan matbaa makinesi ise HER AY uyarı üretip
-  // bayiyi uyarılara bakmaz hâle getiriyordu. Artık ölçüt makinenin kendi
-  // geçmişi. Sıfırlama/cihaz değişiminde bakılmıyor: bayi zaten beyan etti.
-  // ── OKUMA ANI VE FATURA DÖNEMİ ──────────────────────────────────────
-  // Eskiden her okuma "şimdi" tarihiyle yazılıyordu: müşterinin 30 Ekim'de
-  // portala girdiği sayaç bayi 4 Kasım'da onaylayınca Kasım'ın okuması
-  // oluyordu. Artık gerçek an saklanıyor; dönem İstanbul saati + bayinin
-  // kesim günüyle belirleniyor ve koşusu bitmiş bir aya düşen geç okuma ilk
-  // açık döneme kayıyor (lib/fatura-donemi okumaDonemiAta).
-  const tarih = okumaAni(input.readingDate, prev ? new Date(prev.readingDate) : null);
-  const kesim = kesimGunu((tenant as { invoiceDayOfMonth?: number }).invoiceDayOfMonth);
-  const faturaDonemi = await okumaDonemiAta(tarih, kesim, (p) => donemKapaliMi(tenantId, p));
-
-  let anomali: AnomaliSonucu | null = null;
-  if (!reset) {
-    const gecenGun = prev ? (tarih.getTime() - new Date(prev.readingDate).getTime()) / 86400000 : 1;
-    anomali = anomaliDegerlendir(deltaBlack + deltaColor, gecenGun, gecmis);
-  }
-  // Şüphe okumayı REDDETMEZ — okuma normal yazılır, karar bayinindir. Dönem
-  // faturası ise kendiliğinden kesilmez: gerekçesiyle taslakta bekler, bayi
-  // bakıp "yine de kes" der (lib/fatura-bekletme). Sessizce para tutulmaz:
-  // bekleyen taslak Faturalar ekranının en üstünde durur.
-  const warning = anomali?.supheli ? anomali.aciklama : null;
-
-  // Kiralık cihazda kademeli (dahil paket + aşım) ücret — gerçek fatura mantığıyla AYNI kaynak
-  let calculatedCost = 0;
-  let monthlyRentAmount = 0;
-  let ch: ReturnType<typeof counterOverage> | null = null;
-
-  if (device.isRental) {
-    // Bu okumanın dönemindeki önceki sayfalar — dahil paketi kümülatif uygula
-    // (mükerrer indirim önle). Dönem faturayla AYNI kuraldan: donemOkumaKosulu.
-    const prevAgg = await prisma.counterReading.aggregate({
-      where: { tenantId, deviceId, ...donemOkumaKosulu(faturaDonemi) },
-      _sum: { deltaBlack: true, deltaColor: true },
+    // Son okumalar. Bir satır yeter gibi görünür (delta için öyle) ama anomali
+    // kararı cihazın KENDİ hızına bakıyor ve o hız birkaç aralıktan çıkıyor.
+    // Aynı sorguda 6 satır çekmek, ayrı bir geçmiş sorgusu açmaktan ucuz.
+    const gecmis = await tx.counterReading.findMany({
+      where: { tenantId, deviceId },
+      orderBy: ZINCIR_SIRASI_YENI,
+      take: 6,
+      select: { readingDate: true, counterBlack: true, counterColor: true },
     });
-    // Okunmayan ayların dahil paketi — faturayla aynı kural (sayacAyCarpanlari).
-    const k = (await sayacAyCarpanlari(prisma, tenantId, [deviceId], faturaDonemi)).get(deviceId);
-    ch = counterOverage(dahilCarpanli(device as any, k), deltaBlack, deltaColor, tenant as any, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
-    calculatedCost = ch.total;
+    const prev = gecmis[0] ?? null;
 
-    if (includeMonthlyRent) {
-      monthlyRentAmount = Number(device.monthlyRent);
-      calculatedCost += monthlyRentAmount;
+    // Düşüş kontrolü: sayaç gerilemişse SESSİZCE 0 yazma. 'reset' onayı yoksa REDDET
+    // (yoksa ya gelir kaybı [delta=0] ya da yanlış devasa delta oluşur).
+    const prevB = prev ? prev.counterBlack : null;
+    const prevC = prev ? prev.counterColor : null;
+    const decreased = (prevB !== null && counterBlack < prevB) || (prevC !== null && counterColor < prevC);
+    if (decreased && !reset) {
+      throw new ReadingError(
+        'COUNTER_DECREASE',
+        'Sayaç değeri öncekinden düşük. Cihaz sıfırlandıysa/değiştiyse "sayaç sıfırlandı" onayıyla tekrar gönderin.',
+      );
     }
-  }
 
-  const reading = await prisma.counterReading.create({
-    data: {
-      tenantId,
-      deviceId,
-      ticketId: ticketId || null,
-      counterBlack,
-      counterColor,
-      deltaBlack,
-      deltaColor,
-      calculatedCost,
+    // ── DÜŞÜŞTE DELTA ─────────────────────────────────────────────────────
+    // Eskiden `reset` onayı verildiğinde delta = OKUNAN DEĞER oluyordu. Bu yalnız
+    // "sayaç sıfırlandı" için doğru. "Cihaz değişti"de felaket üretiyordu:
+    // müşteride 620.000'de arızalanan makinenin yerine depodan 480.000 sayfalık
+    // ikinci el takılınca, o makinenin ÖMÜR BOYU sayacı o ayın kullanımı sayılıp
+    // faturalanıyordu — ₺0,42'den ₺201.600 yanlış fatura.
+    //
+    // Sebep ayrıştırılıyor (okumaFarki) ve yön fark etmiyor: takılan makinenin
+    // geçmişi, müşterinin bu ay bastığı sayfa DEĞİLDİR. Tür belirtilmemişse
+    // CIHAZ_DEGISTI varsayılır: eksik faturalamak fahiş faturalamaktan iyidir.
+    const deltaBlack = okumaFarki(counterBlack, prevB, reset, resetTur);
+    const deltaColor = okumaFarki(counterColor, prevC, reset, resetTur);
+    // BEYAN SAKLANIR: saklanmadığı için düzeltme ve silme yolları onu
+    // unutuyordu — "cihaz değişti" okumasındaki bir yazım hatasını düzeltmek
+    // yeni makinenin ömür boyu sayacını o ayın kullanımı yapıyordu.
+    const sifirlama: Sifirlama | null = reset && prev ? (resetTur === 'SAYAC_SIFIRLANDI' ? 'SAYAC_SIFIRLANDI' : 'CIHAZ_DEGISTI') : null;
+
+    // ── OKUMA ANI VE FATURA DÖNEMİ ──────────────────────────────────────
+    // Eskiden her okuma "şimdi" tarihiyle yazılıyordu: müşterinin 30 Ekim'de
+    // portala girdiği sayaç bayi 4 Kasım'da onaylayınca Kasım'ın okuması
+    // oluyordu. Artık gerçek an saklanıyor; dönem İstanbul saati + bayinin
+    // kesim günüyle belirleniyor ve koşusu bitmiş bir aya düşen geç okuma ilk
+    // açık döneme kayıyor (lib/fatura-donemi okumaDonemiAta).
+    const tarih = okumaAni(input.readingDate, prev ? new Date(prev.readingDate) : null);
+    const kesim = kesimGunu((tenant as { invoiceDayOfMonth?: number }).invoiceDayOfMonth);
+    const faturaDonemi = await okumaDonemiAta(tarih, kesim, (p) => donemKapaliMi(tenantId, p));
+
+    // ── ANOMALİ: "bu artış bu makineye ait olamaz" ──────────────────────
+    // Ölçüt makinenin kendi geçmişi (lib/sayac-anomali). Sıfırlama/cihaz
+    // değişiminde bakılmıyor: bayi zaten beyan etti.
+    let anomali: AnomaliSonucu | null = null;
+    if (!reset) {
+      const gecenGun = prev ? (tarih.getTime() - new Date(prev.readingDate).getTime()) / 86400000 : 1;
+      anomali = anomaliDegerlendir(deltaBlack + deltaColor, gecenGun, gecmis);
+    }
+    // Şüphe okumayı REDDETMEZ — okuma normal yazılır, karar bayinindir. Dönem
+    // faturası ise kendiliğinden kesilmez: gerekçesiyle taslakta bekler, bayi
+    // bakıp "yine de kes" der (lib/fatura-bekletme). Sessizce para tutulmaz:
+    // bekleyen taslak Faturalar ekranının en üstünde durur.
+    const warning = anomali?.supheli ? anomali.aciklama : null;
+
+    // Kiralık cihazda kademeli (dahil paket + aşım) ücret — gerçek fatura mantığıyla AYNI kaynak
+    let calculatedCost = 0;
+    let monthlyRentAmount = 0;
+    let ch: ReturnType<typeof counterOverage> | null = null;
+
+    if (device.isRental) {
+      // Bu okumanın dönemindeki önceki sayfalar — dahil paketi kümülatif uygula
+      // (mükerrer indirim önle). Dönem faturayla AYNI kuraldan: donemOkumaKosulu.
+      const prevAgg = await tx.counterReading.aggregate({
+        where: { tenantId, deviceId, ...donemOkumaKosulu(faturaDonemi) },
+        _sum: { deltaBlack: true, deltaColor: true },
+      });
+      // Okunmayan ayların dahil paketi — faturayla aynı kural (sayacAyCarpanlari).
+      const k = (await sayacAyCarpanlari(tx, tenantId, [device], faturaDonemi)).get(deviceId);
+      ch = counterOverage(dahilCarpanli(device as any, k), deltaBlack, deltaColor, tenant as any, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+      calculatedCost = ch.total;
+
+      if (includeMonthlyRent) {
+        monthlyRentAmount = Number(device.monthlyRent);
+        calculatedCost += monthlyRentAmount;
+      }
+    }
+
+    const reading = await tx.counterReading.create({
+      data: {
+        tenantId,
+        deviceId,
+        // Okuma anındaki müşteri: cihaz sonradan taşınsa da bu sayfalar ona faturalanır.
+        customerId: device.customerId,
+        ticketId: ticketId || null,
+        counterBlack,
+        counterColor,
+        deltaBlack,
+        deltaColor,
+        calculatedCost,
+        monthlyRent: monthlyRentAmount,
+        photo: safePhotoOf(input.photo),
+        source: input.source ?? 'ELLE',
+        readingDate: tarih,
+        faturaDonemi,
+        renkliOlculdu: input.renkliOlculdu ?? true,
+        sifirlama,
+        // Şüpheli okuma yazılır; dönem faturası taslakta bekler (lib/fatura-bekletme).
+        supheli: anomali?.supheli === true,
+      },
+    });
+
+    await tx.device.update({
+      where: { id: deviceId },
+      data: { counterBlack, counterColor },
+    });
+
+    // NOT: Gelir kaydı BURADA yazılmaz. Okuma billed=false birikir; gelir dönem faturası
+    // kesilince src/lib/invoicing.ts tarafından oluşturulur (mükerrer gelir önlenir).
+
+    const breakdown = device.isRental && ch ? {
+      deltaBlack: ch.billB,
+      deltaColor: ch.billC,
+      pricePerBlack: ch.overBlack,
+      pricePerColor: ch.overColor,
+      blackCost: ch.blackTotal,
+      colorCost: ch.colorTotal,
       monthlyRent: monthlyRentAmount,
-      photo: safePhotoOf(input.photo),
-      source: input.source ?? 'ELLE',
-      readingDate: tarih,
-      faturaDonemi,
-      renkliOlculdu: input.renkliOlculdu ?? true,
-      // Şüpheli okuma yazılır; dönem faturası taslakta bekler (lib/fatura-bekletme).
-      supheli: anomali?.supheli === true,
-    },
+      total: calculatedCost,
+    } : null;
+
+    return { reading, breakdown, warning, anomali, deltaBlack, deltaColor, calculatedCost };
+  }, OKUMA_ISLEMI);
+}
+
+/** Okumanın ekranda gösterilen maliyeti (fatura bunu OKUMAZ; fatura kesilirken yeniden hesaplar). */
+async function gosterimMaliyeti(
+  tx: Tx,
+  tenantId: string,
+  device: Awaited<ReturnType<Tx['device']['findFirst']>> & object,
+  r: Halka,
+  deltaBlack: number,
+  deltaColor: number,
+): Promise<number> {
+  if (!device.isRental) return 0;
+  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { pricePerBlack: true, pricePerColor: true } });
+  if (!tenant) return 0;
+  const donem = okumaninDonemi(r);
+  const prevAgg = await tx.counterReading.aggregate({
+    where: { tenantId, deviceId: device.id, AND: [donemOkumaKosulu(donem), oncesi(r)] },
+    _sum: { deltaBlack: true, deltaColor: true },
   });
+  const k = (await sayacAyCarpanlari(tx, tenantId, [device], donem)).get(device.id);
+  const ch = counterOverage(dahilCarpanli(device as any, k), deltaBlack, deltaColor, tenant as any, prevAgg._sum.deltaBlack ?? 0, prevAgg._sum.deltaColor ?? 0);
+  return ch.total + Number(r.monthlyRent);
+}
 
-  await prisma.device.update({
-    where: { id: deviceId },
-    data: { counterBlack, counterColor },
-  });
+/**
+ * OKUMA DÜZELTME — faturalanmamış bir okumanın sayacını değiştirir ve zinciri onarır.
+ *
+ * Kurallar (hepsi tek işlemde, müşteri fatura kilidi + cihaz kilidi altında):
+ *  · Faturalanmış okuma değişmez; sonraki okuma faturalanmışsa da (onun farkı
+ *    değişeceği için) düzeltme reddedilir.
+ *  · Okumanın beyanı (cihaz değişti / sayaç sıfırlandı) KORUNUR. İstek yeni bir
+ *    beyan göndermediyse saklı olan (eski kayıtta farktan çıkarılan) kullanılır.
+ *    Eskiden beyan yalnız istekten okunuyordu ve düzeltme penceresi göndermiyordu.
+ *  · Sonraki okumanın farkı KENDİ beyanıyla yeniden hesaplanır (eskiden düz
+ *    çıkarmaydı: sonraki okuma "cihaz değişti" ise yeni makinenin ömür boyu
+ *    sayacı fark oluyordu).
+ */
+export async function okumaDuzelt(input: {
+  tenantId: string;
+  deviceId: string;
+  readingId: string;
+  counterBlack: number;
+  counterColor: number;
+  /** Verilmezse okumanın saklı beyanı korunur. */
+  reset?: boolean;
+  resetTur?: Sifirlama;
+}) {
+  const { tenantId, deviceId, readingId, counterBlack, counterColor } = input;
+  if (!Number.isFinite(counterBlack) || !Number.isFinite(counterColor) || counterBlack < 0 || counterColor < 0) {
+    throw new ReadingError('INVALID', 'Sayaç değeri geçersiz');
+  }
+  return prisma.$transaction(async (tx) => {
+    const device = await tx.device.findFirst({ where: { id: deviceId, tenantId } });
+    if (!device) throw new ReadingError('DEVICE_NOT_FOUND', 'Cihaz bulunamadı', 404);
+    // Fatura kilidi: kesilmekte olan bir fatura bu okumayı eski farkıyla sayıp
+    // yeni farkıyla kapatmasın. Sıra hep aynı: önce müşteri, sonra cihaz.
+    await musteriFaturaKilidi(tx, tenantId, device.customerId);
+    await cihazOkumaKilidi(tx, tenantId, deviceId);
 
-  // NOT: Gelir kaydı BURADA yazılmaz. Okuma billed=false birikir; gelir dönem faturası
-  // kesilince src/lib/invoicing.ts tarafından oluşturulur (mükerrer gelir önlenir).
+    const reading = await tx.counterReading.findFirst({ where: { id: readingId, tenantId, deviceId }, select: HALKA });
+    if (!reading) throw new ReadingError('READING_NOT_FOUND', 'Okuma bulunamadı', 404);
+    // Faturalanmış okuma DEĞİŞTİRİLEMEZ (kesilmiş faturanın dayanağı).
+    if (reading.billed) throw new ReadingError('BILLED', 'Faturalanmış okuma düzenlenemez', 409);
 
-  const breakdown = device.isRental && ch ? {
-    deltaBlack: ch.billB,
-    deltaColor: ch.billC,
-    pricePerBlack: ch.overBlack,
-    pricePerColor: ch.overColor,
-    blackCost: ch.blackTotal,
-    colorCost: ch.colorTotal,
-    monthlyRent: monthlyRentAmount,
-    total: calculatedCost,
-  } : null;
+    const onceki = await tx.counterReading.findFirst({ where: { tenantId, deviceId, ...oncesi(reading) }, orderBy: ZINCIR_SIRASI_YENI, select: HALKA });
+    const sonraki = await tx.counterReading.findFirst({ where: { tenantId, deviceId, ...sonrasi(reading) }, orderBy: ZINCIR_SIRASI_ESKI, select: HALKA });
 
-  return { reading, breakdown, warning, anomali, deltaBlack, deltaColor, calculatedCost };
+    const beyan: Sifirlama | null = input.reset === undefined
+      ? okumaBeyani(reading, onceki)
+      : input.reset && onceki ? (input.resetTur === 'SAYAC_SIFIRLANDI' ? 'SAYAC_SIFIRLANDI' : 'CIHAZ_DEGISTI') : null;
+
+    const dustu = !!onceki && (counterBlack < onceki.counterBlack || counterColor < onceki.counterColor);
+    if (dustu && !beyan) throw new ReadingError('COUNTER_DECREASE', 'Sayaç değeri öncekinden düşük');
+
+    const deltaBlack = okumaFarki(counterBlack, onceki ? onceki.counterBlack : null, !!beyan, beyan ?? undefined);
+    const deltaColor = okumaFarki(counterColor, onceki ? onceki.counterColor : null, !!beyan, beyan ?? undefined);
+
+    let sonrakiYeniFark: { black: number; color: number } | null = null;
+    let sonrakiBeyan: Sifirlama | null = null;
+    if (sonraki) {
+      sonrakiBeyan = okumaBeyani(sonraki, reading);
+      // Yeni değer olağan bir sonraki okumadan büyükse zincir bozulur (sonraki düşüş olur).
+      if (!sonrakiBeyan && (counterBlack > sonraki.counterBlack || counterColor > sonraki.counterColor)) {
+        throw new ReadingError('NEXT_LOWER', 'Bu değer bir sonraki okumadan büyük', 400, { p1: sonraki.counterBlack });
+      }
+      // Sonraki FATURALANMIŞSA farkına dokunamayız: yarım tutarlı zincir bırakmaktansa hayır.
+      if (sonraki.billed) throw new ReadingError('NEXT_BILLED', 'Bir sonraki okuma faturalandığı için düzenlenemez', 409);
+      sonrakiYeniFark = {
+        black: okumaFarki(sonraki.counterBlack, counterBlack, !!sonrakiBeyan, sonrakiBeyan ?? undefined),
+        color: okumaFarki(sonraki.counterColor, counterColor, !!sonrakiBeyan, sonrakiBeyan ?? undefined),
+      };
+    }
+
+    const updated = await tx.counterReading.update({
+      where: { id: readingId },
+      data: {
+        counterBlack, counterColor, deltaBlack, deltaColor, sifirlama: beyan,
+        calculatedCost: await gosterimMaliyeti(tx, tenantId, device, reading, deltaBlack, deltaColor),
+      },
+    });
+    if (sonraki && sonrakiYeniFark) {
+      await tx.counterReading.update({
+        where: { id: sonraki.id },
+        data: {
+          deltaBlack: sonrakiYeniFark.black, deltaColor: sonrakiYeniFark.color, sifirlama: sonrakiBeyan,
+          calculatedCost: await gosterimMaliyeti(tx, tenantId, device, sonraki, sonrakiYeniFark.black, sonrakiYeniFark.color),
+        },
+      });
+    }
+    // Bu EN SON okumaysa cihazın "güncel sayaç" önbelleği de güncellenir.
+    if (!sonraki) await tx.device.update({ where: { id: deviceId }, data: { counterBlack, counterColor } });
+
+    return { updated, sonrakiYeniFark };
+  }, OKUMA_ISLEMI);
+}
+
+/**
+ * OKUMA SİLME — faturalanmamış bir okumayı siler ve zinciri onarır.
+ *
+ * Okumalar bir ZİNCİR: ortadaki halka silinince sonrakinin farkı artık bir
+ * ÖNCEKİNE göre olmalı (yoksa aradaki sayfalar faturadan sessizce düşer).
+ * Onarım sonrakinin KENDİ beyanıyla yapılır. Silinen okuma bir beyan
+ * taşıyorduysa (sıfırlama o okumada bildirilmişti) beyan sonrakine geçer:
+ *   · sayaç sıfırlandı → sonrakinin farkı = kendi sayacı (sıfırdan beri basılan)
+ *   · cihaz değişti    → sonrakinin farkı 0 (yeni makinenin başlangıcı bilinmiyor;
+ *                         eksik faturalamak fahiş faturalamaktan iyidir)
+ */
+export async function okumaSil(input: { tenantId: string; deviceId: string; readingId: string }) {
+  const { tenantId, deviceId, readingId } = input;
+  return prisma.$transaction(async (tx) => {
+    const device = await tx.device.findFirst({ where: { id: deviceId, tenantId }, select: { id: true, customerId: true } });
+    if (!device) throw new ReadingError('DEVICE_NOT_FOUND', 'Cihaz bulunamadı', 404);
+    await musteriFaturaKilidi(tx, tenantId, device.customerId);
+    await cihazOkumaKilidi(tx, tenantId, deviceId);
+
+    const reading = await tx.counterReading.findFirst({ where: { id: readingId, tenantId, deviceId }, select: HALKA });
+    if (!reading) throw new ReadingError('READING_NOT_FOUND', 'Okuma bulunamadı', 404);
+    if (reading.billed) throw new ReadingError('BILLED', 'Faturalanmış okuma silinemez', 409);
+
+    const onceki = await tx.counterReading.findFirst({ where: { tenantId, deviceId, ...oncesi(reading) }, orderBy: ZINCIR_SIRASI_YENI, select: HALKA });
+    const sonraki = await tx.counterReading.findFirst({ where: { tenantId, deviceId, ...sonrasi(reading) }, orderBy: ZINCIR_SIRASI_ESKI, select: HALKA });
+    // Sonraki okuma FATURALANMIŞSA farkını değiştiremeyiz (kesilmiş fatura bozulur);
+    // değiştirmezsek de sayfa kaybolur. İkisi de kabul edilemez: silme reddedilir.
+    if (sonraki?.billed) throw new ReadingError('NEXT_BILLED', 'Sonraki okuma faturalandığı için silinemez', 409);
+
+    await tx.counterReading.delete({ where: { id: readingId } });
+
+    if (sonraki) {
+      const beyan = onceki ? (okumaBeyani(sonraki, reading) ?? okumaBeyani(reading, onceki)) : null;
+      await tx.counterReading.update({
+        where: { id: sonraki.id },
+        data: {
+          // Öncesi hiç yoksa o okuma zincirin başı olur → fark 0.
+          deltaBlack: okumaFarki(sonraki.counterBlack, onceki ? onceki.counterBlack : null, !!beyan, beyan ?? undefined),
+          deltaColor: okumaFarki(sonraki.counterColor, onceki ? onceki.counterColor : null, !!beyan, beyan ?? undefined),
+          sifirlama: beyan,
+        },
+      });
+    }
+
+    // Cihazın "güncel sayaç" önbelleği son okumayı gösterir.
+    const son = await tx.counterReading.findFirst({ where: { tenantId, deviceId }, orderBy: ZINCIR_SIRASI_YENI, select: { counterBlack: true, counterColor: true } });
+    await tx.device.update({ where: { id: deviceId }, data: { counterBlack: son?.counterBlack ?? null, counterColor: son?.counterColor ?? null } });
+
+    return { zincirOnarildi: !!sonraki };
+  }, OKUMA_ISLEMI);
 }
 
 export interface SonOkuma {
