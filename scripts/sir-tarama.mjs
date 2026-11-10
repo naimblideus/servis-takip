@@ -31,6 +31,10 @@ const BEYAZ_LISTE = [
   /postgres(ql)?:\/\/postgres:postgres123@localhost/i,   // yerel geliştirme
   /postgres(ql)?:\/\/(kullanici|user):(sifre|password)@/i, // belgelerdeki şablon
   /app\.notion\.(com|so)\//i,                            // Notion sayfa kimliği — kimlik bilgisi değil
+  // AWS belgelerinde yayımlanmış dört ÖRNEK imza (SigV4 test vektörleri,
+  // scripts/test-baski-dosya.mjs). Anahtar değil, herkese açık beklenen çıktı.
+  // Değer bazlı: aynı dosyaya başka bir hex girerse tarayıcı yine bağırır.
+  /aeeed9bbccd4d02ee5c0109b|f0e8bdb87c964420e857bd35|fea454ca298b7da1c68078a5|34b48302e7b5fa45bde8084f/,
 
   // Testlerde KASTEN sahte bağlantı dizesi bulunur: "parola çıktıya sızmıyor"
   // iddiasını kanıtlamanın başka yolu yok (scripts/test-db-hedef.mjs).
