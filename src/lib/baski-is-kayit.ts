@@ -10,6 +10,7 @@ import {
 } from '@/lib/baski-is';
 import { cariPlani, planBosMu } from '@/lib/baski-cari';
 import { mesajTuru } from '@/lib/baski-mesaj';
+import { hazirlamaSaati, sozSaati } from '@/lib/matbaa-ayar';
 
 export interface Kullanici { id: string; name?: string | null; role: string }
 
@@ -97,9 +98,12 @@ const tarih = (x: unknown) => { if (!x) return null; const d = new Date(x as str
 export async function isOlustur(tenantId: string, girdi: YeniIs, kim: Kullanici | null, o: { personel: boolean }) {
   const kanal = o.personel ? kanalNormal(girdi.kanal) : 'ONLINE';
   const urunler = await prisma.baskiUrunu.findMany({
-    where: { tenantId, id: { in: (girdi.kalemler ?? []).map((k) => String(k?.urunId ?? '')) }, aktif: true },
+    // Müşteri yalnız sipariş sayfasına açılmış ürünü ısmarlar (kimliği elle yazsa da).
+    where: { tenantId, id: { in: (girdi.kalemler ?? []).map((k) => String(k?.urunId ?? '')) }, aktif: true, ...(o.personel ? {} : { online: true }) },
   });
-  const h = isHesapla(urunler, girdi.kalemler, { personel: o.personel });
+  // Müşterinin "sayfa sayısı dosyadan" beyanı kabul edilmez: tutarı personel onaylar.
+  const kalemler = o.personel || !Array.isArray(girdi.kalemler) ? girdi.kalemler : girdi.kalemler.map((k) => ({ ...k, sayfaDosyadan: false }));
+  const h = isHesapla(urunler, kalemler, { personel: o.personel });
   if (!h.ok) return h;
 
   let customerId: string | null = null;
@@ -144,6 +148,19 @@ export async function isOlustur(tenantId: string, girdi: YeniIs, kim: Kullanici 
   return { ok: true as const, is };
 }
 
+/**
+ * Online iş kabul edilirken müşteriye söylenecek hazır olma saati: kalemlerin
+ * en uzun hazırlama süresi, KABUL anından. Saat önceden verilmişse dokunulmaz.
+ */
+async function kabulSaati(tenantId: string, is: { sozVerilenAt: Date | null; kalemler: { urunId: string | null }[] }): Promise<Date | null> {
+  if (is.sozVerilenAt) return null;
+  const [ayar, urunler] = await Promise.all([
+    prisma.matbaaAyar.findUnique({ where: { tenantId }, select: { hazirlamaSaat: true } }),
+    prisma.baskiUrunu.findMany({ where: { tenantId, id: { in: is.kalemler.map((k) => k.urunId ?? '') } }, select: { teslimSaat: true } }),
+  ]);
+  return sozSaati(new Date(), urunler.map((u) => u.teslimSaat), hazirlamaSaati(ayar?.hazirlamaSaat));
+}
+
 // ── DURUM ────────────────────────────────────────────────────────────────
 
 export type DurumHatasi = { ok: false; kod: GecisHatasi | 'IS_YOK' | 'DURUM_GECERSIZ' | 'DEGISTI' };
@@ -155,7 +172,7 @@ export type DurumHatasi = { ok: false; kod: GecisHatasi | 'IS_YOK' | 'DURUM_GECE
 export async function durumDegistir(tenantId: string, isId: string, sonraHam: unknown, kim: Kullanici, ek: { iptalNedeni?: string } = {}): Promise<{ ok: true; durum: IsDurumu } | DurumHatasi> {
   const sonra = isDurumu(sonraHam);
   if (!sonra) return { ok: false, kod: 'DURUM_GECERSIZ' };
-  const is = await prisma.baskiIsi.findFirst({ where: { id: isId, tenantId } });
+  const is = await prisma.baskiIsi.findFirst({ where: { id: isId, tenantId }, include: { kalemler: { select: { urunId: true } } } });
   if (!is) return { ok: false, kod: 'IS_YOK' };
   const once = isDurumu(is.durum) ?? 'SIRADA';
   const izin = gecisIzinli(once, sonra, {
@@ -166,11 +183,13 @@ export async function durumDegistir(tenantId: string, isId: string, sonraHam: un
   if (!izin.ok) return izin;
 
   const simdi = new Date();
+  const soz = once === 'GELEN' && sonra === 'SIRADA' ? await kabulSaati(tenantId, is) : null;
   const yazildi = await prisma.$transaction(async (tx) => {
     const r = await tx.baskiIsi.updateMany({
       where: { id: is.id, tenantId, durum: once },
       data: {
         durum: sonra,
+        ...(soz ? { sozVerilenAt: soz } : {}),
         ...(sonra === 'TESLIM' ? { teslimAt: simdi } : once === 'TESLIM' ? { teslimAt: null } : {}),
         ...(sonra === 'IPTAL' ? { iptalAt: simdi, iptalNedeni: metin(ek.iptalNedeni, 500) } : once === 'IPTAL' ? { iptalAt: null, iptalNedeni: null } : {}),
       },
@@ -206,11 +225,12 @@ export async function isKabulEt(tenantId: string, isId: string, sayfalar: Record
     secimler: k.secimler as Record<string, string>,
   })), { personel: true });
   if (!h.ok) return { ok: false, kod: h.kod };
+  const soz = await kabulSaati(tenantId, is);
 
   const yazildi = await prisma.$transaction(async (tx) => {
     const r = await tx.baskiIsi.updateMany({
       where: { id: is.id, tenantId, durum: 'GELEN' },
-      data: { durum: 'SIRADA', tahmini: false, kdvHaric: h.kdvHaric, kdv: h.kdv, toplam: h.toplam, bitisGerekli: h.bitisGerekli },
+      data: { durum: 'SIRADA', tahmini: false, kdvHaric: h.kdvHaric, kdv: h.kdv, toplam: h.toplam, bitisGerekli: h.bitisGerekli, ...(soz ? { sozVerilenAt: soz } : {}) },
     });
     if (r.count !== 1) return false;
     for (let i = 0; i < is.kalemler.length; i++) {

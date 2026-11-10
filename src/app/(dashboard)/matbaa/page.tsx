@@ -13,6 +13,10 @@ import MesajDugmesi from '@/components/matbaa/MesajDugmesi';
 import { mesajYaz } from '@/lib/baski-mesaj';
 import { bicimYap } from '@/lib/bicim';
 import { waUrl } from '@/lib/share';
+import { ayarHazirla, takipAdresi } from '@/lib/matbaa-ayar-kayit';
+import { kurulumBitti, kurulumDurumu, type KurulumAdimi } from '@/lib/matbaa-ayar';
+import { fiyatliMi, urunTanimi } from '@/lib/baski-fiyat';
+import { yoneticiMi } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +30,7 @@ export const dynamic = 'force-dynamic';
  */
 const RENK: Record<BugunTuru, string> = {
   gelen: 'bg-red-50 text-red-700',
+  prova: 'bg-red-50 text-red-700',
   haber: 'bg-emerald-50 text-emerald-800',
   gec: 'bg-red-50 text-red-700',
   bugun: 'bg-amber-50 text-amber-800',
@@ -46,27 +51,40 @@ export default async function MatbaaBugun() {
   const simdi = new Date();
   const { bas, bit } = gunAraligi(tz, simdi);
 
-  const [acik, bugunAcilan, kasa] = await Promise.all([
+  const [acik, bugunAcilan, kasa, ayar, isSayisi] = await Promise.all([
     prisma.baskiIsi.findMany({
       where: { tenantId, durum: { notIn: [...KAPALI] } },
-      select: { id: true, no: true, durum: true, sozVerilenAt: true, haberVerildiAt: true, toplam: true, odenen: true, customerId: true, odemeYolu: true, musteriAd: true, telefon: true, firma: true, kalemler: { select: { ozet: true }, orderBy: { sira: 'asc' }, take: 1 } },
+      select: { id: true, no: true, durum: true, sozVerilenAt: true, haberVerildiAt: true, toplam: true, odenen: true, customerId: true, odemeYolu: true, musteriAd: true, telefon: true, firma: true, jeton: true, kalemler: { select: { ozet: true }, orderBy: { sira: 'asc' }, take: 1 }, provalar: { select: { durum: true }, orderBy: { createdAt: 'desc' }, take: 1 } },
       orderBy: { createdAt: 'asc' },
       take: 500,
     }),
     prisma.baskiIsi.count({ where: { tenantId, createdAt: { gte: bas, lte: bit } } }),
     prisma.baskiOdeme.aggregate({ where: { tenantId, tarih: { gte: bas, lte: bit } }, _sum: { tutar: true } }),
+    ayarHazirla(tenantId),
+    prisma.baskiIsi.count({ where: { tenantId } }),
   ]);
   const gec = acik.filter((i) => gecikiyorMu({ durum: isDurumu(i.durum) ?? 'SIRADA', sozVerilenAt: i.sozVerilenAt }, simdi)).length;
-  const satirlar = bugunSatirlari(acik, simdi, bit);
+  const satirlar = bugunSatirlari(acik.map((i) => ({ ...i, sonProva: i.provalar[0]?.durum ?? null })), simdi, bit);
 
-  const etiket: Record<BugunTuru, string> = { gelen: m.satirGelen, haber: m.satirHaber, gec: m.satirGec, bugun: m.satirBugun, odeme: m.satirOdeme };
-  const dugme: Record<BugunTuru, string> = { gelen: m.dugmeKabul, haber: m.dugmeHaber, gec: m.dugmeAc, bugun: m.dugmeAc, odeme: m.dugmeOdeme };
+  // KURULUM LİSTESİ: yalnız sahibe, dört adım bitene kadar. İş açılmışsa fiyat
+  // girilmiştir (fiyatsız ürünle iş açılamaz); ürünler yalnız yeni matbaada okunur.
+  let kurulum: { adim: KurulumAdimi; tamam: boolean }[] | null = null;
+  if (yoneticiMi(user) && !(isSayisi > 0 && ayar.siparisAcik && ayar.karsilamaKopyalandiAt)) {
+    const fiyatliUrun = isSayisi > 0 ? 1
+      : (await prisma.baskiUrunu.findMany({ where: { tenantId, aktif: true } })).filter((u) => fiyatliMi(urunTanimi(u))).length;
+    const l = kurulumDurumu({ fiyatliUrun, kisaAd: ayar.kisaAd, siparisAcik: ayar.siparisAcik, karsilamaKopyalandi: !!ayar.karsilamaKopyalandiAt, isSayisi });
+    if (!kurulumBitti(l)) kurulum = l;
+  }
+  const kurulumYolu: Record<KurulumAdimi, string> = { FIYAT: '/matbaa/fiyatlar', BAGLANTI: '/matbaa/ayarlar', KARSILAMA: '/matbaa/ayarlar', ILK_IS: '/matbaa/isler/yeni' };
+
+  const etiket: Record<BugunTuru, string> = { gelen: m.satirGelen, prova: m.satirProva, haber: m.satirHaber, gec: m.satirGec, bugun: m.satirBugun, odeme: m.satirOdeme };
+  const dugme: Record<BugunTuru, string> = { gelen: m.dugmeKabul, prova: m.dugmeAc, haber: m.dugmeHaber, gec: m.dugmeAc, bugun: m.dugmeAc, odeme: m.dugmeOdeme };
   // "Haber ver" tek dokunuş: ayrıntıya gitmeden WhatsApp açılır, satır kapanır.
   const mb = bicimYap(bayiDili, tenant?.currency);
   const hazirUrl = (is: (typeof acik)[number]) => waUrl(is.telefon, mesajYaz('HAZIR', {
     isNo: isNo(is.no), musteriAd: is.musteriAd, toplam: mb.para(tl(is.toplam)),
     kalan: is.toplam > is.odenen ? mb.para(tl(is.toplam - is.odenen)) : null,
-    firma: tenant?.name ?? '', adres: tenant?.address,
+    firma: tenant?.name ?? '', adres: tenant?.address, takipUrl: takipAdresi(ayar, is.jeton),
   }, bayiDili));
 
   return (
@@ -79,6 +97,19 @@ export default async function MatbaaBugun() {
       <p className="mt-3 text-lg font-semibold text-gray-800">
         {doldur(m.sayiSatiri, { n: bugunAcilan, tutar: b.para(tl(kasa._sum.tutar ?? 0)), gec })}
       </p>
+
+      {kurulum && (
+        <div className="mt-5 overflow-hidden rounded-2xl border border-blue-200 bg-blue-50">
+          <p className="px-4 py-2.5 text-sm font-bold text-blue-900">{doldur(m.kurulumBaslik, { n: kurulum.filter((k) => k.tamam).length })}</p>
+          {kurulum.map((k) => (
+            <div key={k.adim} className="flex items-center justify-between gap-3 border-t border-blue-100 bg-white px-4 py-2.5">
+              <span className={`text-sm ${k.tamam ? 'text-gray-400 line-through' : 'font-semibold text-gray-800'}`}>{m.kurulum[k.adim]}</span>
+              {k.tamam ? <span className="shrink-0 text-xs font-bold text-emerald-700">{m.kurulumTamam}</span>
+                : <Link href={kurulumYolu[k.adim]} className="shrink-0 rounded-lg bg-[#0f2253] px-3 py-1.5 text-sm font-semibold text-white">{m.dugmeAc}</Link>}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white">
         {satirlar.length === 0 ? (

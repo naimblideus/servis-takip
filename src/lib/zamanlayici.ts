@@ -37,6 +37,8 @@ export interface ZamanlanmisIsTanimi {
 export const ISLER: ZamanlanmisIsTanimi[] = [
   { anahtar: 'demo', tur: 'gunluk', saat: 3, dakika: 30 },
   { anahtar: 'wa-temizlik', tur: 'gunluk', saat: 4, dakika: 0, yol: '/api/cron/whatsapp-temizlik' },
+  // Baskı dosyalarının saklama süresi (matbaanın ayarı; depo bağlı değilse iş yapmaz).
+  { anahtar: 'matbaa-temizlik', tur: 'gunluk', saat: 4, dakika: 30, yol: '/api/cron/matbaa-temizlik' },
   // Günlük: her bayi kendi kesim gününde kapanan dönemine bakar (koşusu bittiyse atlar).
   { anahtar: 'faturalar', tur: 'gunluk', saat: 6, dakika: 0, yol: '/api/cron/generate-customer-invoices' },
   { anahtar: 'crm-sinyal', tur: 'gunluk', saat: 8, dakika: 0, yol: '/api/cron/crm-sinyal' },
@@ -68,7 +70,7 @@ export function vakitGeldiMi(is: ZamanlanmisIsTanimi, an = new Date()): boolean 
  * çıkarsa ekran ertesi geceye kadar demoda boş görünür — tam da o sabah
  * gösterilecekken. Sürüm başına bir kez çalışır (ZamanlanmisIs 'demo-surum').
  */
-export const DEMO_TOHUM_SURUMU = '2026-11-05-matbaa-demosu';
+export const DEMO_TOHUM_SURUMU = '2026-11-10-matbaa-siparis-sayfasi';
 
 /**
  * EKİP TEST HESAPLARI (scripts/seed-bayi-demo.mjs ile aynı kural): sunucuda

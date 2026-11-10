@@ -147,7 +147,8 @@ console.log('\nBaskı işi\n');
 // ── KAYNAK DENETİMİ ─────────────────────────────────────────────────────
 {
   const k = readFileSync(join(KOK, 'src/lib/baski-is-kayit.ts'), 'utf8');
-  t('★ iş açma tutarı sunucuda hesaplıyor (isHesapla), kiracının aktif ürünleriyle', /isHesapla\(urunler, girdi\.kalemler/.test(k) && /baskiUrunu\.findMany\(\{\s*where: \{ tenantId, id: \{ in:/.test(k) && /aktif: true/.test(k));
+  t('★ iş açma tutarı sunucuda hesaplıyor (isHesapla), kiracının aktif ürünleriyle', /isHesapla\(urunler, kalemler, \{ personel: o\.personel \}/.test(k) && /where: \{ tenantId, id: \{ in:.+aktif: true/.test(k));
+  t('★ müşteri yalnız sipariş sayfasına açık ürünü ısmarlayabiliyor; sayfa beyanı her zaman tahmini', /o\.personel \? \{\} : \{ online: true \}/.test(k) && /sayfaDosyadan: false/.test(k));
   t('★ müşteriden gelen iş GELEN\'de ve ONLINE başlıyor', /o\.personel \? kanalNormal\(girdi\.kanal\) : 'ONLINE'/.test(k) && /kanal === 'ONLINE' \? 'GELEN' : 'SIRADA'/.test(k));
   t('★ müşteri başka kiracınınsa iş açılmıyor', /customer\.findFirst\(\{ where: \{ id: girdi\.customerId, tenantId \}/.test(k));
   t('★ durum ve ödeme koşullu yazılıyor (aynı anda iki dokunuş iki adım atmaz)', /updateMany\(\{\s*where: \{ id: is\.id, tenantId, durum: once \}/.test(k) && /updateMany\(\{ where: \{ id: is\.id, tenantId, odenen: is\.odenen \}/.test(k));

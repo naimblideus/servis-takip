@@ -230,5 +230,44 @@ console.log('\nBaskı fiyat motoru\n');
   t('kurulum çoğaltmıyor (skipDuplicates)', /skipDuplicates: true/.test(oku('src/lib/baski-urun.ts')));
 }
 
+console.log('\nExcel\'den yapıştırma\n');
+{
+  const { liraOku, kademeleriYapistir, urunleriYapistir, secenekKodu } = F;
+  const l = { '1,50': 150, '1.50': 150, '1250': 125000, '1.250': 125000, '1.250,50': 125050, '1,250.50': 125050, '₺ 950': 95000, '950 TL': 95000, '0,80': 80, '12.345.678': 1234567800, '1,234,567': 123456700 };
+  const yanlis = Object.entries(l).filter(([s, k]) => liraOku(s) !== k).map(([s]) => [s, liraOku(s)]);
+  t('★ fiyat yazımları: virgül, nokta, binlik ayırıcı, para işareti', yanlis.length === 0, yanlis);
+  t('★ okunamayan, sıfır ve eksi fiyat 0 (ürün fiyatsız kalır, uydurulmaz)', ['', 'yok', '-5', '0', 'ücretsiz', null, undefined].every((s) => liraOku(s) === 0));
+  const k = kademeleriYapistir('Adet\tFiyat\n1\t5,00\n100\t4,00\n500\t3,00\n\n1.000\t2,50\nbozuk satır');
+  t('★ kademeler: başlık ve bozuk satır atlanıyor, binlik miktar okunuyor', JSON.stringify(k) === JSON.stringify([{ min: 1, fiyat: 500 }, { min: 100, fiyat: 400 }, { min: 500, fiyat: 300 }, { min: 1000, fiyat: 250 }]), k);
+  t('noktalı virgül ve çoklu boşlukla ayrılmış sütunlar', kademeleriYapistir('1;5,00\n100   4,00').length === 2);
+  t('fiyatı okunmayan kademe satırı alınmıyor', kademeleriYapistir('1\tyok\n10\t2').length === 1);
+  const u = urunleriYapistir('Ürün\tFiyat\nFotokopi A4\t1,50\nRoll-up 85×200\tadet\t950\nKaşe\t\n\nfotokopi a4\t2,00\n100\t4,00');
+  t('★ ürün listesi: ad ilk, fiyat SON sütun; başlık, fiyatsız ve sayı adlı satır atlanıyor', u.length === 2 && u[1].ad === 'Roll-up 85×200' && u[1].fiyat === 95000, u);
+  t('★ aynı ad iki kez gelirse sonraki fiyat geçerli (büyük-küçük harf ayırmadan)', u[0].ad === 'fotokopi a4' && u[0].fiyat === 200);
+  t('en çok 200 ürün', urunleriYapistir(Array.from({ length: 300 }, (_, i) => `Ürün ${i}\t${i + 1}`).join('\n')).length === 200);
+  t('seçenek kodu addan; Türkçe harf ve boşluk sade', secenekKodu('Kuşe kâğıt') === 'kuse-kagit' && secenekKodu('  ') === 'secenek');
+  t('★ aynı kod ikinci kez verilmiyor', secenekKodu('Mat', ['mat']) === 'mat-2' && secenekKodu('Mat', ['mat', 'mat-2']) === 'mat-3');
+  const yeni = urunTanimi({ ad: 'Davetiye', fiyatModeli: 'ADET', kademeler: [{ min: 1, fiyat: 1000 }], secenekler: [{ kod: secenekKodu('Kâğıt'), ad: 'Kâğıt', zorunlu: true, degerler: [
+    { kod: 'mat', ad: 'Mat', tur: 'CARPAN', deger: 1, varsayilan: true }, { kod: 'fantezi', ad: 'Fantezi', tur: 'BIRIM', deger: 250 }] }] });
+  t('★ elle eklenen seçenek grubu fiyata giriyor', fiyatHesapla(yeni, { adet: 10 }).toplam === 10000 && fiyatHesapla(yeni, { adet: 10, secimler: { kagit: 'fantezi' } }).toplam === 12500);
+  const y = readFileSync(join(KOK, 'src/app/api/matbaa/urunler/yapistir/route.ts'), 'utf8');
+  t('★ yapıştırma ucu: yalnız sahip, metin sunucuda yeniden okunuyor, kiracıya kapsamlı', /requireMatbaaUser\(\['ADMIN'\]\)/.test(y) && /urunleriYapistir\(/.test(y) && /updateMany\(\{ where: \{ id: var_\.id, tenantId \}/.test(y));
+  t('★ var olan ürünün kademe yapısı korunuyor, yalnız ilk fiyat değişiyor', /\[\{ \.\.\.k\[0\], fiyat: s\.fiyat \}, \.\.\.k\.slice\(1\)\]/.test(y));
+}
+
+console.log('\nHazır ürünlerin İngilizce seçenek adları\n');
+{
+  const { BASKI_SABLONLARI, sablonSatirlari, SECENEK_EN } = S;
+  const adlar = new Set(BASKI_SABLONLARI.flatMap((s) => s.secenekler.flatMap((g) => [g.ad, ...g.degerler.map((d) => d.ad)])));
+  const cevirisiz = [...adlar].filter((a) => /[çğışöüÇĞİŞÖÜâ]/.test(a) || !/^[A-Z]\d$/.test(a)).filter((a) => !SECENEK_EN[a]);
+  t(`★ ${adlar.size} seçenek adının hepsinin İngilizcesi var`, cevirisiz.length === 0, cevirisiz);
+  const en = sablonSatirlari('en').flatMap((s) => s.secenekler.flatMap((g) => [g.ad, ...g.degerler.map((d) => d.ad)]));
+  t('★ İngilizce işletmenin ürünlerinde Türkçe seçenek adı kalmıyor', en.filter((a) => /[çğışöüÇĞİŞÖÜâ]/.test(a)).length === 0, en.filter((a) => /[çğışöüÇĞİŞÖÜâ]/.test(a)));
+  const tr = sablonSatirlari('tr');
+  t('Türkçe işletmede adlar aynen', tr[0].secenekler[0].ad === 'Yüz' && tr[0].secenekler[0].degerler[0].ad === 'Tek yüz');
+  t('★ çeviri kodlara ve fiyat yapısına dokunmuyor', JSON.stringify(sablonSatirlari('en').map((s) => s.secenekler.map((g) => [g.kod, g.zorunlu, g.degerler.map((d) => [d.kod, d.tur, d.deger, d.taban, d.araliklar])])))
+    === JSON.stringify(tr.map((s) => s.secenekler.map((g) => [g.kod, g.zorunlu, g.degerler.map((d) => [d.kod, d.tur, d.deger, d.taban, d.araliklar])]))));
+}
+
 console.log(`\n${gecti} geçti, ${kaldi} kaldı\n`);
 process.exit(kaldi ? 1 : 0);

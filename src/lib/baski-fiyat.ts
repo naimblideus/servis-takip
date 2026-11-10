@@ -244,6 +244,74 @@ export function eksikFiyatlar(u: Pick<UrunTanimi, 'secenekler'>): string[] {
   return out;
 }
 
+// ── EXCEL'DEN YAPIŞTIRMA ─────────────────────────────────────────────────
+// Matbaanın fiyat listesi çoğu zaman bir Excel sayfasında duruyor. Hücreler
+// kopyalanınca sekmeyle ayrılmış metin gelir; burada o metin okunur.
+// Okunamayan satır ATILIR (başlık satırı, boş satır): yanlış okunan fiyat
+// sessizce ucuz fiyat olmasın diye tahmin yürütülmez.
+
+/**
+ * "1.250,50", "1250.50", "₺ 1,5", "950 TL" → kuruş. Okunamazsa 0.
+ * Tek nokta ve ardından tam üç rakam binliktir ("1.250" = 1250 lira);
+ * iki rakam kuruştur ("1.25" = 1 lira 25 kuruş).
+ */
+export function liraOku(ham: unknown): number {
+  let s = String(ham ?? '').replace(/[^\d.,-]/g, '');
+  if (!s || s.startsWith('-')) return 0;
+  const nokta = s.lastIndexOf('.'), virgul = s.lastIndexOf(',');
+  if (nokta >= 0 && virgul >= 0) {
+    // İkisi de var: sonda olan ondalık, öbürü binlik.
+    s = virgul > nokta ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else if (virgul >= 0) {
+    s = (s.match(/,/g) ?? []).length > 1 ? s.replace(/,/g, '') : s.replace(',', '.');
+  } else if (nokta >= 0 && ((s.match(/\./g) ?? []).length > 1 || /^\d{1,3}\.\d{3}$/.test(s))) {
+    s = s.replace(/\./g, '');
+  }
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0;
+}
+
+const hucreler = (satir: string) => satir.split(/\t|;|\||\s{2,}/).map((h) => h.trim()).filter((h) => h !== '');
+const satirlar = (metin: unknown) => String(metin ?? '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean).slice(0, 500);
+
+/** İki sütun: miktar ve birim fiyat → kademeler (normalleştirilmiş). */
+export function kademeleriYapistir(metin: unknown): Kademe[] {
+  const l: Kademe[] = [];
+  for (const s of satirlar(metin)) {
+    const h = hucreler(s);
+    if (h.length < 2) continue;
+    const min = Number(h[0].replace(/[.\s]/g, '').replace(/[^\d]/g, ''));
+    const fiyat = liraOku(h[h.length - 1]);
+    if (Number.isInteger(min) && min >= 1 && fiyat > 0 && /^\D{0,2}\d/.test(h[0])) l.push({ min, fiyat });
+  }
+  return kademeleriNormallestir(l);
+}
+
+/** Ürün listesi: ilk sütun ad, SON sütun fiyat. Aynı ad iki kez gelirse sonraki geçerli. */
+export function urunleriYapistir(metin: unknown): { ad: string; fiyat: number }[] {
+  const l: { ad: string; fiyat: number }[] = [];
+  for (const s of satirlar(metin)) {
+    const h = hucreler(s);
+    if (h.length < 2) continue;
+    const ad = yazi(h[0], 120), fiyat = liraOku(h[h.length - 1]);
+    // Adı yalnız sayı olan satır ürün değildir (miktar-fiyat tablosu yapıştırılmış).
+    if (!ad || /^[\d.,\s]+$/.test(ad) || fiyat <= 0) continue;
+    const i = l.findIndex((x) => x.ad.toLocaleLowerCase('tr-TR') === ad.toLocaleLowerCase('tr-TR'));
+    if (i >= 0) l[i] = { ad, fiyat }; else l.push({ ad, fiyat });
+  }
+  return l.slice(0, 200);
+}
+
+/** Addan kod ("Kuşe kâğıt" → "kuse-kagit"); `mevcut` ile çakışırsa sonuna sayı. */
+export function secenekKodu(ad: unknown, mevcut: readonly string[] = []): string {
+  const harf: Record<string, string> = { ç: 'c', ğ: 'g', ı: 'i', ö: 'o', ş: 's', ü: 'u', â: 'a', î: 'i', û: 'u' };
+  const taban = String(ad ?? '').toLocaleLowerCase('tr-TR').replace(/[çğıöşüâîû]/g, (c) => harf[c] ?? c)
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'secenek';
+  let kod = taban;
+  for (let i = 2; mevcut.includes(kod); i++) kod = `${taban}-${i}`;
+  return kod;
+}
+
 // ── HESAP ────────────────────────────────────────────────────────────────
 
 /** Miktara uygulanan kademe (en büyük min <= miktar). */

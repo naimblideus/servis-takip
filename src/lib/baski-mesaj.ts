@@ -6,12 +6,13 @@
 // "hazır mı?", "IBAN neydi?", "teşekkürler"; burası o dört mesajın metni.
 //
 // Müşteriye giden metin BAYİNİN dilinde, ekrandaki kullanıcının dilinde değil.
-// Prova ve takip bağlantısı Faz B'de; bağlantı verilmedikçe satırı yazılmaz:
-// henüz açılmayan bir sayfaya müşteri göndermek "çalışmıyor" mesajı getirir.
+// Takip ve prova bağlantısı verilmedikçe satırı yazılmaz (matbaanın kısa adı
+// yoksa bağlantı da yoktur): açılmayan bir sayfaya müşteri göndermek
+// "çalışmıyor" mesajı getirir.
 import { ibanBicimle } from './odeme-bilgisi';
 
-export type MesajTuru = 'ALINDI' | 'HAZIR' | 'ODEME' | 'TESEKKUR';
-export const MESAJ_TURLERI: readonly MesajTuru[] = ['ALINDI', 'HAZIR', 'ODEME', 'TESEKKUR'];
+export type MesajTuru = 'ALINDI' | 'HAZIR' | 'ODEME' | 'TESEKKUR' | 'PROVA';
+export const MESAJ_TURLERI: readonly MesajTuru[] = ['ALINDI', 'HAZIR', 'ODEME', 'TESEKKUR', 'PROVA'];
 
 export function mesajTuru(x: unknown): MesajTuru | null {
   return (MESAJ_TURLERI as readonly string[]).includes(x as string) ? (x as MesajTuru) : null;
@@ -31,8 +32,10 @@ export interface MesajVerisi {
   adres?: string | null;
   iban?: string | null;
   hesapAdi?: string | null;
-  /** Takip sayfası (Faz B). */
+  /** Takip sayfası (/b/<kısa-ad>/is/<jeton>). */
   takipUrl?: string | null;
+  /** Prova onay sayfası; yalnız PROVA mesajında. */
+  provaUrl?: string | null;
 }
 
 /** Boş satırları atar; metin satırı `null` ise o bilgi yoktur. */
@@ -52,6 +55,7 @@ const METIN = {
       `${v.isNo} numaralı işiniz hazır, teslim alabilirsiniz.`,
       v.kalan ? `Ödenecek tutar: ${v.kalan}` : null,
       v.adres ? `Adres: ${v.adres}` : null,
+      v.takipUrl ? `Takip: ${v.takipUrl}` : null,
     ),
     ODEME: (v: MesajVerisi) => satirlar(
       `${v.isNo} numaralı işiniz için ödeme bilgisi:`,
@@ -61,6 +65,11 @@ const METIN = {
       `Açıklama: ${v.isNo}`,
     ),
     TESEKKUR: (v: MesajVerisi) => `${v.isNo} numaralı işinizi teslim ettik. Bizi tercih ettiğiniz için teşekkür ederiz.`,
+    PROVA: (v: MesajVerisi) => satirlar(
+      `${v.isNo} numaralı işinizin provası hazır.`,
+      'Baskıya geçmeden önce inceleyip onaylamanızı rica ederiz:',
+      v.provaUrl ?? null,
+    ),
   },
   en: {
     selam: (ad?: string | null) => (ad ? `Hello ${ad},` : 'Hello,'),
@@ -75,6 +84,7 @@ const METIN = {
       `Your job ${v.isNo} is ready for pickup.`,
       v.kalan ? `Amount due: ${v.kalan}` : null,
       v.adres ? `Address: ${v.adres}` : null,
+      v.takipUrl ? `Track it: ${v.takipUrl}` : null,
     ),
     ODEME: (v: MesajVerisi) => satirlar(
       `Payment details for your job ${v.isNo}:`,
@@ -84,6 +94,11 @@ const METIN = {
       `Reference: ${v.isNo}`,
     ),
     TESEKKUR: (v: MesajVerisi) => `We have handed over your job ${v.isNo}. Thank you for choosing us.`,
+    PROVA: (v: MesajVerisi) => satirlar(
+      `The proof for your job ${v.isNo} is ready.`,
+      'Please check and approve it before we print:',
+      v.provaUrl ?? null,
+    ),
   },
 } as const;
 
@@ -97,13 +112,16 @@ export function mesajYaz(tur: MesajTuru, v: MesajVerisi, dil: string | null | un
  * Bu durumda hangi mesajlar anlamlı; ilki ana düğme. Havale istenen işte
  * IBAN'ı personel ezberden yazmasın; IBAN girilmemişse ödeme mesajı yok,
  * hesap numarasız "ödeme bilgisi" müşteriye bir tur daha yazdırır. Cari iş
- * teslimden önce hatırlatılmaz: borç zaten cariye yazılacak.
+ * teslimden önce hatırlatılmaz: borç zaten cariye yazılacak. Onay bekleyen
+ * prova varsa ilk düğme odur: iş müşterinin cevabını bekliyor.
  */
-export function onerilenMesajlar(durum: string, o: { kalan: number; ibanVar: boolean; cari: boolean }): MesajTuru[] {
+export function onerilenMesajlar(durum: string, o: { kalan: number; ibanVar: boolean; cari: boolean; provaBekliyor?: boolean }): MesajTuru[] {
   const odeme = o.kalan > 0 && o.ibanVar;
   switch (durum) {
-    case 'GELEN': case 'SIRADA': case 'BASKIDA': case 'BITIS':
-      return odeme && !o.cari ? ['ALINDI', 'ODEME'] : ['ALINDI'];
+    case 'GELEN': case 'SIRADA': case 'BASKIDA': case 'BITIS': {
+      const l: MesajTuru[] = odeme && !o.cari ? ['ALINDI', 'ODEME'] : ['ALINDI'];
+      return o.provaBekliyor ? ['PROVA', ...l] : l;
+    }
     case 'HAZIR':
       return odeme && !o.cari ? ['HAZIR', 'ODEME'] : ['HAZIR'];
     case 'TESLIM':

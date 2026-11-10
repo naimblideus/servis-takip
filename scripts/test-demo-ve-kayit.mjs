@@ -165,7 +165,7 @@ t('fatura: ayın 1\'i 05:59 değil, 06:00 vakit', !vakitGeldiMi(is('faturalar'),
 t('★ fatura kaçarsa yetişir: ayın 9\'unda da vakit (dönem kilidi tek sefer)', vakitGeldiMi(is('faturalar'), an('2026-11-09T12:00:00Z')));
 t('★ sayaç hatırlatması ay ortasında YETİŞMEZ (5\'inden sonra)', vakitGeldiMi(is('sayac'), an('2026-11-05T08:00:00Z')) && !vakitGeldiMi(is('sayac'), an('2026-11-06T08:00:00Z')));
 t('günlük hatırlatma 09:00 İstanbul', !vakitGeldiMi(is('hatirlatma'), an('2026-10-10T05:59:00Z')) && vakitGeldiMi(is('hatirlatma'), an('2026-10-10T06:00:00Z')));
-t('bütün cron uçları zamanlayıcıda', ['faturalar', 'hatirlatma', 'sayac', 'nobetci', 'wa-temizlik', 'crm-sinyal', 'demo'].every((k) => is(k)));
+t('bütün cron uçları zamanlayıcıda', ['faturalar', 'hatirlatma', 'sayac', 'nobetci', 'wa-temizlik', 'matbaa-temizlik', 'crm-sinyal', 'demo'].every((k) => is(k)));
 
 // ── KAYNAK KİLİTLERİ ─────────────────────────────────────────────────────
 console.log('\nKaynak\n');

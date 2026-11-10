@@ -159,6 +159,8 @@ export async function matbaaDemosu(p, { sifreOzeti }) {
       address: 'Örnek Cad. No:1 Kat:1', city: 'İstanbul', phone: '02165550199', email: 'info@ornekbaski.example',
       ownerName: 'Derya Baskan', odemeIban: ornekIban(), odemeHesapAdi: 'Örnek Baskı Merkezi',
       nextInvoiceSeq: 0,
+      // Sipariş sayfası açık: demoda /b/demo-matbaa gezilebilsin. Kurulum listesi kapalı (karşılama kopyalanmış).
+      matbaaAyar: { create: { kisaAd: MATBAA_SLUG, siparisAcik: true, calismaSaatleri: 'Hafta içi 09:00–19:00, Cumartesi 10:00–16:00', karsilamaKopyalandiAt: new Date(simdi - 29 * GUN) } },
       users: { create: [
         { email: MATBAA_EPOSTA.yonetici, passwordHash: sifreOzeti, name: 'Derya Baskan', role: 'ADMIN', isActive: true, onboardedAt: new Date(simdi - 30 * GUN) },
         { email: MATBAA_EPOSTA.tezgah, passwordHash: sifreOzeti, name: 'Tuna Tezgah', role: 'FRONT_DESK', isActive: true, onboardedAt: new Date(simdi - 30 * GUN) },

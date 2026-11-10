@@ -136,6 +136,26 @@ export const BASKI_SABLONLARI: readonly BaskiSablonu[] = [
   },
 ];
 
+/**
+ * Seçenek adlarının İngilizcesi. Adlar ürünün İÇİNE yazılır (matbaa sonradan
+ * değiştirebilsin diye sözlükte değil); İngilizce işletmede müşterinin
+ * sipariş sayfasında gördüğü seçenekler Türkçe kalmasın. Kodlar değişmez.
+ */
+export const SECENEK_EN: Readonly<Record<string, string>> = {
+  'Yüz': 'Sides', 'Tek yüz': 'Single-sided', 'Çift yüz': 'Double-sided',
+  'Cilt': 'Binding', 'Ciltsiz': 'No binding', 'Spiral': 'Spiral', 'Termal': 'Thermal',
+  'Renk': 'Colour', 'Siyah-beyaz': 'Black and white', 'Renkli': 'Colour',
+  'Malzeme': 'Material', 'Kuşe kâğıt': 'Coated paper', 'Mat kâğıt': 'Matte paper', 'Vinil (dış mekan)': 'Vinyl (outdoor)',
+  'Kuşgözü': 'Eyelets', 'Kuşgözüsüz': 'No eyelets', '4 köşe kuşgözü': 'Eyelets in 4 corners',
+  'Kasnak': 'Frame', 'Kasnaklı': 'Stretched on a frame', 'Kasnaksız (rulo)': 'No frame (rolled)',
+  'Kalınlık': 'Thickness', '50 yaprağa kadar': 'Up to 50 sheets', '51–100 yaprak': '51–100 sheets', '101–200 yaprak': '101–200 sheets',
+  'Ebat': 'Size', 'Tür': 'Type', 'Otomatik': 'Self-inking', 'Tahta saplı': 'Wooden handle',
+};
+
+function seceneklerEn(gruplar: readonly SecenekGrubu[]): SecenekGrubu[] {
+  return gruplar.map((g) => ({ ...g, ad: SECENEK_EN[g.ad] ?? g.ad, degerler: g.degerler.map((d) => ({ ...d, ad: SECENEK_EN[d.ad] ?? d.ad })) }));
+}
+
 /** Kiracıya yazılacak satırlar; `mevcut` kodlar atlanır (ikinci kurulum çoğaltmasın). */
 export function sablonSatirlari(dil: string | null | undefined, mevcut: readonly (string | null)[] = []) {
   const en = dil === 'en';
@@ -147,7 +167,7 @@ export function sablonSatirlari(dil: string | null | undefined, mevcut: readonly
       kategori: s.kategori,
       fiyatModeli: s.fiyatModeli,
       kademeler: s.kademeler,
-      secenekler: s.secenekler,
+      secenekler: en ? seceneklerEn(s.secenekler) : s.secenekler,
       teslimSaat: s.teslimSaat,
       dosyaGerekli: s.dosyaGerekli,
       sira: (i + 1) * 10,

@@ -228,6 +228,8 @@ model Tenant {
   faturaTaslaklari    FaturaTaslagi[]
   baskiUrunleri       BaskiUrunu[]
   baskiIsleri         BaskiIsi[]
+  matbaaAyar          MatbaaAyar?
+  baskiKasaKapanislari BaskiKasaKapanis[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -2398,6 +2400,8 @@ model BaskiIsi {
   tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   kalemler BaskiKalemi[]
+  dosyalar BaskiDosyasi[]
+  provalar BaskiProva[]
   olaylar  BaskiOlayi[]
   odemeler BaskiOdeme[]
 
@@ -2464,4 +2468,91 @@ model BaskiOdeme {
 
   @@index([tenantId, tarih])
   @@index([isId])
+}
+
+// MATBAA AYARI — sipariş sayfası ve müşteri tarafı (lib/matbaa-ayar).
+// kisaAd sipariş sayfasının adresi: /b/<kisaAd>. IBAN ve adres Tenant'ta.
+model MatbaaAyar {
+  tenantId              String    @id
+  kisaAd                String?   @unique
+  siparisAcik           Boolean   @default(false) // sipariş sayfası sipariş alıyor mu
+  calismaSaatleri       String? // serbest metin: "Hafta içi 09:00–19:00"
+  hazirlamaSaat         Int       @default(2) // ürününde süre yoksa
+  havaleKabul           Boolean   @default(true) // online siparişte havale seçeneği (IBAN varsa)
+  saklamaGun            Int       @default(30) // teslim/iptalden sonra dosyalar kaç gün durur
+  karsilamaMetni        String? // boşsa hazır metin (lib/matbaa-ayar hizliYanitlar)
+  karsilamaKopyalandiAt DateTime? // kurulum listesi: karşılama mesajı kopyalandı
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// BASKI DOSYASI — dosyanın kendisi Cloudflare R2'de (lib/r2), burada kaydı.
+// Yükleme tarayıcıdan doğrudan R2'ye, çok parçalı: gövde sunucudan geçmez.
+model BaskiDosyasi {
+  id          String    @id @default(cuid())
+  tenantId    String
+  isId        String
+  tur         String    @default("BASKI") // BASKI | PROVA
+  anahtar     String // R2 nesne anahtarı
+  yuklemeId   String? // çok parçalı yükleme kimliği; bitince null
+  ad          String
+  boyut       Int // bayt (en çok 300 MB)
+  mime        String
+  sayfaSayisi Int? // tarayıcıdaki ön kontrolden; fiyatı personel onaylar
+  olcu        String? // "210×297 mm" ya da "3000×2000 px"
+  uyarilar    Json      @default("[]") // ön kontrol uyarı kodları
+  durum       String    @default("YUKLENIYOR") // YUKLENIYOR | HAZIR | SILINDI
+  yukleyen    String    @default("MUSTERI") // MUSTERI | PERSONEL
+  yukleyenAd  String?
+  silindiAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  is       BaskiIsi     @relation(fields: [isId], references: [id], onDelete: Cascade)
+  provalar BaskiProva[]
+
+  @@index([isId])
+  @@index([tenantId, durum, createdAt])
+}
+
+// PROVA — müşteriye onay için gönderilen dosya. Bağlantısı süreli ve tek
+// kullanımlık: yanıt verilince ya da süre dolunca işlem yapılamaz.
+model BaskiProva {
+  id          String    @id @default(cuid())
+  tenantId    String
+  isId        String
+  dosyaId     String?
+  jeton       String    @unique
+  sonTarih    DateTime
+  durum       String    @default("BEKLIYOR") // BEKLIYOR | ONAYLANDI | DUZELTME
+  musteriNotu String?
+  yanitAt     DateTime?
+  gonderenAd  String?
+  createdAt   DateTime  @default(now())
+
+  is    BaskiIsi      @relation(fields: [isId], references: [id], onDelete: Cascade)
+  dosya BaskiDosyasi? @relation(fields: [dosyaId], references: [id], onDelete: SetNull)
+
+  @@index([isId, createdAt])
+}
+
+// GÜN SONU — kasadaki nakit sayılır, sistemdekiyle farkı yazılır.
+model BaskiKasaKapanis {
+  id        String   @id @default(cuid())
+  tenantId  String
+  gun       String // bayinin saat diliminde "2026-11-10"
+  nakit     Int // sistemdeki nakit (kuruş)
+  kart      Int      @default(0)
+  havale    Int      @default(0)
+  sayilan   Int // kasada sayılan nakit (kuruş)
+  fark      Int // sayilan - nakit
+  not       String?
+  kapatanId String?
+  kapatanAd String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, gun])
 }

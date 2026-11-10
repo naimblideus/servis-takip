@@ -157,7 +157,7 @@ console.log('\nMatbaa demosu\n');
   const tohum = oku('scripts/seed-bayi-demo.mjs');
   t('★ gece tazelemesi matbaa demosunu kuruyor; kurulamazsa bayi demoları durmuyor', /import\('\.\/seed-demo-matbaa\.mjs'\)/.test(tohum) && /matbaa demosu kurulamadı/.test(tohum));
   t('imaj tohum dosyasını alıyor (seed-*.mjs)', /scripts\/seed-\*\.mjs/.test(oku('Dockerfile')));
-  t('demo tohumu sürümü artırıldı', /DEMO_TOHUM_SURUMU = '2026-11-05-matbaa-demosu'/.test(oku('src/lib/zamanlayici.ts')));
+  t('demo tohumu sürümü artırıldı', /DEMO_TOHUM_SURUMU = '2026-11-10-matbaa-siparis-sayfasi'/.test(oku('src/lib/zamanlayici.ts')));
 
   // Cari: tohumun yazdığı kayıtlar uzlaştırmada değişmemeli.
   const d = DEMO_ISLERI.find((x) => x.no === 1029);

@@ -79,7 +79,7 @@ export const AILELER: readonly Aile[] = [
   { anahtar: 'admin',      bolum: 'SISTEM',  uyeler: ['/admin'] },
 
   { anahtar: 'matbaaKasa', bolum: 'PARA',    uyeler: ['/matbaa/kasa'] },
-  { anahtar: 'matbaaFiyat', bolum: 'PARA',   uyeler: ['/matbaa/fiyatlar'] },
+  { anahtar: 'matbaaFiyat', bolum: 'PARA',   uyeler: ['/matbaa/fiyatlar', '/matbaa/ayarlar'] },
 ];
 
 /**
@@ -116,6 +116,8 @@ export const YALNIZ_YONETICI: readonly string[] = [
   '/siparis',
   // Matbaanın fiyat listesi: fiyatı sahip belirler, tezgah yalnız uygular.
   '/matbaa/fiyatlar',
+  // Sipariş sayfasının adresi ve açık/kapalı olması işletme kararıdır.
+  '/matbaa/ayarlar',
 ];
 
 /**
@@ -167,7 +169,7 @@ export const YALNIZ_MATBAA: readonly string[] = ['/matbaa', '/matbaa-tv'];
  * çıkmazlar, sayfası gelince ayrıca izin vermek gerekmez.
  */
 export const MATBAA_MENUSU: readonly string[] = [
-  '/matbaa', '/matbaa-tv', '/matbaa/isler', '/matbaa/fiyatlar', '/matbaa/kasa',
+  '/matbaa', '/matbaa-tv', '/matbaa/isler', '/matbaa/fiyatlar', '/matbaa/ayarlar', '/matbaa/kasa',
   '/customers',
   '/settings', '/users', '/abonelik',
   '/yardim',

@@ -191,6 +191,75 @@ export function haberBekliyorMu(is: { durum: IsDurumu; haberVerildiAt: Date | st
   return is.durum === 'HAZIR' && !is.haberVerildiAt;
 }
 
+// ── MÜŞTERİNİN GÖRDÜĞÜ ADIMLAR ───────────────────────────────────────────
+
+export type TakipAdimi = 'ALINDI' | 'HAZIRLANIYOR' | 'HAZIR' | 'TESLIM';
+export const TAKIP_ADIMLARI: readonly TakipAdimi[] = ['ALINDI', 'HAZIRLANIYOR', 'HAZIR', 'TESLIM'];
+
+/** İçerideki altı durum müşteriye dört adım: sıra ve bitiş onun derdi değil. */
+export function takipAdimi(durum: IsDurumu): TakipAdimi | null {
+  switch (durum) {
+    case 'GELEN': case 'SIRADA': return 'ALINDI';
+    case 'BASKIDA': case 'BITIS': return 'HAZIRLANIYOR';
+    case 'HAZIR': return 'HAZIR';
+    case 'TESLIM': return 'TESLIM';
+    default: return null;
+  }
+}
+
+/**
+ * Takip sayfasındaki çizelge. Saat, o adıma SON girişin saatidir (iş geri
+ * alınıp yeniden hazırlandıysa ilk "hazır" saati yanıltır). İptal edilmiş
+ * işte çizelge yok (boş dizi).
+ */
+export function takipCizelgesi(
+  is: { durum: IsDurumu; createdAt: Date | string; teslimAt?: Date | string | null },
+  olaylar: readonly { durumSonra: string | null; createdAt: Date | string }[],
+): { adim: TakipAdimi; tamam: boolean; simdi: boolean; zaman: Date | null }[] {
+  const su = takipAdimi(is.durum);
+  if (!su) return [];
+  const sira = TAKIP_ADIMLARI.indexOf(su);
+  const son = (...durumlar: string[]) => {
+    let z: Date | null = null;
+    for (const o of olaylar) if (o.durumSonra && durumlar.includes(o.durumSonra)) { const t = new Date(o.createdAt); if (!z || t > z) z = t; }
+    return z;
+  };
+  const zaman: Record<TakipAdimi, Date | null> = {
+    ALINDI: new Date(is.createdAt),
+    HAZIRLANIYOR: son('BASKIDA', 'BITIS'),
+    HAZIR: son('HAZIR'),
+    TESLIM: is.teslimAt ? new Date(is.teslimAt) : son('TESLIM'),
+  };
+  return TAKIP_ADIMLARI.map((adim, i) => ({ adim, tamam: i <= sira, simdi: i === sira, zaman: i <= sira ? zaman[adim] : null }));
+}
+
+// ── PROVA ────────────────────────────────────────────────────────────────
+
+export type ProvaDurumu = 'BEKLIYOR' | 'ONAYLANDI' | 'DUZELTME';
+/** Prova bağlantısı kaç gün geçerli. */
+export const PROVA_GUN = 7;
+
+export function provaSonTarihi(simdi: Date): Date {
+  return new Date(simdi.getTime() + PROVA_GUN * 86_400_000);
+}
+
+/**
+ * Prova yanıtlanabilir mi? Bağlantı SÜRELİ ve TEK KULLANIMLIK: yanıt
+ * verilmişse ya da süre dolmuşsa işlem yapılmaz. Kapanmış işin provası da
+ * yanıtlanmaz (iptal edilmiş işi müşteri "onaylayamaz").
+ */
+export function provaYanitlanir(p: { durum: string; sonTarih: Date | string }, isDurumu: string, simdi: Date): { ok: true } | { ok: false; kod: 'PROVA_YANITLANDI' | 'PROVA_SURESI_DOLDU' } {
+  if (p.durum !== 'BEKLIYOR') return { ok: false, kod: 'PROVA_YANITLANDI' };
+  if (new Date(p.sonTarih).getTime() <= simdi.getTime() || KAPALI.includes(isDurumu as IsDurumu)) return { ok: false, kod: 'PROVA_SURESI_DOLDU' };
+  return { ok: true };
+}
+
+/** Ekranda gösterilecek durum: süresi dolmuş bekleyen prova ayrı yazılır. */
+export function provaGorunum(p: { durum: string; sonTarih: Date | string }, simdi: Date): ProvaDurumu | 'SURESI_DOLDU' {
+  if (p.durum === 'ONAYLANDI' || p.durum === 'DUZELTME') return p.durum;
+  return new Date(p.sonTarih).getTime() <= simdi.getTime() ? 'SURESI_DOLDU' : 'BEKLIYOR';
+}
+
 // ── İŞ HESABI ────────────────────────────────────────────────────────────
 
 /** Fiyat listesindeki ürün satırı (BaskiUrunu). */
@@ -264,8 +333,8 @@ export function isHesapla(urunler: readonly UrunSatiri[], girdiler: readonly Kal
 
 // ── BUGÜN LİSTESİ ────────────────────────────────────────────────────────
 
-export type BugunTuru = 'gelen' | 'haber' | 'gec' | 'bugun' | 'odeme';
-export const BUGUN_SIRASI: readonly BugunTuru[] = ['gelen', 'haber', 'gec', 'bugun', 'odeme'];
+export type BugunTuru = 'gelen' | 'prova' | 'haber' | 'gec' | 'bugun' | 'odeme';
+export const BUGUN_SIRASI: readonly BugunTuru[] = ['gelen', 'prova', 'haber', 'gec', 'bugun', 'odeme'];
 
 export interface BugunIsi {
   id: string;
@@ -276,11 +345,14 @@ export interface BugunIsi {
   odenen: number;
   customerId: string | null;
   odemeYolu: string | null;
+  /** Son provanın durumu (yoksa null). */
+  sonProva?: string | null;
 }
 
 /**
  * İşin Bugün listesindeki satırı; null = bugün yapılacak bir şey yok.
- * Her iş TEK satırda, en acil sebebiyle: online gelen kabul bekler; hazır
+ * Her iş TEK satırda, en acil sebebiyle: online gelen kabul bekler; müşteri
+ * provada düzeltme istediyse iş onu bekliyor; hazır
  * olup haber verilmemiş iş müşteriyi "hazır mı?" diye yazdırır; geciken
  * ve bugün söz verilen iş makineye; haber verilmiş ama parası alınmamış iş
  * kasaya.
@@ -289,6 +361,7 @@ export function bugunTuru(is: BugunIsi, simdi: Date, gunSonu: Date): BugunTuru |
   const durum = isDurumu(is.durum);
   if (!durum || KAPALI.includes(durum)) return null;
   if (durum === 'GELEN') return 'gelen';
+  if (is.sonProva === 'DUZELTME' && durum !== 'HAZIR') return 'prova';
   if (haberBekliyorMu({ durum, haberVerildiAt: is.haberVerildiAt })) return 'haber';
   if (gecikiyorMu({ durum, sozVerilenAt: is.sozVerilenAt }, simdi)) return 'gec';
   if (durum !== 'HAZIR' && is.sozVerilenAt && +new Date(is.sozVerilenAt) <= +gunSonu) return 'bugun';

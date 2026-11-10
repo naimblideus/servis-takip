@@ -264,6 +264,67 @@ Menüdeki **Cihazdan Sayaç** ekranında görünmeli.
 
 ---
 
+## 7. Baskı dosyaları (Cloudflare R2) — **şu an KAPALI, açman gerekiyor**
+
+Baskı merkezi (matbaa) hesaplarında müşteri dosyasını sipariş sayfasından
+gönderir. Dosyalar Cloudflare R2'de durur ve tarayıcıdan **doğrudan** oraya
+yüklenir; sunucumuzdan geçmez. R2 bağlı değilken her şey çalışır, yalnız dosya
+yükleme kapalıdır: sipariş dosyasız alınır, ekran nedenini yazar.
+
+### Kurulum (bir kez, ~10 dakika)
+
+**1) Bucket aç.** Cloudflare → R2 → *Create bucket*. Ad: örneğin `nextus-baski`.
+Konum: *Automatic*. Bucket **herkese açık yapılmaz**.
+
+**2) CORS kuralı ekle.** Bucket → *Settings* → *CORS Policy*:
+
+```json
+[{ "AllowedOrigins": ["https://nextusservis.com"],
+   "AllowedMethods": ["PUT", "GET"],
+   "AllowedHeaders": ["*"],
+   "MaxAgeSeconds": 3600 }]
+```
+
+Bu olmadan tarayıcı yüklemeyi başlatamaz; müşteri "Yüklenemedi" görür.
+
+**3) Yarım yüklemeler için yaşam döngüsü.** Bucket → *Settings* → *Object
+lifecycle rules* → *Abort incomplete multipart uploads*: 2 gün. (Uygulama bir
+günden eski yarım yüklemeleri kendisi de atıyor; bu yedeği.)
+
+**4) Anahtar üret.** R2 → *Manage R2 API Tokens* → *Create API token*. İzin:
+**Object Read & Write**, yalnız bu bucket. Çıkan *Access Key ID* ve *Secret
+Access Key* bir kez gösterilir.
+
+**5) Coolify'a ekle.** Coolify → servis-takip → Environment Variables:
+
+| Değişken | Değer |
+|---|---|
+| `R2_ENDPOINT` | `https://<hesap-kimliği>.r2.cloudflarestorage.com` (sonunda bucket adı yok) |
+| `R2_BUCKET` | bucket adı |
+| `R2_ACCESS_KEY_ID` | 4. adımdaki anahtar |
+| `R2_SECRET_ACCESS_KEY` | 4. adımdaki gizli anahtar |
+
+Kaydet → Redeploy.
+
+### Test et
+
+1. Matbaa hesabında **Sipariş Sayfası** ekranı "Dosya yükleme açık." yazmalı.
+2. Sipariş sayfasından (`/b/<kısa-ad>`) küçük bir PDF ile sipariş ver: takip
+   sayfasında dosya "yüklendi" görünmeli.
+3. Panelde işi aç → **İndir**: dosya inmeli.
+
+Yükleme başlıyor ama bitmiyorsa önce CORS kuralına bak (2. adım). "Dosya
+deposuna ulaşılamadı" hatası anahtar ya da `R2_ENDPOINT` yanlış demektir.
+
+### Nasıl çalıştığını bil
+
+- **Saklama süresi.** Teslim ya da iptalden sonra matbaanın ayarındaki gün
+  (varsayılan 30) dolunca dosya R2'den silinir; her gece 04:30'da
+  (`matbaa-temizlik`). Sipariş sayfası müşteriye bu süreyi söylüyor.
+- **Sınırlar.** PDF, JPG, PNG, TIFF. Dosya başına 300 MB, iş başına 1 GB ve 20 dosya.
+- **İndirme.** Dosya herkese açık bir adreste durmaz: panel oturumu denetlenir,
+  sonra 5 dakikalık imzalı adres üretilir.
+
 ## Deploy sonrası kontrol listesi
 
 - [ ] Redeploy (bekleyen migration'lar startup'ta otomatik uygulanır)
