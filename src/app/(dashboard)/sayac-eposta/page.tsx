@@ -408,7 +408,7 @@ export default function SayacEpostaPage() {
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button"
-                      onClick={() => gonder({ id: k.id, deviceId: dev, counterBlack: cb, counterColor: cc || 0, ...(resetTur ? { reset: true, resetTur } : {}) })}
+                      onClick={() => gonder({ id: k.id, deviceId: dev, counterBlack: cb, counterColor: cc === '' ? null : cc, ...(resetTur ? { reset: true, resetTur } : {}) })}
                       disabled={mesgul === k.id || !dev || cb === ''}
                       className="rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-gray-300">
                       {mesgul === k.id ? t.genel.kaydediliyor : t.sayacEposta.sayaciKaydet}

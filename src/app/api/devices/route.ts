@@ -95,7 +95,7 @@ export async function POST(req: Request) {
     if (device.counterBlack != null || device.counterColor != null) {
       await prisma.counterReading.create({
         data: {
-          tenantId: user.tenantId, deviceId: device.id,
+          tenantId: user.tenantId, deviceId: device.id, customerId: device.customerId,
           counterBlack: device.counterBlack ?? 0,
           counterColor: device.counterColor ?? 0,
           deltaBlack: 0, deltaColor: 0, calculatedCost: 0,

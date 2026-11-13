@@ -36,7 +36,8 @@ export const YAZMA_SIRASI = [
   'accountEntries', // → customer
   'payments',     // → ticket?, customer?
   'financialTransactions', // → customer?, ticket?  (KASA — yoktu)
-  'invoicePayments', // → invoice, payment  (tahsilat dağıtımı; EN SON)
+  'invoicePayments', // → invoice, payment  (tahsilat dağıtımı)
+  'kiraDonemleri', // → device  (kira dönem kaydı; kesilmiş kira ikinci kez kesilmesin)
 ] as const;
 
 export type Tablo = (typeof YAZMA_SIRASI)[number];
@@ -58,6 +59,7 @@ export const MODEL_ADI: Record<Tablo, string> = {
   payments: 'payment',
   financialTransactions: 'financialTransaction',
   invoicePayments: 'invoicePayment',
+  kiraDonemleri: 'kiraDonemi',
 };
 
 /**

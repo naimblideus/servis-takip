@@ -145,7 +145,8 @@ export async function POST(req: Request) {
           deviceId: device.id,
           // Girilmeyen sayaç için son bilinen değer korunur (0 yazmak düşüş sayılırdı)
           counterBlack: cb ?? device.counterBlack ?? 0,
-          counterColor: cc ?? device.counterColor ?? 0,
+          // Renkli girilmediyse null: son değer taşınır ve o ay renkli için okunmamış sayılır.
+          counterColor: cc,
           ticketId: ticket.id,
           source: 'SERVIS_FISI',
           photo: body.counterPhoto ?? null,

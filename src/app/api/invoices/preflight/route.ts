@@ -1,3 +1,4 @@
+import { SAYFA_UCRETLI_CIHAZ } from '@/lib/invoicing';
 import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
@@ -25,9 +26,11 @@ export async function GET(req: NextRequest) {
       return ucHatasi('GECERSIZ_DONEM', 400);
     }
 
-    // Kiralık cihazlar (fatura yalnız bunlarda sayaç bekler)
+    // Sayfa başı ücretli cihazlar (kiralık + kopya başı anlaşmalı müşteri makinesi):
+    // fatura bunlarda sayaç bekler (lib/invoicing SAYFA_UCRETLI_CIHAZ). Eskiden
+    // yalnız kiralık bakılıyordu; kopya başı makinenin okunmayan sayacı uyarısız kalıyordu.
     const devices = await prisma.device.findMany({
-      where: { tenantId, isRental: true },
+      where: { tenantId, ...SAYFA_UCRETLI_CIHAZ },
       select: {
         id: true, brand: true, model: true, location: true, serialNo: true,
         monthlyRent: true, pricePerBlack: true, pricePerColor: true, overagePriceBlack: true, overagePriceColor: true,
@@ -49,7 +52,13 @@ export async function GET(req: NextRequest) {
     // Bu dönemde okuması OLAN cihazlar — TOPLU (N+1 yok)
     const read = await prisma.counterReading.groupBy({
       by: ['deviceId'],
-      where: { tenantId, deviceId: { in: devices.map((d) => d.id) }, ...donemOkumaKosulu(period) },
+      where: {
+        tenantId, deviceId: { in: devices.map((d) => d.id) },
+        // Zincirin başı (cihaz eklenirken / aktarımda yazılan başlangıç sayacı:
+        // kapalı, fark 0) okuma sayılmaz: ay ortasında eklenen cihaz "okundu" görünüyordu.
+        NOT: { billed: true, deltaBlack: 0, deltaColor: 0 },
+        AND: [donemOkumaKosulu(period)],
+      },
     });
     const readSet = new Set(read.map((r) => r.deviceId));
 

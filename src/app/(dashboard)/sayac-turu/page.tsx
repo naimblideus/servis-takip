@@ -155,23 +155,31 @@ export default function SayacTuruPage() {
         reset: !!st[r.id].reset,
         resetTur: st[r.id].resetTur,
       }));
-      const res = await fetch('/api/readings/bulk', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows: payload }),
-      });
-      const d = await res.json();
-      if (!res.ok) { alert(d.error || t.sayacTuru.kaydedilemedi); setSaving(false); return; }
-
-      setSt((s) => {
-        const next = { ...s };
-        for (const r of d.results || []) {
-          next[r.deviceId] = r.ok
-            ? { ...next[r.deviceId], done: true, err: null, uyari: typeof r.warning === 'string' ? r.warning : null }
-            : { ...next[r.deviceId], done: false, err: r.error, code: r.code, uyari: null };
-        }
-        return next;
-      });
-      setSummary({ saved: d.saved, failed: d.failed, totalCost: d.totalCost });
+      // PARÇA PARÇA: 300 cihazlı bir hastane tek istekte hem sunucu sınırına
+      // takılıyor hem bağlantı koparsa hangisinin yazıldığı bilinmiyordu. Her
+      // parçanın sonucu hemen işaretlenir; kopan parça yeniden "Kaydet" ile
+      // gönderilir, yazılmış olanlar zaten "bitti" görünür ve tekrar gitmez.
+      const PARCA = 150;
+      let saved = 0, failed = 0, totalCost = 0;
+      for (let i = 0; i < payload.length; i += PARCA) {
+        const res = await fetch('/api/readings/bulk', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows: payload.slice(i, i + PARCA) }),
+        });
+        const d = await res.json();
+        if (!res.ok) { alert(d.error || t.sayacTuru.kaydedilemedi); break; }
+        setSt((s) => {
+          const next = { ...s };
+          for (const r of d.results || []) {
+            next[r.deviceId] = r.ok
+              ? { ...next[r.deviceId], done: true, err: null, uyari: typeof r.warning === 'string' ? r.warning : null }
+              : { ...next[r.deviceId], done: false, err: r.error, code: r.code, uyari: null };
+          }
+          return next;
+        });
+        saved += d.saved || 0; failed += d.failed || 0; totalCost += d.totalCost || 0;
+      }
+      setSummary({ saved, failed, totalCost: Math.round(totalCost * 100) / 100 });
     } catch { alert(t.sayacTuru.sunucuYok); }
     setSaving(false);
   };

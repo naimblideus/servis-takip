@@ -57,7 +57,7 @@ console.log('\nPara (mükerrer fatura yok)\n');
   const inv = oku('src/lib/invoicing.ts');
   // Saf fonksiyonu kaynaktan çalıştır (kural lib/kira-donemi'nde; kira dönem dönem tutuluyor).
   const kd = oku('src/lib/kira-donemi.ts');
-  const govde = kd.slice(kd.indexOf('export function kiraKesilir'), kd.indexOf('/**\n * Verilen dönemden geriye doğru'))
+  const govde = kd.slice(kd.indexOf('export function kiraKesilir'), kd.indexOf('export function kesilmemisKiraDonemleri')).replace(/\/\*\*[\s\S]*$/, '')
     .replace(/export function kiraKesilir\(d: KiraCihazi, period: string, donemSonu: Date \| undefined, kesildi: boolean\): boolean/, 'function kiraKesilir(d, period, donemSonu, kesildi)');
   const kiraKesilir = new Function(`${govde}; return kiraKesilir;`)();
   const cihaz = (son, kurulus = new Date('2026-01-01')) => ({ isRental: true, monthlyRent: 1000, lastInvoicedPeriod: son, createdAt: kurulus });

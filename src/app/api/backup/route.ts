@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const [
       tenant, customers, devices, tickets, ticketParts, readings,
       parts, accountEntries, payments, invoices, invoiceLines, users,
-      financialTransactions, expenses, invoicePayments, counterEmails, printerStock,
+      financialTransactions, expenses, invoicePayments, counterEmails, printerStock, kiraDonemleri,
     ] = await Promise.all([
       prisma.tenant.findUnique({
         where: { id: tenantId },
@@ -30,11 +30,16 @@ export async function GET(req: NextRequest) {
       prisma.ticketPart.findMany({ where: { tenantId } }),
       prisma.counterReading.findMany({
         where: { tenantId },
+        // Fotoğrafsız yedek yalnız fotoğrafı dışarıda bırakır. Eskiden dönem damgası,
+        // kaynak, şüphe ve renkli-ölçüldü bilgisi de düşüyordu: geri yüklenen
+        // okumalar takvim ayına kayıyor, şüpheli okumalar kendiliğinden faturalanıyordu.
         ...(withPhotos ? {} : {
           select: {
             id: true, tenantId: true, deviceId: true, ticketId: true, readingDate: true,
             counterBlack: true, counterColor: true, deltaBlack: true, deltaColor: true,
-            calculatedCost: true, monthlyRent: true, billed: true, createdAt: true,
+            calculatedCost: true, monthlyRent: true, billed: true, invoiceLineId: true,
+            source: true, faturaDonemi: true, renkliOlculdu: true, supheli: true,
+            sifirlama: true, faturaId: true, cariKayitId: true, customerId: true, createdAt: true,
           },
         }),
       }),
@@ -57,6 +62,9 @@ export async function GET(req: NextRequest) {
       prisma.invoicePayment.findMany({ where: { tenantId } }),
       prisma.counterEmail.findMany({ where: { tenantId } }),
       prisma.printerStock.findMany({ where: { tenantId } }),
+      // Kira dönem kaydı (lib/kira-donemi): yedekte olmazsa geri yüklemeden sonra
+      // kesilmiş kiralar "kesilmemiş" görünür ve ikinci kez faturalanır.
+      prisma.kiraDonemi.findMany({ where: { tenantId } }),
     ]);
 
     const backup = {
@@ -72,7 +80,7 @@ export async function GET(req: NextRequest) {
           payments: payments.length, invoices: invoices.length,
           financialTransactions: financialTransactions.length, expenses: expenses.length,
           invoicePayments: invoicePayments.length, counterEmails: counterEmails.length,
-          printerStock: printerStock.length,
+          printerStock: printerStock.length, kiraDonemleri: kiraDonemleri.length,
         },
         // Bilerek DIŞARIDA: denetim kaydı (AuditLog), bildirim/WhatsApp
         // günlükleri, içe aktarma oturumları, portal talepleri, Logo eşitleme
@@ -86,7 +94,7 @@ export async function GET(req: NextRequest) {
       },
       tenant, users, customers, devices, tickets, ticketParts, readings,
       parts, accountEntries, payments, invoices, invoiceLines,
-      financialTransactions, expenses, invoicePayments, counterEmails, printerStock,
+      financialTransactions, expenses, invoicePayments, counterEmails, printerStock, kiraDonemleri,
     };
 
     const stamp = new Date().toISOString().slice(0, 10);

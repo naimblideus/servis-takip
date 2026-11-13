@@ -36,7 +36,8 @@ export interface AnomaliOkumasi {
 export type AnomaliDurumu =
   | 'NORMAL'
   | 'SUPHELI_KAT'      // kendi hızının çok üstünde
-  | 'SUPHELI_MUTLAK';  // geçmişi olmasa bile inanılmaz büyük
+  | 'SUPHELI_MUTLAK'   // geçmişi olmasa bile inanılmaz büyük
+  | 'SUPHELI_ILK';     // geçmişi yok ve hızı ofis makinesine inandırıcı değil
 
 export interface AnomaliSonucu {
   supheli: boolean;
@@ -70,6 +71,15 @@ export const MUTLAK_TAVAN = 200000;
  * ancak okuma kendi normalinin bu katını da aşıyorsa devreye girer.
  */
 export const TAVAN_ICIN_ASGARI_KAT = 2;
+/**
+ * GEÇMİŞİ OLMAYAN cihazda günlük hız tavanı. Eskiden geçmişi olmayan cihazın tek
+ * koruması 200.000 sayfaydı: başlangıç sayacı 48.210 yerine 4.821 yazılınca ilk
+ * okumada 47.589 sayfa (₺23.794) hiçbir uyarıya takılmadan faturalanıyordu.
+ * Günde 1.500 sayfa = ayda ~45.000: yoğun bir hastane fotokopisinin de üstü.
+ * Gerçekten bu kadar basan makine (matbaa) ilk okumalarında bir kez taslakta
+ * bekler; üç okumadan sonra kendi hızı ölçüt olur ve bu kural susar.
+ */
+export const ILK_GUNLUK_TAVAN = 1500;
 /** Kendi normal hızının bu katını aşarsa şüpheli. */
 export const KAT_ESIGI = 5;
 /**
@@ -174,6 +184,16 @@ export function anomaliDegerlendir(
     return {
       ...temel, supheli: true, durum: 'SUPHELI_MUTLAK',
       aciklama: `Tek okumada ${sayfa.toLocaleString('tr-TR')} sayfa eklendi — bu tek dönemde olağandışı. Sayacı ve cihazın doğru eşleştiğini kontrol edin.`,
+    };
+  }
+
+  // ── GEÇMİŞ YOKKEN HIZ ───────────────────────────────────────────────
+  // Kıyaslanacak normal yokken sayının hızı konuşur. En sık sebep yanlış
+  // girilmiş başlangıç sayacı ya da yanlış cihaza eşleştirilmiş rapor.
+  if (normalHiz === null && sayfa >= TABAN_SAYFA && gunlukHiz >= ILK_GUNLUK_TAVAN) {
+    return {
+      ...temel, supheli: true, durum: 'SUPHELI_ILK',
+      aciklama: `Bu cihazın henüz kendi geçmişi yok ve ${gunYuvarlak} günde ${sayfa.toLocaleString('tr-TR')} sayfa geldi (günde ~${Math.round(gunlukHiz).toLocaleString('tr-TR')}). Başlangıç sayacını ve cihazın doğru eşleştiğini kontrol edin.`,
     };
   }
 

@@ -7,6 +7,7 @@
 export const maxDuration = 300; // 5 dakika (vercel için)
 export const dynamic = 'force-dynamic';
 
+import { GOC_KAYNAGI } from '@/lib/kurulum';
 import { NextRequest, NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
@@ -375,17 +376,33 @@ export async function POST(req: NextRequest) {
                                 counterColor: counter.color || null,
                             },
                         });
+                        // BAŞLANGIÇ OKUMASI: sayaç yalnız karta yazılıyordu; ilk gerçek
+                        // okuma zincirin başı sayılıp fark 0 alıyor, aradaki sayfalar
+                        // hiçbir faturaya girmiyordu (Excel aktarımında düzeltilen hata).
+                        if (counter.black > 0 || counter.color > 0) {
+                            await prisma.counterReading.create({
+                                data: {
+                                    tenantId, deviceId: device.id, customerId,
+                                    counterBlack: counter.black || 0, counterColor: counter.color || 0,
+                                    deltaBlack: 0, deltaColor: 0, calculatedCost: 0, billed: true, source: GOC_KAYNAGI,
+                                },
+                            });
+                        }
                         result.importedRows.cihazlar++;
                     } else {
-                        // Mevcut cihazın sayaç bilgisini güncelle (yoksa veya daha yüksekse)
+                        // Mevcut cihaz: okuma zinciri VARSA karta dokunulmaz (fatura farkı
+                        // son okumaya göre; kart başka sayı gösterirse bayi ile fatura iki
+                        // ayrı sayıya bakar). Zinciri yoksa dosyadaki sayaç başlangıç okuması olur.
                         const counter = parseCounter(servis.Aksesuar);
-                        if (counter.black > 0 || counter.color > 0) {
-                            const updateData: any = {};
-                            if (counter.black > (device.counterBlack || 0)) updateData.counterBlack = counter.black;
-                            if (counter.color > (device.counterColor || 0)) updateData.counterColor = counter.color;
-                            if (Object.keys(updateData).length > 0) {
-                                await prisma.device.update({ where: { id: device.id }, data: updateData });
-                            }
+                        if ((counter.black > 0 || counter.color > 0) && (await prisma.counterReading.count({ where: { tenantId, deviceId: device.id } })) === 0) {
+                            await prisma.device.update({ where: { id: device.id }, data: { counterBlack: counter.black || null, counterColor: counter.color || null } });
+                            await prisma.counterReading.create({
+                                data: {
+                                    tenantId, deviceId: device.id, customerId: device.customerId,
+                                    counterBlack: counter.black || 0, counterColor: counter.color || 0,
+                                    deltaBlack: 0, deltaColor: 0, calculatedCost: 0, billed: true, source: GOC_KAYNAGI,
+                                },
+                            });
                         }
                         result.importedRows.cihazlar++; // Mevcut cihaz kullanıldı
                     }

@@ -71,10 +71,18 @@ console.log('\nYANLIŞ ALARM VERMEMELİ\n');
     s.supheli === false, s);
 }
 {
-  // Geçmişi yetersiz cihaz — kıyas yok, yalnız mutlak tavan geçerli
+  // Geçmişi yetersiz cihaz — kat kuralı çalışmaz; onun yerine günlük hız tavanı.
+  // Eskiden yalnız 200.000 tavanı vardı: yanlış başlangıç sayacı (4.821 yerine
+  // 48.210) ilk okumada 47.589 sayfayı uyarısız faturalatıyordu.
   const s = anomaliDegerlendir(50000, 30, [ok(30, 1000)]);
-  t('geçmişi yoksa kat kuralı çalışmıyor (yalnız mutlak tavan)',
-    s.supheli === false && s.normalHiz === null, s);
+  t('★ geçmişi yoksa: 30 günde 50.000 sayfa (günde ~1.667) şüpheli — ilk okuma kuralı',
+    s.supheli === true && s.durum === 'SUPHELI_ILK' && s.normalHiz === null, s);
+  const yogun = anomaliDegerlendir(30000, 30, [ok(30, 1000)]);
+  t('geçmişi yoksa: yoğun ama olağan (ayda 30.000) şüpheli değil', yogun.supheli === false, yogun);
+  const hata = anomaliDegerlendir(47589, 3, [ok(3, 4821)]);
+  t('★ yanlış başlangıç sayacı: 3 günde 47.589 sayfa şüpheli', hata.supheli === true && hata.durum === 'SUPHELI_ILK', hata);
+  const kucuk = anomaliDegerlendir(4000, 1, [ok(1, 1000)]);
+  t('geçmişi yoksa da 5.000 sayfa altı şüphe sayılmaz', kucuk.supheli === false, kucuk);
 }
 {
   // Sıfır sayfa — durgunluk ayrı bir sinyal, burada alarm değil

@@ -10,7 +10,7 @@ import { randomBytes } from 'crypto';
 
 /** WhatsApp'ın serbest mesaj penceresi: müşterinin son mesajından sonra 24 saat. */
 const PENCERE_MS = 24 * 3_600_000;
-import { createReading, ReadingError } from '@/lib/readings';
+import { createReading, okumaSil, ReadingError } from '@/lib/readings';
 import { MIN_CONFIDENCE } from '@/lib/whatsapp-suggest';
 import { parseFaultCategory } from '@/lib/fault-categories';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
@@ -228,12 +228,15 @@ export async function POST(req: NextRequest) {
     if (action === 'saveReading') {
       const { deviceId, counterBlack, counterColor, reset, resetTur } = body;
       if (!deviceId) return ucHatasi('CIHAZ_SECILMEDI', 400);
+      // Aynı fotoğraf iki okuma olmaz: mesaj zaten bir okumaya bağlıysa reddet.
+      if (msg.readingId) return ucHatasi('KAYIT_ZATEN_ISLENDI', 409);
       try {
         const r = await createReading({
           tenantId,
           deviceId,
           counterBlack: Number(counterBlack) || 0,
-          counterColor: Number(counterColor) || 0,
+          // Boş renkli = fotoğrafta renkli yok: ölçülmedi (son değer taşınır), 0 DEĞİL.
+          counterColor: counterColor === null || counterColor === undefined || counterColor === '' ? null : Number(counterColor),
           reset: !!reset,
           // Sebep geçmezse createReading CIHAZ_DEGISTI varsayar ve farkı sıfır
           // yazar. Ekranda ise "Sayaç sıfırlandı" yazan tek kutu vardı —
@@ -243,10 +246,16 @@ export async function POST(req: NextRequest) {
           // Sayaç fotoğrafın geldiği an okundu (bayi rakamı sonra yazıyor).
           readingDate: msg.receivedAt,
         });
-        await prisma.whatsAppMessage.update({
-          where: { id: msg.id },
+        // Sahiplen: aynı anda iki istek geldiyse yalnız biri mesajı bağlar; ikinci
+        // okumanın kaydı geri alınır.
+        const bag = await prisma.whatsAppMessage.updateMany({
+          where: { id: msg.id, readingId: null },
           data: { readingId: r.reading.id, handled: true },
         });
+        if (bag.count === 0) {
+          await okumaSil({ tenantId, deviceId, readingId: r.reading.id }).catch(() => {});
+          return ucHatasi('KAYIT_ZATEN_ISLENDI', 409);
+        }
         return NextResponse.json({ ok: true, warning: r.warning ?? null });
       } catch (e: any) {
         if (e instanceof ReadingError) {

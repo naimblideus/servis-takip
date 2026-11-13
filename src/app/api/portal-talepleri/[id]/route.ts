@@ -37,6 +37,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (islem !== 'onayla') return ucHatasi('GECERSIZ_ISLEM', 400);
 
+    // ATOMİK SAHİPLENME: "bekliyor mu" kontrolü ile yazma arasında ikinci bir
+    // onay girebiliyordu (çift tıklama, iki sekme): aynı bildirimden iki fiş ya
+    // da iki okuma çıkıyordu. Yalnız biri BEKLIYOR → ISLENIYOR yapabilir.
+    const sahip = await prisma.portalRequest.updateMany({ where: { id, tenantId, durum: 'BEKLIYOR' }, data: { durum: 'ISLENIYOR' } });
+    if (sahip.count === 0) return ucHatasi('BU_BILDIRIM_ZATEN_ISLENMIS', 409);
+    const geriAc = () => prisma.portalRequest.updateMany({ where: { id, durum: 'ISLENIYOR' }, data: { durum: 'BEKLIYOR' } });
+    try {
+
     // ── ARIZA → servis fişi ──
     if (talep.tur === 'ARIZA') {
       if (!talep.deviceId) return ucHatasi('CIHAZSIZ_BILDIRIMDEN_FIS_ACILAMAZ', 400);
@@ -71,13 +79,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // ── SAYAC → okuma ──
-    if (!talep.deviceId || !talep.device) return ucHatasi('SAYAC_BILDIRIMINDE_CIHAZ_YOK', 400);
-    if (talep.sayacBlack == null) return ucHatasi('SIYAH_BEYAZ_SAYAC_DEGERI_YOK', 400);
+    if (!talep.deviceId || !talep.device) { await geriAc(); return ucHatasi('SAYAC_BILDIRIMINDE_CIHAZ_YOK', 400); }
+    if (talep.sayacBlack == null) { await geriAc(); return ucHatasi('SIYAH_BEYAZ_SAYAC_DEGERI_YOK', 400); }
 
-    // Müşteri renkliyi yazmadıysa SON BİLİNEN değeri kullanıyoruz: uydurma bir
-    // artış yazmaktansa renkli fark 0 olsun. Sıfır yazmak sayaç düşüşü sayılır
-    // ve mevcut düşüş kontrolüne takılırdı.
-    const renkli = talep.sayacColor ?? talep.device.counterColor ?? 0;
+    // Müşteri renkliyi yazmadıysa null: okuma katmanı son değeri taşır (fark 0)
+    // ve o ayı renkli için okunmamış sayar. Sıfır yazmak düşüş sayılırdı.
+    const renkli = talep.sayacColor ?? null;
 
     try {
       const { reading, warning } = await createReading({
@@ -88,7 +95,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         source: 'PORTAL',
         // Sayaç müşterinin talebi gönderdiği an okundu, bayinin onayladığı an değil.
         readingDate: talep.createdAt,
-        renkliOlculdu: talep.sayacColor != null,
       });
       await prisma.portalRequest.update({
         where: { id },
@@ -102,8 +108,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (e instanceof ReadingError) {
         // Sayaç düşüşü / geçersiz değer: bildirim BEKLIYOR kalır, bayi elle
         // düzeltir. Sessizce kapatmak müşterinin bildirimini yutmak olurdu.
+        await geriAc();
         return NextResponse.json({ error: e.message, kod: e.code }, { status: e.status });
       }
+      throw e;
+    }
+    } catch (e) {
+      // Beklenmedik hata: bildirim sahiplenilmiş hâlde takılı kalmasın.
+      await geriAc();
       throw e;
     }
   } catch (e) {

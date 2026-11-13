@@ -48,7 +48,15 @@ export interface CreateReadingInput {
   tenantId: string;
   deviceId: string;
   counterBlack: number;
-  counterColor: number;
+  /**
+   * Renkli sayaç. `null` = bu okumada renkli ÖLÇÜLMEDİ (rapor/fotoğraf/beyan
+   * renkliyi vermedi): son değer taşınır, fark 0, renkliOlculdu=false — o ay
+   * renkli için "okunmamış" sayılır ve paketi sonraki gerçek renkli okumaya
+   * eklenir. Eskiden elle eşleştirme ekranları boş kutuyu 0 gönderiyordu:
+   * 48.000'lik renkli sayaç 0'a "düşmüş" görünüyor, bayi geçmek için sıfırlama
+   * seçiyor, bir sonraki gerçek okumada 48.600 renkli sayfa faturalanıyordu.
+   */
+  counterColor: number | null;
   ticketId?: string | null;
   includeMonthlyRent?: boolean;
   photo?: string | null;
@@ -216,12 +224,13 @@ export async function createReading(
   /** Toplu çağrıda tenant'ı bir kez çekip geçir (N+1 önle) */
   preloadedTenant?: any,
 ) {
-  const { tenantId, deviceId, counterBlack, counterColor, ticketId, includeMonthlyRent, reset, resetTur } = input;
+  const { tenantId, deviceId, counterBlack, ticketId, includeMonthlyRent, reset, resetTur } = input;
+  const renkliVerildi = input.counterColor !== null && input.counterColor !== undefined;
 
-  if (counterBlack === undefined || counterColor === undefined || counterBlack === null || counterColor === null) {
-    throw new ReadingError('MISSING', 'counterBlack ve counterColor zorunlu');
+  if (counterBlack === undefined || counterBlack === null) {
+    throw new ReadingError('MISSING', 'counterBlack zorunlu');
   }
-  if (!Number.isFinite(counterBlack) || !Number.isFinite(counterColor) || counterBlack < 0 || counterColor < 0) {
+  if (!Number.isFinite(counterBlack) || counterBlack < 0 || (renkliVerildi && (!Number.isFinite(input.counterColor) || (input.counterColor as number) < 0))) {
     throw new ReadingError('INVALID', 'Sayaç değeri geçersiz');
   }
 
@@ -251,6 +260,8 @@ export async function createReading(
       select: { readingDate: true, counterBlack: true, counterColor: true },
     });
     const prev = gecmis[0] ?? null;
+    // Renkli ölçülmediyse son değer taşınır (fark 0); zincirin başında 0.
+    const counterColor = renkliVerildi ? (input.counterColor as number) : (prev?.counterColor ?? 0);
 
     // Düşüş kontrolü: sayaç gerilemişse SESSİZCE 0 yazma. 'reset' onayı yoksa REDDET
     // (yoksa ya gelir kaybı [delta=0] ya da yanlış devasa delta oluşur).
@@ -345,7 +356,7 @@ export async function createReading(
         source: input.source ?? 'ELLE',
         readingDate: tarih,
         faturaDonemi,
-        renkliOlculdu: input.renkliOlculdu ?? true,
+        renkliOlculdu: renkliVerildi ? (input.renkliOlculdu ?? true) : false,
         sifirlama,
         // Şüpheli okuma yazılır; dönem faturası taslakta bekler (lib/fatura-bekletme).
         supheli: anomali?.supheli === true,

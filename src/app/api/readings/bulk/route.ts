@@ -3,9 +3,18 @@ import { ucHatasi } from '@/lib/uc-hata';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { createReading, ReadingError } from '@/lib/readings';
+import { SAYFA_UCRETLI_CIHAZ } from '@/lib/invoicing';
+import { acikDonem, donemOkumaKosulu, kesimGunu } from '@/lib/fatura-donemi';
+
+/** Tek istekte en çok satır. Ekran 150'lik parçalarla gönderir; 1.000 cihazlı hastane de tek turda biter. */
+const TEK_ISTEK_SATIR = 300;
 
 // GET /api/readings/bulk?customerId=... — Sayaç Turu listesi:
-// müşterinin KİRALIK cihazları, kat/oda (location) sırasına dizili, son sayaç + bu dönem okundu mu.
+// müşterinin SAYFA BAŞI ÜCRETLİ cihazları (kiralık + kopya başı anlaşmalı müşteri
+// makinesi; faturayla aynı kural, lib/invoicing SAYFA_UCRETLI_CIHAZ), kat/oda
+// (location) sırasına dizili, son sayaç + bu FATURA DÖNEMİNDE okundu mu.
+// Eskiden yalnız kiralık listeleniyordu: kopya başı anlaşmalı makine faturalanıyor
+// ama turda hiç çıkmıyordu, sayacı ancak tek tek girilebiliyordu.
 export async function GET(req: NextRequest) {
   try {
     const { tenantId } = await requireTenantUser();
@@ -19,7 +28,7 @@ export async function GET(req: NextRequest) {
     if (!customer) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
     const devices = await prisma.device.findMany({
-      where: { tenantId, customerId, isRental: true },
+      where: { tenantId, customerId, ...SAYFA_UCRETLI_CIHAZ },
       select: {
         id: true, brand: true, model: true, serialNo: true, location: true,
         counterBlack: true, counterColor: true,
@@ -27,14 +36,17 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Bu dönem (ay) okunmuş cihazlar — TOPLU (N+1 yok)
-    const now = new Date();
-    const pStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const pEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    // Bu FATURA DÖNEMİNDE okunmuş cihazlar — TOPLU (N+1 yok). Dönem İstanbul saati
+    // ve bayinin kesim günüyle (lib/fatura-donemi); eskiden sunucunun takvim ayıydı:
+    // kesim günü 3 olan bayide 1-2'sinde okunan sayaç "okunmadı" görünüyordu.
+    // Zincirin başı (cihaz eklenirken ya da aktarımda yazılan başlangıç sayacı:
+    // kapalı, fark 0) okuma sayılmaz; ay ortasında eklenen cihaz "okundu" görünüyordu.
+    const ayar = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { invoiceDayOfMonth: true } });
+    const donem = acikDonem(new Date(), kesimGunu(ayar?.invoiceDayOfMonth));
     const readThisPeriod = devices.length
       ? await prisma.counterReading.groupBy({
           by: ['deviceId'],
-          where: { tenantId, deviceId: { in: devices.map((d) => d.id) }, readingDate: { gte: pStart, lt: pEnd } },
+          where: { tenantId, deviceId: { in: devices.map((d) => d.id) }, NOT: { billed: true, deltaBlack: 0, deltaColor: 0 }, AND: [donemOkumaKosulu(donem)] },
           _max: { readingDate: true },
         })
       : [];
@@ -84,12 +96,16 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(rows) || rows.length === 0) {
       return ucHatasi('KAYDEDILECEK_SATIR_YOK', 400);
     }
-    if (rows.length > 300) {
-      return NextResponse.json({ error: 'Tek seferde en fazla 300 cihaz' }, { status: 400 });
+    if (rows.length > TEK_ISTEK_SATIR) {
+      return NextResponse.json({ error: `Tek seferde en fazla ${TEK_ISTEK_SATIR} cihaz` }, { status: 400 });
     }
 
-    // Tenant'ı BİR KEZ çek, her satıra geçir (N+1 önle)
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    // Tenant'ı BİR KEZ çek, her satıra geçir (N+1 önle). Yalnız okumanın
+    // kullandığı alanlar: satırın tamamı logoyu da taşır (2 MB'a kadar).
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, pricePerBlack: true, pricePerColor: true, invoiceDayOfMonth: true },
+    });
     if (!tenant) return ucHatasi('TENANT_BULUNAMADI', 404);
 
     const results: any[] = [];

@@ -118,12 +118,22 @@ export async function POST(req: NextRequest) {
     });
     if (!cihaz) return ucHatasi('CIHAZ_BULUNAMADI', 404);
 
+    // AYNI RAPOR İKİ KEZ OKUMA OLMAZ: kayıt atomik sahiplenilir. Eskiden işlenmiş
+    // (ISLENDI) kayıt da yeniden gönderilebiliyordu; iki sekmede aynı anda
+    // basılınca ikisi de okuma yazıyordu.
+    const sahip = await prisma.counterEmail.updateMany({
+      where: { id: kayit.id, status: { notIn: ['ISLENDI', 'ISLENIYOR'] } },
+      data: { status: 'ISLENIYOR' },
+    });
+    if (sahip.count === 0) return ucHatasi('KAYIT_ZATEN_ISLENDI', 409);
+
     try {
       const r = await createReading({
         tenantId,
         deviceId,
         counterBlack: Number(counterBlack) || 0,
-        counterColor: Number(counterColor) || 0,
+        // Boş renkli = raporda renkli yok: ölçülmedi (son değer taşınır), 0 DEĞİL.
+        counterColor: counterColor === null || counterColor === undefined || counterColor === '' ? null : Number(counterColor),
         reset: !!reset,
         // Sebep GEÇMEZSE createReading CIHAZ_DEGISTI varsayar ve farkı sıfır
         // yazar. Bu uç sebebi hiç geçirmiyordu; ekranda ise "Sayaç sıfırlandı"
@@ -154,6 +164,8 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ ok: true, uyari: r.warning ?? null, ogrenildi });
     } catch (e: any) {
+      // Okuma yazılamadı: kayıt yeniden işlenebilsin.
+      await prisma.counterEmail.updateMany({ where: { id: kayit.id, status: 'ISLENIYOR' }, data: { status: kayit.status } });
       if (e instanceof ReadingError) {
         return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
       }
