@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import './globals.css';
@@ -55,7 +56,7 @@ export default async function RootLayout({
         </LocaleProvider>
         {/* Çevrimdışı kabuk + yeni sürüm bildirimi. Yalnız üretimde kaydolur. */}
         <ServiceWorkerKurulum />
-      </body>
+      <Script src="https://crm.nextusservis.com/acik/sayac.js" strategy="afterInteractive" /></body>
     </html>
   );
 }

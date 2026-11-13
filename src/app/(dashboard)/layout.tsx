@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
@@ -147,7 +148,7 @@ export default async function DashboardLayout({
         {denemeGun !== null && <DenemeSeridi kalanGun={denemeGun} />}
         <UygulamaKur />
         <AileSekmeleri modules={modules} whatsappKurulu={menuDurum.whatsappKurulu} bizimHesapKurulu={menuDurum.bizimHesapKurulu} tur={tur} />
-        <ModuleGuard modules={modules} tur={tur}>{children}</ModuleGuard>
+        <ModuleGuard modules={modules} tur={tur}>{children}<Script src="https://crm.nextusservis.com/acik/gb.js" strategy="afterInteractive" data-urun="nexus-servis" /></ModuleGuard>
       </main>
       <BottomNav modules={modules} tur={tur} />
       {/* Kurulum sihirbazı bayinin zinciri (müşteri → cihaz → sayaç); matbaanın kendi listesi Faz B'de. */}
