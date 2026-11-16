@@ -84,6 +84,11 @@ export default function TezgahFormu({ urunler, fiyatsizVar, yonetici, taslak = n
     ? <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">{m.okuyucu.eminDegil}</span>
     : null);
   const alanS = (k: string) => (belirsiz(k) ? alanSari : alan);
+  // Emin olunmayan alanda belgede nereden okunduğu: çalışan WhatsApp'ta oraya bakar.
+  const kaynakNotu = (k: string) => {
+    const kaynak = belirsiz(k) ? taslak?.kaynaklar?.[k] : undefined;
+    return kaynak ? <p className="mt-1 truncate text-xs text-amber-800" title={kaynak}>{doldur(m.okuyucu.belgede, { metin: kaynak })}</p> : null;
+  };
   const kalemAnahtari = (k: Kalem, alt: string) => (k.kaynak ? `kalem${k.kaynak}.${alt}` : '');
 
   // Telefon 10 haneye ulaşınca kayıtlı müşteri ara (son 10 hane).
@@ -197,15 +202,18 @@ export default function TezgahFormu({ urunler, fiyatsizVar, yonetici, taslak = n
         <div>
           <label htmlFor="tel" className={etiket}>{m.telefon}{isaret('telefon')}</label>
           <input id="tel" type="tel" inputMode="tel" value={telefon} onChange={(e) => { setTelefon(e.target.value); dokun('telefon'); }} className={alanS('telefon')} placeholder={m.telefonYer} autoComplete="off" />
+          {kaynakNotu('telefon')}
         </div>
         <div>
           <label htmlFor="ad" className={etiket}>{m.musteriAd}{isaret('musteriAd')}</label>
           <input id="ad" value={musteriAd} onChange={(e) => { setMusteriAd(e.target.value); dokun('musteriAd'); }} className={alanS('musteriAd')} maxLength={120} />
+          {kaynakNotu('musteriAd')}
         </div>
         {taslak && (
           <div className="sm:col-span-2">
             <label htmlFor="firma" className={etiket}>{m.okuyucu.firma}{isaret('firma')}</label>
             <input id="firma" value={firma} onChange={(e) => { setFirma(e.target.value); dokun('firma'); }} className={alanS('firma')} maxLength={160} />
+            {kaynakNotu('firma')}
           </div>
         )}
       </div>
@@ -241,6 +249,7 @@ export default function TezgahFormu({ urunler, fiyatsizVar, yonetici, taslak = n
                     {!u && <option value="">— {m.urunSec} —</option>}
                     {urunler.map((x) => <option key={x.id} value={x.id}>{x.tanim.ad}</option>)}
                   </select>
+                  {kaynakNotu(ka('urun'))}
                 </div>
                 {kalemler.length > 1 && (
                   <button type="button" onClick={() => kalemleriYaz(kalemler.filter((_, j) => j !== i))} className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600">{m.kalemSil}</button>
@@ -251,17 +260,20 @@ export default function TezgahFormu({ urunler, fiyatsizVar, yonetici, taslak = n
                   <div>
                     <label className={etiket}>{u.tanim.fiyatModeli === 'SAYFA' ? m.nusha : m.adet}{isaret(ka('adet'))}</label>
                     <input type="number" min={1} inputMode="numeric" value={k.adet} onChange={(e) => { degistir(i, { adet: e.target.value }); dokun(ka('adet')); }} className={alanS(ka('adet'))} />
+                    {kaynakNotu(ka('adet'))}
                   </div>
                   {u.tanim.fiyatModeli === 'SAYFA' && (
                     <div>
                       <label className={etiket}>{m.sayfa}{isaret(ka('sayfa'))}</label>
                       <input type="number" min={1} inputMode="numeric" value={k.sayfa} onChange={(e) => { degistir(i, { sayfa: e.target.value }); dokun(ka('sayfa')); }} className={alanS(ka('sayfa'))} />
+                      {kaynakNotu(ka('sayfa'))}
                     </div>
                   )}
                   {u.tanim.fiyatModeli === 'ALAN' && (<>
                     <div>
                       <label className={etiket}>{m.en}{isaret(ka('olcu'))}</label>
                       <input type="number" min={1} inputMode="decimal" value={k.en} onChange={(e) => { degistir(i, { en: e.target.value }); dokun(ka('olcu')); }} className={alanS(ka('olcu'))} />
+                      {kaynakNotu(ka('olcu'))}
                     </div>
                     <div>
                       <label className={etiket}>{m.boy}</label>
@@ -276,6 +288,7 @@ export default function TezgahFormu({ urunler, fiyatsizVar, yonetici, taslak = n
                         {!g.zorunlu && !g.degerler.some((d) => d.varsayilan) && <option value="">—</option>}
                         {g.degerler.map((d) => <option key={d.kod} value={d.kod}>{d.ad}</option>)}
                       </select>
+                      {kaynakNotu(ka(`secim.${g.kod}`))}
                     </div>
                   ))}
                 </div>
@@ -296,6 +309,7 @@ export default function TezgahFormu({ urunler, fiyatsizVar, yonetici, taslak = n
         <div>
           <label htmlFor="soz" className={etiket}>{m.sozVerilen}{isaret('teslim')}</label>
           <input id="soz" type="datetime-local" value={soz} onChange={(e) => { setSoz(e.target.value); setSozElle(true); dokun('teslim'); }} className={alanS('teslim')} />
+          {kaynakNotu('teslim')}
           {taslak?.form.teslimSaatYok && belirsiz('teslim') && (
             <p className="mt-1 text-xs text-amber-800">{doldur(m.okuyucu.saatYok, { saat: SAATSIZ_TESLIM })}</p>
           )}

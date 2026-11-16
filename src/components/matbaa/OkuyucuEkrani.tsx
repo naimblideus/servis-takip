@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDil, useT } from '@/lib/i18n/client';
 import { matbaaMetni } from '@/lib/matbaa-metin';
-import { AZAMI_GORSEL, AZAMI_METIN, AZAMI_PDF, kaynakTuru, type TaslakGorunumu } from '@/lib/baski-okuyucu';
+import { AZAMI_GORSEL, AZAMI_METIN, AZAMI_PDF, kaynakTuru } from '@/lib/belge-okuyucu';
+import type { TaslakGorunumu } from '@/lib/baski-okuyucu';
 import TezgahFormu, { type TezgahUrunu } from '@/components/matbaa/TezgahFormu';
 
 /**

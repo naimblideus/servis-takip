@@ -7,7 +7,8 @@ import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { doldur } from '@/lib/i18n/sozluk';
 import { matbaaMetni } from '@/lib/matbaa-metin';
 import { saatYaz } from '@/lib/matbaa-bicim';
-import { enCokDuzeltilen, kayitliOkuma, okumaOrani, okuyucuAcik, taslakGorunumu } from '@/lib/baski-okuyucu';
+import { OKUYUCU_KAPATMA, enCokDuzeltilen, kayitliOkuma, okumaOrani, taslakGorunumu } from '@/lib/baski-okuyucu';
+import { okuyucuAcik } from '@/lib/belge-okuyucu';
 import { bekleyenTaslaklar, fiyatliUrunler, okumaSayilari } from '@/lib/baski-okuyucu-kayit';
 import OkuyucuEkrani from '@/components/matbaa/OkuyucuEkrani';
 
@@ -29,7 +30,7 @@ export default async function SiparisOku() {
   const m = matbaaMetni(dil);
   const o = m.okuyucu;
   const tenantId = user.tenantId;
-  const acik = okuyucuAcik(process.env);
+  const acik = okuyucuAcik(process.env, OKUYUCU_KAPATMA);
 
   const [{ urunler, fiyatsiz }, bekleyen, sayilar, tenant] = await Promise.all([
     fiyatliUrunler(tenantId),

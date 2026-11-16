@@ -19,15 +19,26 @@ listesinde zaten açık olduğu için menüye dokunulmadı.
 - **Veri:** yeni tablo `BaskiOkuma` (taslak, okunan alanlar, düzeltilenler, model, süre, token). Göç
   `prisma/migrations/20261116100000_baski_okuma` yalnız ekleme yapıyor ve iki kez çalıştırılabilir (idempotent).
   `Tenant` ve `BaskiIsi`'ye yalnız geri ilişki satırı eklendi.
-- **Okuyucu:** `src/lib/baski-okuyucu.ts` (saf çekirdek) ve `src/lib/baski-okuyucu-kayit.ts` (veritabanı + SDK).
-  - Model `claude-opus-5-5`, resmi SDK `@anthropic-ai/sdk` 1.9.0 (yeni bağımlılık).
-  - Yapılandırılmış çıktı (JSON şeması), `effort: medium`. Model güvenlik nedeniyle reddederse sunucu aynı isteği
-    yedek modelle dener (`fallbacks: 'default'`).
-  - Her alan `{ deger, emin }`. Okunamayan alan boş kalır ve "emin değilim" işareti taşır; uydurulmaz.
+- **Belge okuyucu çekirdeği (üründen bağımsız):** `src/lib/belge-okuyucu.ts` (saf) ve
+  `src/lib/belge-okuyucu-sunucu.ts` (SDK istemcisi, hata ayrımı, istekten girdi alma). Ayrı paket değil; aynı
+  depoda, matbaaya dair tek satır içermiyor (testle korunuyor). Sonra Reçete'de tedarikçi faturası ve muhasebe
+  belgesi için kullanılması düşünülüyor; Reçete'ye dokunulmadı.
+  - Sözleşme: girdi = dosya ve/veya yazı + ürünün alan şeması (çekirdeğin `alan.metin/sayi/secim` yapıcılarıyla)
+    + ürünün sistem metni + bağlam satırları. Çıktı = her alan için `{ deger, emin, kaynak }`; `kaynak` belgede
+    nereden okunduğu (kısa alıntı ya da konum).
+  - Çekirdekte: model çağrısı (`claude-opus-5-5`, resmi SDK `@anthropic-ai/sdk` 1.9.0, yeni bağımlılık),
+    yapılandırılmış çıktı (JSON şeması), `effort: medium`, ret olursa sunucu tarafı yedek model
+    (`fallbacks: 'default'`), boyut ve tür sınırı, anahtar yoksa kapalı, ortak kurallar (uydurma yok, "emin",
+    "kaynak", güvenilmeyen içerik), alan doğrulayıcıları (sayı, tarih, telefon, seçim).
+  - Dışarıdan gelen metin `<belge>` içinde gider; `</belge>` yazarak etiketten çıkamaz.
+- **Matbaa katmanı:** `src/lib/baski-okuyucu.ts` (alan şeması, matbaa kuralları, taslağa dönüştürme, ölçü) ve
+  `src/lib/baski-okuyucu-kayit.ts` (veritabanı).
+  - Okunamayan alan boş kalır ve "emin değilim" işareti taşır; uydurulmaz. Emin olunmayan alanın altında
+    "Belgede: …" alıntısı görünür.
   - Ürün yalnız matbaanın **fiyatlı** ürün listesinden, seçenek yalnız o ürünün kodlarından seçilebilir.
     Listede olmayan değer sunucuda atılır.
-  - **Fiyat okunmaz ve hesaplanmaz.** Şemada fiyat alanı yok. Tutarı onayda mevcut fiyat motoru hesaplar.
-  - Müşteri metni güvenilmeyen veri olarak `<siparis>` içinde gider; `</siparis>` yazarak etiketten çıkamaz.
+  - **Fiyat okunmaz ve hesaplanmaz.** Şemada fiyat alanı yok; tutarı onayda mevcut fiyat motoru hesaplar. Bu kural
+    çekirdekte değil matbaa dosyasında, çünkü fatura okuyacak ürün fiyatı okumak zorunda.
 - **Uçlar** (hepsi `requireMatbaaUser(['ADMIN', 'FRONT_DESK'])`; operatör giremez):
   - `POST /api/matbaa/okuma`: fotoğraf, PDF ve/veya yazı → taslak. Sipariş değilse taslak kaydedilmez.
   - `POST /api/matbaa/okuma/:id/onay`: tezgah formunun gövdesi → iş açılır (kanal WHATSAPP). Aynı anda iki kişi
@@ -59,7 +70,7 @@ listesinde zaten açık olduğu için menüye dokunulmadı.
 
 ## Doğrulama durumu
 
-- **Birim testleri:** `node scripts/test-baski-okuyucu.mjs` → 99 geçti, 0 kaldı.
+- **Birim testleri:** `node scripts/test-baski-okuyucu.mjs` → 107 geçti, 0 kaldı (çekirdeğin başka bir şemayla, sahte bir faturayla çalıştığı dahil).
 - **`tsc --noEmit`** ve değişen dosyalarda **eslint**: temiz.
 - **`next build --webpack`**: geçti; yeni sayfalar ve uçlar çıktıda listeleniyor.
 - **Göç:** yerel veritabanına uygulandı, iki kez çalıştırılınca da hatasız (idempotent).
@@ -73,6 +84,10 @@ listesinde zaten açık olduğu için menüye dokunulmadı.
   - Ekran görüntüsüyle bakıldı (1280 px ve 375 px): sarı alanlar, "emin değilim" rozeti, "Siparişte: …"
     ipucu, saatsiz teslim notu, onay düğmesi ürün seçilmeden kapalı.
   - Deneme kayıtları yerel veritabanından silindi.
+- **Çekirdek ayrıldıktan sonra yeniden** (sahte API, demo dışı matbaada geçici test kullanıcısı, sonra silindi):
+  fotoğraf + açıklama okundu, modele görsel bloğu olarak gitti; taslakta `kaynaklar` geldi; onay → iş, ikinci onay
+  409; 9 MB → 413, HEIC → 415, 6 MB fotoğraf → 413; demo dışında "taslağı at" 200; sınır hataları modele gitmedi.
+  Ekranda emin olunmayan alanın altında "Belgede: “…”" alıntısı görüldü. `next build --webpack` yeniden geçti.
 - **Gerçek modelle ve gerçek bir siparişle DOĞRULANMADI.** Yerelde API anahtarı yok; okuma kalitesi bilinmiyor.
 - **Herkese açık demoda okuyucu kapalı** (`src/lib/demo-yazma.ts`): her okuma ücretli bir model çağrısı ve
   ziyaretçinin dosyasını dışarı gönderir. Demoda ekran açılıyor ama "Oku" demo uyarısı veriyor. Demoda
@@ -95,6 +110,10 @@ listesinde zaten açık olduğu için menüye dokunulmadı.
   yok.
 - Okuma 10–60 sn sürebilir. Canlıdaki ters vekilin (Coolify/Traefik) zaman aşımı kontrol edilmeli.
 - Hız sınırı bellek içi: birden çok sunucu kopyasında kopya başına sayar.
+- Çekirdek ayrı pakete taşınmadı (bilerek). Reçete'de tedarikçi faturası için kullanılınca ya `src/lib/belge-okuyucu*.ts`
+  kopyalanır ya da ortak pakete alınır; o zaman karar verilmeli.
+- Bu işten bağımsız bir bulgu: yerelde deneme süresi bitmiş bir kiracıda ekranlar "Erişim Kapalı" diyor, ama
+  `/api/matbaa/*` uçları çalışmaya devam ediyor (önceden de böyleydi). Ayrıca bakılmalı.
 
 **Matbaa planının geri kalanı** (`C:\Users\Mehmet Naim\.claude\plans\matbaa-hesap-turu-plani.md`). Kasa, TV
 panosu, prova, sipariş sayfası ve R2 kodu önceki oturumlarda yazılmıştı; bu işte bunlara dokunulmadı. Açık kalanlar:

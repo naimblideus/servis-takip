@@ -1,16 +1,18 @@
-// MATBAA SİPARİŞ OKUYUCU — sunucu katmanı: model çağrısı, taslak kaydı, onay.
-// Kurallar saf çekirdekte (lib/baski-okuyucu); burada veritabanı ve SDK var.
+// MATBAA SİPARİŞ OKUYUCU — sunucu katmanı: taslak kaydı, onay, sayım.
+// Model çağrısı ve SDK hata ayrımı belge okuyucu çekirdeğinde
+// (lib/belge-okuyucu-sunucu); matbaa kuralları lib/baski-okuyucu'da.
 //
 // DOSYA SAKLANMAZ: uç dosyayı bellekte base64'e çevirir, buraya yalnız o
 // gelir; ne diske ne depoya yazılır. Kalıcı olan yalnız okunan taslaktır.
-import Anthropic from '@anthropic-ai/sdk';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { fiyatliMi, urunTanimi, type UrunTanimi } from '@/lib/baski-fiyat';
 import { isOlustur, type Kullanici, type YeniIs } from '@/lib/baski-is-kayit';
+import { bugunBilgisi, type BelgeGirdisi, type OkumaHatasi } from '@/lib/belge-okuyucu';
+import { belgeIstemcisi, modelHatasi, type GirdiMeta, type ModelHatasi } from '@/lib/belge-okuyucu-sunucu';
 import {
-  OKUYUCU_SURUM, belirsizSayisi, bugunBilgisi, duzeltmeler, kayitliOkuma, kisiselBilgiSil, siparisOku, sonForm,
-  taslakGorunumu, type Kaynak, type OkumaGirdisi, type OkumaHatasi, type TaslakGorunumu,
+  OKUYUCU_SURUM, belirsizSayisi, duzeltmeler, kayitliOkuma, kisiselBilgiSil, siparisOku, sonForm,
+  taslakGorunumu, type TaslakGorunumu,
 } from '@/lib/baski-okuyucu';
 
 /** Kiracı başına saatte en çok bu kadar okuma (maliyet ve kötüye kullanım sınırı). */
@@ -31,24 +33,14 @@ export async function fiyatliUrunler(tenantId: string): Promise<{ urunler: Fiyat
   return { urunler, fiyatsiz };
 }
 
-let istemci: Anthropic | null = null;
-/**
- * Anahtar ortamdan (ANTHROPIC_API_KEY); uç önce `okuyucuAcik` ile bakar.
- * En kötü durum: 55 sn + bir yeniden deneme ≈ 2 dk (uç maxDuration 120 sn).
- */
-function anthropic(): Anthropic {
-  istemci ??= new Anthropic({ timeout: 55_000, maxRetries: 1 });
-  return istemci;
-}
-
-export type OkumaKodu = OkumaHatasi | 'OKUMA_MESGUL' | 'OKUMA_ZAMAN_ASIMI' | 'OKUMA_MODEL_HATASI';
+export type OkumaKodu = OkumaHatasi | ModelHatasi | 'OKUMA_SIPARIS_DEGIL';
 
 /** Okur ve taslağı kaydeder. Sipariş değilse ya da okunamadıysa kayıt yok. */
 export async function okumaYap(
   tenantId: string,
-  girdi: OkumaGirdisi,
+  girdi: BelgeGirdisi,
   kim: Kullanici,
-  meta: { kaynak: Kaynak; dosyaAdi?: string | null; dosyaBoyut?: number | null },
+  meta: GirdiMeta,
 ): Promise<{ ok: true; id: string; taslak: TaslakGorunumu } | { ok: false; kod: OkumaKodu }> {
   const [{ urunler }, tenant] = await Promise.all([
     fiyatliUrunler(tenantId),
@@ -58,15 +50,10 @@ export async function okumaYap(
   const bas = Date.now();
   let s;
   try {
-    s = await siparisOku(anthropic(), girdi, urunler, gun);
+    s = await siparisOku(belgeIstemcisi(), girdi, urunler, gun);
   } catch (e) {
-    // En özelden genele. İçerik günlüğe YAZILMAZ (müşteri bilgisi), yalnız durum.
-    if (e instanceof Anthropic.RateLimitError) return { ok: false, kod: 'OKUMA_MESGUL' };
-    if (e instanceof Anthropic.APIConnectionTimeoutError) return { ok: false, kod: 'OKUMA_ZAMAN_ASIMI' };
-    if (e instanceof Anthropic.APIError) {
-      console.error('[okuyucu] model hatası', e.status ?? 'bağlantı');
-      return { ok: false, kod: 'OKUMA_MODEL_HATASI' };
-    }
+    const kod = modelHatasi(e);
+    if (kod) return { ok: false, kod };
     throw e;
   }
   if (!s.ok) return s;
