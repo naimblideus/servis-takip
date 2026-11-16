@@ -231,6 +231,7 @@ model Tenant {
   baskiIsleri         BaskiIsi[]
   matbaaAyar          MatbaaAyar?
   baskiKasaKapanislari BaskiKasaKapanis[]
+  baskiOkumalari      BaskiOkuma[]
 
   // Meta WhatsApp Cloud API — bu bayinin işletme numarasının phone_number_id'si.
   // Webhook her mesajda bunu gönderir; gelen mesajı doğru bayiye bağlamanın TEK yolu bu.
@@ -2454,6 +2455,7 @@ model BaskiIsi {
   provalar BaskiProva[]
   olaylar  BaskiOlayi[]
   odemeler BaskiOdeme[]
+  okuma    BaskiOkuma? // WhatsApp siparişinden okunduysa (lib/baski-okuyucu)
 
   @@unique([tenantId, no])
   @@index([tenantId, durum])
@@ -2488,7 +2490,7 @@ model BaskiOlayi {
   id          String   @id @default(cuid())
   isId        String
   tenantId    String
-  tur         String // DURUM | NOT | ODEME | BILDIRIM | FIYAT | DOSYA | PROVA
+  tur         String // DURUM | NOT | ODEME | BILDIRIM | FIYAT | DOSYA | PROVA | OKUMA
   durumOnce   String?
   durumSonra  String?
   metin       String?
@@ -2605,4 +2607,39 @@ model BaskiKasaKapanis {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, gun])
+}
+
+// SİPARİŞ OKUMASI — müşterinin WhatsApp'tan attığı fotoğraf, PDF ya da yazı
+// Claude'a okutulur; sonuç burada TASLAK olarak durur. Çalışan düzeltip
+// onaylayınca BaskiIsi açılır (isId); onaydan önce panoda iş yoktur.
+// Dosyanın kendisi SAKLANMAZ: okunur, taslak çıkar, atılır (lib/baski-okuyucu).
+// Ölçü: duzeltmesiz = onayda çalışan okuyucunun önerisini değiştirmedi.
+model BaskiOkuma {
+  id             String    @id @default(cuid())
+  tenantId       String
+  kaynak         String // FOTO | PDF | METIN
+  dosyaAdi       String?
+  dosyaBoyut     Int?
+  durum          String    @default("TASLAK") // TASLAK | ONAYLANIYOR | ONAYLANDI | ATILDI
+  okunan         Json // normalize edilmiş okuma: her alan { deger, emin }
+  belirsizSayisi Int       @default(0)
+  model          String // yanıtı veren model (yedek modele düştüyse o)
+  surum          String // okuyucu sürümü (okuyucu.v1): isabet sürüme göre izlenir
+  sureMs         Int?
+  girdiToken     Int?
+  ciktiToken     Int?
+  duzeltilenler  Json? // onayda değişen alanlar: ["telefon", "kalem1.adet"]
+  duzeltmesiz    Boolean? // null = henüz onaylanmadı
+  isId           String?   @unique
+  okuyanId       String?
+  okuyanAd       String?
+  onaylayanId    String?
+  onaylandiAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  is     BaskiIsi? @relation(fields: [isId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, durum, createdAt])
 }

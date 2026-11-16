@@ -237,7 +237,8 @@ export default async function IsAyrintisi({ params }: { params: Promise<{ id: st
                 : o.tur === 'ODEME' ? odemeOlayi(o.metin)
                   : o.tur === 'BILDIRIM' ? doldur(m.olayMesaj, { ad: m.mesaj[o.metin as MesajTuru] ?? o.metin ?? '' })
                     : o.tur === 'DOSYA' ? doldur(m.olayDosya, { ad: o.metin ?? '' })
-                      : o.tur === 'PROVA' ? provaOlayi(o.metin) : o.tur}
+                      : o.tur === 'PROVA' ? provaOlayi(o.metin)
+                        : o.tur === 'OKUMA' ? (o.metin === '0' ? m.olayOkumaDuzeltmesiz : doldur(m.olayOkuma, { n: o.metin ?? '' })) : o.tur}
               {o.metin && o.tur === 'DURUM' ? ` — ${o.metin}` : ''}
             </span>
             <span className="shrink-0 text-gray-500">{saatYaz(o.createdAt, dil, tz)}{o.kullaniciAd ? ` · ${o.kullaniciAd}` : ''}</span>
