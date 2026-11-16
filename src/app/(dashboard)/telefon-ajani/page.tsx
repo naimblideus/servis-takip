@@ -12,7 +12,8 @@ import { useCallback, useEffect, useState } from 'react';
 import AjanTaslaklari from '@/components/AjanTaslaklari';
 import { useBicim, useDil } from '@/lib/i18n/client';
 import { ajanMetni, doldurMetin, numaraGoster } from '@/lib/telefon-ajani-metin';
-import type { HazirlikKodu, KurulumKodu, TaslakSayaci } from '@/lib/telefon-ajani';
+import type { HazirlikKodu, TaslakSayaci } from '@/lib/telefon-ajani';
+import type { KurulumKodu } from '@/lib/ses-cekirdek/retell-govde';
 
 interface AyarDurumu {
   acik: boolean;

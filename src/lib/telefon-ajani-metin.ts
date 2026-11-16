@@ -8,7 +8,8 @@
  * Müşteriye söylenen/yazılan cümleler burada DEĞİL: onlar lib/telefon-ajani.ts
  * içinde, Türkçe (bayilerin müşterisi Türk).
  */
-import type { HazirlikKodu, KurulumKodu, OneriVerisi } from './telefon-ajani';
+import type { HazirlikKodu, OneriVerisi } from './telefon-ajani';
+import type { KurulumKodu } from './ses-cekirdek/retell-govde';
 
 const tr = {
   baslik: 'Telefon ajanı',

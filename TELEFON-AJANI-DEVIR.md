@@ -46,17 +46,35 @@ numara" etiketiyle açılır. Ajan hiçbir müşteri bilgisi söylemez.
 - `prisma/migrations/20261116100000_telefon_ajani/migration.sql`: yalnız yeni iki tablo ekler.
   Tekrar tekrar çalışsa da zarar vermez.
 
-### Kurallar ve dış bağlantılar
+### Ortak çekirdek: `lib/ses-cekirdek/`
+
+Aynı ajan Frigora'ya ve Nextus Klinik'e de gidecek. Bu yüzden alan bilmeyen kısım ayrı bir
+klasörde duruyor. Bu klasör Prisma'yı, Next'i, `@/lib`'i ve Servis kavramlarını (fiş, cihaz,
+taslak) içe aktarmaz; bunu bir test denetliyor.
+
+| Dosya | Ne |
+|---|---|
+| `cagri.ts` | Kimlik yalnız `call`'dan, kiracı kararı, gelen arama kararı, numara ayıklama, sorgu sınırı |
+| `retell-govde.ts` | Araç tanımı kalıpları, LLM ve ajan gövdeleri, güvenli varsayılanlar, kurulum kapıları |
+| `imza.ts` | Paylaşılan sır ve Retell imzası; sır tanımlı değilse uçlar kapalı |
+| `retell-istemci.ts` | Retell'e giden istekler (ajan oluşturma/güncelleme, numara bağlama/çözme) |
+| `uc.ts` | İki ucun işleyicisi (`aracIstegi`, `olayIstegi`) ve `SesUyarlayici` arayüzü |
+
+Bir ürünün çekirdeğe bağlandığı tek yer onun uyarlayıcısıdır. Servis'inki `servisSesUyarlayici`
+(`lib/telefon-ajani-veri.ts`); dört işlev verir: `kiraciBul`, `aracCalistir`, `hataCevabi`,
+`gelenArama`. İki uç dosyası yalnız bu uyarlayıcıyı çekirdeğe verir.
+
+**Ayrı paket kurulmadı.** Çekirdeği `＠cetin/platform-core` gibi tek bir pakete taşımak ayrı bir
+karar. Klasör buna hazır: taşırken yalnız içe aktarım yolları değişir.
+
+### Servis'e özgü kısım
 - `lib/telefon-ajani.ts` — saf kurallar:
-  - numara ve fiş no ayıklama, cihaz eşleme, WhatsApp kararı
+  - fiş no ayıklama, cihaz eşleme, WhatsApp kararı
   - teknisyen önerisi (bölge × 3 + marka × 2 + kategori, eksi açık iş yükü)
   - mesai kontrolü, sayaç
-  - Retell için komut metni, araç tanımları ve ajan ayarları
-- `lib/telefon-ajani-imza.ts`: paylaşılan sır ve Retell imzasının doğrulanması. Sır
-  tanımlı değilse uçlar kapalıdır.
-- `lib/telefon-ajani-retell.ts`: Retell'e giden istekler (ajan oluşturma ve güncelleme,
-  numara bağlama ve çözme).
+  - Servis'in komut metni, araç adları ve müşteriye söylenen cümleler
 - `lib/telefon-ajani-veri.ts`:
+  - Servis uyarlayıcısı
   - ajanın konuşma sırasında çağırdığı araçlar
   - gelen aramanın hangi ajana gideceği kararı
   - WhatsApp akışı
@@ -94,7 +112,7 @@ numara" etiketiyle açılır. Ajan hiçbir müşteri bilgisi söylemez.
 - Ana sözlüğe 3 hata kodu, 1 menü adı ve 1 aile adı eklendi.
 
 ### Testler
-- `scripts/test-telefon-ajani.mjs`: 145 kontrol, sunucu ve veritabanı gerektirmez.
+- `scripts/test-telefon-ajani.mjs`: 159 kontrol, sunucu ve veritabanı gerektirmez. Çekirdeğin alan bilmediğini ve uç işleyicisini (sahte uyarlayıcıyla) da denetler.
 - `scripts/test-telefon-ajani-eszamanli.mjs`: 35 kontrol, yerel veritabanında çalışır.
   Denetlediği durumlar:
   - aynı anda iki onay verilirse tek fiş açılır

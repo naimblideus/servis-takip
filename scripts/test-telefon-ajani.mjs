@@ -21,24 +21,31 @@ import { randomBytes } from 'node:crypto';
 const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 const oku = (yol) => readFileSync(join(KOK, yol), 'utf8');
 const g = mkdtempSync(join(tmpdir(), 'st-telefon-ajani-'));
-let A, I, M;
+// A = Servis kuralları · K = ses çekirdeği (alan bilmez) · I = imza · U = uç işleyici · M = metin
+let A, K, I, U, M;
+const CEKIRDEK = ['cagri', 'retell-govde', 'imza', 'uc', 'retell-istemci'];
 try {
   try {
     execFileSync(process.execPath, [
       join(KOK, 'node_modules/typescript/bin/tsc'),
-      join(KOK, 'src/lib/telefon-ajani.ts'), join(KOK, 'src/lib/telefon-ajani-imza.ts'),
-      join(KOK, 'src/lib/telefon-ajani-metin.ts'), join(KOK, 'src/lib/sla.ts'),
+      join(KOK, 'src/lib/telefon-ajani.ts'), join(KOK, 'src/lib/telefon-ajani-metin.ts'), join(KOK, 'src/lib/sla.ts'),
+      ...CEKIRDEK.map((c) => join(KOK, `src/lib/ses-cekirdek/${c}.ts`)),
       '--outDir', g, '--module', 'esnext', '--target', 'es2022',
       '--moduleResolution', 'bundler', '--skipLibCheck',
     ], { stdio: 'pipe' });
   } catch { /* tip hataları önemsiz, tsc ayrıca koşuyor */ }
   // tsc uzantısız bırakıyor; Node ESM uzantı ister.
-  for (const f of ['telefon-ajani.js', 'telefon-ajani-imza.js', 'telefon-ajani-metin.js']) {
+  for (const f of ['telefon-ajani.js', 'telefon-ajani-metin.js', ...CEKIRDEK.map((c) => `ses-cekirdek/${c}.js`)]) {
     const y = join(g, f);
-    writeFileSync(y, readFileSync(y, 'utf8').replace(/from '\.\/(sla|telefon-ajani)'/g, "from './$1.js'"), 'utf8');
+    writeFileSync(y, readFileSync(y, 'utf8').replace(/from '(\.\.?\/[^']+?)(?<!\.js)'/g, "from '$1.js'"), 'utf8');
   }
   A = await import(pathToFileURL(join(g, 'telefon-ajani.js')).href);
-  I = await import(pathToFileURL(join(g, 'telefon-ajani-imza.js')).href);
+  K = {
+    ...(await import(pathToFileURL(join(g, 'ses-cekirdek/cagri.js')).href)),
+    ...(await import(pathToFileURL(join(g, 'ses-cekirdek/retell-govde.js')).href)),
+  };
+  I = await import(pathToFileURL(join(g, 'ses-cekirdek/imza.js')).href);
+  U = await import(pathToFileURL(join(g, 'ses-cekirdek/uc.js')).href);
   M = await import(pathToFileURL(join(g, 'telefon-ajani-metin.js')).href);
 } finally {
   rmSync(g, { recursive: true, force: true });
@@ -53,21 +60,21 @@ const esit = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 // ── NUMARA ───────────────────────────────────────────────────────────────
 console.log('\nNumara');
-t('son10: +90 ile', A.son10('+905321234567') === '5321234567');
-t('son10: boşluklu yerel biçim', A.son10('0532 123 45 67') === '5321234567');
-t('★ son10: gizli numara tanınmaz', A.son10('anonymous') === '');
-t('★ son10: SIP adresindeki rakamlar numara sayılmaz', A.son10('sip:+905321234567@10.0.0.1') === '');
-t('son10: kısa numara tanınmaz', A.son10('12345') === '' && A.son10(undefined) === '');
-t('e164TR: cep', A.e164TR('0532 123 45 67') === '+905321234567');
-t('e164TR: sabit hat +90', A.e164TR('+90 (212) 555-11-22') === '+902125551122');
-t('e164TR: 90 ile başlayan 12 hane', A.e164TR('905321234567') === '+905321234567');
-t('e164TR: 0090 ön eki', A.e164TR('0090 532 123 45 67') === '+905321234567');
-t('e164TR: 0850 kabul', A.e164TR('0850 123 45 67') === '+908501234567');
-t('★ e164TR: 0900 (ücretli hat) REDDEDİLİR', A.e164TR('0900 123 45 67') === null);
-t('★ e164TR: yurt dışı REDDEDİLİR', A.e164TR('+1 415 555 1234') === null && A.e164TR('+44 20 7946 0958') === null);
-t('e164TR: anlamsız/boş/6xx', A.e164TR('abc') === null && A.e164TR('') === null && A.e164TR('0612 345 67 89') === null);
-t('hatNumarasiSade: rakamlar', A.hatNumarasiSade('+90 850 123 45 67') === '908501234567' && A.hatNumarasiSade('+1 (415) 555-1234') === '14155551234');
-t('hatNumarasiSade: geçersiz', A.hatNumarasiSade('abc') === null && A.hatNumarasiSade('123') === null && A.hatNumarasiSade('+90 850; DROP') === null);
+t('son10: +90 ile', K.son10('+905321234567') === '5321234567');
+t('son10: boşluklu yerel biçim', K.son10('0532 123 45 67') === '5321234567');
+t('★ son10: gizli numara tanınmaz', K.son10('anonymous') === '');
+t('★ son10: SIP adresindeki rakamlar numara sayılmaz', K.son10('sip:+905321234567@10.0.0.1') === '');
+t('son10: kısa numara tanınmaz', K.son10('12345') === '' && K.son10(undefined) === '');
+t('e164TR: cep', K.e164TR('0532 123 45 67') === '+905321234567');
+t('e164TR: sabit hat +90', K.e164TR('+90 (212) 555-11-22') === '+902125551122');
+t('e164TR: 90 ile başlayan 12 hane', K.e164TR('905321234567') === '+905321234567');
+t('e164TR: 0090 ön eki', K.e164TR('0090 532 123 45 67') === '+905321234567');
+t('e164TR: 0850 kabul', K.e164TR('0850 123 45 67') === '+908501234567');
+t('★ e164TR: 0900 (ücretli hat) REDDEDİLİR', K.e164TR('0900 123 45 67') === null);
+t('★ e164TR: yurt dışı REDDEDİLİR', K.e164TR('+1 415 555 1234') === null && K.e164TR('+44 20 7946 0958') === null);
+t('e164TR: anlamsız/boş/6xx', K.e164TR('abc') === null && K.e164TR('') === null && K.e164TR('0612 345 67 89') === null);
+t('hatNumarasiSade: rakamlar', K.hatNumarasiSade('+90 850 123 45 67') === '908501234567' && K.hatNumarasiSade('+1 (415) 555-1234') === '14155551234');
+t('hatNumarasiSade: geçersiz', K.hatNumarasiSade('abc') === null && K.hatNumarasiSade('123') === null && K.hatNumarasiSade('+90 850; DROP') === null);
 
 // ── FİŞ NUMARASI ─────────────────────────────────────────────────────────
 console.log('\nFiş numarası');
@@ -89,29 +96,29 @@ const govde = {
   call: { agent_id: 'ag_1', call_id: 'call_1', from_number: '+905321234567', to_number: '+908501234567' },
   args: { fis_no: '284', from_number: '+905559999999', telefon: '05559999999' },
 };
-const b0 = A.cagriBaglami(govde);
+const b0 = K.cagriBaglami(govde);
 t('★ kimlik call.from_number\'dan; kökteki ve args\'taki numara YOK SAYILIR', b0?.arayanSon10 === '5321234567', b0);
 t('ajan/çağrı kimliği call\'dan', b0?.agentId === 'ag_1' && b0?.callId === 'call_1');
-t('★ call yoksa gövde geçersiz (köke düşülmez)', A.cagriBaglami({ agent_id: 'ag_1', from_number: '+905321234567' }) === null);
-t('call dizi ya da gövde boşsa geçersiz', A.cagriBaglami({ call: [] }) === null && A.cagriBaglami(null) === null);
-t('araç adı ve argümanlar', esit(A.aracCagrisi(govde), { ad: 'fis_durumu', args: govde.args }) && esit(A.aracCagrisi({ name: 'x', args: [1] }).args, {}));
-t('★ bilinmeyen/eksik ajan kimliği → RED (numaraya düşülmez)', A.kiraciKarari(null, { tenantId: 'x', acik: true, bayiEtkin: true }).tur === 'RED' && A.kiraciKarari('ag_1', null).tur === 'RED');
-t('açık ajan + etkin bayi → ACIK', esit(A.kiraciKarari('ag_1', { tenantId: 't1', acik: true, bayiEtkin: true }), { tur: 'ACIK', tenantId: 't1' }));
-t('★ kapalı ajan ya da askıdaki bayi → KAPALI', A.kiraciKarari('ag_1', { tenantId: 't1', acik: false, bayiEtkin: true }).tur === 'KAPALI' && A.kiraciKarari('ag_1', { tenantId: 't1', acik: true, bayiEtkin: false }).tur === 'KAPALI');
-t('bayiEtkin: askıda/silinmiş/kapalı değil', A.bayiEtkin({ isActive: true }) && !A.bayiEtkin({ isActive: true, isSuspended: true }) && !A.bayiEtkin({ isActive: true, deletedAt: new Date() }) && !A.bayiEtkin({ isActive: false }) && !A.bayiEtkin(null));
+t('★ call yoksa gövde geçersiz (köke düşülmez)', K.cagriBaglami({ agent_id: 'ag_1', from_number: '+905321234567' }) === null);
+t('call dizi ya da gövde boşsa geçersiz', K.cagriBaglami({ call: [] }) === null && K.cagriBaglami(null) === null);
+t('araç adı ve argümanlar', esit(K.aracCagrisi(govde), { ad: 'fis_durumu', args: govde.args }) && esit(K.aracCagrisi({ name: 'x', args: [1] }).args, {}));
+t('★ bilinmeyen/eksik ajan kimliği → RED (numaraya düşülmez)', K.kiraciKarari(null, { tenantId: 'x', acik: true, kiraciEtkin: true }).tur === 'RED' && K.kiraciKarari('ag_1', null).tur === 'RED');
+t('açık ajan + etkin bayi → ACIK', esit(K.kiraciKarari('ag_1', { tenantId: 't1', acik: true, kiraciEtkin: true }), { tur: 'ACIK', tenantId: 't1' }));
+t('★ kapalı ajan ya da askıdaki bayi → KAPALI', K.kiraciKarari('ag_1', { tenantId: 't1', acik: false, kiraciEtkin: true }).tur === 'KAPALI' && K.kiraciKarari('ag_1', { tenantId: 't1', acik: true, kiraciEtkin: false }).tur === 'KAPALI');
+t('bayiEtkin: askıda/silinmiş/kapalı değil', K.kiraciEtkin({ isActive: true }) && !K.kiraciEtkin({ isActive: true, isSuspended: true }) && !K.kiraciEtkin({ isActive: true, deletedAt: new Date() }) && !K.kiraciEtkin({ isActive: false }) && !K.kiraciEtkin(null));
 
 // ── GELEN ARAMA ──────────────────────────────────────────────────────────
 console.log('\nGelen arama (bot kapalıyken hat açık kalır)');
-const e = (x) => ({ acik: true, bayiEtkin: true, bayiSilindi: false, asilAgentId: 'asil', aktarmaAgentId: 'aktar', ...x });
-t('tanınmayan hat → boş cevap (numaranın varsayılanı)', esit(A.gelenAramaYaniti(null), { call_inbound: {} }));
-t('açık ajan → asıl ajan', esit(A.gelenAramaYaniti(e({})), { call_inbound: { override_agent_id: 'asil' } }));
-t('★ kapalı ajan → YALNIZ AKTARMA ajanı (bot konuşmaz, hat kapanmaz)', esit(A.gelenAramaYaniti(e({ acik: false })), { call_inbound: { override_agent_id: 'aktar' } }));
-t('★ askıdaki bayi → aktarma ajanı', esit(A.gelenAramaYaniti(e({ bayiEtkin: false })), { call_inbound: { override_agent_id: 'aktar' } }));
-t('asıl ajan kurulmamışsa → aktarma ajanı', esit(A.gelenAramaYaniti(e({ asilAgentId: null })), { call_inbound: { override_agent_id: 'aktar' } }));
-t('silinmiş bayinin hattı reddedilir', esit(A.gelenAramaYaniti(e({ bayiSilindi: true })), { call_inbound: { reject: true } }));
+const e = (x) => ({ acik: true, kiraciEtkin: true, kiraciSilindi: false, asilAgentId: 'asil', aktarmaAgentId: 'aktar', ...x });
+t('tanınmayan hat → boş cevap (numaranın varsayılanı)', esit(K.gelenAramaYaniti(null), { call_inbound: {} }));
+t('açık ajan → asıl ajan', esit(K.gelenAramaYaniti(e({})), { call_inbound: { override_agent_id: 'asil' } }));
+t('★ kapalı ajan → YALNIZ AKTARMA ajanı (bot konuşmaz, hat kapanmaz)', esit(K.gelenAramaYaniti(e({ acik: false })), { call_inbound: { override_agent_id: 'aktar' } }));
+t('★ askıdaki bayi → aktarma ajanı', esit(K.gelenAramaYaniti(e({ kiraciEtkin: false })), { call_inbound: { override_agent_id: 'aktar' } }));
+t('asıl ajan kurulmamışsa → aktarma ajanı', esit(K.gelenAramaYaniti(e({ asilAgentId: null })), { call_inbound: { override_agent_id: 'aktar' } }));
+t('silinmiş bayinin hattı reddedilir', esit(K.gelenAramaYaniti(e({ kiraciSilindi: true })), { call_inbound: { reject: true } }));
 t('★ kapalı ajanda asıl ajan HİÇBİR durumda seçilmez',
-  [e({ acik: false }), e({ acik: false, aktarmaAgentId: null }), e({ bayiEtkin: false, aktarmaAgentId: null })]
-    .every((x) => A.gelenAramaYaniti(x).call_inbound.override_agent_id !== 'asil'));
+  [e({ acik: false }), e({ acik: false, aktarmaAgentId: null }), e({ kiraciEtkin: false, aktarmaAgentId: null })]
+    .every((x) => K.gelenAramaYaniti(x).call_inbound.override_agent_id !== 'asil'));
 
 // ── CİHAZ EŞLEME ─────────────────────────────────────────────────────────
 console.log('\nCihaz eşleme');
@@ -195,7 +202,7 @@ t('cumartesi değil', A.mesaideMi(new Date('2026-11-21T07:00:00Z'), takvim) === 
 t('tatil günü değil', A.mesaideMi(new Date('2026-11-19T07:00:00Z'), takvim) === false);
 t('ay başı İstanbul saatiyle', A.ayBasi(new Date('2026-11-17T10:00:00Z')).toISOString() === '2026-10-31T21:00:00.000Z'
   && A.ayBasi(new Date('2026-11-30T22:30:00Z')).toISOString() === '2026-11-30T21:00:00.000Z');
-const sn = A.sinirlayici(3, 60_000);
+const sn = K.sinirlayici(3, 60_000);
 t('★ bir çağrıda en çok 3 fiş sorgusu', sn('c1', 0) && sn('c1', 1) && sn('c1', 2) && !sn('c1', 3) && sn('c2', 3));
 t('pencere dolunca yeniden; çağrı kimliği yoksa hiç', sn('c1', 70_000) && !sn(null, 0));
 t('sayaç: açılan/onaylanan/mesajdan/reddedilen/bekleyen', esit(A.sayacTopla([
@@ -209,10 +216,10 @@ const sir = randomBytes(16).toString('hex').slice(0, 24);
 const araclar = A.servisAraclari({ url: 'https://ornek.test/api/voice/tools', sir }, '+905321234567');
 const ozel = araclar.filter((a) => a.type === 'custom');
 t('★ araç adları ARAC_ADLARI ile birebir', esit(ozel.map((a) => a.name), [...A.ARAC_ADLARI]));
-t('★ sır BAŞLIKTA, adres https, yöntem POST', ozel.every((a) => a.headers?.[A.SIR_BASLIGI] === sir && a.url.startsWith('https://') && a.method === 'POST'));
+t('★ sır BAŞLIKTA, adres https, yöntem POST', ozel.every((a) => a.headers?.[K.SIR_BASLIGI] === sir && a.url.startsWith('https://') && a.method === 'POST'));
 t('zaman aşımı ≤ 10 sn (varsayılan 120 sn arayanı susturur)', ozel.every((a) => a.timeout_ms > 0 && a.timeout_ms <= 10_000));
 const paramlar = ozel.flatMap((a) => Object.keys(a.parameters?.properties ?? {}));
-t('★ hiçbir parametre çağrı alanı adını taşımaz (from_number, call, agent_id…)', paramlar.every((p) => !A.YASAK_PARAMETRELER.includes(p)), paramlar);
+t('★ hiçbir parametre çağrı alanı adını taşımaz (from_number, call, agent_id…)', paramlar.every((p) => !K.YASAK_PARAMETRELER.includes(p)), paramlar);
 const aktarma = araclar.find((a) => a.type === 'transfer_call');
 t('aktarma aracı + ile ve soğuk aktarma', aktarma?.transfer_destination?.number === '+905321234567' && aktarma?.transfer_option?.type === 'cold_transfer');
 t('bitirme aracı var', araclar.some((a) => a.type === 'end_call' && a.name === A.BITIR_ARACI));
@@ -221,35 +228,35 @@ t('aktarma ajanı yalnız aktarır', esit(A.aktarmaAraclari('905321234567').map(
 const acilis = A.acilisCumlesi('Acme "Ofis"\nSistemi', 'Ayşe');
 t('★ açılış yapay zekâ ve kayıt beyanıyla başlar', /yapay zekâ asistanıyım/.test(acilis) && /kayda alınabilir/.test(acilis));
 t('bayi adı komut metnine temizlenerek girer (tırnak/satır sonu yok)', !acilis.includes('"') && !acilis.includes('\n') && acilis.includes('Acme Ofis Sistemi'));
-t('asistan adı yalnız harf', A.asistanAdiTemizle('Ayşe') === 'Ayşe' && A.asistanAdiTemizle('<script>') === 'Deniz' && A.asistanAdiTemizle('A') === 'Deniz');
+t('asistan adı yalnız harf', K.asistanAdiTemizle('Ayşe') === 'Ayşe' && K.asistanAdiTemizle('<script>') === 'Deniz' && K.asistanAdiTemizle('A') === 'Deniz');
 const prompt = A.ajanPromptu({ bayiAdi: 'Acme', asistanAdi: 'Deniz' });
 t('★ komut metni yasakları sayar: fiyat, geliş sözü, "fiş açıldı", müşteri bilgisi, teknik tarif', ['FİYAT SÖYLEME', 'GELİŞ SÖZÜ', '"FİŞ AÇILDI" DEME', 'MÜŞTERİ YA DA CİHAZ BİLGİSİ OKUMA', 'TEKNİK YÖNLENDİRME'].every((s) => prompt.includes(s)));
 t('komut metni araç cümlesini AYNEN söyletir', prompt.includes('AYNEN söyle'));
 t('★ komut metnindeki araç adları tanımlarla aynı', [...A.ARAC_ADLARI, A.AKTAR_ARACI, A.BITIR_ARACI].every((a) => prompt.includes(a)));
 t('komut metni 8.000 jeton altında', prompt.length / 4 < 8000, prompt.length);
-const llm = A.llmGovdesi({ prompt, araclar, acilis });
+const llm = K.llmGovdesi({ prompt, araclar, acilis });
 t('LLM: ajan başlar, açılış sabit', llm.start_speaker === 'agent' && llm.begin_message === acilis && llm.general_tools === araclar);
 t('★ komut metninde sır yok (yalnız araç başlığında)', !llm.general_prompt.includes(sir) && !llm.begin_message.includes(sir));
-const ayar = A.ajanGovdesi({ webhookUrl: 'https://ornek.test/api/voice/webhook' });
+const ayar = K.ajanGovdesi({ webhookUrl: 'https://ornek.test/api/voice/webhook' });
 t('ajan: tr-TR, 25 sn sessizlik, 12 dk tavan, İstanbul saati', ayar.language === 'tr-TR' && ayar.end_call_after_silence_ms === 25_000 && ayar.max_call_duration_ms === 720_000 && ayar.timezone === 'Europe/Istanbul');
 t('★ ajan: kayıt saklama süresi var (KVKK), webhook AÇIKÇA bizim uç', ayar.data_storage_retention_days === 30 && ayar.webhook_url === 'https://ornek.test/api/voice/webhook');
 t('yapay ortam sesi eklenmiyor', !('ambient_sound' in ayar));
 
 // ── ADRES, KURULUM KAPILARI, HAZIRLIK ────────────────────────────────────
 console.log('\nKurulum kapıları');
-t('araç adresi: VOICE_TOOL_BASE_URL önce', A.aracTabani({ VOICE_TOOL_BASE_URL: 'https://nextusservis.com/', NEXTAUTH_URL: 'https://baska.com' }) === 'https://nextusservis.com');
-t('★ http adres https\'e ÇEVRİLMEZ', A.aracTabani({ NEXTAUTH_URL: 'http://nextusservis.com' }) === null);
-t('★ localhost reddedilir; sabit adrese DÜŞÜLMEZ', A.aracTabani({ NEXTAUTH_URL: 'https://localhost:3002' }) === null && A.aracTabani({}) === null);
+t('araç adresi: VOICE_TOOL_BASE_URL önce', K.aracTabani({ VOICE_TOOL_BASE_URL: 'https://nextusservis.com/', NEXTAUTH_URL: 'https://baska.com' }) === 'https://nextusservis.com');
+t('★ http adres https\'e ÇEVRİLMEZ', K.aracTabani({ NEXTAUTH_URL: 'http://nextusservis.com' }) === null);
+t('★ localhost reddedilir; sabit adrese DÜŞÜLMEZ', K.aracTabani({ NEXTAUTH_URL: 'https://localhost:3002' }) === null && K.aracTabani({}) === null);
 const tamEnv = { RETELL_API_KEY: 'k', RETELL_VOICE_ID: 'v', VOICE_TOOL_SECRET: sir, VOICE_TOOL_BASE_URL: 'https://ornek.test' };
 const ak = { aktarmaTelefonu: '+905321234567', hatNumarasi: '908501234567' };
-t('her şey tamam → kapı açık', A.kurulumKapisi(tamEnv, ak, { yeniAjan: true, hatGerekli: true }) === null);
-t('anahtar yok', A.kurulumKapisi({ ...tamEnv, RETELL_API_KEY: '' }, ak, { yeniAjan: true, hatGerekli: true }) === 'ANAHTAR_YOK');
-t('adres yok', A.kurulumKapisi({ ...tamEnv, VOICE_TOOL_BASE_URL: '' }, ak, { yeniAjan: true, hatGerekli: true }) === 'ARAC_ADRESI_YOK');
-t('★ kısa sır → kapalı', A.kurulumKapisi({ ...tamEnv, VOICE_TOOL_SECRET: 'kisa' }, ak, { yeniAjan: true, hatGerekli: true }) === 'SIR_YOK');
-t('★ aktarma yok → kurulmaz (bot kapalıyken hattın tek yolu)', A.kurulumKapisi(tamEnv, { ...ak, aktarmaTelefonu: null }, { yeniAjan: true, hatGerekli: true }) === 'AKTARMA_YOK');
-t('★ aktarma = ajan hattı → döngü, kurulmaz', A.kurulumKapisi(tamEnv, { aktarmaTelefonu: '+908501234567', hatNumarasi: '908501234567' }, { yeniAjan: false, hatGerekli: true }) === 'AKTARMA_YOK');
-t('ses kimliği yalnız yeni ajanda şart', A.kurulumKapisi({ ...tamEnv, RETELL_VOICE_ID: '' }, ak, { yeniAjan: true, hatGerekli: true }) === 'SES_KIMLIGI_YOK' && A.kurulumKapisi({ ...tamEnv, RETELL_VOICE_ID: '' }, ak, { yeniAjan: false, hatGerekli: true }) === null);
-t('hat yalnız bağlarken şart', A.kurulumKapisi(tamEnv, { ...ak, hatNumarasi: null }, { yeniAjan: false, hatGerekli: true }) === 'HAT_YOK' && A.kurulumKapisi(tamEnv, { ...ak, hatNumarasi: null }, { yeniAjan: false, hatGerekli: false }) === null);
+t('her şey tamam → kapı açık', K.kurulumKapisi(tamEnv, ak, { yeniAjan: true, hatGerekli: true }) === null);
+t('anahtar yok', K.kurulumKapisi({ ...tamEnv, RETELL_API_KEY: '' }, ak, { yeniAjan: true, hatGerekli: true }) === 'ANAHTAR_YOK');
+t('adres yok', K.kurulumKapisi({ ...tamEnv, VOICE_TOOL_BASE_URL: '' }, ak, { yeniAjan: true, hatGerekli: true }) === 'ARAC_ADRESI_YOK');
+t('★ kısa sır → kapalı', K.kurulumKapisi({ ...tamEnv, VOICE_TOOL_SECRET: 'kisa' }, ak, { yeniAjan: true, hatGerekli: true }) === 'SIR_YOK');
+t('★ aktarma yok → kurulmaz (bot kapalıyken hattın tek yolu)', K.kurulumKapisi(tamEnv, { ...ak, aktarmaTelefonu: null }, { yeniAjan: true, hatGerekli: true }) === 'AKTARMA_YOK');
+t('★ aktarma = ajan hattı → döngü, kurulmaz', K.kurulumKapisi(tamEnv, { aktarmaTelefonu: '+908501234567', hatNumarasi: '908501234567' }, { yeniAjan: false, hatGerekli: true }) === 'AKTARMA_YOK');
+t('ses kimliği yalnız yeni ajanda şart', K.kurulumKapisi({ ...tamEnv, RETELL_VOICE_ID: '' }, ak, { yeniAjan: true, hatGerekli: true }) === 'SES_KIMLIGI_YOK' && K.kurulumKapisi({ ...tamEnv, RETELL_VOICE_ID: '' }, ak, { yeniAjan: false, hatGerekli: true }) === null);
+t('hat yalnız bağlarken şart', K.kurulumKapisi(tamEnv, { ...ak, hatNumarasi: null }, { yeniAjan: false, hatGerekli: true }) === 'HAT_YOK' && K.kurulumKapisi(tamEnv, { ...ak, hatNumarasi: null }, { yeniAjan: false, hatGerekli: false }) === null);
 const hz = A.hazirlikListesi(tamEnv, { ...ak, kurulu: true }, false);
 t('★ hazırlık listesi yalnız evet/hayır taşır (sır ekrana çıkmaz)', hz.length === 8 && hz.every((h) => typeof h.tamam === 'boolean' && Object.keys(h).join() === 'kod,tamam') && !JSON.stringify(hz).includes(sir));
 
@@ -286,8 +293,7 @@ console.log('\nKaynak bekçisi (kurallar kodda)');
 const veri = oku('src/lib/telefon-ajani-veri.ts');
 const ajanDosyalari = {
   'lib/telefon-ajani.ts': oku('src/lib/telefon-ajani.ts'),
-  'lib/telefon-ajani-imza.ts': oku('src/lib/telefon-ajani-imza.ts'),
-  'lib/telefon-ajani-retell.ts': oku('src/lib/telefon-ajani-retell.ts'),
+  ...Object.fromEntries(CEKIRDEK.map((c) => [`ses-cekirdek/${c}`, oku(`src/lib/ses-cekirdek/${c}.ts`)])),
   'api/voice/tools': oku('src/app/api/voice/tools/route.ts'),
   'api/voice/webhook': oku('src/app/api/voice/webhook/route.ts'),
 };
@@ -302,7 +308,55 @@ t('★ ajan medyaya dokunmaz (sayaç fotoğrafı okunmaz)', !/downloadMedia|medi
 const durumlar = [...veri.slice(veri.indexOf('export async function aracCalistir'), veri.indexOf('/** Yalnız "tanındı mı"')).matchAll(/case '(\w+)':/g)].map((x) => x[1]);
 t('★ uçtaki switch = ARAC_ADLARI (uyuşmayan ad "aktarıyorum"a düşer)', esit(durumlar, [...A.ARAC_ADLARI]), durumlar);
 t('★ IDOR: fiş sorgusu ServiceTicket.customerId ile (cihaz üzerinden değil)', /customerId: \{ in: m\.map/.test(veri) && !/device: \{ customerId/.test(veri));
-t('★ araç ucu sırrı sorgu dizesinden almaz', !/searchParams/.test(ajanDosyalari['api/voice/tools']) && !/===\s*sir/.test(ajanDosyalari['lib/telefon-ajani-imza.ts']));
+t('★ araç ucu sırrı sorgu dizesinden almaz', ['api/voice/tools', 'ses-cekirdek/uc'].every((k) => !/searchParams/.test(ajanDosyalari[k])) && !/===\s*sir/.test(ajanDosyalari['ses-cekirdek/imza']));
+
+// ── ÇEKİRDEK ALAN BİLMEZ ─────────────────────────────────────────────────
+// Aynı çekirdek Frigora ve Klinik'e de gidecek (ileride tek paket). Servis'e,
+// Prisma'ya, Next'e ya da @/lib'e bağlanırsa taşınamaz hâle gelir.
+console.log('\nSes çekirdeği (alan bilmez, taşınabilir)');
+const cekirdekBagi = Object.entries(ajanDosyalari)
+  .filter(([k]) => k.startsWith('ses-cekirdek/'))
+  .flatMap(([k, s]) => [...s.matchAll(/from '([^']+)'/g)].map((x) => [k, x[1]]))
+  .filter(([, yol]) => !/^\.\/(cagri|retell-govde|imza|uc|retell-istemci)$/.test(yol) && yol !== 'crypto');
+t('★ çekirdek yalnız kendi dosyalarını ve crypto\'yu içe aktarır (Prisma, Next, @/lib, Servis yok)', cekirdekBagi.length === 0, cekirdekBagi);
+const cekirdekMetni = CEKIRDEK.map((c) => ajanDosyalari[`ses-cekirdek/${c}`]).join('\n');
+t('çekirdekte Servis kavramı geçmez (fiş, cihaz, ServiceTicket, taslak)', !/serviceTicket|ServiceTicket|\bfis[A-Z_]|cihaz|taslak/i.test(cekirdekMetni.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')));
+t('Servis uyarlayıcısı tek yerde, iki uç onu kullanıyor', /export const servisSesUyarlayici: SesUyarlayici/.test(veri)
+  && /aracIstegi\([\s\S]*servisSesUyarlayici/.test(ajanDosyalari['api/voice/tools']) && /olayIstegi\([\s\S]*servisSesUyarlayici/.test(ajanDosyalari['api/voice/webhook']));
+
+// ── UÇ İŞLEYİCİ (sahte uyarlayıcıyla) ───────────────────────────────────
+console.log('\nUç işleyici (çekirdek)');
+{
+  const anahtar2 = `test-${randomBytes(8).toString('hex')}`;
+  const sir2 = randomBytes(16).toString('hex').slice(0, 24);
+  const cagrilar = [];
+  const hata = { ok: false, devret: true, soyle: 'HATA' };
+  const u = {
+    kiraciBul: async (id) => (id === 'ag_1' ? { tenantId: 't1', acik: true } : null),
+    aracCalistir: async (b, ad, args) => { cagrilar.push({ b, ad, args }); return { ok: true, soyle: 'tamam' }; },
+    hataCevabi: () => hata,
+    gelenArama: async (no) => ({ call_inbound: { override_agent_id: `ajan-${no}` } }),
+  };
+  const istek = (govde, { sir = sir2, imzali = true } = {}) => {
+    const ham = typeof govde === 'string' ? govde : JSON.stringify(govde);
+    const b = { 'x-nextus-tool-secret': sir, 'x-retell-signature': imzali ? I.retellImzasi(ham, anahtar2) : null };
+    return { ham, baslik: (ad) => b[ad] ?? null, sir: sir2, anahtar: anahtar2 };
+  };
+  const r1 = await U.aracIstegi(istek(govde), u);
+  t('★ sır + imza doğru → uyarlayıcı çağrılır; kimlik call\'dan', r1.durum === 200 && cagrilar[0]?.b.arayanSon10 === '5321234567' && cagrilar[0]?.b.tenantId === 't1' && cagrilar[0]?.ad === 'fis_durumu', cagrilar[0]);
+  t('★ sır yanlış → 401, uyarlayıcı çağrılmaz', (await U.aracIstegi(istek(govde, { sir: 'yanlis-sir-yanlis-sir' }), u)).durum === 401 && cagrilar.length === 1);
+  t('★ imza yok → 401', (await U.aracIstegi(istek(govde, { imzali: false }), u)).durum === 401 && cagrilar.length === 1);
+  t('★ sır tanımsız → uç kapalı', (await U.aracIstegi({ ...istek(govde), sir: undefined }, u)).durum === 401);
+  t('bilinmeyen ajan → hata cümlesi (susmaz)', (await U.aracIstegi(istek({ ...govde, call: { ...govde.call, agent_id: 'yok' } }), u)).govde === hata && cagrilar.length === 1);
+  t('bozuk gövde / call yok → hata cümlesi', (await U.aracIstegi(istek('{bozuk'), u)).govde === hata && (await U.aracIstegi(istek({ name: 'x', args: {} }), u)).govde === hata);
+  const patlak = { ...u, aracCalistir: async () => { throw new Error('vt'); } };
+  t('uyarlayıcı patlarsa da cümle döner', (await U.aracIstegi(istek(govde), patlak)).govde === hata);
+  const o1 = await U.olayIstegi(istek({ event: 'call_inbound', call_inbound: { to_number: '+908501234567' } }), u);
+  t('gelen arama → uyarlayıcının kararı', o1.durum === 200 && o1.govde.call_inbound.override_agent_id === 'ajan-+908501234567');
+  t('★ olay imzasızsa 401 (Retell varsayılana, yani aktarmaya döner)', (await U.olayIstegi(istek({ event: 'call_inbound' }, { imzali: false }), u)).durum === 401);
+  t('öteki olaylar yalnız alındı, saklanmaz', (await U.olayIstegi(istek({ event: 'call_ended', call: {} }), u)).durum === 204);
+  t('gelen arama kararı patlarsa boş cevap (aktarma ajanı)', JSON.stringify((await U.olayIstegi(istek({ event: 'call_inbound', call_inbound: {} }), { gelenArama: async () => { throw new Error('x'); } })).govde) === JSON.stringify({ call_inbound: {} }));
+}
 t('kiracı yalnız ajan kimliğiyle (araç yolunda numaraya bakılmaz)', /where: \{ retellAgentId: agentId \}/.test(veri) && !/hatNumarasi/.test(veri.slice(veri.indexOf('export async function aracKiracisi'), veri.indexOf('export async function aracCalistir'))));
 const wh = oku('src/app/api/whatsapp/webhook/route.ts');
 t('★ WhatsApp: ajan ayarı okunamazsa eski otomatik cevap çalışır', /catch \(e: any\) \{ console\.error\('\[whatsapp-webhook\] ajan ayarı okunamadı/.test(wh) && /handleAutoReply\(/.test(wh));

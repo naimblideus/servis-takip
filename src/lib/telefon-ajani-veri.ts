@@ -24,18 +24,28 @@ import { sendText, waOutConfigured, looksLikeFaultReport } from '@/lib/whatsapp-
 import { numaraninBayileri, paylasimliWhatsappAcik } from '@/lib/whatsapp-inbound';
 import { disariyaMesajKapali } from '@/lib/demo-koruma';
 import { MIN_CONFIDENCE, type Suggestion } from '@/lib/whatsapp-suggest';
+// Alan bilmeyen ortak kısım (kimlik, kiracı, gelen arama, Retell) — ses-cekirdek/.
+import {
+  e164TR, gelenAramaYaniti, hatNumarasiSade, kiraciEtkin as bayiEtkin, kiraciKarari, sinirlayici, son10,
+  type AracCevabi,
+} from '@/lib/ses-cekirdek/cagri';
+import {
+  ajanGovdesi, aracTabani, asistanAdiTemizle, kurulumKapisi, type KurulumKodu, type KurulumOrtami,
+} from '@/lib/ses-cekirdek/retell-govde';
+import { ajanGuncelle, ajanOlustur, hattiBagla, hattiCoz, type LlmIcerigi } from '@/lib/ses-cekirdek/retell-istemci';
+import type { SesUyarlayici } from '@/lib/ses-cekirdek/uc';
+// Servis'e özgü kurallar (fiş, cihaz, WhatsApp, teknisyen, komut metni).
 import {
   CUMLE, FIS_SORGU_SINIRI, WA_PENCERE_MS,
-  aktarmaAcilisi, aktarmaAraclari, aktarmaPromptu, acilisCumlesi, ajanGovdesi, ajanPromptu,
-  aracTabani, asistanAdiTemizle, ayBasi, bayiEtkin, cihazBulCevabi, cihazEsle, cihazEsleMetin,
-  devirCevabi, e164TR, fisNoCikar, gelenAramaYaniti, hataCevabi, hatNumarasiSade, hazirlikListesi,
-  kiraciKarari, kurulumKapisi, mesaideMi, notrCevap, sade, sayacTopla, servisAraclari, sesDurumCumlesi,
-  sinirlayici, son10, taslakBirlestir, teknisyenSec, waDurumCumlesi, waKarari,
-  type AracCevabi, type CihazAday, type CihazNeden, type KurulumKodu, type KurulumOrtami,
+  aktarmaAcilisi, aktarmaAraclari, aktarmaPromptu, acilisCumlesi, ajanPromptu,
+  ayBasi, cihazBulCevabi, cihazEsle, cihazEsleMetin,
+  devirCevabi, fisNoCikar, hataCevabi, hazirlikListesi,
+  mesaideMi, notrCevap, sade, sayacTopla, servisAraclari, sesDurumCumlesi,
+  taslakBirlestir, teknisyenSec, waDurumCumlesi, waKarari,
+  type CihazAday, type CihazNeden,
   type OneriVerisi, type TaslakAlanlari, type TaslakSayaci, type TeknisyenOnerisi, type WaArizaKarari,
 } from '@/lib/telefon-ajani';
 import { ajanMetni, doldurMetin, numaraGoster } from '@/lib/telefon-ajani-metin';
-import { ajanGuncelle, ajanOlustur, hattiBagla, hattiCoz, type LlmIcerigi } from '@/lib/telefon-ajani-retell';
 
 const GUN_MS = 86_400_000;
 const BAYI_SECIM = { isActive: true, isSuspended: true, deletedAt: true } as const;
@@ -135,7 +145,7 @@ export async function aracKiracisi(agentId: string | null): Promise<{ tenantId: 
     where: { retellAgentId: agentId },
     select: { tenantId: true, acik: true, tenant: { select: BAYI_SECIM } },
   });
-  const k = kiraciKarari(agentId, a ? { tenantId: a.tenantId, acik: a.acik, bayiEtkin: bayiEtkin(a.tenant) } : null);
+  const k = kiraciKarari(agentId, a ? { tenantId: a.tenantId, acik: a.acik, kiraciEtkin: bayiEtkin(a.tenant) } : null);
   return k.tur === 'RED' ? null : { tenantId: k.tenantId, acik: k.tur === 'ACIK' };
 }
 
@@ -322,8 +332,8 @@ export async function gelenAramaKarari(arananNumara: unknown) {
   if (!a) return gelenAramaYaniti(null);
   return gelenAramaYaniti({
     acik: a.acik,
-    bayiEtkin: bayiEtkin(a.tenant),
-    bayiSilindi: Boolean(a.tenant.deletedAt),
+    kiraciEtkin: bayiEtkin(a.tenant),
+    kiraciSilindi: Boolean(a.tenant.deletedAt),
     asilAgentId: a.retellAgentId,
     aktarmaAgentId: a.retellAktarmaAgentId,
   });
@@ -1144,3 +1154,18 @@ export async function hatAyarla(
   }
   return { ok: true, uyarilar };
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// SERVİS UYARLAYICISI — ses çekirdeğinin (lib/ses-cekirdek) Servis'e bağlandığı TEK yer
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Çekirdek doğrulamayı, kimliği ve kiracı kararını yapar; Servis yalnız
+ * bunları verir. Frigora/Klinik kendi uyarlayıcısını yazar, çekirdek aynı kalır.
+ */
+export const servisSesUyarlayici: SesUyarlayici = {
+  kiraciBul: aracKiracisi,
+  aracCalistir,
+  hataCevabi,
+  gelenArama: gelenAramaKarari,
+};

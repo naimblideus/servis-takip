@@ -28,6 +28,12 @@
  * Bu dosya SAFtır: React yok, Prisma yok, crypto yok. İstemci de içe aktarabilir.
  */
 import { yerelDamga, anaCevir, type CalismaTakvimi } from './sla';
+// Alan bilmeyen ortak kısım (Frigora ve Klinik de kullanacak): ses-cekirdek/.
+import { e164TR, type AracCevabi } from './ses-cekirdek/cagri';
+import {
+  aktarmaAraci as cekirdekAktarmaAraci, aracTabani, asistanAdiTemizle, bitirmeAraci, guvenliAd, ozelArac, sirYeterli,
+  type KurulumOrtami, type RetellArac,
+} from './ses-cekirdek/retell-govde';
 
 // ─────────────────────────────────────────────────────────────────────────
 // SABİTLER
@@ -43,30 +49,12 @@ export const TASLAK_DURUMLARI: readonly TaslakDurumu[] = ['BEKLIYOR', 'ONAYLANDI
 export const WA_PENCERE_MS = 24 * 3_600_000;
 /** Sesli kanalda bir çağrıda en çok kaç fiş durumu sorulabilir. */
 export const FIS_SORGU_SINIRI = 3;
-/** Ses kayıtlarının Retell'de kalacağı gün (KVKK). Boş bırakmak süresiz demek. */
-export const SES_SAKLAMA_GUN = 30;
-/** Sessiz hatta ne kadar beklenir — Retell varsayılanı 10 dk, fatura sızdırır. */
-export const SESSIZLIK_MS = 25_000;
-/** Çağrı tavanı — varsayılan 1 saat; takılan çağrı pahalıya patlar. */
-export const MAKS_CAGRI_MS = 12 * 60_000;
-/** Araç cevabı bu sürede gelmezse Retell hata sayar (varsayılanı 120 sn). */
-export const ARAC_ZAMAN_ASIMI_MS = 8_000;
-/** Araç ucunun beklediği sır başlığı. Sorgu dizesinden sır KABUL EDİLMEZ (loglara düşer). */
-export const SIR_BASLIGI = 'x-nextus-tool-secret';
-/** Sırrın en kısa uzunluğu. Altındaysa uç tamamen kapalıdır. */
-export const SIR_EN_AZ = 16;
 
 /** Konuşma sırasında bizim ucumuzu çağıran araçlar. Uçtaki `switch` ile BİREBİR. */
 export const ARAC_ADLARI = ['musteri_tani', 'cihaz_bul', 'taslak_ac', 'fis_durumu', 'insana_devret'] as const;
 export type AracAdi = (typeof ARAC_ADLARI)[number];
 export const AKTAR_ARACI = 'yetkiliye_aktar';
 export const BITIR_ARACI = 'gorusmeyi_bitir';
-/**
- * Araç parametresi olarak KULLANILAMAYACAK adlar. Model bu adlarla bir
- * değer doldurursa gövdedeki gerçek çağrı alanlarıyla karışabilirdi
- * (ör. args.from_number ile kimlik taklidi).
- */
-export const YASAK_PARAMETRELER = ['call', 'name', 'agent_id', 'from_number', 'to_number', 'call_id'];
 
 export const DEVIR_SEBEPLERI = ['fiyat', 'sikayet', 'musteri_istedi', 'anlasilmadi', 'diger'] as const;
 
@@ -134,16 +122,6 @@ export function waDurumCumlesi(f: { ticketNumber: string; status: string; brand:
 // ARAÇ CEVABI
 // ─────────────────────────────────────────────────────────────────────────
 
-export interface AracCevabi {
-  ok: boolean;
-  /** Asistanın AYNEN söyleyeceği cümle. */
-  soyle: string;
-  /** true: cümleden sonra yetkiliye_aktar çağrılır. */
-  devret?: boolean;
-  /** Yalnız musteri_tani: numara bir müşteriye eşleşti mi (ad yok). */
-  tanindi?: boolean;
-}
-
 /**
  * Fiş bulunamadı, başkasının ya da arayan tanınmadı: ÜÇÜ DE bu nesneyi alır.
  * Her çağrıda yeni nesne (paylaşılan nesne değiştirilirse sızıntı olurdu),
@@ -159,57 +137,6 @@ export function devirCevabi(): AracCevabi {
 
 export function hataCevabi(): AracCevabi {
   return { ok: false, devret: true, soyle: CUMLE.HATA };
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// NUMARA
-// ─────────────────────────────────────────────────────────────────────────
-
-/**
- * Arayanın son 10 hanesi. Gizli numara ("anonymous"), SIP adresi ya da 10
- * haneden kısa değer → '' (tanınmadı). SIP adresindeki sunucu rakamlarını
- * numara sanmak, rastgele bir müşteriyi "tanımak" olurdu.
- */
-export function son10(numara: unknown): string {
-  if (typeof numara !== 'string') return '';
-  const t = numara.trim();
-  if (!t || /^(anonymous|unknown|private|restricted|unavailable)$/i.test(t) || /^sips?:/i.test(t)) return '';
-  const r = t.replace(/[^0-9]/g, '');
-  return r.length >= 10 ? r.slice(-10) : '';
-}
-
-/**
- * Aktarma numarası → +90XXXXXXXXXX. Yalnız Türkiye: sabit hat (2/3/4),
- * cep (5), 0850 ve 0800. 0900 (ücretli hat) ve yurt dışı REDDEDİLİR: aktarma
- * platformun hattından aranıyor, kötü niyetli bir numara fatura dolandırıcılığı olurdu.
- */
-export function e164TR(metin: unknown): string | null {
-  if (typeof metin !== 'string') return null;
-  let r = metin.trim().replace(/[\s().-]/g, '');
-  if (!r) return null;
-  if (r.startsWith('+')) {
-    if (!r.startsWith('+90')) return null;
-    r = r.slice(3);
-  } else if (r.startsWith('0090')) {
-    r = r.slice(4);
-  } else if (r.startsWith('90') && r.length === 12) {
-    r = r.slice(2);
-  } else if (r.startsWith('0') && r.length === 11) {
-    r = r.slice(1);
-  }
-  if (!/^\d{10}$/.test(r)) return null;
-  if (r.startsWith('900')) return null;
-  if (!/^[2345]/.test(r) && !/^8(50|00)/.test(r)) return null;
-  return `+90${r}`;
-}
-
-/** Retell hat numarası → yalnız rakam (10-15 hane). Süper admin girer; her ülke olabilir. */
-export function hatNumarasiSade(metin: unknown): string | null {
-  if (typeof metin !== 'string') return null;
-  const t = metin.trim();
-  if (!/^\+?[\d\s().-]+$/.test(t)) return null;
-  const r = t.replace(/[^0-9]/g, '');
-  return r.length >= 10 && r.length <= 15 ? r : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -256,95 +183,6 @@ function modelOnekiMi(kelime: string): boolean {
   if (/^[A-Z]{1,4}$/.test(kelime)) return true; // MX, HP, KM
   if (/^\p{Ll}+\p{Lu}/u.test(kelime) && kelime.length <= 5) return true; // iR, eS
   return false;
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// RETELL GÖVDESİNDEN KİMLİK — yalnız `call` nesnesinden
-// ─────────────────────────────────────────────────────────────────────────
-
-export interface CagriBaglami {
-  agentId: string | null;
-  callId: string | null;
-  /** '' = numara yok/gizli → arayan tanınmadı sayılır. */
-  arayanSon10: string;
-  arananNumara: string | null;
-}
-
-const metinAl = (v: unknown, n = 200): string | null =>
-  typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : null;
-
-/**
- * Retell araç çağrısı gövdesi: `{ name, call: {...}, args: {...} }`.
- *
- * KİMLİK YALNIZ `call`'DAN. Gövdenin kökündeki `from_number` ya da modelin
- * doldurduğu `args.telefon` gibi değerler OKUNMAZ: arayan "benim numaram
- * şu" diyerek başkasının fişini sorduramaz. `call` yoksa gövde geçersizdir.
- */
-export function cagriBaglami(govde: unknown): CagriBaglami | null {
-  if (!govde || typeof govde !== 'object') return null;
-  const call = (govde as Record<string, unknown>).call;
-  if (!call || typeof call !== 'object' || Array.isArray(call)) return null;
-  const c = call as Record<string, unknown>;
-  return {
-    agentId: metinAl(c.agent_id),
-    callId: metinAl(c.call_id),
-    arayanSon10: son10(c.from_number),
-    arananNumara: metinAl(c.to_number, 40),
-  };
-}
-
-/** Araç adı ve argümanları. Argümanlar yalnız İÇERİK taşır (arıza, seri no), kimlik değil. */
-export function aracCagrisi(govde: unknown): { ad: string | null; args: Record<string, unknown> } {
-  const g = (govde && typeof govde === 'object' ? govde : {}) as Record<string, unknown>;
-  const a = g.args;
-  return {
-    ad: metinAl(g.name, 60),
-    args: a && typeof a === 'object' && !Array.isArray(a) ? (a as Record<string, unknown>) : {},
-  };
-}
-
-export type KiraciKarari = { tur: 'RED' } | { tur: 'ACIK' | 'KAPALI'; tenantId: string };
-
-/**
- * Araç çağrısının kiracısı. Eşleşme YALNIZ ajan kimliğiyle aranır (kurulumda
- * bizim yazdığımız değer). Bilinmeyen ya da eksik ajan kimliği → RED;
- * numaraya bakıp tahmin edilmez (gövdedeki numara bize ait değildir).
- */
-export function kiraciKarari(
-  agentId: string | null,
-  eslesme: { tenantId: string; acik: boolean; bayiEtkin: boolean } | null,
-): KiraciKarari {
-  if (!agentId || !eslesme) return { tur: 'RED' };
-  return { tur: eslesme.acik && eslesme.bayiEtkin ? 'ACIK' : 'KAPALI', tenantId: eslesme.tenantId };
-}
-
-/** Bayi çalışır durumda mı: kapalı, askıda ya da silinmiş bayide ajan kapalı sayılır. */
-export function bayiEtkin(t: { isActive?: boolean | null; isSuspended?: boolean | null; deletedAt?: Date | null } | null): boolean {
-  return Boolean(t && t.isActive !== false && !t.isSuspended && !t.deletedAt);
-}
-
-/**
- * GELEN ARAMA — hangi ajan konuşacak (Retell inbound webhook cevabı).
- *
- * Numaranın varsayılan ajanı "yalnız aktarma" ajanıdır; asıl ajana YALNIZ
- * bu cevapla geçilir. Uç düşerse, imza tutmazsa ya da bayi kapalıysa arama
- * aktarma ajanında kalır: bot konuşmaz, hat kapanmaz. Silinmiş bayinin
- * hattı reddedilir (hat artık kimsenin değil).
- */
-export function gelenAramaYaniti(
-  e: {
-    acik: boolean;
-    bayiEtkin: boolean;
-    bayiSilindi: boolean;
-    asilAgentId: string | null;
-    aktarmaAgentId: string | null;
-  } | null,
-): { call_inbound: { override_agent_id?: string; reject?: true } } {
-  if (!e) return { call_inbound: {} };
-  if (e.bayiSilindi) return { call_inbound: { reject: true } };
-  if (e.acik && e.bayiEtkin && e.asilAgentId) return { call_inbound: { override_agent_id: e.asilAgentId } };
-  if (e.aktarmaAgentId) return { call_inbound: { override_agent_id: e.aktarmaAgentId } };
-  return { call_inbound: {} };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -632,7 +470,7 @@ export function sayacTopla(satirlar: { durum: string; kapanisYolu: string | null
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// MESAİ, AY BAŞI, SORGU SINIRI
+// MESAİ, AY BAŞI
 // ─────────────────────────────────────────────────────────────────────────
 
 const iki = (n: number) => String(n).padStart(2, '0');
@@ -651,45 +489,10 @@ export function ayBasi(an: Date, tz = 'Europe/Istanbul'): Date {
   return anaCevir(y.yil, y.ay, 1, 0, tz);
 }
 
-/**
- * Basit sayaç: anahtar başına pencere içinde en çok `max` deneme.
- * Sesli kanalda bir çağrıda fiş numarası tahmin etmeyi zorlaştırır
- * (fiş numaraları sıralı). Tek sunucu süreci için; çok sunucuda sınır
- * sunucu başına olur (devir notunda).
- */
-export function sinirlayici(max: number, pencereMs: number) {
-  const kayit = new Map<string, { n: number; bas: number }>();
-  return (anahtar: string | null, simdi = Date.now()): boolean => {
-    if (!anahtar) return false;
-    if (kayit.size > 2000) {
-      for (const [k, v] of kayit) if (simdi - v.bas > pencereMs) kayit.delete(k);
-    }
-    const v = kayit.get(anahtar);
-    if (!v || simdi - v.bas > pencereMs) {
-      kayit.set(anahtar, { n: 1, bas: simdi });
-      return true;
-    }
-    if (v.n >= max) return false;
-    v.n++;
-    return true;
-  };
-}
-
 // ─────────────────────────────────────────────────────────────────────────
 // RETELL — açılış, komut metni, araçlar, ajan ayarı
 // ─────────────────────────────────────────────────────────────────────────
 
-/** Bayi adı komut metnine girer: tırnak ve satır sonu temizlenir, kısaltılır. */
-export function guvenliAd(s: unknown, yedek: string, n = 60): string {
-  const t = String(s ?? '').replace(/[\r\n"`{}<>\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
-  return t || yedek;
-}
-
-/** Asistan adı: yalnız harf ve boşluk, 2-20 karakter; değilse "Deniz". */
-export function asistanAdiTemizle(s: unknown): string {
-  const t = String(s ?? '').replace(/\s+/g, ' ').trim();
-  return /^[\p{L} ]{2,20}$/u.test(t) ? t : 'Deniz';
-}
 
 /** Açılış — modele bırakılmaz. Yapay zekâ ve kayıt beyanı ilk cümlede. */
 export function acilisCumlesi(bayiAdi: string, asistanAdi: string): string {
@@ -751,46 +554,18 @@ export function aktarmaPromptu(bayiAdi: string): string {
 Açılış cümlesinden sonra başka hiçbir şey söyleme, soru sorma, bilgi verme. Hemen ${AKTAR_ARACI} aracını çağır.`;
 }
 
-export type RetellArac = Record<string, unknown>;
-
-/** Bizim `/api/voice/tools` ucumuzu çağıran araç. Sır BAŞLIKTA. */
-export function ozelArac(p: {
-  ad: AracAdi;
-  aciklama: string;
-  url: string;
-  sir: string;
-  parametreler: { type: 'object'; properties: Record<string, unknown>; required?: string[] };
-}): RetellArac {
-  return {
-    type: 'custom',
-    name: p.ad,
-    description: p.aciklama,
-    url: p.url,
-    method: 'POST',
-    headers: { [SIR_BASLIGI]: p.sir },
-    parameters: p.parametreler,
-    // Araç ~100 ms'de döner; "bir saniye bakıyorum" dedirtmek cevabı geciktirir.
-    speak_during_execution: false,
-    speak_after_execution: true,
-    timeout_ms: ARAC_ZAMAN_ASIMI_MS,
-  };
-}
-
+/** Aktarma aracı (Servis cümlesiyle; biçim çekirdekte). */
 export function aktarmaAraci(numara: string): RetellArac {
-  return {
-    type: 'transfer_call',
-    name: AKTAR_ARACI,
-    description: 'Çağrıyı bayinin yetkilisine bağlar. Yalnız bir araç cevabında "devret": true geldiyse çağır.',
-    transfer_destination: { type: 'predefined', number: numara.startsWith('+') ? numara : `+${numara}` },
-    transfer_option: { type: 'cold_transfer' },
-  };
+  return cekirdekAktarmaAraci(numara, {
+    ad: AKTAR_ARACI,
+    aciklama: 'Çağrıyı bayinin yetkilisine bağlar. Yalnız bir araç cevabında "devret": true geldiyse çağır.',
+  });
 }
 
-export const BITIRME_ARACI: RetellArac = {
-  type: 'end_call',
-  name: BITIR_ARACI,
-  description: 'Arayan vedalaştığında ya da başka isteği olmadığını söylediğinde görüşmeyi bitir.',
-};
+export const BITIRME_ARACI: RetellArac = bitirmeAraci({
+  ad: BITIR_ARACI,
+  aciklama: 'Arayan vedalaştığında ya da başka isteği olmadığını söylediğinde görüşmeyi bitir.',
+});
 
 const metinParam = (aciklama: string) => ({ type: 'string', description: aciklama });
 
@@ -860,96 +635,6 @@ export function aktarmaAraclari(aktarmaNumarasi: string): RetellArac[] {
   return [aktarmaAraci(aktarmaNumarasi), BITIRME_ARACI];
 }
 
-/** Retell LLM kaydının gövdesi (komut metni ve araçlar orada durur). */
-export function llmGovdesi(g: { prompt: string; araclar: RetellArac[]; acilis: string }) {
-  return {
-    general_prompt: g.prompt,
-    general_tools: g.araclar,
-    start_speaker: 'agent',
-    begin_message: g.acilis,
-  };
-}
-
-/**
- * Ajan ayarı. Retell varsayılanları bize açık: sessiz hatta 10 dk bekleme,
- * 1 saatlik çağrı tavanı, Los Angeles saati, süresiz kayıt saklama. Hepsi
- * burada kapatılır. `webhook_url` AÇIKÇA bizim uca verilir: verilmezse
- * Retell hesap düzeyindeki adresi kullanır ve aynı hesaptaki başka bir
- * ürüne (klinik, Frigora) servis görüşmeleri gider.
- */
-export function ajanGovdesi(g: { webhookUrl: string }) {
-  return {
-    language: 'tr-TR',
-    end_call_after_silence_ms: SESSIZLIK_MS,
-    max_call_duration_ms: MAKS_CAGRI_MS,
-    timezone: 'Europe/Istanbul',
-    data_storage_retention_days: SES_SAKLAMA_GUN,
-    webhook_url: g.webhookUrl,
-    webhook_events: ['call_ended'],
-  };
-}
-
-/**
- * Araç ucunun DIŞARIDAN erişilen tabanı. Retell bizi internetten çağırır;
- * localhost ya da http adresle kurulan ajan aracı hiç çağıramaz. Sabit bir
- * adrese DÜŞÜLMEZ (geliştirme ortamındaki ajan canlıyı çağırırdı) ve http
- * adres https'e çevrilmez (yanlış ayarı saklardı).
- */
-export function aracTabani(env: { VOICE_TOOL_BASE_URL?: string; NEXTAUTH_URL?: string }): string | null {
-  const aday = (env.VOICE_TOOL_BASE_URL || '').trim() || (env.NEXTAUTH_URL || '').trim();
-  if (!aday) return null;
-  const t = aday.replace(/\/+$/, '');
-  if (!/^https:\/\/[^/\s]+/i.test(t)) return null;
-  if (/^https:\/\/(localhost|127\.|0\.0\.0\.0|\[::1\])/i.test(t) || /\.local(\/|$|:)/i.test(t)) return null;
-  return t;
-}
-
-export function sirYeterli(sir: unknown): sir is string {
-  return typeof sir === 'string' && sir.length >= SIR_EN_AZ;
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// KURULUM KAPILARI VE HAZIRLIK LİSTESİ
-// ─────────────────────────────────────────────────────────────────────────
-
-export type KurulumKodu =
-  | 'ANAHTAR_YOK'
-  | 'ARAC_ADRESI_YOK'
-  | 'SIR_YOK'
-  | 'AKTARMA_YOK'
-  | 'SES_KIMLIGI_YOK'
-  | 'HAT_YOK'
-  | 'KIRACI_YOK'
-  | 'RETELL_HATASI';
-
-export interface KurulumOrtami {
-  RETELL_API_KEY?: string;
-  RETELL_VOICE_ID?: string;
-  VOICE_TOOL_SECRET?: string;
-  VOICE_TOOL_BASE_URL?: string;
-  NEXTAUTH_URL?: string;
-}
-
-/**
- * Retell'e gitmeden önceki kapılar. Hepsi fail-closed: biri eksikse hiçbir
- * istek gönderilmez. AKTARMA zorunlu: bot kapalıyken hattın açık kalmasının
- * tek yolu aktarmadır. Aktarma numarası ajan hattıyla aynı olamaz (döngü).
- */
-export function kurulumKapisi(
-  env: KurulumOrtami,
-  a: { aktarmaTelefonu: string | null; hatNumarasi: string | null },
-  s: { yeniAjan: boolean; hatGerekli: boolean },
-): KurulumKodu | null {
-  if (!env.RETELL_API_KEY) return 'ANAHTAR_YOK';
-  if (!aracTabani(env)) return 'ARAC_ADRESI_YOK';
-  if (!sirYeterli(env.VOICE_TOOL_SECRET)) return 'SIR_YOK';
-  const aktarma = e164TR(a.aktarmaTelefonu);
-  if (!aktarma) return 'AKTARMA_YOK';
-  if (a.hatNumarasi && son10(aktarma) === son10(a.hatNumarasi)) return 'AKTARMA_YOK';
-  if (s.yeniAjan && !env.RETELL_VOICE_ID) return 'SES_KIMLIGI_YOK';
-  if (s.hatGerekli && !a.hatNumarasi) return 'HAT_YOK';
-  return null;
-}
 
 export type HazirlikKodu = 'ANAHTAR' | 'SES' | 'SIR' | 'ADRES' | 'AKTARMA' | 'HAT' | 'KURULU' | 'WHATSAPP';
 

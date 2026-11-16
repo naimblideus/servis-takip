@@ -1,5 +1,5 @@
 /**
- * TELEFON AJANI — SIR VE İMZA (sunucu tarafı, `crypto`).
+ * SES ÇEKİRDEĞİ — SIR VE İMZA (sunucu tarafı, `crypto`). Alan bilmez.
  *
  * Araç ucu (`/api/voice/tools`) ve Retell olay ucu (`/api/voice/webhook`)
  * herkese açık: Retell bizi internetten çağırıyor. İki kilit var ve araç
@@ -18,7 +18,7 @@
  * tahmin edilmesine kapı açar.
  */
 import crypto from 'crypto';
-import { SIR_EN_AZ } from './telefon-ajani';
+import { SIR_EN_AZ } from './retell-govde';
 
 function sabitZamanliEsit(a: string, b: string): boolean {
   const x = Buffer.from(a, 'utf8');

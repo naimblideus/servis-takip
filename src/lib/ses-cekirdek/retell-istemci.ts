@@ -1,5 +1,5 @@
 /**
- * TELEFON AJANI — RETELL API İSTEMCİSİ.
+ * SES ÇEKİRDEĞİ — RETELL API İSTEMCİSİ. Alan bilmez; komut metni ve araçlar dışarıdan gelir.
  *
  * Sağlayıcıya özgü her istek bu dosyada; kurallar lib/telefon-ajani.ts'te.
  * Ajan Retell'de yaşar, KURALLAR bizde: komut metni bir sınır listesidir,
@@ -12,7 +12,7 @@
  * yayımlanmış API belgesinden (Kasım 2026) alındı; ilk canlı kurulumda
  * doğrulanmalı (bkz. TELEFON-AJANI-DEVIR.md).
  */
-import { llmGovdesi, type RetellArac } from './telefon-ajani';
+import { llmGovdesi, type RetellArac } from './retell-govde';
 
 const API = 'https://api.retellai.com';
 
