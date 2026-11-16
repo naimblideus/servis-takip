@@ -44,7 +44,9 @@ export const AILELER: readonly Aile[] = [
   // Memnuniyet fişin devamı: teslim edilen fişte müşteriye sorulan tek
   // sorunun cevapları. Yalnız yöneticide sekme olarak görünür.
   { anahtar: 'fisler',     bolum: 'GUNLUK',  uyeler: ['/tickets', '/memnuniyet'] },
-  { anahtar: 'whatsapp',   bolum: 'GUNLUK',  uyeler: ['/whatsapp'] },
+  // Müşteriden GELEN iş: WhatsApp ve telefon ajanının taslakları. WhatsApp
+  // kurulu değilse aile doğrudan Telefon ajanı sekmesine açılır.
+  { anahtar: 'whatsapp',   bolum: 'GUNLUK',  uyeler: ['/whatsapp', '/telefon-ajani'] },
   { anahtar: 'rota',       bolum: 'GUNLUK',  uyeler: ['/rota'] },
 
   { anahtar: 'musteriler', bolum: 'MUSTERI', uyeler: ['/customers'] },
@@ -290,10 +292,11 @@ export function sekmeGosterilir(yol: string, e: Erisim): { aile: Aile; sekmeler:
   return { aile, sekmeler, aktif: yol };
 }
 
-export type RozetAnahtari = 'market' | 'sayacEposta' | 'musteriBildirim' | 'magaza';
+export type RozetAnahtari = 'market' | 'sayacEposta' | 'musteriBildirim' | 'magaza' | 'ajanTaslak';
 
 /** Bekleyen iş rozeti olan ekranlar → rozet anahtarı. */
 export const ROZETLI: Readonly<Record<string, RozetAnahtari>> = {
+  '/telefon-ajani': 'ajanTaslak',
   '/market': 'market',
   '/sayac-eposta': 'sayacEposta',
   '/musteri-bildirimleri': 'musteriBildirim',

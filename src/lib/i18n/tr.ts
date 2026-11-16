@@ -89,6 +89,7 @@ export const tr = {
     '/sayac-eposta': 'Cihazdan Sayaç',
     '/sayac-tarayici': 'Ağ Tarayıcı',
     '/whatsapp': 'WhatsApp',
+    '/telefon-ajani': 'Telefon Ajanı',
     '/musteri-portali': 'Müşteri Paneli',
     '/musteri-bildirimleri': 'Müşteri Bildirimleri',
     '/takip': 'Eksik Sayaçlar',
@@ -154,6 +155,8 @@ export const tr = {
     matbaaKasa: 'Kasa ve Rapor',
     matbaaFiyat: 'Fiyat ve Sipariş',
     fisler: 'Servis Fişleri',
+    // WhatsApp + Telefon ajanı: ikisi de müşteriden GELEN iş.
+    whatsapp: 'Gelen Kutusu',
   },
 
   // Bölüm başlıkları büyük harfle YAZILIYOR, CSS ile büyütülmüyor:
@@ -5620,6 +5623,9 @@ export const tr = {
     BU_ISLEM_ICIN_YONETICI_YETKISI_2: 'Bu işlem için yönetici yetkisi gerekir.',
     BU_ISLEM_SU_AN_YAPILAMAZ: 'Bu işlem şu an yapılamaz',
     BU_MESAJDAN_ZATEN_FIS_ACILMIS: 'Bu mesajdan zaten fiş açılmış',
+    TASLAK_ZATEN_ISLENDI: 'Bu taslak için zaten karar verilmiş; ikinci fiş açılmadı.',
+    ATANAN_KISI_GECERSIZ: 'Seçilen kişiye iş atanamaz (pasif ya da daveti bekliyor).',
+    HAT_BASKA_BAYIDE: 'Bu hat başka bir bayiye tanımlı.',
     BU_OKUMA_FATURALANDIGI_ICIN_DUZENLENEMEZ: 'Bu okuma faturalandığı için düzenlenemez.',
     BU_OKUMA_FATURALANDIGI_ICIN_SILINEMEZ: 'Bu okuma faturalandığı için silinemez',
     KAYIT_ZATEN_ISLENDI: 'Bu kayıt zaten işlendi; aynı sayaç ikinci kez yazılmadı.',

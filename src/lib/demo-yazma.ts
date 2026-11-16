@@ -35,6 +35,9 @@ const YAZMA_KAPALI_ONEKLER = [
   // Yalnız dışarıya toplu gönderim. Gelen kutusu (/api/whatsapp/inbox) açık:
   // fotoğraftan sayaç işlemek demonun vitrini, dışarıya mesaj atmıyor.
   '/api/whatsapp/bulk',
+  // Telefon ajanını açmak/kapamak ve Retell'e göndermek: demoda kimse ortak
+  // ajanı kapatmasın ve Retell dakikası harcanmasın. Taslak onayı (fiş açmak) açık.
+  '/api/telefon-ajani/ayar',
   '/api/customers/portal-toplu',
   // Bayi Pazarı ortak: ziyaretçinin açtığı ilan/fotoğraf, ilan gizleme (PATCH
   // ile DELETE kuralını aşıyordu), pazar adı ve mesajlar herkese görünürdü.

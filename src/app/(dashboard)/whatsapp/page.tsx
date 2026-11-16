@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FAULT_CATEGORIES } from '@/lib/fault-categories';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
+import AjanTaslaklari from '@/components/AjanTaslaklari';
 
 interface Msg {
   id: string;
@@ -215,6 +216,9 @@ export default function WhatsAppInboxPage() {
       <p style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: 0, marginBottom: '0.9rem', lineHeight: 1.6 }}>
         {t.wa.alt}
       </p>
+
+      {/* Telefon ajaninin taslaklari: gelen kutusunun en ustu (bekleyen yoksa hic cizilmez). */}
+      <AjanTaslaklari gizliBosken />
 
       <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: '1rem' }}>
         {(['gelen', 'giden'] as const).map((s) => (

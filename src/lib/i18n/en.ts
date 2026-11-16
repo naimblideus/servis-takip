@@ -84,6 +84,7 @@ export const en: Sozluk = {
     '/sayac-eposta': 'Meters from Devices',
     '/sayac-tarayici': 'Network scanner',
     '/whatsapp': 'WhatsApp',
+    '/telefon-ajani': 'Phone Agent',
     '/musteri-portali': 'Customer Portal',
     '/musteri-bildirimleri': 'Customer Requests',
     '/takip': 'Missing readings',
@@ -147,6 +148,7 @@ export const en: Sozluk = {
     matbaaKasa: 'Till & Report',
     matbaaFiyat: 'Prices & Orders',
     fisler: 'Service Tickets',
+    whatsapp: 'Inbox',
   },
 
   menuBolum: {
@@ -5418,6 +5420,9 @@ export const en: Sozluk = {
     BU_ISLEM_ICIN_YONETICI_YETKISI_2: 'This operation needs administrator rights.',
     BU_ISLEM_SU_AN_YAPILAMAZ: 'This operation cannot be done right now',
     BU_MESAJDAN_ZATEN_FIS_ACILMIS: 'A ticket has already been opened from this message',
+    TASLAK_ZATEN_ISLENDI: 'A decision has already been made on this draft; no second ticket was opened.',
+    ATANAN_KISI_GECERSIZ: 'Work cannot be assigned to the chosen person (inactive or invitation pending).',
+    HAT_BASKA_BAYIDE: 'This line is assigned to another dealer.',
     BU_OKUMA_FATURALANDIGI_ICIN_DUZENLENEMEZ: 'This reading cannot be edited because it has been invoiced.',
     BU_OKUMA_FATURALANDIGI_ICIN_SILINEMEZ: 'This reading cannot be deleted because it has been invoiced',
     KAYIT_ZATEN_ISLENDI: 'This record has already been processed; the same meter reading was not saved twice.',

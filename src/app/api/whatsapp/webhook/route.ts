@@ -15,7 +15,8 @@ import {
 } from '@/lib/whatsapp-inbound';
 import { looksLikeFaultReport, sendText } from '@/lib/whatsapp-out';
 import { handleAutoReply } from '@/lib/whatsapp-autoreply';
-import { buildAndSaveSuggestion } from '@/lib/whatsapp-suggest';
+import { buildAndSaveSuggestion, type Suggestion } from '@/lib/whatsapp-suggest';
+import { ajanAcikMi, waAjanIsle } from '@/lib/telefon-ajani-veri';
 
 // Bu uç HERKESE AÇIK olmak zorunda (Meta çağırır). Tek koruma imza doğrulaması.
 export const dynamic = 'force-dynamic';
@@ -129,9 +130,10 @@ export async function POST(req: NextRequest) {
 
       // Fiş önerisi — "hangi cihaz, hangi arıza". Fiş AÇMAZ, yalnızca önerir.
       // Kayıttan sonra denenir; öneri üretilemezse mesaj yine de kaydedilmiş olur.
+      let oneri: Suggestion | null = null;
       if (isFaultReport) {
         try {
-          await buildAndSaveSuggestion({
+          oneri = await buildAndSaveSuggestion({
             tenantId: tenant.id,
             messageId: created.id,
             customerId: customer?.id ?? null,
@@ -140,6 +142,34 @@ export async function POST(req: NextRequest) {
         } catch (e: any) {
           console.error('[whatsapp-webhook] öneri üretilemedi:', e?.message);
         }
+      }
+
+      // TELEFON AJANI — bayi açtıysa otomatik cevabın YERİNE geçer: tanınan
+      // müşterinin arızasını taslak yapar (fiş açmaz), cihaz belirsizse bir kez sorar.
+      // Ajan ayarı okunamazsa (tablo yok, hata) eski otomatik cevap çalışır.
+      let ajanAcik = false;
+      try { ajanAcik = await ajanAcikMi(tenant.id); }
+      catch (e: any) { console.error('[whatsapp-webhook] ajan ayarı okunamadı:', e?.message); }
+      if (ajanAcik) {
+        try {
+          const r = await waAjanIsle({
+            tenantId: tenant.id,
+            tenantAdi: tenant.name,
+            waMessageId: m.waMessageId,
+            fromPhone: m.fromPhone,
+            metin: m.text ?? null,
+            customerId: customer?.id ?? null,
+            oneri,
+            // Cevap platform numarasından gider: yalnız mesaj oraya geldiyse yazılır.
+            platformNumarasina: !kendiBayisi && m.phoneNumberId === process.env.WHATSAPP_PHONE_ID,
+          });
+          if (r.cevaplandi) {
+            await prisma.whatsAppMessage.update({ where: { id: created.id }, data: { autoReplied: true } });
+          }
+        } catch (e: any) {
+          console.error('[whatsapp-webhook] telefon ajanı:', e?.message);
+        }
+        continue;
       }
 
       // Otomatik cevap — 24 saatlik pencerede ücretsiz. Kayıt BAŞARILI olduktan

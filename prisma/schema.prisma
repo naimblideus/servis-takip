@@ -207,6 +207,8 @@ model Tenant {
   invoicePayments     InvoicePayment[]
   whatsappMessages    WhatsAppMessage[]
   whatsappRetler      WhatsAppRet[]
+  telefonAjani        TelefonAjani?
+  ajanTaslaklari      AjanTaslagi[]
   portalRequests      PortalRequest[]
   contracts           Contract[]
   contractDevices     ContractDevice[]
@@ -477,6 +479,77 @@ model WhatsAppMessage {
   @@index([tenantId, handled, receivedAt])
   @@index([tenantId, fromPhone])
   @@index([customerId])
+}
+
+// ============================================
+// TELEFON AJANI — arıza hattını ve WhatsApp'ı karşılayan yapay zekâ
+// ============================================
+//
+// Ajan müşteriyi numaranın son 10 hanesinden tanır, cihazı ve arızayı sorar,
+// sonunda yalnız TASLAK açar. Fişi açma kararı bayidedir: taslak gelen
+// kutusunun en üstünde bekler, bayi "Fişe çevir" demeden fiş YOKTUR.
+// Kurallar: lib/telefon-ajani.ts · veri: lib/telefon-ajani-veri.ts.
+
+// Bayi başına ajan ayarı. Satır yoksa ajan KAPALI sayılır.
+// `acik` yalnız botu kapatır: hat çalışmaya devam eder, gelen arama
+// "yalnız aktarma" ajanına gider ve arayan yetkiliye bağlanır.
+model TelefonAjani {
+  tenantId             String    @id
+  acik                 Boolean   @default(false)
+  asistanAdi           String    @default("Deniz")
+  retellAgentId        String?   @unique // asıl ajan — araç çağrısında kiracı bundan bulunur
+  retellAktarmaAgentId String?   @unique // yalnız aktaran ajan — numaranın varsayılanı
+  hatNumarasi          String?   @unique // ajanın karşıladığı numara, yalnız rakam; YALNIZ süper admin yazar
+  aktarmaTelefonu      String? // +90… doğrulanmış; Tenant.phone varsayılan olarak KULLANILMAZ (döngü riski)
+  retellSenkronAt      DateTime? // Retell'e son başarılı gönderim
+  retellHata           String? // son gönderim hatası (kod)
+  degistirenId         String? // aç/kapa düğmesine son basan kullanıcı
+  acildiAt             DateTime?
+  kapandiAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Ajanın açtığı İŞ EMRİ TASLAĞI. Fiş değildir; bayi onaylarsa fiş açılır
+// (ticketId dolar). Ölçü: açılan taslak / onaylanan. Taslak silinmez:
+// reddedilen de sayaçta kalır. Müşteri, cihaz ve fiş bağları düz kimlik.
+model AjanTaslagi {
+  id                  String         @id @default(cuid())
+  tenantId            String
+  kanal               String // TELEFON | WHATSAPP
+  kaynakKimlik        String // Retell call_id ya da ilk WhatsApp mesajının waMessageId'si
+  mesajKimlikleri     String[]       @default([]) // WHATSAPP: taslağa bağlı bütün mesajlar
+  durum               String         @default("BEKLIYOR") // BEKLIYOR | ONAYLANDI | REDDEDILDI
+  kapanisYolu         String? // TASLAK (Fişe çevir) | MESAJ (bayi fişi mesajdan açtı)
+  arayanSon10         String // numaranın son 10 hanesi; tanınmayan/gizli numarada boş
+  customerId          String? // numara TEK müşteriye eşleştiyse
+  deviceId            String? // eşleşen cihaz
+  cihazNeden          String? // SERI | MODEL | TEK_CIHAZ | ONERI — eşleşmenin dayanağı
+  soylenenSeriNo      String?
+  soylenenModel       String?
+  arizaMetni          String         @db.Text
+  faultCategory       FaultCategory?
+  arayanAdi           String?
+  firmaAdi            String? // tanınmayan arayanın söylediği firma
+  acil                Boolean        @default(false)
+  bekledigi           String? // WHATSAPP: CIHAZ = müşteriden seri no/model bekleniyor
+  onerilenTeknisyenId String? // yalnız ÖNERİ; atama bayinin
+  oneriVerisi         Json? // gerekçe sayıları — ekranda bayinin dilinde yazılır
+  oneriAt             DateTime? // öneri hesaplandı mı (bulunamasa da)
+  ticketId            String? // onaylanınca açılan fiş
+  kararVerenId        String?
+  kararAt             DateTime?
+  redSebebi           String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, kanal, kaynakKimlik])
+  @@index([tenantId, durum, createdAt])
+  @@index([tenantId, kanal, arayanSon10, durum])
 }
 
 // ============================================

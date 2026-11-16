@@ -7,6 +7,7 @@ import { ALL_MODULE_KEYS, effectiveModules } from '@/lib/modules';
 import { useT, useBicim } from '@/lib/i18n/client';
 import { doldur } from '@/lib/i18n/sozluk';
 import OzetSekmesi from './OzetSekmesi';
+import TelefonAjaniKarti from '@/components/super-admin/TelefonAjaniKarti';
 
 export default function TenantDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -200,7 +201,10 @@ export default function TenantDetailPage() {
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
                 {/* Tab: Özet — bayi panelindeki yeni özelliklerin bu bayideki durumu */}
                 {tab === 0 && (
-                    <OzetSekmesi id={id} tenant={tenant} paketAdi={paketAdi(tenant.plan)} abonelikSekmesi={() => setTab(3)} />
+                    <>
+                        <OzetSekmesi id={id} tenant={tenant} paketAdi={paketAdi(tenant.plan)} abonelikSekmesi={() => setTab(3)} />
+                        <TelefonAjaniKarti id={id} />
+                    </>
                 )}
 
                 {/* Tab: Genel */}

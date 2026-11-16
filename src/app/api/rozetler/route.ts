@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse } from '@/lib/api-auth';
 import { magazaSiparisSayisi } from '@/lib/magaza-baglanti';
+import { bekleyenTaslakSayisi } from '@/lib/telefon-ajani-veri';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export async function GET() {
   try {
     const { tenantId } = await requireTenantUser();
 
-    const [tenant, satici, alici, sayacEposta, musteriBildirim, magaza] = await Promise.all([
+    const [tenant, satici, alici, sayacEposta, musteriBildirim, magaza, ajanTaslak] = await Promise.all([
       prisma.tenant.findUnique({ where: { id: tenantId }, select: { marketEnabled: true } }),
       prisma.marketOrder.count({ where: { sellerTenantId: tenantId, status: 'REQUESTED' } }),
       prisma.marketOrder.count({ where: { buyerTenantId: tenantId, status: 'SHIPPED' } }),
@@ -42,6 +43,9 @@ export async function GET() {
        * doğrudan `tenantId` ile aramak 0 döndürüyordu.
        */
       magazaSiparisSayisi(tenantId),
+      // TELEFON AJANI — bayinin kararını bekleyen taslak. Tablo yoksa (göç
+      // henüz koşmadıysa) 0: bu sayı yüzünden öteki rozetler kaybolmasın.
+      bekleyenTaslakSayisi(tenantId).catch(() => 0),
     ]);
 
     return NextResponse.json({
@@ -50,6 +54,7 @@ export async function GET() {
       sayacEposta,
       musteriBildirim,
       magaza,
+      ajanTaslak,
     });
   } catch (e) {
     return authErrorResponse(e);

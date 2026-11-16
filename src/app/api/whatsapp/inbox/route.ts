@@ -15,6 +15,7 @@ import { MIN_CONFIDENCE } from '@/lib/whatsapp-suggest';
 import { parseFaultCategory } from '@/lib/fault-categories';
 import { sunucuBicimi } from '@/lib/i18n/sunucu-bicim';
 import { syncTicketToCari } from '@/lib/ticket-cari';
+import { taslagiFisleKapat } from '@/lib/telefon-ajani-veri';
 
 /**
  * GET /api/whatsapp/inbox — gelen WhatsApp mesajları + müşteri bağlamı.
@@ -324,6 +325,10 @@ export async function POST(req: NextRequest) {
         where: { id: msg.id },
         data: { ticketId: ticket.id, handled: true },
       });
+
+      // Telefon ajanı bu mesajdan taslak açtıysa kapanır: aynı arıza için ikinci fiş açılmasın.
+      try { await taslagiFisleKapat(tenantId, msg.waMessageId, ticket.id, oturumKul.id); }
+      catch (e: any) { console.error('[whatsapp-inbox] ajan taslağı kapatılamadı:', e?.message); }
 
       try { await syncTicketToCari(ticket.id, tenantId); } catch { /* tutar 0 ise zaten no-op */ }
 
