@@ -6,7 +6,7 @@ import { ajanAyarDurumu, ajaniSagla, hatAyarla, taslakSayaci } from '@/lib/telef
 
 /**
  * GET  — bayinin telefon ajanı: hat, aktarma, kurulum durumu, sayaç.
- * POST — { hatNumarasi?, aktarmaTelefonu?, kur?: true }
+ * POST — { hatNumarasi?, aktarmaTelefonu?, kur?: true, hatsiz?: true }
  *
  * HATTI YALNIZ PLATFORM EKİBİ ATAR. Retell hesabı ortak: bayi yöneticisi
  * numara girebilseydi hesaptaki başka bir hattı (başka bayinin ya da başka
@@ -43,7 +43,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ...kim,
     });
   }
-  const kurulum = g.kur === true ? await ajaniSagla(id, kim, { hatBagla: true, yeniOlustur: true }) : null;
+  // hatsiz: numara henüz yokken ajanları kurar (Retell panelinden tarayıcıyla denemek için);
+  // hat bağlanmaz. Ekran bunu göndermez; varsayılan yine hat ister.
+  const kurulum = g.kur === true ? await ajaniSagla(id, kim, { hatBagla: g.hatsiz !== true, yeniOlustur: true }) : null;
   const [durum, sayac] = await Promise.all([ajanAyarDurumu(id), taslakSayaci(id)]);
   return NextResponse.json({ ok: true, uyarilar: r.uyarilar, kurulum, ...durum, sayac });
 }
