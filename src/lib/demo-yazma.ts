@@ -56,6 +56,9 @@ const YAZMA_KAPALI_ONEKLER = [
   // "Aradım" işareti: bir ziyaretçi basınca "Aranması gerekenler" herkese boşalırdı.
   // Müşterinin anket cevabı (/api/public/anket) ve "Memnuniyet sor" açık.
   '/api/memnuniyet',
+  // Matbaa sipariş okuyucu: her okuma bizim anahtarımızla ücretli bir model
+  // çağrısı ve ziyaretçinin yüklediği dosyayı dışarı gönderir. Ortak demoda kapalı.
+  '/api/matbaa/okuma',
 ];
 // Toplu zam / toplu ayar (/api/devices/bulk-*) burada YOK: önizlemeleri
 // (dryRun) yazmıyor, demoda da görülsün; "Uygula" uçların içinde kapalı.

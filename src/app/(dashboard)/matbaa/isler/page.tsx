@@ -7,6 +7,8 @@ import { doldur } from '@/lib/i18n/sozluk';
 import { matbaaMetni } from '@/lib/matbaa-metin';
 import { saatYaz } from '@/lib/matbaa-bicim';
 import { AKIS, gecikiyorMu, gecisIzinli, gunAraligi, isDurumu, isNo, odemeDurumu, sonrakiDurum, type IsDurumu } from '@/lib/baski-is';
+import { okuyucuAcik } from '@/lib/belge-okuyucu';
+import { OKUYUCU_KAPATMA } from '@/lib/baski-okuyucu';
 import IsAdimi from '@/components/matbaa/IsAdimi';
 import OtomatikYenile from '@/components/matbaa/OtomatikYenile';
 
@@ -58,6 +60,10 @@ export default async function IslerPanosu({ searchParams }: { searchParams: Aram
     take: 400,
   });
 
+  // "Siparişi oku" düğmesi: okuyucu açıksa ya da bekleyen taslak varsa (tek, indeksli sayım).
+  const taslakSayisi = operator ? 0 : await prisma.baskiOkuma.count({ where: { tenantId, durum: 'TASLAK' } });
+  const okuyucuGorunur = !operator && (okuyucuAcik(process.env, OKUYUCU_KAPATMA) || taslakSayisi > 0);
+
   const sutunlar = AKIS.filter((d) => !(operator && d === 'GELEN'));
   const odemeRenk = { BEKLIYOR: 'text-red-700', KISMI: 'text-amber-700', ODENDI: 'text-emerald-700', CARI: 'text-blue-700' } as const;
 
@@ -86,7 +92,14 @@ export default async function IslerPanosu({ searchParams }: { searchParams: Aram
       <OtomatikYenile saniye={30} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">{m.panoBaslik}</h1>
-        {!operator && <Link href="/matbaa/isler/yeni" className="rounded-xl bg-[#0f2253] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1a3170]">{m.yeniIs}</Link>}
+        <div className="flex flex-wrap gap-2">
+          {okuyucuGorunur && (
+            <Link href="/matbaa/isler/oku" className="rounded-xl border border-[#0f2253] bg-white px-4 py-2.5 text-sm font-bold text-[#0f2253] hover:bg-blue-50">
+              {m.okuyucu.dugme}{taslakSayisi > 0 ? ` · ${doldur(m.okuyucu.bekleyen, { n: taslakSayisi })}` : ''}
+            </Link>
+          )}
+          {!operator && <Link href="/matbaa/isler/yeni" className="rounded-xl bg-[#0f2253] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1a3170]">{m.yeniIs}</Link>}
+        </div>
       </div>
       <div className="mt-3 flex gap-2">
         {filtreBag('hepsi', m.filtreHepsi)}
