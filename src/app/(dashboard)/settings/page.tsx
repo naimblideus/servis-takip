@@ -48,6 +48,12 @@ export default function SettingsPage() {
     // Dönem faturası onayı (lib/fatura-bekletme): açıkken her fatura taslakta bekler.
     const [faturaOnayiElle, setFaturaOnayiElle] = useState(false);
     const [onayMsg, setOnayMsg] = useState<{ ok: boolean; metin: string } | null>(null);
+    // Kira/sayaç faturası otomatik mi (Tenant.autoInvoiceEnabled). Otomatiğe
+    // geçiş bilgilendirme okunup onaylanmadan kaydedilmez: aktarımı yarım
+    // bayide gece işi elle yazılanların üstüne fatura kesip bakiyeyi karıştırıyordu.
+    const [otoFatura, setOtoFatura] = useState<boolean | null>(null);
+    const [otoBilgi, setOtoBilgi] = useState(false);
+    const [kesimGunu, setKesimGunu] = useState(1);
     const [takvimMsg, setTakvimMsg] = useState('');
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -68,6 +74,8 @@ export default function SettingsPage() {
             });
             setSayacZorunlu(data.sayacZorunlu === true);
             setFaturaOnayiElle(data.faturaOnayi === 'ELLE');
+            setOtoFatura(data.autoInvoiceEnabled !== false);
+            setKesimGunu(Number(data.invoiceDayOfMonth) || 1);
             setOdeme({
                 odemeIban: data.odemeIban ? String(data.odemeIban).replace(/(.{4})/g, '$1 ').trim() : '',
                 odemeHesapAdi: data.odemeHesapAdi || '',
@@ -123,6 +131,23 @@ export default function SettingsPage() {
         }).catch(() => null);
         if (res?.ok) { setOnayMsg({ ok: true, metin: t.sahaSuresi.kuralKaydedildi }); return; }
         setFaturaOnayiElle(!elle);
+        const j = res ? await res.json().catch(() => null) : null;
+        setOnayMsg({ ok: false, metin: j?.error ?? t.genel.baglantiHatasi });
+    };
+
+    const otoFaturaDegistir = async (acik: boolean) => {
+        const onceki = otoFatura;
+        setOtoFatura(acik);
+        setOtoBilgi(false);
+        setOnayMsg(null);
+        const res = await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ autoInvoiceEnabled: acik }),
+        }).catch(() => null);
+        if (res?.ok) { setOnayMsg({ ok: true, metin: t.sahaSuresi.kuralKaydedildi }); return; }
+        // Kaydedilmediyse seçim eski yerine döner: ekran yalan söylemesin.
+        setOtoFatura(onceki);
         const j = res ? await res.json().catch(() => null) : null;
         setOnayMsg({ ok: false, metin: j?.error ?? t.genel.baglantiHatasi });
     };
@@ -371,17 +396,65 @@ export default function SettingsPage() {
                 {kuralMsg && <p role={kuralMsg.ok ? 'status' : 'alert'} style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: kuralMsg.ok ? '#166534' : '#b91c1c' }}>{kuralMsg.metin}</p>}
             </div>
 
-            {/* ── DÖNEM FATURASI ONAYI ── varsayılan kapalı (gece işi keser, şüpheliler bekler). */}
+            {/* ── DÖNEM FATURASI ── Elle / Otomatik (Tenant.autoInvoiceEnabled).
+                Otomatiğe geçiş bilgilendirme onaylanmadan kaydedilmez. Taslak
+                onayı yalnız otomatikte anlamlı, o yüzden onun altında. */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem', marginBottom: '1rem' }}>
-                <h2 style={{ fontWeight: '600', marginBottom: '0.75rem' }}>{t.faturalar.onayBaslik}</h2>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', minHeight: 44 }}>
-                    <input type="checkbox" checked={faturaOnayiElle} style={{ marginTop: '0.2rem', width: 20, height: 20, cursor: 'pointer', flexShrink: 0 }}
-                        onChange={e => faturaOnayiDegistir(e.target.checked)} />
-                    <span style={{ fontSize: '0.875rem' }}>
-                        <b>{t.faturalar.onayEtiket}</b>
-                        <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem', lineHeight: 1.5 }}>{t.faturalar.onayAlt}</span>
-                    </span>
-                </label>
+                <h2 style={{ fontWeight: '600', marginBottom: '0.35rem' }}>{t.faturalar.onayBaslik}</h2>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0 0 0.75rem', lineHeight: 1.6 }}>{t.faturalar.otoSecimAlt}</p>
+                {otoFatura !== null && (
+                    <div role="radiogroup" aria-label={t.faturalar.onayBaslik} style={{ display: 'grid', gap: '0.5rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', minHeight: 44 }}>
+                            <input type="radio" name="otoFatura" checked={!otoFatura && !otoBilgi} style={{ marginTop: '0.2rem', width: 20, height: 20, cursor: 'pointer', flexShrink: 0 }}
+                                onChange={() => { if (otoFatura) otoFaturaDegistir(false); else setOtoBilgi(false); }} />
+                            <span style={{ fontSize: '0.875rem' }}>
+                                <b>{t.faturalar.otoElle}</b>
+                                <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem', lineHeight: 1.5 }}>{t.faturalar.otoElleAlt}</span>
+                            </span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', minHeight: 44 }}>
+                            <input type="radio" name="otoFatura" checked={otoFatura || otoBilgi} style={{ marginTop: '0.2rem', width: 20, height: 20, cursor: 'pointer', flexShrink: 0 }}
+                                onChange={() => { if (!otoFatura) { setOtoBilgi(true); setOnayMsg(null); } }} />
+                            <span style={{ fontSize: '0.875rem' }}>
+                                <b>{t.faturalar.otoOtomatik}</b>
+                                <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem', lineHeight: 1.5 }}>{doldur(t.faturalar.otoOtomatikAlt, { gun: kesimGunu })}</span>
+                            </span>
+                        </label>
+                    </div>
+                )}
+
+                {otoBilgi && !otoFatura && (
+                    <div role="alert" style={{ marginTop: '0.75rem', padding: '0.9rem 1rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '0.6rem' }}>
+                        <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.875rem', color: '#92400e' }}>{t.faturalar.otoBilgiBaslik}</p>
+                        <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.8rem', color: '#78350f', lineHeight: 1.6, display: 'grid', gap: '0.3rem' }}>
+                            <li>{doldur(t.faturalar.otoBilgi1, { gun: kesimGunu })}</li>
+                            <li>{t.faturalar.otoBilgi2}</li>
+                            <li>{t.faturalar.otoBilgi3}</li>
+                            <li>{t.faturalar.otoBilgi4}</li>
+                        </ul>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.8rem' }}>
+                            <button type="button" onClick={() => otoFaturaDegistir(true)}
+                                style={{ minHeight: 44, padding: '0.55rem 1rem', background: '#0f2253', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>
+                                {t.faturalar.otoOnayla}
+                            </button>
+                            <button type="button" onClick={() => setOtoBilgi(false)}
+                                style={{ minHeight: 44, padding: '0.55rem 1rem', background: 'white', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>
+                                {t.faturalar.otoVazgec}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {otoFatura && (
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', minHeight: 44, marginTop: '0.9rem', paddingTop: '0.9rem', borderTop: '1px solid #f3f4f6' }}>
+                        <input type="checkbox" checked={faturaOnayiElle} style={{ marginTop: '0.2rem', width: 20, height: 20, cursor: 'pointer', flexShrink: 0 }}
+                            onChange={e => faturaOnayiDegistir(e.target.checked)} />
+                        <span style={{ fontSize: '0.875rem' }}>
+                            <b>{t.faturalar.onayEtiket}</b>
+                            <span style={{ display: 'block', color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem', lineHeight: 1.5 }}>{t.faturalar.onayAlt}</span>
+                        </span>
+                    </label>
+                )}
                 {onayMsg && <p role={onayMsg.ok ? 'status' : 'alert'} style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: onayMsg.ok ? '#166534' : '#b91c1c' }}>{onayMsg.metin}</p>}
             </div>
 

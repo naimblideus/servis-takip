@@ -25,6 +25,8 @@ export async function GET() {
             sayacZorunlu: true,
             // Dönem faturası kesilmeden önce bayi onayı (lib/fatura-bekletme).
             faturaOnayi: true,
+            // Kira/sayaç faturası otomatik mi (gece işi yalnız açık olanlara keser).
+            autoInvoiceEnabled: true, invoiceDayOfMonth: true,
             // Çalışma takvimi — SLA ölçümü mesai saatine göre yapılır.
             workTimezone: true, workDays: true, workStartMin: true, workEndMin: true, workHolidays: true,
         },
@@ -49,6 +51,7 @@ export async function PATCH(req: Request) {
         name, phone, address, pricePerBlack, pricePerColor, portalShowFinancials,
         workTimezone, workDays, workStartMin, workEndMin, workHolidays,
         odemeIban, odemeHesapAdi, odemeLinki, vadeHatirlatma, sayacHatirlatma, sayacZorunlu, faturaOnayi,
+        autoInvoiceEnabled,
     } = body;
 
     // MÜŞTERİDEN ÖDEME — yanlış IBAN parayı başka hesaba gönderir, bozuk
@@ -105,6 +108,9 @@ export async function PATCH(req: Request) {
             ...(typeof sayacZorunlu === 'boolean' && { sayacZorunlu }),
             // Yalnız iki değer: başka bir metin faturaları sessizce otomatiğe düşürmesin.
             ...((faturaOnayi === 'OTOMATIK' || faturaOnayi === 'ELLE') && { faturaOnayi }),
+            // Kira/sayaç faturası elle mi otomatik mi. Yalnız true/false: başka bir
+            // değer aktarımı yarım bayiye sessizce gece faturası kestirmesin.
+            ...(typeof autoInvoiceEnabled === 'boolean' && { autoInvoiceEnabled }),
             ...(workTimezone !== undefined && workTimezone !== '' && { workTimezone: String(workTimezone) }),
             ...(workDays !== undefined && { workDays: gunListesi(workDays) ?? '1,2,3,4,5' }),
             ...(bas !== null && { workStartMin: bas }),
