@@ -40,9 +40,9 @@ const SAYI = {
   '%1': '1%',
   '%10': '10%',
   '%30': '30%',
-  '1.749': '1,749',
-  '2.099': '2,099',
-  '5.249': '5,249',
+  '2.999': '2,999',
+  '3.499': '3,499',
+  '6.999': '6,999',
   '2,1×': '2.1×',
   '2,5×': '2.5×',
   '7,5×': '7.5×',
@@ -116,9 +116,9 @@ const JS_DEGISIM = [
   [".toFixed(2).replace('.', ','))", ".toFixed(2))", 2],
 
   // — paket adları (ROI kartında ekrana yazılır) —
-  ["name: 'Başlangıç',   base: 1749", "name: 'Starter',      base: 1749", 1],
-  ["name: 'Profesyonel', base: 2099", "name: 'Professional', base: 2099", 1],
-  ["name: 'Kurumsal',    base: 5249", "name: 'Enterprise',   base: 5249", 1],
+  ["name: 'Başlangıç',   base: 2999", "name: 'Starter',      base: 2999", 1],
+  ["name: 'Profesyonel', base: 3499", "name: 'Professional', base: 3499", 1],
+  ["name: 'Kurumsal',    base: 6999", "name: 'Enterprise',   base: 6999", 1],
 
   // — fiyat kartı —
   ["per.textContent = '/ yıl';", "per.textContent = '/ year';", 1],

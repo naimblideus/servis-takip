@@ -14,7 +14,7 @@ const TURLER = ['BAYI', 'MATBAA'] as const;
 // Taban ücretler ₺ cinsinden sabit: abonelik fiyatı bayinin para biriminden
 // bağımsızdır, platformun kendi fiyatıdır.
 const PLAN_UCRET: Record<string, number | null> = {
-    trial: null, starter: 1749, professional: 2099, enterprise: 5249,
+    trial: null, starter: 2999, professional: 3499, enterprise: 6999,
 };
 
 export default function NewTenantPage() {

@@ -1187,6 +1187,7 @@ h1.hero-title{
 }
 .price-amount .period{font-size:14px;color:var(--text-faint);margin-left:4px}
 .price-note{font-size:12px;color:var(--text-faint);margin-bottom:22px}
+.price-upsell{margin-top:-16px;color:#5eead4}
 .btn-block{display:flex;width:100%;justify-content:center}
 .price-features{
   list-style:none;padding:0;margin-top:28px;

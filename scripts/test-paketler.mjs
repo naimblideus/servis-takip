@@ -111,10 +111,10 @@ console.log('\nPaketler\n');
   t('★ merdiven her ölçekte korunuyor: Başlangıç < Profesyonel ≤ Kurumsal (0–3000 cihaz)', ters.length === 0, ters.slice(0, 3));
   t('★ tavan: Profesyonel ₺9.999, Kurumsal ₺19.999 — 5.000 cihazda bile', monthlyAmount('professional', 5000).amount === 9999
     && monthlyAmount('enterprise', 5000).amount === 19999 && monthlyAmount('professional', 5000).capped);
-  t('tavanın altında fiyat değişmedi (150 cihaz Profesyonel = ₺5.224, tanıtım SSS örneği)', monthlyAmount('professional', 150).amount === 5224 && !monthlyAmount('professional', 150).capped);
-  t('Profesyonel tavana 341 cihazda ulaşıyor', monthlyAmount('professional', 340).amount < 9999 && monthlyAmount('professional', 341).amount === 9999);
+  t('tavanın altında fiyat değişmedi (150 cihaz Profesyonel = ₺6.624, tanıtım SSS örneği)', monthlyAmount('professional', 150).amount === 6624 && !monthlyAmount('professional', 150).capped);
+  t('Profesyonel tavana 285 cihazda ulaşıyor', monthlyAmount('professional', 284).amount < 9999 && monthlyAmount('professional', 285).amount === 9999);
   const fark = monthlyAmount('enterprise', 150).amount - monthlyAmount('professional', 150).amount;
-  t('Kurumsal−Profesyonel farkı Profesyonel tavanına kadar sabit (₺1.275)', fark === 1275 && monthlyAmount('enterprise', 300).amount - monthlyAmount('professional', 300).amount === 1275, fark);
+  t('Kurumsal−Profesyonel farkı Profesyonel tavanına kadar sabit (₺1.625)', fark === 1625 && monthlyAmount('enterprise', 250).amount - monthlyAmount('professional', 250).amount === 1625, fark);
   {
     const html = readFileSync(join(KOK, 'marketing/landing/nextus-servis.html'), 'utf8');
     const tanitim = ['baslangic:', 'profesyonel:', 'kurumsal:'].map((k) => (html.match(new RegExp(k + "\\s*\\{[^}]*tavan:\\s*(\\d+)")) ?? [])[1]);

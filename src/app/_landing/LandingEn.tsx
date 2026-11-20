@@ -631,7 +631,7 @@ const BODY = `
               <span class="cost-line"><i class="rl-cost"></i>The share the model does not recover <strong id="rbl-rest">₺32,400</strong></span>
             </div>
             <div class="roi-assume">
-              <strong>Assumption:</strong> of the lost revenue, <strong>70%</strong> is taken to be recovered; the remaining 30% is left out of the model. <strong>70% is not measured data, it is our assumption</strong> — if you see it differently, let us change it together. The software cost is taken from the <strong>Professional plan</strong>  (₺2,099 base + ₺25 for each device above the 25 included, paid monthly, excluding VAT). The pricing table shows what the other plans cost at the same device count. Paid yearly you get 2 months free, so the net gain comes out higher than this table shows.
+              <strong>Assumption:</strong> of the lost revenue, <strong>70%</strong> is taken to be recovered; the remaining 30% is left out of the model. <strong>70% is not measured data, it is our assumption</strong> — if you see it differently, let us change it together. The software cost is taken from the <strong>Professional plan</strong>  (₺3,499 base + ₺25 for each device above the 25 included, paid monthly, excluding VAT). The pricing table shows what the other plans cost at the same device count. Paid yearly you get 2 months free, so the net gain comes out higher than this table shows.
             </div>
           </div>
 
@@ -645,7 +645,7 @@ const BODY = `
             <div class="roi-recommend-row">
               <div>
                 <div class="roi-recommend-name" id="roi-rec-name">Professional</div>
-                <p class="roi-recommend-desc"><strong id="roi-rec-detail">60 devices: ₺2,099 base + 35 × ₺25</strong> — for the cost to come back <strong id="roi-rec-payback">&lt; 1 month</strong>. The pricing table shows what the other two plans cost at the same device count.</p>
+                <p class="roi-recommend-desc"><strong id="roi-rec-detail">60 devices: ₺3,499 base + 35 × ₺25</strong> — for the cost to come back <strong id="roi-rec-payback">&lt; 1 month</strong>. The pricing table shows what the other two plans cost at the same device count.</p>
               </div>
               <div class="roi-recommend-price">
                 <div class="roi-recommend-price-num" id="roi-rec-price">₺2,974</div>
@@ -1271,13 +1271,13 @@ const BODY = `
 
     <div class="pricing-grid">
       <!-- BASLANGIC -->
-      <div class="price-card reveal reveal-scale" data-plan="baslangic" data-base="1749" data-included="20">
+      <div class="price-card reveal reveal-scale" data-plan="baslangic" data-base="2999" data-included="20">
         <div class="price-icon">🌱</div>
         <div class="price-name">Starter</div>
         <div class="price-tag">Up to 20 devices</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">1,749</span>
+          <span class="num">2,999</span>
           <span class="period">/ month</span>
           <span class="price-vat">+VAT</span>
         </div>
@@ -1300,18 +1300,19 @@ const BODY = `
       </div>
 
       <!-- PROFESYONEL -->
-      <div class="price-card featured reveal reveal-scale" data-plan="profesyonel" data-base="2099" data-included="25">
+      <div class="price-card featured reveal reveal-scale" data-plan="profesyonel" data-base="3499" data-included="25">
         <div class="price-badge">Where we suggest starting</div>
         <div class="price-icon">⚡</div>
         <div class="price-name">Professional</div>
         <div class="price-tag">21–100 devices</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">2,099</span>
+          <span class="num">3,499</span>
           <span class="period">/ month</span>
           <span class="price-vat">+VAT</span>
         </div>
         <div class="price-note">The first <strong>25</strong> devices included · then ₺25 per device · at most ₺9,999 a month</div>
+        <div class="price-note price-upsell"><strong>Only ₺500 more than Starter</strong>: unlocks meter billing, collections and the Lost Revenue panel</div>
         <div class="price-calc" hidden></div>
         <a href="/kayit" class="btn btn-grad btn-block">Try it free for 14 days</a>
         <ul class="price-features">
@@ -1332,13 +1333,13 @@ const BODY = `
       </div>
 
       <!-- KURUMSAL -->
-      <div class="price-card reveal reveal-scale" data-plan="kurumsal" data-base="5249" data-included="100">
+      <div class="price-card reveal reveal-scale" data-plan="kurumsal" data-base="6999" data-included="100">
         <div class="price-icon">🏢</div>
         <div class="price-name">Enterprise</div>
         <div class="price-tag">100+ devices · up to 50 users</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">5,249</span>
+          <span class="num">6,999</span>
           <span class="period">/ month</span>
           <span class="price-vat">+VAT</span>
         </div>
@@ -1396,7 +1397,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-1" role="region" aria-labelledby="faq-q-1" aria-hidden="true">
-          <p>Base price + included devices + overage. For example: <strong>with 150 rental devices, on the Professional plan</strong> ₺2,099 base + (150 − 25) × ₺25 = <strong>₺5,224/month + VAT</strong>. The per-device charge is ₺25 on all three plans; the monthly amount never goes above <strong>₺9,999</strong>on Professional or <strong>₺19,999</strong> on Enterprise. Rental and cost-per-copy machines are counted; a machine that only comes in for repair is not. Paying yearly, you pay 10 times the monthly total — that is <strong>2 months free</strong>.</p>
+          <p>Base price + included devices + overage. For example: <strong>with 150 rental devices, on the Professional plan</strong> ₺3,499 base + (150 − 25) × ₺25 = <strong>₺6,624/month + VAT</strong>. The per-device charge is ₺25 on all three plans; the monthly amount never goes above <strong>₺9,999</strong>on Professional or <strong>₺19,999</strong> on Enterprise. Rental and cost-per-copy machines are counted; a machine that only comes in for repair is not. Paying yearly, you pay 10 times the monthly total — that is <strong>2 months free</strong>.</p>
         </div>
       </div>
 
@@ -1690,9 +1691,9 @@ document.documentElement.classList.add('js');
   var RECOVERY = 0.70;                 // kacan gelirin geri kazanildigi varsayilan oran
   // tavan: aylik tutar bunu gecmez — src/lib/plan-pricing.ts ceiling ile AYNI (test-paketler kilitli)
   var PLANS = {
-    baslangic:   { name: 'Starter',      base: 1749, included: 20,  tavan: 7499 },
-    profesyonel: { name: 'Professional', base: 2099, included: 25,  tavan: 9999 },
-    kurumsal:    { name: 'Enterprise',   base: 5249, included: 100, tavan: 19999 }
+    baslangic:   { name: 'Starter',      base: 2999, included: 20,  tavan: 7499 },
+    profesyonel: { name: 'Professional', base: 3499, included: 25,  tavan: 9999 },
+    kurumsal:    { name: 'Enterprise',   base: 6999, included: 100, tavan: 19999 }
   };
   function planMonthly(plan, devices) {
     return Math.min(plan.tavan, plan.base + Math.max(0, devices - plan.included) * PER_DEVICE);

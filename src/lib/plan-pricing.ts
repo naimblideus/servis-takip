@@ -32,9 +32,9 @@ export interface PlanPricing {
 }
 
 export const PLAN_PRICING: Record<string, PlanPricing> = {
-  starter:      { base: 1749, includedDevices: 20,  perDevice: 25, ceiling: 7499 },
-  professional: { base: 2099, includedDevices: 25,  perDevice: 25, ceiling: 9999 },
-  enterprise:   { base: 5249, includedDevices: 100, perDevice: 25, ceiling: 19999 },
+  starter:      { base: 2999, includedDevices: 20,  perDevice: 25, ceiling: 7499 },
+  professional: { base: 3499, includedDevices: 25,  perDevice: 25, ceiling: 9999 },
+  enterprise:   { base: 6999, includedDevices: 100, perDevice: 25, ceiling: 19999 },
 };
 
 export const VAT_RATE = 0.20;

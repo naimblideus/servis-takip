@@ -631,7 +631,7 @@ const BODY = `
               <span class="cost-line"><i class="rl-cost"></i>Modelde geri kazanılmayan pay <strong id="rbl-rest">₺32.400</strong></span>
             </div>
             <div class="roi-assume">
-              <strong>Varsayım:</strong> kaçan gelirin <strong>%70'i</strong> geri kazanılıyor kabul edilir; kalan %30 modelde hesaba katılmaz. <strong>%70 ölçülmüş bir veri değil, bizim varsayımımızdır</strong> — siz farklı düşünüyorsanız birlikte değiştirelim. Yazılım maliyeti <strong>Profesyonel pakete</strong> göre alınır (taban ₺2.099 + dahil 25 cihaz üstü her cihaz ₺25, aylık ödeme, KDV hariç). Diğer paketlerin aynı cihaz sayısındaki fiyatını fiyat tablosunda görürsünüz. Yıllık ödemede 2 ay bedava olduğu için net kazanç bu tablodakinden yüksek çıkar.
+              <strong>Varsayım:</strong> kaçan gelirin <strong>%70'i</strong> geri kazanılıyor kabul edilir; kalan %30 modelde hesaba katılmaz. <strong>%70 ölçülmüş bir veri değil, bizim varsayımımızdır</strong> — siz farklı düşünüyorsanız birlikte değiştirelim. Yazılım maliyeti <strong>Profesyonel pakete</strong> göre alınır (taban ₺3.499 + dahil 25 cihaz üstü her cihaz ₺25, aylık ödeme, KDV hariç). Diğer paketlerin aynı cihaz sayısındaki fiyatını fiyat tablosunda görürsünüz. Yıllık ödemede 2 ay bedava olduğu için net kazanç bu tablodakinden yüksek çıkar.
             </div>
           </div>
 
@@ -645,7 +645,7 @@ const BODY = `
             <div class="roi-recommend-row">
               <div>
                 <div class="roi-recommend-name" id="roi-rec-name">Profesyonel</div>
-                <p class="roi-recommend-desc"><strong id="roi-rec-detail">60 cihaz: ₺2.099 taban + 35 × ₺25</strong> — maliyetin geri gelmesi <strong id="roi-rec-payback">&lt; 1 ay</strong>. Diğer iki paketin aynı cihaz sayısındaki fiyatını fiyat tablosunda görebilirsiniz.</p>
+                <p class="roi-recommend-desc"><strong id="roi-rec-detail">60 cihaz: ₺3.499 taban + 35 × ₺25</strong> — maliyetin geri gelmesi <strong id="roi-rec-payback">&lt; 1 ay</strong>. Diğer iki paketin aynı cihaz sayısındaki fiyatını fiyat tablosunda görebilirsiniz.</p>
               </div>
               <div class="roi-recommend-price">
                 <div class="roi-recommend-price-num" id="roi-rec-price">₺2.974</div>
@@ -1271,13 +1271,13 @@ const BODY = `
 
     <div class="pricing-grid">
       <!-- BASLANGIC -->
-      <div class="price-card reveal reveal-scale" data-plan="baslangic" data-base="1749" data-included="20">
+      <div class="price-card reveal reveal-scale" data-plan="baslangic" data-base="2999" data-included="20">
         <div class="price-icon">🌱</div>
         <div class="price-name">Başlangıç</div>
         <div class="price-tag">20 cihaza kadar</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">1.749</span>
+          <span class="num">2.999</span>
           <span class="period">/ ay</span>
           <span class="price-vat">+KDV</span>
         </div>
@@ -1300,18 +1300,19 @@ const BODY = `
       </div>
 
       <!-- PROFESYONEL -->
-      <div class="price-card featured reveal reveal-scale" data-plan="profesyonel" data-base="2099" data-included="25">
+      <div class="price-card featured reveal reveal-scale" data-plan="profesyonel" data-base="3499" data-included="25">
         <div class="price-badge">Önerdiğimiz başlangıç noktası</div>
         <div class="price-icon">⚡</div>
         <div class="price-name">Profesyonel</div>
         <div class="price-tag">21–100 cihaz</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">2.099</span>
+          <span class="num">3.499</span>
           <span class="period">/ ay</span>
           <span class="price-vat">+KDV</span>
         </div>
         <div class="price-note">İlk <strong>25</strong> cihaz dahil · sonrası cihaz başına ₺25 · aylık en fazla ₺9.999</div>
+        <div class="price-note price-upsell"><strong>Başlangıç'tan yalnız ₺500 fazla</strong>: sayaç faturalaması, tahsilat ve Kaçan Gelir paneli açılır</div>
         <div class="price-calc" hidden></div>
         <a href="/kayit" class="btn btn-grad btn-block">14 Gün Ücretsiz Dene</a>
         <ul class="price-features">
@@ -1332,13 +1333,13 @@ const BODY = `
       </div>
 
       <!-- KURUMSAL -->
-      <div class="price-card reveal reveal-scale" data-plan="kurumsal" data-base="5249" data-included="100">
+      <div class="price-card reveal reveal-scale" data-plan="kurumsal" data-base="6999" data-included="100">
         <div class="price-icon">🏢</div>
         <div class="price-name">Kurumsal</div>
         <div class="price-tag">100+ cihaz · 50 kullanıcıya kadar</div>
         <div class="price-amount">
           <span class="currency">₺</span>
-          <span class="num">5.249</span>
+          <span class="num">6.999</span>
           <span class="period">/ ay</span>
           <span class="price-vat">+KDV</span>
         </div>
@@ -1396,7 +1397,7 @@ const BODY = `
           <span class="plus">+</span>
         </button>
         <div class="faq-a" id="faq-a-1" role="region" aria-labelledby="faq-q-1" aria-hidden="true">
-          <p>Taban fiyat + dahil cihaz adedi + aşım. Örnek: <strong>150 kiralık cihazınız varsa Profesyonel pakette</strong> ₺2.099 taban + (150 − 25) × ₺25 = <strong>₺5.224/ay + KDV</strong>. Aşım bedeli üç pakette de ₺25'tir; aylık tutar Profesyonel'de <strong>₺9.999</strong>, Kurumsal'da <strong>₺19.999</strong> tavanını geçmez. Kiralık ve kopya başı anlaşmalı makineler sayılır, yalnız tamire gelen makine sayılmaz. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani <strong>2 ay bedava</strong>.</p>
+          <p>Taban fiyat + dahil cihaz adedi + aşım. Örnek: <strong>150 kiralık cihazınız varsa Profesyonel pakette</strong> ₺3.499 taban + (150 − 25) × ₺25 = <strong>₺6.624/ay + KDV</strong>. Aşım bedeli üç pakette de ₺25'tir; aylık tutar Profesyonel'de <strong>₺9.999</strong>, Kurumsal'da <strong>₺19.999</strong> tavanını geçmez. Kiralık ve kopya başı anlaşmalı makineler sayılır, yalnız tamire gelen makine sayılmaz. Yıllık ödemede aylık toplamın 10 katını ödersiniz — yani <strong>2 ay bedava</strong>.</p>
         </div>
       </div>
 
@@ -1691,9 +1692,9 @@ document.documentElement.classList.add('js');
   var RECOVERY = 0.70;                 // kacan gelirin geri kazanildigi varsayilan oran
   // tavan: aylik tutar bunu gecmez — src/lib/plan-pricing.ts ceiling ile AYNI (test-paketler kilitli)
   var PLANS = {
-    baslangic:   { name: 'Başlangıç',   base: 1749, included: 20,  tavan: 7499 },
-    profesyonel: { name: 'Profesyonel', base: 2099, included: 25,  tavan: 9999 },
-    kurumsal:    { name: 'Kurumsal',    base: 5249, included: 100, tavan: 19999 }
+    baslangic:   { name: 'Başlangıç',   base: 2999, included: 20,  tavan: 7499 },
+    profesyonel: { name: 'Profesyonel', base: 3499, included: 25,  tavan: 9999 },
+    kurumsal:    { name: 'Kurumsal',    base: 6999, included: 100, tavan: 19999 }
   };
   function planMonthly(plan, devices) {
     return Math.min(plan.tavan, plan.base + Math.max(0, devices - plan.included) * PER_DEVICE);
