@@ -103,6 +103,8 @@ export async function POST(req: NextRequest) {
                     phone: phone || null,
                     address: address || null,
                     plan: paketGecerli(plan) ? plan : 'trial',
+                    // Yeni bayide dönem faturası ELLE başlar (lib/tenant-manager ile aynı).
+                    autoInvoiceEnabled: false,
                 },
             });
 

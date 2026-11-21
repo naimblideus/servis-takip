@@ -21,7 +21,8 @@
  * kalan (ve taslağı beklemeyen) müşteriler bir kez daha faturalanır.
  */
 import { prisma } from '@/lib/prisma';
-import { donemFaturasiHazirla } from '@/lib/invoicing';
+import { donemFaturasiHazirla, faturaHesapla, faturaToplami, FATURA_ISLEMI } from '@/lib/invoicing';
+import { bekletmeGerekceleri } from '@/lib/fatura-bekletme';
 import { donemAraligi } from '@/lib/fatura-donemi';
 import { kosuDonemiKapatir, kosuyuKaydet } from '@/lib/fatura-turu';
 
@@ -76,6 +77,51 @@ export async function faturasizKalanMusteriler(tenantId: string, period: string)
     (await prisma.faturaTaslagi.findMany({ where: { tenantId, period, durum: 'BEKLIYOR' }, select: { customerId: true } })).map((t) => t.customerId),
   );
   return satirlar.map((x) => x.customerId).filter((id) => !bekleyen.has(id));
+}
+
+export interface DonemOnizlemesi {
+  /** Onaylanınca hemen kesilecek fatura sayısı ve KDV dahil toplamı */
+  kesilecek: number;
+  toplam: number;
+  /** Şüpheli (ya da bayi onayı açık) olduğu için taslakta bekleyecek olanlar */
+  taslak: number;
+  taslakToplam: number;
+  /** Hesabı yapılamayan müşteri (kesimde de büyük ihtimalle hata alır) */
+  hata: number;
+}
+
+/**
+ * "Dönem Faturala" ÖNCE ÖZET (2026-11-21, yanlış basma koruması): bayi
+ * onaylamadan önce "12 fatura, toplam ₺X kesilecek" görsün.
+ *
+ * HİÇBİR ŞEY YAZMAZ. Koşunun her müşteri için yaptığı hesabın aynısını
+ * (faturaHesapla + bekletme kuralları) yazma adımı olmadan yapar; böylece
+ * özetteki sayı kesilecek sayıyla aynı kaynaktan gelir. Kesim anında hesap
+ * yeniden yapılır: arada yeni okuma gelirse kesilen tutar özetten farklı
+ * olabilir (ekran sonucu ayrıca gösterir).
+ */
+export async function donemOnizlemesi(tenantId: string, period: string): Promise<DonemOnizlemesi> {
+  const customers = await prisma.customer.findMany({ where: { tenantId }, select: { id: true } });
+  const o: DonemOnizlemesi = { kesilecek: 0, toplam: 0, taslak: 0, taslakToplam: 0, hata: 0 };
+  for (const { id } of customers) {
+    try {
+      const r = await prisma.$transaction(async (tx) => {
+        const h = await faturaHesapla(tx, tenantId, id, period);
+        if (h.lines.length === 0) return null;
+        const { totalAmount } = faturaToplami(h.lines, Number(h.tenant.vatRate));
+        const gerekceler = await bekletmeGerekceleri(tx, tenantId, period, h.cihazlar);
+        return { totalAmount, taslak: gerekceler.length > 0 || h.tenant.faturaOnayi === 'ELLE' };
+      }, FATURA_ISLEMI);
+      if (!r) continue;
+      if (r.taslak) { o.taslak++; o.taslakToplam += r.totalAmount; }
+      else { o.kesilecek++; o.toplam += r.totalAmount; }
+    } catch {
+      o.hata++;
+    }
+  }
+  o.toplam = round2(o.toplam);
+  o.taslakToplam = round2(o.taslakToplam);
+  return o;
 }
 
 export async function bayiDoneminiFaturala(

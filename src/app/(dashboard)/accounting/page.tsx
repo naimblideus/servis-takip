@@ -269,11 +269,22 @@ export default function AccountingPage() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // Açık servis fişlerini toplu olarak cariye işle (idempotent, güvenli)
+  // Açık servis fişlerini toplu olarak cariye işle (idempotent, güvenli).
+  // ÖNCE ÖZET (yanlış basma koruması): kaç fiş, kaç TL cariye düşecek, sonra onay.
   const backfillCari = async () => {
-    if (!confirm(sz.muhasebe.aktarSor)) return;
     setBackfilling(true);
     try {
+      const o = await fetch('/api/tickets/backfill-cari');
+      const oz = await o.json().catch(() => ({}));
+      if (!o.ok) { alert(oz.error || sz.muhasebe.aktarilamadi); setBackfilling(false); return; }
+      if (!oz.yeni && !oz.degisen) { alert(sz.muhasebe.aktarYok); setBackfilling(false); return; }
+      const satirlar = [
+        oz.yeni ? doldur(sz.muhasebe.aktarYeni, { n: oz.yeni, tutar: b.para(oz.yeniTutar) }) : '',
+        oz.degisen ? doldur(sz.muhasebe.aktarDegisen, { n: oz.degisen, fark: b.para(oz.fark) }) : '',
+        oz.faturali ? doldur(sz.muhasebe.aktarFaturali, { n: oz.faturali }) : '',
+        sz.muhasebe.aktarSor,
+      ].filter(Boolean);
+      if (!confirm(satirlar.join('\n\n'))) { setBackfilling(false); return; }
       const r = await fetch('/api/tickets/backfill-cari', { method: 'POST' });
       const d = await r.json().catch(() => ({}));
       if (r.ok) { alert(doldur(sz.muhasebe.aktarildi, { n: d.synced, toplam: d.processed })); loadData(); }
@@ -634,6 +645,15 @@ export default function AccountingPage() {
         </div>
       </div>
 
+      {/* Toplu düğmeler ne yapar: bayi basmadan önce bilsin (yanlış basma koruması). */}
+      {activeTab==='accounting' && (
+        <details className="print-hide" style={{marginBottom:'1rem',backgroundColor:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'0.5rem',padding:'0.6rem 0.85rem',fontSize:'0.85rem',color:'#334155'}}>
+          <summary style={{cursor:'pointer',fontWeight:600}}>{sz.muhasebe.topluNeYapar}</summary>
+          <p style={{margin:'0.5rem 0 0',lineHeight:1.55}}>{sz.muhasebe.fisleriAktarNe}</p>
+          <p style={{margin:'0.4rem 0 0',lineHeight:1.55}}>{sz.muhasebe.kiraSayacNe}</p>
+        </details>
+      )}
+
       {/* TAB BAR */}
       <div style={{display:'flex',gap:'0.25rem',backgroundColor:'#f3f4f6',borderRadius:'0.625rem',padding:'0.3rem',marginBottom:'1.5rem',width:'fit-content'}} className="print-hide">
         {([['accounting',sz.muhasebe.sekme.muhasebe],['expense',sz.muhasebe.sekme.gider],['stock',sz.muhasebe.sekme.stok]] as [string,string][]).map(([k,l])=>(
@@ -934,6 +954,8 @@ export default function AccountingPage() {
                     <button onClick={() => { selectFormCust({ id: selCust.id, name: selCust.name, phone: selCust.phone }); setShowForm(true); }} style={{backgroundColor:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'0.5rem',padding:'0.5rem 0.875rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:'500'}}>{sz.muhasebe.kayitEkle}</button>
                   </div>
                 </div>
+                {/* Kira/Sayaç Ekle ne yapar — bayi basmadan bilsin. */}
+                <p className="print-hide" style={{margin:'0.6rem 0 0',fontSize:'0.75rem',opacity:0.8,lineHeight:1.5}}>{sz.muhasebe.kiraSayacNe}</p>
                 {/* Tek gerçek önce, kırılımı sonra: bayinin sorduğu soru
                     "bu müşteri bana ne kadar borçlu" — cevabı büyük yazıyor. */}
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(10rem,1fr))',gap:'0.75rem',marginTop:'1rem'}}>

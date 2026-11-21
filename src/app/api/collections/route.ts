@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { ucHatasi } from '@/lib/uc-hata';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { allocatePayment } from '@/lib/invoicing';
+import { allocatePaymentTx, musteriyiKilitle } from '@/lib/invoicing';
+import { tahsilatiDenetle, TahsilatKorumasi } from '@/lib/tahsilat-koruma';
 import { docToken } from '@/lib/doc-token';
 import { oturumKullanicisi, requireAdminUser, authErrorResponse } from '@/lib/api-auth';
 
@@ -29,14 +30,32 @@ export async function POST(req: Request) {
     });
     if (!customer) return ucHatasi('MUSTERI_BULUNAMADI', 404);
 
-    const result = await allocatePayment({
-      tenantId: user.tenantId,
-      customerId,
-      amount: Number(amount),
-      method: method || 'TRANSFER',
-      referenceNo: referenceNo || null,
-      date: date ? new Date(date) : undefined,
-    });
+    // YANLIŞ BASMA KORUMASI (lib/tahsilat-koruma): açık faturayı aşan tutar ya
+    // da 2 dakika içinde aynı tahsilat, bayi açıkça onaylamadan kaydedilmez.
+    // Kontrol ve kayıt aynı işlemde, müşteri kilidi altında.
+    let result;
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        await musteriyiKilitle(tx, user.tenantId, customerId);
+        await tahsilatiDenetle(tx, {
+          tenantId: user.tenantId, customerId, tutar: Number(amount),
+          fazlaOnay: body.fazlaOnay === true, tekrarOnay: body.tekrarOnay === true,
+        });
+        return allocatePaymentTx(tx, {
+          tenantId: user.tenantId,
+          customerId,
+          amount: Number(amount),
+          method: method || 'TRANSFER',
+          referenceNo: referenceNo || null,
+          date: date ? new Date(date) : undefined,
+        });
+      });
+    } catch (e) {
+      if (e instanceof TahsilatKorumasi) {
+        return NextResponse.json({ error: 'Tahsilat onay bekliyor', kod: e.uyari.kod, uyari: e.uyari }, { status: 409 });
+      }
+      throw e;
+    }
 
     return NextResponse.json({ success: true, ...result, receiptToken: docToken('makbuz', result.paymentId) });
   } catch (e: any) {

@@ -76,6 +76,11 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
                 district: input.district,
                 businessType: input.businessType || 'general',
                 hesapTuru: tur,
+                // Yeni bayide kira/sayaç faturası ELLE başlar (2026-11-21, Saygılı olayı):
+                // otomatik kesim, bayi Ayarlar > Dönem faturası'ndan bilgilendirmeyi
+                // okuyup açınca başlar. Şema varsayılanı (true) eski hesaplar ve
+                // testler için olduğu gibi duruyor.
+                autoInvoiceEnabled: false,
                 // sayacEpostaKodu BURADA üretilmez: veritabanı trigger üretir
                 // (migration 20260815140000). Bayi 6 ayrı yerde oluşturuluyor,
                 // yalnız biri buradan geçiyor — garanti tek yerde, veritabanında.

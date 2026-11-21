@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { SUPHELI_KAT, type TahsilatUyarisi } from '@/lib/tahsilat-koruma';
 import Link from 'next/link';
 import { icerir } from '@/lib/tr-katla';
 import { useSession } from 'next-auth/react';
@@ -57,26 +58,41 @@ export default function CollectionsPage() {
   }, [loadOpen]);
 
   const pickCustomer = (c: Cust) => {
-    setSel(c); setCustSearch(c.name); setShowDrop(false); setResult(null); setErr(null);
+    setSel(c); setCustSearch(c.name); setShowDrop(false); setResult(null); setErr(null); formDegisti();
     loadOpen(c.id);
   };
 
-  const submit = async () => {
+  // YANLIŞ BASMA KORUMASI (lib/tahsilat-koruma). Sunucu açık faturayı aşan
+  // tutarı ya da 2 dakikada ikinci kez gelen aynı tahsilatı 409 ile geri
+  // çevirir; ekran nedenini gösterir, bayi "doğru" derse aynı istek onayla
+  // yeniden gider. kilit: çift tıklamada ikinci istek hiç çıkmasın.
+  const kilit = useRef(false);
+  const [uyari, setUyari] = useState<TahsilatUyarisi | null>(null);
+  const [onaylar, setOnaylar] = useState<{ fazlaOnay?: boolean; tekrarOnay?: boolean }>({});
+  const formDegisti = () => { setUyari(null); setOnaylar({}); };
+
+  const submit = async (ek: { fazlaOnay?: boolean; tekrarOnay?: boolean } = {}) => {
     if (!sel || !amount || Number(amount) <= 0) { setErr(t.tahsilat.zorunlu); return; }
-    setSaving(true); setErr(null); setResult(null);
+    if (kilit.current) return;
+    kilit.current = true;
+    const onay = { ...onaylar, ...ek };
+    setSaving(true); setErr(null); setResult(null); setUyari(null);
     try {
       const res = await fetch('/api/collections', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId: sel.id, amount: Number(amount), method, referenceNo: refNo || null, date }),
+        body: JSON.stringify({ customerId: sel.id, amount: Number(amount), method, referenceNo: refNo || null, date, ...onay }),
       });
       const d = await res.json();
       if (res.ok) {
         setResult({ paymentId: d.paymentId, receiptToken: d.receiptToken, allocations: d.allocations, allocated: d.allocated, unallocated: d.unallocated });
-        setAmount(''); setRefNo('');
+        setAmount(''); setRefNo(''); setOnaylar({});
         loadOpen(sel.id);
+      } else if (res.status === 409 && d.uyari) {
+        setOnaylar(onay); setUyari(d.uyari as TahsilatUyarisi);
       } else setErr(d.error || t.genel.hata);
     } catch { setErr(t.sayacTuru.sunucuYok); }
     setSaving(false);
+    kilit.current = false;
   };
 
   // Türkçe katlanarak: düz toLowerCase "ADLİYE"yi "adliye" aramasıyla bulamıyordu.
@@ -137,7 +153,7 @@ export default function CollectionsPage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">{doldur(t.tahsilat.tutar, { birim: b.simge })}</label>
-            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00"
+            <input type="number" value={amount} onChange={(e) => { setAmount(e.target.value); formDegisti(); }} placeholder="0,00"
               className="w-full px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
@@ -161,10 +177,39 @@ export default function CollectionsPage() {
 
         {err && <p className="text-sm text-red-600">{err}</p>}
 
-        <button onClick={submit} disabled={saving || !sel}
-          className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50">
-          {saving ? t.genel.kaydediliyor : t.tahsilat.kaydet}
-        </button>
+        {uyari ? (
+          <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2">
+            <p className="font-semibold text-amber-900">
+              {uyari.kod === 'FAZLA_TUTAR' ? t.tahsilat.fazlaBaslik : t.tahsilat.ayniBaslik}
+            </p>
+            <p className="text-sm text-amber-900">
+              {uyari.kod === 'FAZLA_TUTAR'
+                ? (uyari.acik > 0
+                  ? doldur(t.tahsilat.fazlaMetin, { tutar: fmt(uyari.tutar), acik: fmt(uyari.acik), avans: fmt(uyari.avans) })
+                  : doldur(t.tahsilat.fazlaHicFatura, { tutar: fmt(uyari.tutar) }))
+                : doldur(t.tahsilat.ayniMetin, { tutar: fmt(uyari.tutar), sn: String(uyari.saniyeOnce) })}
+            </p>
+            {uyari.kod === 'FAZLA_TUTAR' && uyari.kat !== null && uyari.kat >= SUPHELI_KAT && (
+              <p className="text-sm font-semibold text-red-700">{doldur(t.tahsilat.fazlaKat, { kat: b.sayi(uyari.kat) })}</p>
+            )}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button type="button" onClick={() => setUyari(null)}
+                className="px-3 py-2 rounded-lg border bg-white text-sm font-medium text-gray-800 hover:bg-gray-50">
+                {t.tahsilat.duzelt}
+              </button>
+              <button type="button" disabled={saving}
+                onClick={() => submit(uyari.kod === 'FAZLA_TUTAR' ? { fazlaOnay: true } : { tekrarOnay: true })}
+                className="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50">
+                {uyari.kod === 'FAZLA_TUTAR' ? t.tahsilat.evetKaydet : t.tahsilat.ayniKaydet}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => submit()} disabled={saving || !sel}
+            className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50">
+            {saving ? t.genel.kaydediliyor : t.tahsilat.kaydet}
+          </button>
+        )}
 
         {/* Sonuç */}
         {result && (

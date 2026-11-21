@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { requireTenantUser, authErrorResponse, requireAdminUser } from '@/lib/api-auth';
 import { acikDonem, donemOkumaKosulu, gecerliDonem, kapananDonem, kesimGunu, varsayilanElleDonem } from '@/lib/fatura-donemi';
 import { kiraSartiEksik, KIRA_EKSIK_LISTE_AZAMI } from '@/lib/kira-sarti';
+import { donemOnizlemesi } from '@/lib/fatura-kosusu';
 
 // GET /api/invoices/preflight?period=YYYY-MM
 // FATURA ÖNCESİ SAYAÇ ÖN KONTROLÜ: bu dönem sayacı HİÇ okunmamış kiralık cihazlar.
@@ -37,8 +38,11 @@ export async function GET(req: NextRequest) {
         customer: { select: { id: true, name: true, phone: true } },
       },
     });
+    // ÖNCE ÖZET: kaç fatura, kaç TL kesilecek (hiçbir şey yazmadan, lib/fatura-kosusu).
+    // Kiralık cihaz olmasa da teslim edilmiş iş emri faturası çıkabilir; o yüzden her durumda.
+    const onizleme = await donemOnizlemesi(tenantId, period);
     if (devices.length === 0) {
-      return NextResponse.json({ period, secenekler, missingCount: 0, customerCount: 0, totalRental: 0, customers: [], kiraEksik: [], kiraEksikSayisi: 0 });
+      return NextResponse.json({ period, secenekler, missingCount: 0, customerCount: 0, totalRental: 0, customers: [], kiraEksik: [], kiraEksikSayisi: 0, onizleme });
     }
 
     // KİRA BİLGİSİ EKSİK kiralık cihazlar (lib/kira-sarti): sahada "kiralık"
@@ -87,6 +91,7 @@ export async function GET(req: NextRequest) {
       customers,
       kiraEksik,
       kiraEksikSayisi: kiraEksikHepsi.length,
+      onizleme,
     });
   } catch (e) {
     return authErrorResponse(e);

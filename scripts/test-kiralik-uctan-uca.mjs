@@ -157,7 +157,10 @@ try {
   t('faturalanmış okuma silinemez', faturali.durum === 409, faturali);
 
   console.log('\n6 · TAHSİLAT VE AVANS\n');
-  const od = await istek('/api/collections', 'POST', { customerId: musteriId, amount: 10000, method: 'TRANSFER' });
+  // Yanlış basma koruması: açık faturayı aşan tutar onaysız kaydedilmez (lib/tahsilat-koruma).
+  const odOnaysiz = await istek('/api/collections', 'POST', { customerId: musteriId, amount: 10000, method: 'TRANSFER' });
+  t('★ açık faturayı aşan tahsilat onaysız → 409 FAZLA_TUTAR', odOnaysiz.durum === 409 && odOnaysiz.veri?.kod === 'FAZLA_TUTAR', odOnaysiz);
+  const od = await istek('/api/collections', 'POST', { customerId: musteriId, amount: 10000, method: 'TRANSFER', fazlaOnay: true });
   t('₺10.000 tahsilat: ₺6.060 faturaya, ₺3.940 avans', od.durum === 200 && Number(od.veri?.allocated ?? od.veri?.result?.allocated) === 6060, od.veri);
   const f1 = await p.customerInvoice.findUnique({ where: { id: fatura.id } });
   t('fatura ödendi', f1.status === 'PAID' && Number(f1.paidAmount) === 6060, { durum: f1.status, odenen: Number(f1.paidAmount) });

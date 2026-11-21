@@ -160,10 +160,14 @@ export default function InvoicesPage() {
           {/* Dönem faturası klibi: kira + aşım hesabı, eksik sayaç uyarısı ve kesmeden önce taslakta bekletme. */}
           <EgitimVideosu kod="kiralik-fatura" className="mt-2" />
         </div>
-        <button onClick={() => openPreflight()} disabled={running}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-          {running ? t.faturalar.kesiliyor : t.faturalar.faturala}
-        </button>
+        <div className="flex flex-col items-end gap-1 max-w-sm">
+          <button onClick={() => openPreflight()} disabled={running}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+            {running ? t.faturalar.kesiliyor : t.faturalar.faturala}
+          </button>
+          {/* Toplu düğme ne yapar: bayi basmadan önce bilsin. */}
+          <p className="text-xs text-gray-500 text-right leading-snug">{t.faturalar.faturalaNe}</p>
+        </div>
       </div>
 
       {msg && <div role="status" className="mb-4 p-3 rounded-lg bg-gray-50 border text-sm text-gray-700">{msg}</div>}
@@ -259,6 +263,20 @@ export default function InvoicesPage() {
                       );
                     })}
                   </div>
+                </div>
+              )}
+              {/* ÖNCE ÖZET (yanlış basma koruması): onaylanınca ne kesilecek. Hesap sunucuda, yazmadan. */}
+              {!preflight.loading && preflight.data?.onizleme && (
+                <div style={{ marginTop: '.8rem', borderRadius: 10, background: '#F7F9FC', border: '1px solid #e5e9f2', padding: '.7rem .85rem', fontSize: '.88rem', color: '#0B1533', lineHeight: 1.55 }}>
+                  {preflight.data.onizleme.kesilecek > 0
+                    ? <b>{doldur(t.faturalar.ozetKesilecek, { n: preflight.data.onizleme.kesilecek, tutar: fmt(preflight.data.onizleme.toplam) })}</b>
+                    : <b>{t.faturalar.ozetHicYok}</b>}
+                  {preflight.data.onizleme.taslak > 0 && (
+                    <div style={{ color: '#5B6479' }}>{doldur(t.faturalar.ozetTaslak, { n: preflight.data.onizleme.taslak, tutar: fmt(preflight.data.onizleme.taslakToplam) })}</div>
+                  )}
+                  {preflight.data.onizleme.hata > 0 && (
+                    <div style={{ color: '#B45309' }}>{doldur(t.faturalar.ozetHata, { n: preflight.data.onizleme.hata })}</div>
+                  )}
                 </div>
               )}
               {!preflight.loading && preflight.data?.missingCount > 0 && (

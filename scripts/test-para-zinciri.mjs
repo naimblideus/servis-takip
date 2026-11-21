@@ -32,7 +32,7 @@ const d = await ice('lib/fatura-donemi');
 const kd = await ice('lib/kira-donemi');
 const { donemFaturasiHazirla, buildInvoiceForCustomerPeriod, allocatePayment } = await ice('lib/invoicing');
 const { createReading, okumaDuzelt, okumaSil, okumaBeyani } = await ice('lib/readings');
-const { bayiDoneminiFaturala, faturasizKalanMusteriler } = await ice('lib/fatura-kosusu');
+const { bayiDoneminiFaturala, faturasizKalanMusteriler, donemOnizlemesi } = await ice('lib/fatura-kosusu');
 const { bitmemisDonemler, donemKapaliMi } = await ice('lib/fatura-turu');
 const { commitPeriodCharges, cariKaydiSil } = await ice('lib/period-charges');
 const { cihazAyriliyor } = await ice('lib/okuma-sahibi');
@@ -289,7 +289,12 @@ if (!/@(localhost|127\.0\.0\.1)[:/]/.test(dbUrl)) {
       t('★ hata varken dönem TAMAM olmaz (HATA)', tur1.durum === 'HATA' && !r1.kapandi && !(await donemKapaliMi(b2.id, '2026-07')), tur1.durum);
       t('★ gece işinin yeniden deneyeceği dönemler arasında', (await bitmemisDonemler(b2.id, '2026-09')).includes('2026-07'));
       await p.customerInvoice.delete({ where: { id: blok.id } });
+      // ÖNCE ÖZET (yanlış basma koruması): önizleme hiçbir şey yazmaz ve kesilenle aynı sayıyı söyler.
+      const oncesi = await p.customerInvoice.count({ where: { tenantId: b2.id } });
+      const on = await donemOnizlemesi(b2.id, '2026-07');
+      t('★ önizleme hiçbir fatura yazmaz', (await p.customerInvoice.count({ where: { tenantId: b2.id } })) === oncesi);
       const r2 = await bayiDoneminiFaturala(b2.id, '2026-07', 'CRON', 1);
+      t('★ önizlemenin söylediği = kesilen (sayı ve tutar)', on.kesilecek === r2.invoices && Math.abs(on.toplam - r2.total) < 0.01 && on.hata === 0, { on, r2 });
       t('★ yeniden denemede yalnız kalan müşteri kesilir', r2.invoices === 1 && r2.errors === 0 && r2.kapandi, r2);
       const tur2 = await p.faturaTuru.findUnique({ where: { tenantId_period: { tenantId: b2.id, period: '2026-07' } } });
       t('dönem TAMAM, toplam 2 fatura, hata 0', tur2.durum === 'TAMAM' && tur2.faturaSayisi === 2 && tur2.hataSayisi === 0, { d: tur2.durum, f: tur2.faturaSayisi, h: tur2.hataSayisi });
